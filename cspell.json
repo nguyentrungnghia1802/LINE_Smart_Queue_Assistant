@@ -1,0 +1,72 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "linequeue",
+    "liff",
+    "monorepo",
+    "workspaces",
+    "vite",
+    "vitest",
+    "tsconfig",
+    "tsbuildinfo",
+    "tslib",
+    "typecheck",
+    "dotenv",
+    "dotenvconfig",
+    "rimraf",
+    "cors",
+    "middlewares",
+    "upsert",
+    "postgresql",
+    "postgres",
+    "psql",
+    "commitlint",
+    "commitlintrc",
+    "lintstagedrc",
+    "husky",
+    "eslintrc",
+    "prettierrc",
+    "editorconfig",
+    "nvmrc",
+    "tsqueue",
+    "cspell",
+    "helmetjs",
+    "morganjs",
+    "passthrough",
+    "unhandled",
+    "uncaught",
+    "argv",
+    "lineapp",
+    "linecorp",
+    "linebot",
+    "webp",
+    "rollup",
+    "bundler",
+    "sourcemap",
+    "serverless",
+    "healthcheck"
+  ],
+  "ignorePaths": [
+    "node_modules/**",
+    "dist/**",
+    "build/**",
+    "coverage/**",
+    "*.lock",
+    "package-lock.json",
+    "*.tsbuildinfo",
+    "*.min.js",
+    ".git/**"
+  ],
+  "ignoreRegExpList": [
+    "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+    "\\b[A-Z0-9_]{10,}\\b"
+  ],
+  "flagWords": [],
+  "overrides": [
+    {
+      "filename": "**/*.md",
+      "words": ["monorepo", "liff", "linequeue"]
+    }
+  ]
+}
