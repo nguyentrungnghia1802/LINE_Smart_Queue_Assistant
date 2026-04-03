@@ -1,0 +1,41 @@
+# ── Dependencies (installed inside image via npm ci) ──────────────────────────
+node_modules
+**/node_modules
+
+# ── Build outputs (rebuilt inside image) ─────────────────────────────────────
+dist
+**/dist
+build
+**/build
+
+# ── TypeScript incremental build cache ───────────────────────────────────────
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# ── Test / coverage artifacts ────────────────────────────────────────────────
+coverage
+**/coverage
+*.lcov
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── Secrets — never bake into the image ──────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Local dev tool state ─────────────────────────────────────────────────────
+.husky
+.git
+.github
+
+# ── Editor / OS noise ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# ── Docker volumes (if using named bind mounts locally) ──────────────────────
+docker/volumes
