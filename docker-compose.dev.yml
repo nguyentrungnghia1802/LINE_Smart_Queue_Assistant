@@ -1,0 +1,35 @@
+version: '3.9'
+
+# ── Development overrides ──────────────────────────────────────────────────────
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  api:
+    build:
+      target: builder     # stop at builder stage for hot-reload
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./apps/api/src:/app/apps/api/src
+      - ./packages/shared/src:/app/packages/shared/src
+    command: npm run dev -w apps/api
+    ports:
+      - "4000:4000"
+      - "9229:9229"       # Node.js debugger port
+
+  web:
+    build:
+      target: builder
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./apps/web/src:/app/apps/web/src
+      - ./packages/shared/src:/app/packages/shared/src
+    command: npm run dev -w apps/web -- --host 0.0.0.0
+    ports:
+      - "5173:5173"

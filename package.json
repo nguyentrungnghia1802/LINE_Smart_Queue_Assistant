@@ -1,0 +1,32 @@
+{
+  "name": "line-smart-queue",
+  "version": "0.0.1",
+  "private": true,
+  "description": "LINE Smart Queue Assistant — production-ready monorepo",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build -w packages/shared && npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "lint:fix": "npm run lint:fix --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\" --ignore-path .gitignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\" --ignore-path .gitignore",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present",
+    "prepare": "npm run build -w packages/shared"
+  },
+  "devDependencies": {
+    "@line-queue/config": "*",
+    "prettier": "^3.3.2",
+    "typescript": "^5.4.5"
+  }
+}

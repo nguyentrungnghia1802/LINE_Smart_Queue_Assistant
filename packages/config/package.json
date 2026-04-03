@@ -1,0 +1,23 @@
+{
+  "name": "@line-queue/config",
+  "version": "0.0.1",
+  "description": "Shared ESLint, Prettier, and TypeScript configurations",
+  "private": true,
+  "exports": {
+    "./eslint": "./eslint/index.js",
+    "./eslint/react": "./eslint/react.js",
+    "./prettier": "./prettier/index.js",
+    "./typescript/base.json": "./typescript/base.json",
+    "./typescript/react.json": "./typescript/react.json",
+    "./typescript/node.json": "./typescript/node.json"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.13.0",
+    "@typescript-eslint/parser": "^7.13.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.2",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.7",
+    "prettier": "^3.3.2"
+  }
+}
