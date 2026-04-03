@@ -1,0 +1,23 @@
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+# Always allow protected branches
+case "$branch" in
+  main|master|develop) exit 0 ;;
+esac
+
+# Enforce: <type>/<short-description>
+if ! echo "$branch" | grep -qE '^(feat|fix|hotfix|chore|refactor|test|docs|ci|release|perf)/.+$'; then
+  echo ""
+  echo "  Branch '$branch' does not follow the naming convention."
+  echo ""
+  echo "  Expected:  <type>/<short-description>"
+  echo "  Examples:"
+  echo "    feat/add-queue-management"
+  echo "    fix/ticket-status-transition"
+  echo "    chore/update-deps"
+  echo "    release/1.2.0"
+  echo ""
+  echo "  Allowed types: feat, fix, hotfix, chore, refactor, test, docs, ci, release, perf"
+  echo ""
+  exit 1
+fi
