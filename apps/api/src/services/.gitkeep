@@ -1,0 +1,2 @@
+# Business logic layer — no express imports here.
+# Services are unit-testable in isolation (dependency injection friendly).

@@ -1,0 +1,3 @@
+# Controllers handle HTTP request/response.
+# Each file corresponds to one domain resource (e.g. queuesController.ts).
+# Controllers delegate all business logic to the services layer.
