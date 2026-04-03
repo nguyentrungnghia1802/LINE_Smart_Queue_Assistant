@@ -23,7 +23,16 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "spell:check": "cspell \"**/*.{ts,tsx,md}\" --no-progress --show-context",
     "clean": "npm run clean --workspaces --if-present",
-    "prepare": "npm run build -w packages/shared && husky"
+    "prepare": "npm run build -w packages/shared && husky",
+    "docker:dev": "docker compose -f docker-compose.dev.yml up --build",
+    "docker:dev:d": "docker compose -f docker-compose.dev.yml up --build -d",
+    "docker:dev:down": "docker compose -f docker-compose.dev.yml down",
+    "docker:dev:logs": "docker compose -f docker-compose.dev.yml logs -f",
+    "docker:dev:ps": "docker compose -f docker-compose.dev.yml ps",
+    "docker:prod": "docker compose up --build",
+    "docker:prod:d": "docker compose up --build -d",
+    "docker:prod:down": "docker compose down",
+    "docker:clean": "docker compose -f docker-compose.dev.yml down --volumes --remove-orphans"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",
