@@ -1,35 +1,92 @@
 version: '3.9'
 
-# ── Development overrides ──────────────────────────────────────────────────────
-# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# ── Development stack (standalone — not an overlay) ─────────────────────────────
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build
+#   docker compose -f docker-compose.dev.yml up --build -d
+#
+# Features:
+#   - Hot-reload: source directories are mounted as volumes
+#   - API: ts-node-dev restarts on file changes
+#   - Web: Vite HMR (instant browser refresh)
+#   - Node.js debugger port 9229 exposed (attach VS Code)
+#   - Separate DB volume (will not affect prod data)
+#
+# Reads: .env  (copy from .env.example)
 
 services:
 
+  # ── PostgreSQL (dev) ────────────────────────────────────────────────────────
   postgres:
+    image: postgres:16-alpine
+    container_name: lq-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-line_queue_dev}
+      POSTGRES_USER:     ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-line_queue_dev}"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
 
+  # ── API dev (ts-node-dev hot-reload) ────────────────────────────────────────
   api:
     build:
-      target: builder     # stop at builder stage for hot-reload
+      context: .
+      dockerfile: docker/api/Dockerfile
+      target: dev               # Uses the dev stage — NOT builder/runner
+    container_name: lq-dev-api
+    restart: unless-stopped
+    env_file: .env
     environment:
-      NODE_ENV: development
+      NODE_ENV:     development
+      API_PORT:     4000
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-dev_password}@postgres:5432/${DB_NAME:-line_queue_dev}
+      CORS_ORIGIN:  http://localhost:5173
     volumes:
+      # Mount source for live-reload — changes reflect without rebuilding image
       - ./apps/api/src:/app/apps/api/src
       - ./packages/shared/src:/app/packages/shared/src
-    command: npm run dev -w apps/api
+      - ./packages/config:/app/packages/config
     ports:
       - "4000:4000"
-      - "9229:9229"       # Node.js debugger port
+      - "9229:9229"             # Node.js inspector — attach via VS Code or Chrome DevTools
+    depends_on:
+      postgres:
+        condition: service_healthy
 
+  # ── Web dev (Vite HMR) ──────────────────────────────────────────────────────
   web:
     build:
-      target: builder
+      context: .
+      dockerfile: docker/web/Dockerfile
+      target: dev               # Uses the dev stage — NOT builder/runner
+    container_name: lq-dev-web
+    restart: unless-stopped
+    env_file: .env
     environment:
-      NODE_ENV: development
+      NODE_ENV:    development
+      # Vite dev server reads these at startup (not build-time, unlike production)
+      VITE_API_URL:  http://localhost:4000
+      VITE_APP_NAME: ${VITE_APP_NAME:-LINE Smart Queue Assistant}
     volumes:
+      # Mount source for HMR — Vite detects changes instantly
       - ./apps/web/src:/app/apps/web/src
+      - ./apps/web/index.html:/app/apps/web/index.html
+      - ./apps/web/vite.config.ts:/app/apps/web/vite.config.ts
       - ./packages/shared/src:/app/packages/shared/src
-    command: npm run dev -w apps/web -- --host 0.0.0.0
     ports:
-      - "5173:5173"
+      - "5173:5173"             # Vite dev server with HMR
+    depends_on:
+      - api
+
+volumes:
+  postgres_dev_data:            # Separate volume — dev data never touches prod
+
