@@ -1,5 +1,6 @@
 import { createApp } from './app';
 import { config } from './config';
+import { closePool } from './db/client';
 
 const app = createApp();
 
@@ -11,8 +12,10 @@ const server = app.listen(config.port, config.host, () => {
 // ── Graceful shutdown ──────────────────────────────────────────────────────────
 const shutdown = (signal: string) => {
   console.info(`\n${signal} received — shutting down gracefully…`);
-  server.close(() => {
+  server.close(async () => {
     console.info('HTTP server closed.');
+    await closePool();
+    console.info('DB pool closed.');
     process.exit(0);
   });
 };
