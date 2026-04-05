@@ -32,7 +32,13 @@
     "docker:prod": "docker compose up --build",
     "docker:prod:d": "docker compose up --build -d",
     "docker:prod:down": "docker compose down",
-    "docker:clean": "docker compose -f docker-compose.dev.yml down --volumes --remove-orphans"
+    "docker:clean": "docker compose -f docker-compose.dev.yml down --volumes --remove-orphans",
+    "db:migrate": "npm run db:migrate -w apps/api",
+    "db:migrate:down": "npm run db:migrate:down -w apps/api",
+    "db:migrate:redo": "npm run db:migrate:redo -w apps/api",
+    "db:migrate:status": "npm run db:migrate:status -w apps/api",
+    "db:seed": "npm run db:seed -w apps/api",
+    "db:seed:reset": "npm run db:seed:reset -w apps/api"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",
