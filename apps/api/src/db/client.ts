@@ -1,4 +1,5 @@
-import { Pool, PoolClient, QueryResult } from 'pg';
+import { Pool, PoolClient } from 'pg';
+
 import { config } from '../config';
 
 // ── Connection pool ────────────────────────────────────────────────────────────
@@ -28,35 +29,29 @@ pool.on('error', (err) => {
  * Run a parameterized query on a pool connection.
  * Returns typed rows array (empty array when zero rows).
  */
-export async function query<T extends Record<string, unknown>>(
-  sql: string,
-  params?: unknown[],
-): Promise<T[]> {
-  const result: QueryResult<T> = await pool.query<T>(sql, params);
-  return result.rows;
+export async function query<T>(sql: string, params?: unknown[]): Promise<T[]> {
+  const result = await pool.query(sql, params);
+  return result.rows as T[];
 }
 
 /**
  * Run a query and return the first row, or `null` if no rows match.
  */
-export async function queryOne<T extends Record<string, unknown>>(
-  sql: string,
-  params?: unknown[],
-): Promise<T | null> {
-  const result: QueryResult<T> = await pool.query<T>(sql, params);
-  return result.rows[0] ?? null;
+export async function queryOne<T>(sql: string, params?: unknown[]): Promise<T | null> {
+  const result = await pool.query(sql, params);
+  return (result.rows[0] as T) ?? null;
 }
 
 /**
  * Run a query on an existing PoolClient (within a transaction).
  */
-export async function queryWithClient<T extends Record<string, unknown>>(
+export async function queryWithClient<T>(
   client: PoolClient,
   sql: string,
-  params?: unknown[],
+  params?: unknown[]
 ): Promise<T[]> {
-  const result: QueryResult<T> = await client.query<T>(sql, params);
-  return result.rows;
+  const result = await client.query(sql, params);
+  return result.rows as T[];
 }
 
 /**
