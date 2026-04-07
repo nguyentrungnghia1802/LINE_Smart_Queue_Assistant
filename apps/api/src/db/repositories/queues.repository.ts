@@ -90,6 +90,61 @@ export class QueuesRepository extends BaseRepository {
     return this.firstOrThrow(rows, 'queues.create');
   }
 
+  /** All queues (active and inactive) for an org — used by admin views. */
+  async findByOrg(organizationId: string): Promise<QueueRow[]> {
+    return this.query<QueueRow>(`SELECT * FROM queues WHERE organization_id = $1 ORDER BY name`, [
+      organizationId,
+    ]);
+  }
+
+  async update(
+    id: string,
+    params: Partial<{
+      name: string;
+      description: string | undefined;
+      status: string;
+      maxCapacity: number | undefined;
+      avgServiceMs: number | undefined;
+    }>
+  ): Promise<QueueRow | null> {
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
+
+    if (params.name !== undefined) {
+      sets.push(`name = $${idx++}`);
+      values.push(params.name);
+    }
+    if (params.description !== undefined) {
+      sets.push(`description = $${idx++}`);
+      values.push(params.description);
+    }
+    if (params.status !== undefined) {
+      sets.push(`status = $${idx++}`);
+      values.push(params.status);
+    }
+    if (params.maxCapacity !== undefined) {
+      sets.push(`max_capacity = $${idx++}`);
+      values.push(params.maxCapacity);
+    }
+    if (params.avgServiceMs !== undefined) {
+      sets.push(`avg_service_seconds = $${idx++}`);
+      values.push(Math.floor(params.avgServiceMs / 1000));
+    }
+
+    if (sets.length === 0) return this.findById(id);
+
+    values.push(id);
+    return this.queryOne<QueueRow>(
+      `UPDATE queues SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${idx} RETURNING *`,
+      values
+    );
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await this.query(`UPDATE queues SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, [id]);
+  }
+
   async updateStatus(id: string, status: string): Promise<void> {
     await this.query('UPDATE queues SET status = $1 WHERE id = $2', [status, id]);
   }
