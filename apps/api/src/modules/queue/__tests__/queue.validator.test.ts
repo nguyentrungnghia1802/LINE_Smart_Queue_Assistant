@@ -34,7 +34,8 @@ describe('JoinQueueSchema', () => {
     const result = JoinQueueSchema.safeParse({});
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.flatten().fieldErrors).toHaveProperty('queueId');
+      const fields = result.error.issues.map((i) => i.path[0]);
+      expect(fields).toContain('queueId');
     }
   });
 
@@ -42,7 +43,8 @@ describe('JoinQueueSchema', () => {
     const result = JoinQueueSchema.safeParse({ queueId: INVALID_UUID });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.flatten().fieldErrors).toHaveProperty('queueId');
+      const fields = result.error.issues.map((i) => i.path[0]);
+      expect(fields).toContain('queueId');
     }
   });
 
@@ -53,7 +55,8 @@ describe('JoinQueueSchema', () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.flatten().fieldErrors).toHaveProperty('notes');
+      const fields = result.error.issues.map((i) => i.path[0]);
+      expect(fields).toContain('notes');
     }
   });
 

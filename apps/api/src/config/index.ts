@@ -1,5 +1,6 @@
-import dotenv from 'dotenv';
 import path from 'node:path';
+
+import dotenv from 'dotenv';
 
 // Load .env from monorepo root when running locally
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
@@ -26,6 +27,8 @@ export const config = {
   line: {
     channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN ?? '',
     channelSecret: process.env.LINE_CHANNEL_SECRET ?? '',
+    /** LINE Login / LIFF channel ID — required to verify OIDC id_tokens. */
+    channelId: process.env.LINE_CHANNEL_ID ?? '',
   },
 
   cors: {
