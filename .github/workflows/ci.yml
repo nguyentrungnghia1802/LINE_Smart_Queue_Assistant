@@ -1,0 +1,68 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CI Basic — lint · typecheck · build
+#
+# Runs on every push (all branches) and on pull requests targeting main / develop.
+# A single job is used so the required-status-check name is predictable:
+#   "CI Basic / lint-typecheck-build"
+#
+# GitHub Branch Protection → Required status checks:
+#   ✓  CI Basic / lint-typecheck-build
+# ─────────────────────────────────────────────────────────────────────────────
+name: CI Basic
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+# Cancel any in-progress run on the same ref when a newer commit is pushed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-typecheck-build:
+    name: Lint · Typecheck · Build
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Source code ──────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js — version read directly from .nvmrc ─────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          # Caches ~/.npm keyed on package-lock.json hash; speeds up npm ci.
+          cache: 'npm'
+
+      # ── 3. Install all workspace dependencies ───────────────────────────────
+      - name: Install dependencies
+        run: npm ci
+
+      # ── 4. Build shared package ─────────────────────────────────────────────
+      # packages/shared must be compiled before lint/typecheck/build because
+      # @line-queue/api and @line-queue/web import its compiled types.
+      - name: Build shared package
+        run: npm run build -w packages/shared
+
+      # ── 5. Lint (all workspaces) ─────────────────────────────────────────────
+      - name: Lint
+        run: npm run lint --workspaces --if-present
+
+      # ── 6. Type-check (all workspaces) ───────────────────────────────────────
+      - name: Type-check
+        run: npm run typecheck --workspaces --if-present
+
+      # ── 7. Build all apps ────────────────────────────────────────────────────
+      # Builds apps/api (tsc) and apps/web (tsc + vite build).
+      # packages/shared is already built in step 4 but rebuilding it here is
+      # fast (tsc incremental) and keeps this step self-contained.
+      - name: Build
+        run: npm run build --workspaces --if-present
