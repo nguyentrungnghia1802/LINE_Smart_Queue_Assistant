@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { PaginationSchema, UUIDSchema } from '../shared/shared.validator';
+import { UUIDSchema } from '../shared/shared.validator';
 
 // ── POST /api/v1/queue/join ───────────────────────────────────────────────────
 
@@ -34,6 +34,3 @@ export type JoinQueueDto = z.infer<typeof JoinQueueSchema>;
 export type CurrentQueueQuery = z.infer<typeof CurrentQueueQuerySchema>;
 export type EntryIdParam = z.infer<typeof EntryIdParamSchema>;
 export type QueueIdParam = z.infer<typeof QueueIdParamSchema>;
-
-// Re-export for convenience (used in notifications.validator.ts via shared)
-export { PaginationSchema };

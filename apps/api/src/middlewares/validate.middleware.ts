@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { ZodError, ZodType } from 'zod';
+import { ZodType } from 'zod';
 
 type ValidateTarget = 'body' | 'params' | 'query';
 
@@ -28,4 +28,4 @@ export function validate(schema: ZodType, target: ValidateTarget = 'body') {
   };
 }
 
-export { ZodError };
+export { ZodError } from 'zod';
