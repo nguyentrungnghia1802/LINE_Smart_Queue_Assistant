@@ -1,4 +1,4 @@
-import type { ApiError, ApiResponse, PaginationMeta } from '../types';
+import type { ApiError, ApiResponse, ResponseMeta } from '../types';
 
 /**
  * Zero-pad a queue ticket number for display.
@@ -19,10 +19,7 @@ export function estimateWaitMinutes(position: number, avgServiceTimeMinutes: num
 /**
  * Build a successful API response envelope.
  */
-export function buildSuccessResponse<T>(
-  data: T,
-  meta?: PaginationMeta
-): ApiResponse<T> {
+export function buildSuccessResponse<T>(data: T, meta?: ResponseMeta): ApiResponse<T> {
   return { success: true, data, ...(meta ? { meta } : {}) };
 }
 
