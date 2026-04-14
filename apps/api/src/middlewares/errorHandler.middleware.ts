@@ -19,7 +19,7 @@ import { sendError } from '../utils/response';
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   // ── Zod validation error ──────────────────────────────────────────────────
   if (err instanceof ZodError) {
-    sendError(res, 422, 'VALIDATION_ERROR', 'Request validation failed', err.flatten());
+    sendError(res, 422, 'VALIDATION_ERROR', 'Request validation failed', { issues: err.issues });
     return;
   }
 
