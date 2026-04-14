@@ -11,6 +11,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
+      // Resolve shared package from TypeScript source so Rollup (vite build)
+      // receives ESM-compatible input instead of the CJS dist output.
+      // tsc (noEmit typecheck) still resolves via node_modules/dist typings.
+      '@line-queue/shared': resolve(__dirname, '../../packages/shared/src/index.ts'),
     },
   },
 

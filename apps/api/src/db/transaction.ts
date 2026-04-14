@@ -1,4 +1,5 @@
 import { PoolClient } from 'pg';
+
 import { pool } from './client';
 
 /**
@@ -19,9 +20,7 @@ import { pool } from './client';
  * });
  * ```
  */
-export async function withTransaction<T>(
-  fn: (client: PoolClient) => Promise<T>,
-): Promise<T> {
+export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -54,7 +53,7 @@ export async function withTransaction<T>(
 export async function withSavepoint<T>(
   client: PoolClient,
   name: string,
-  fn: () => Promise<T>,
+  fn: () => Promise<T>
 ): Promise<T> {
   await client.query(`SAVEPOINT ${name}`);
   try {
