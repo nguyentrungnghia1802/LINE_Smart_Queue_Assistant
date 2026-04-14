@@ -19,7 +19,15 @@ import { sendError } from '../utils/response';
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   // ── Zod validation error ──────────────────────────────────────────────────
   if (err instanceof ZodError) {
-    sendError(res, 422, 'VALIDATION_ERROR', 'Request validation failed', { issues: err.issues });
+    // Build fieldErrors map from issues (replaces deprecated err.flatten())
+    const fieldErrors = err.issues.reduce<Record<string, string[]>>((acc, issue) => {
+      if (issue.path.length > 0) {
+        const key = String(issue.path[0]);
+        (acc[key] ??= []).push(issue.message);
+      }
+      return acc;
+    }, {});
+    sendError(res, 422, 'VALIDATION_ERROR', 'Request validation failed', { fieldErrors });
     return;
   }
 
