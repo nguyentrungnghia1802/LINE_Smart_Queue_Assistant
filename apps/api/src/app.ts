@@ -7,6 +7,7 @@ import { config } from './config';
 import { swaggerSpec } from './docs/swagger';
 import {
   apiRateLimiter,
+  currentUserMiddleware,
   errorHandler,
   httpLoggerMiddleware,
   notFoundHandler,
@@ -79,13 +80,16 @@ export function createApp(): Application {
   // ── 8. Rate limiting (/api/*) ────────────────────────────────────────────────
   app.use('/api', apiRateLimiter);
 
-  // ── 9. API v1 routes ─────────────────────────────────────────────────────────
+  // ── 9. Identity resolution — populates req.user when a valid JWT is present ──
+  app.use(currentUserMiddleware);
+
+  // ── 10. API v1 routes ────────────────────────────────────────────────────────
   app.use('/api/v1', v1Router);
 
-  // ── 10. 404 fallback ─────────────────────────────────────────────────────────
+  // ── 11. 404 fallback ─────────────────────────────────────────────────────────
   app.use(notFoundHandler);
 
-  // ── 11. Global error handler ──────────────────────────────────────────────────
+  // ── 12. Global error handler ──────────────────────────────────────────────────
   app.use(errorHandler);
 
   return app;
