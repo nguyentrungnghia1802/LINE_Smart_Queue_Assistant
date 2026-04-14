@@ -1,6 +1,6 @@
 import axios, { AxiosError, type AxiosInstance, type AxiosRequestConfig } from 'axios';
 
-import type { ApiResponse } from '@line-queue/shared';
+import type { ApiErrorResponse, ApiResponse } from '@line-queue/shared';
 
 // ── Singleton Axios instance ───────────────────────────────────────────────────
 
@@ -36,9 +36,14 @@ apiClient.interceptors.response.use(
 
 // ── Typed request helpers ──────────────────────────────────────────────────────
 
+function unwrap<T>(envelope: ApiResponse<T> | ApiErrorResponse): T {
+  if (!envelope.success) throw new Error(envelope.error.message);
+  return envelope.data;
+}
+
 export async function get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const res = await apiClient.get<ApiResponse<T>>(url, config);
-  return res.data.data as T;
+  return unwrap(res.data);
 }
 
 export async function post<T>(
@@ -47,7 +52,7 @@ export async function post<T>(
   config?: AxiosRequestConfig
 ): Promise<T> {
   const res = await apiClient.post<ApiResponse<T>>(url, data, config);
-  return res.data.data as T;
+  return unwrap(res.data);
 }
 
 export async function patch<T>(
@@ -56,12 +61,12 @@ export async function patch<T>(
   config?: AxiosRequestConfig
 ): Promise<T> {
   const res = await apiClient.patch<ApiResponse<T>>(url, data, config);
-  return res.data.data as T;
+  return unwrap(res.data);
 }
 
 export async function del<T = void>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const res = await apiClient.delete<ApiResponse<T>>(url, config);
-  return res.data.data as T;
+  return unwrap(res.data);
 }
 
 export { apiClient };
