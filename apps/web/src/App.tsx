@@ -1,10 +1,21 @@
-// Root application component.
-// Wire up routing, providers, and global layout here.
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from 'react-router-dom';
+
+import { router } from './router';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+    },
+  },
+});
+
 export default function App() {
   return (
-    <div>
-      <h1>LINE Smart Queue Assistant</h1>
-      <p>Welcome — replace this with your router and layout.</p>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   );
 }
