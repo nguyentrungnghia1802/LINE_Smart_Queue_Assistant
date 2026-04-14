@@ -19,13 +19,22 @@
   },
   "dependencies": {
     "@line-queue/shared": "*",
+    "@tanstack/react-query": "^5.99.0",
+    "axios": "^1.15.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.14.1",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@line-queue/config": "*",
+    "@tailwindcss/vite": "^4.2.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/react-router-dom": "^5.3.3",
     "@typescript-eslint/eslint-plugin": "^7.13.0",
     "@typescript-eslint/parser": "^7.13.0",
     "@vitejs/plugin-react": "^4.3.1",
@@ -37,6 +46,7 @@
     "eslint-plugin-react-refresh": "^0.4.7",
     "jsdom": "^24.1.0",
     "rimraf": "^5.0.7",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.4.5",
     "vite": "^5.3.1",
     "vitest": "^1.6.0"
