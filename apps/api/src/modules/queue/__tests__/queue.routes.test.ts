@@ -3,7 +3,8 @@
  *
  * Validates:
  *   - validate() middleware rejects bad input with 422 + correct shape
- *   - Stub controllers respond with 501 (not 500) for valid input
+ *   - Controllers call the service layer; with a mocked DB that returns no rows
+ *     most routes respond 404 (resource not found) or 200 with empty data.
  *   - The error response always has { success: false, error: { code, message } }
  *
  * The DB pool is mocked so no live DB is required.
@@ -13,12 +14,17 @@ import request from 'supertest';
 
 import { createApp } from '../../../app';
 
-// Stub out DB so app boots cleanly
+// Stub out DB so app boots cleanly and repositories return no data
 jest.mock('../../../db/client', () => ({
   pool: {
     query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    connect: jest.fn(),
   },
   closePool: jest.fn().mockResolvedValue(undefined),
+  // Named function exports used by BaseRepository helpers
+  query: jest.fn().mockResolvedValue([]),
+  queryOne: jest.fn().mockResolvedValue(null),
+  queryWithClient: jest.fn().mockResolvedValue([]),
 }));
 
 const app = createApp();
@@ -36,11 +42,11 @@ function expectValidationError(body: Record<string, unknown>): void {
   expect(typeof error.message).toBe('string');
 }
 
-/** Assert the 501 stub shape from queue controllers */
-function expectNotImplemented(body: Record<string, unknown>): void {
+/** Assert the NOT_FOUND error shape */
+function expectNotFound(body: Record<string, unknown>): void {
   expect(body.success).toBe(false);
   const error = body.error as Record<string, unknown>;
-  expect(error.code).toBe('NOT_IMPLEMENTED');
+  expect(error.code).toBe('NOT_FOUND');
 }
 
 // ── POST /api/v1/queue/join ───────────────────────────────────────────────────
@@ -66,11 +72,11 @@ describe('POST /api/v1/queue/join', () => {
     expect(details).toHaveProperty('queueId');
   });
 
-  it('returns 501 for a valid request (stub)', async () => {
+  it('returns 404 when the queue is not found (mocked DB returns no rows)', async () => {
     const res = await request(app).post('/api/v1/queue/join').send({ queueId: VALID_UUID });
 
-    expect(res.status).toBe(501);
-    expectNotImplemented(res.body as Record<string, unknown>);
+    expect(res.status).toBe(404);
+    expectNotFound(res.body as Record<string, unknown>);
   });
 });
 
@@ -89,20 +95,20 @@ describe('GET /api/v1/queue/current', () => {
     expectValidationError(res.body as Record<string, unknown>);
   });
 
-  it('returns 501 for a valid request (stub)', async () => {
+  it('returns 404 when the queue is not found (mocked DB returns no rows)', async () => {
     const res = await request(app).get(`/api/v1/queue/current?queueId=${VALID_UUID}`);
-    expect(res.status).toBe(501);
-    expectNotImplemented(res.body as Record<string, unknown>);
+    expect(res.status).toBe(404);
+    expectNotFound(res.body as Record<string, unknown>);
   });
 });
 
 // ── GET /api/v1/queue/me ──────────────────────────────────────────────────────
 
 describe('GET /api/v1/queue/me', () => {
-  it('returns 501 (stub — no validation needed)', async () => {
+  it('returns 200 with empty array when caller has no active tickets', async () => {
     const res = await request(app).get('/api/v1/queue/me');
-    expect(res.status).toBe(501);
-    expectNotImplemented(res.body as Record<string, unknown>);
+    expect(res.status).toBe(200);
+    expect((res.body as { data: unknown[] }).data).toEqual([]);
   });
 });
 
@@ -115,10 +121,10 @@ describe('POST /api/v1/queue/:entryId/cancel', () => {
     expectValidationError(res.body as Record<string, unknown>);
   });
 
-  it('returns 501 for a valid UUID param (stub)', async () => {
+  it('returns 404 when the ticket is not found (mocked DB returns no rows)', async () => {
     const res = await request(app).post(`/api/v1/queue/${VALID_UUID}/cancel`);
-    expect(res.status).toBe(501);
-    expectNotImplemented(res.body as Record<string, unknown>);
+    expect(res.status).toBe(404);
+    expectNotFound(res.body as Record<string, unknown>);
   });
 });
 
@@ -131,10 +137,10 @@ describe('POST /api/v1/queue/:entryId/skip', () => {
     expectValidationError(res.body as Record<string, unknown>);
   });
 
-  it('returns 501 for a valid UUID param (stub)', async () => {
+  it('returns 404 when the ticket is not found (mocked DB returns no rows)', async () => {
     const res = await request(app).post(`/api/v1/queue/${VALID_UUID}/skip`);
-    expect(res.status).toBe(501);
-    expectNotImplemented(res.body as Record<string, unknown>);
+    expect(res.status).toBe(404);
+    expectNotFound(res.body as Record<string, unknown>);
   });
 });
 
@@ -147,10 +153,10 @@ describe('GET /api/v1/queue/:queueId/status', () => {
     expectValidationError(res.body as Record<string, unknown>);
   });
 
-  it('returns 501 for a valid UUID param (stub)', async () => {
+  it('returns 404 when the queue is not found (mocked DB returns no rows)', async () => {
     const res = await request(app).get(`/api/v1/queue/${VALID_UUID2}/status`);
-    expect(res.status).toBe(501);
-    expectNotImplemented(res.body as Record<string, unknown>);
+    expect(res.status).toBe(404);
+    expectNotFound(res.body as Record<string, unknown>);
   });
 });
 
