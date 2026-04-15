@@ -35,6 +35,7 @@ export interface CreateEntryParams {
   userId?: string;
   lineUserId?: string;
   priority?: number;
+  notes?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -90,8 +91,8 @@ export class QueueEntriesRepository extends BaseRepository {
   async create(params: CreateEntryParams, client?: PoolClient): Promise<QueueEntryRow> {
     const sql = `
       INSERT INTO queue_entries
-        (queue_id, user_id, line_user_id, ticket_number, ticket_display, priority, metadata)
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
+        (queue_id, user_id, line_user_id, ticket_number, ticket_display, priority, notes, metadata)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
       RETURNING *
     `;
     const args = [
@@ -101,6 +102,7 @@ export class QueueEntriesRepository extends BaseRepository {
       params.ticketNumber,
       params.ticketDisplay,
       params.priority ?? 0,
+      params.notes ?? null,
       JSON.stringify(params.metadata ?? {}),
     ];
     const rows = client
@@ -177,6 +179,72 @@ export class QueueEntriesRepository extends BaseRepository {
       ? await this.queryTx<QueueEntryRow>(client, sql, [id])
       : await this.query<QueueEntryRow>(sql, [id]);
     return this.firstOrThrow(rows, 'queueEntries.markCancelled');
+  }
+
+  /**
+   * Transition a called entry to 'no_show'.
+   * Staff action when a called customer does not present within the allowed window.
+   */
+  async markNoShow(id: string, client?: PoolClient): Promise<QueueEntryRow> {
+    const sql = `
+      UPDATE queue_entries
+      SET status = 'no_show', cancelled_at = NOW()
+      WHERE id = $1 AND status = 'called'
+      RETURNING *
+    `;
+    const rows = client
+      ? await this.queryTx<QueueEntryRow>(client, sql, [id])
+      : await this.query<QueueEntryRow>(sql, [id]);
+    return this.firstOrThrow(rows, 'queueEntries.markNoShow');
+  }
+
+  /**
+   * Customer self-service skip: decrement priority by 1 and increment skip_count.
+   *
+   * The entry stays in 'waiting' status but is pushed behind higher-priority
+   * (or same-priority/earlier-ticket) entries.
+   * Business rules (skip limit, queue.allow_skip) are enforced by the service layer.
+   */
+  async deprioritize(id: string, client?: PoolClient): Promise<QueueEntryRow> {
+    const sql = `
+      UPDATE queue_entries
+      SET priority = priority - 1,
+          skip_count = skip_count + 1
+      WHERE id = $1 AND status = 'waiting'
+      RETURNING *
+    `;
+    const rows = client
+      ? await this.queryTx<QueueEntryRow>(client, sql, [id])
+      : await this.query<QueueEntryRow>(sql, [id]);
+    return this.firstOrThrow(rows, 'queueEntries.deprioritize');
+  }
+
+  /**
+   * All active tickets (waiting | called | serving) for a given actor across queues.
+   * Used to populate the "My Tickets" LIFF screen.
+   */
+  async findAllActiveForActor(userId?: string, lineUserId?: string): Promise<QueueEntryRow[]> {
+    if (!userId && !lineUserId) return [];
+
+    const conditions: string[] = ["status IN ('waiting', 'called', 'serving')"];
+    const params: unknown[] = [];
+    let idx = 1;
+
+    if (userId && lineUserId) {
+      conditions.push(`(user_id = $${idx++} OR line_user_id = $${idx++})`);
+      params.push(userId, lineUserId);
+    } else if (userId) {
+      conditions.push(`user_id = $${idx++}`);
+      params.push(userId);
+    } else {
+      conditions.push(`line_user_id = $${idx++}`);
+      params.push(lineUserId);
+    }
+
+    return this.query<QueueEntryRow>(
+      `SELECT * FROM queue_entries WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`,
+      params
+    );
   }
 
   /**

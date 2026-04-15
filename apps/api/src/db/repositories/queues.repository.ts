@@ -1,3 +1,5 @@
+import { PoolClient } from 'pg';
+
 import { BaseRepository } from './base.repository';
 
 // ── Row types ──────────────────────────────────────────────────────────────────
@@ -152,18 +154,25 @@ export class QueuesRepository extends BaseRepository {
   /**
    * Atomically increment daily_ticket_counter and return the new value.
    * Used when creating a new queue entry to assign the next ticket number.
-   * Safe for concurrent requests — PostgreSQL row-level lock on UPDATE.
+   *
+   * Concurrency: PostgreSQL's UPDATE acquires an implicit row-level lock on
+   * the queues row. Concurrent joins for the same queue serialize here,
+   * guaranteeing unique ticket numbers with no advisory locks needed.
+   *
+   * Pass `client` to run inside an existing transaction (required so the
+   * increment and the queue_entries.create are committed atomically).
    */
-  async incrementAndGetCounter(id: string): Promise<number> {
-    const row = await this.queryOne<{ daily_ticket_counter: number }>(
-      `UPDATE queues
-       SET daily_ticket_counter = daily_ticket_counter + 1
-       WHERE id = $1
-       RETURNING daily_ticket_counter`,
-      [id]
-    );
-    return this.firstOrThrow(row ? [row] : [], 'queues.incrementAndGetCounter')
-      .daily_ticket_counter;
+  async incrementAndGetCounter(id: string, client?: PoolClient): Promise<number> {
+    const sql = `
+      UPDATE queues
+      SET daily_ticket_counter = daily_ticket_counter + 1
+      WHERE id = $1
+      RETURNING daily_ticket_counter
+    `;
+    const rows = client
+      ? await this.queryTx<{ daily_ticket_counter: number }>(client, sql, [id])
+      : await this.query<{ daily_ticket_counter: number }>(sql, [id]);
+    return this.firstOrThrow(rows, 'queues.incrementAndGetCounter').daily_ticket_counter;
   }
 
   async resetDailyCounter(id: string): Promise<void> {
