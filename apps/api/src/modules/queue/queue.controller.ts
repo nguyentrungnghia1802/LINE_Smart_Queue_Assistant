@@ -1,10 +1,22 @@
 import { Request, Response } from 'express';
 
 import { asyncHandler } from '../../utils/asyncHandler';
+import { logger } from '../../utils/logger';
 import { sendCreated, sendSuccess } from '../../utils/response';
 
 import { queueService } from './queue.service';
 import { CurrentQueueQuery, EntryIdParam, JoinQueueDto, QueueIdParam } from './queue.validator';
+
+// ── Logging helpers ───────────────────────────────────────────────────────────
+
+/**
+ * Resolve the request-scoped pino-http logger attached by httpLoggerMiddleware.
+ * Falls back to the module-level logger for defensive safety (e.g. tests that
+ * bypass the middleware stack).
+ */
+function reqLog(req: Request) {
+  return (req as { log?: typeof logger }).log ?? logger;
+}
 
 // ── POST /api/v1/queue/join ───────────────────────────────────────────────────
 
@@ -23,6 +35,16 @@ export const joinQueue = asyncHandler(async (req: Request, res: Response) => {
     lineUserId: req.user?.lineUserId ?? dto.lineUserId,
   });
 
+  reqLog(req).info(
+    {
+      queueId: dto.queueId,
+      ticket: result.entry.ticket_display,
+      aheadCount: result.aheadCount,
+      isExisting: result.isExisting,
+    },
+    'queue.join'
+  );
+
   if (result.isExisting) {
     sendSuccess(res, result);
   } else {
@@ -36,6 +58,9 @@ export const joinQueue = asyncHandler(async (req: Request, res: Response) => {
 export const getCurrentQueue = asyncHandler(async (req: Request, res: Response) => {
   const { queueId } = req.query as unknown as CurrentQueueQuery;
   const result = await queueService.getQueueStatus(queueId);
+
+  reqLog(req).debug({ queueId, waitingCount: result.waitingCount }, 'queue.currentStatus');
+
   sendSuccess(res, result);
 });
 
@@ -47,6 +72,9 @@ export const getMyTicket = asyncHandler(async (req: Request, res: Response) => {
     userId: req.user?.id,
     lineUserId: req.user?.lineUserId,
   });
+
+  reqLog(req).debug({ ticketCount: result.length }, 'queue.myTickets');
+
   sendSuccess(res, result);
 });
 
@@ -82,5 +110,8 @@ export const skipTicket = asyncHandler(async (req: Request, res: Response) => {
 export const getQueueStatus = asyncHandler(async (req: Request, res: Response) => {
   const { queueId } = req.params as unknown as QueueIdParam;
   const result = await queueService.getQueueStatus(queueId);
+
+  reqLog(req).debug({ queueId, waitingCount: result.waitingCount }, 'queue.status');
+
   sendSuccess(res, result);
 });
