@@ -63,15 +63,15 @@ line-smart-queue/                      ← monorepo root (npm workspaces)
 
 ## Tech Stack
 
-| Layer      | Technology                                    |
-|------------|-----------------------------------------------|
-| Frontend   | React 18 · Vite 5 · TypeScript 5              |
-| Backend    | Express 4 · Node.js 20 · TypeScript 5         |
-| Database   | PostgreSQL 16                                 |
-| Shared     | `@line-queue/shared` npm workspace package    |
-| Testing    | Vitest (web) · Jest / ts-jest (api)           |
-| Containers | Docker · Docker Compose                       |
-| Linting    | ESLint 8 · Prettier 3                         |
+| Layer      | Technology                                 |
+| ---------- | ------------------------------------------ |
+| Frontend   | React 18 · Vite 5 · TypeScript 5           |
+| Backend    | Express 4 · Node.js 20 · TypeScript 5      |
+| Database   | PostgreSQL 16                              |
+| Shared     | `@line-queue/shared` npm workspace package |
+| Testing    | Vitest (web) · Jest / ts-jest (api)        |
+| Containers | Docker · Docker Compose                    |
+| Linting    | ESLint 8 · Prettier 3                      |
 
 ---
 
@@ -127,12 +127,12 @@ npm run docker:dev:d
 
 Services:
 
-| Service  | Port  | Notes                                     |
-|----------|-------|-------------------------------------------|
-| Web      | 5173  | Vite HMR — changes reflect instantly      |
-| API      | 4000  | ts-node-dev restarts on file changes       |
-| Debugger | 9229  | Node.js inspector (attach VS Code/Chrome) |
-| Postgres | 5432  | Dev DB (`line_queue_dev`)                 |
+| Service  | Port | Notes                                     |
+| -------- | ---- | ----------------------------------------- |
+| Web      | 5173 | Vite HMR — changes reflect instantly      |
+| API      | 4000 | ts-node-dev restarts on file changes      |
+| Debugger | 9229 | Node.js inspector (attach VS Code/Chrome) |
+| Postgres | 5432 | Dev DB (`line_queue_dev`)                 |
 
 Source directories are mounted as volumes — **no image rebuild needed** when you edit code.
 
@@ -171,11 +171,11 @@ npm run docker:prod:down    # stop
 
 Services:
 
-| Service  | Port | Notes                              |
-|----------|------|------------------------------------|
+| Service  | Port | Notes                                   |
+| -------- | ---- | --------------------------------------- |
 | Web      | 80   | nginx serving the Vite production build |
-| API      | 4000 | Node.js (compiled JS, non-root user) |
-| Postgres | 5432 | Named volume `postgres_data`        |
+| API      | 4000 | Node.js (compiled JS, non-root user)    |
+| Postgres | 5432 | Named volume `postgres_data`            |
 
 ---
 
@@ -234,27 +234,27 @@ curl http://localhost:4000/health    # → { "status": "ok" }
 
 ## Available npm Scripts
 
-| Script                   | Description                                              |
-|--------------------------|----------------------------------------------------------|
-| `npm run dev`            | Start all apps in watch/hot-reload mode                  |
-| `npm run build`          | Build all packages and apps                              |
-| `npm run test`           | Run all test suites                                      |
-| `npm run lint`           | Lint all workspaces                                      |
-| `npm run lint:fix`       | Auto-fix lint issues                                     |
-| `npm run format`         | Prettier-format everything                               |
-| `npm run format:check`   | Check formatting (CI-friendly)                           |
-| `npm run typecheck`      | TypeScript type-check all workspaces                     |
-| `npm run spell:check`    | cspell spell check on all TS/MD files                    |
-| `npm run clean`          | Remove all `dist/` and `*.tsbuildinfo` artifacts         |
-| `npm run docker:dev`     | Build + start dev stack (foreground)                     |
-| `npm run docker:dev:d`   | Build + start dev stack (detached)                       |
-| `npm run docker:dev:down`| Stop dev stack                                           |
-| `npm run docker:dev:logs`| Tail dev stack logs                                      |
-| `npm run docker:dev:ps`  | Show dev container status                                |
-| `npm run docker:prod`    | Build + start prod stack (foreground)                    |
-| `npm run docker:prod:d`  | Build + start prod stack (detached)                      |
-| `npm run docker:prod:down`| Stop prod stack                                         |
-| `npm run docker:clean`   | Stop dev stack + wipe volumes (destroys dev DB data)     |
+| Script                     | Description                                          |
+| -------------------------- | ---------------------------------------------------- |
+| `npm run dev`              | Start all apps in watch/hot-reload mode              |
+| `npm run build`            | Build all packages and apps                          |
+| `npm run test`             | Run all test suites                                  |
+| `npm run lint`             | Lint all workspaces                                  |
+| `npm run lint:fix`         | Auto-fix lint issues                                 |
+| `npm run format`           | Prettier-format everything                           |
+| `npm run format:check`     | Check formatting (CI-friendly)                       |
+| `npm run typecheck`        | TypeScript type-check all workspaces                 |
+| `npm run spell:check`      | cspell spell check on all TS/MD files                |
+| `npm run clean`            | Remove all `dist/` and `*.tsbuildinfo` artifacts     |
+| `npm run docker:dev`       | Build + start dev stack (foreground)                 |
+| `npm run docker:dev:d`     | Build + start dev stack (detached)                   |
+| `npm run docker:dev:down`  | Stop dev stack                                       |
+| `npm run docker:dev:logs`  | Tail dev stack logs                                  |
+| `npm run docker:dev:ps`    | Show dev container status                            |
+| `npm run docker:prod`      | Build + start prod stack (foreground)                |
+| `npm run docker:prod:d`    | Build + start prod stack (detached)                  |
+| `npm run docker:prod:down` | Stop prod stack                                      |
+| `npm run docker:clean`     | Stop dev stack + wipe volumes (destroys dev DB data) |
 
 Pass `-w <workspace>` to scope to a single package, e.g. `npm run test -w apps/api`.
 
@@ -284,39 +284,49 @@ Copy `.env.example` → `.env`. The file is split into sections with inline comm
 
 ### Naming conventions
 
-| Prefix    | Scope                           | Example                       |
-|-----------|---------------------------------|-------------------------------|
-| `DB_*`    | PostgreSQL connection            | `DB_PASSWORD`, `DB_NAME`      |
-| `API_*`   | Express server config            | `API_PORT`, `API_HOST`        |
-| `JWT_*`   | Auth tokens (⚠️ backend-only)   | `JWT_SECRET`, `JWT_EXPIRES_IN`|
-| `LINE_*`  | LINE platform keys (⚠️ backend-only) | `LINE_CHANNEL_SECRET`    |
-| `VITE_*`  | Frontend vars (**browser-visible**) | `VITE_API_URL`, `VITE_LIFF_ID` |
-| `WEB_*`   | Web container / nginx config     | `WEB_PORT`, `WEB_ORIGIN`      |
+| Prefix   | Scope                                | Example                        |
+| -------- | ------------------------------------ | ------------------------------ |
+| `DB_*`   | PostgreSQL connection                | `DB_PASSWORD`, `DB_NAME`       |
+| `API_*`  | Express server config                | `API_PORT`, `API_HOST`         |
+| `JWT_*`  | Auth tokens (⚠️ backend-only)        | `JWT_SECRET`, `JWT_EXPIRES_IN` |
+| `LINE_*` | LINE platform keys (⚠️ backend-only) | `LINE_CHANNEL_SECRET`          |
+| `VITE_*` | Frontend vars (**browser-visible**)  | `VITE_API_URL`, `VITE_LIFF_ID` |
+| `WEB_*`  | Web container / nginx config         | `WEB_PORT`, `WEB_ORIGIN`       |
 
 ### Backend-only variables (never expose to the browser)
 
-| Variable                      | Description                                         |
-|-------------------------------|-----------------------------------------------------|
-| `DATABASE_URL`                | Full PostgreSQL connection string                   |
-| `DB_HOST / DB_PORT / DB_NAME` | Individual DB connection parts (used by Compose)    |
-| `DB_USER / DB_PASSWORD`       | PostgreSQL credentials                              |
-| `JWT_SECRET`                  | Long random secret for JWT signing                  |
-| `JWT_EXPIRES_IN`              | Access token lifetime (e.g. `7d`)                   |
-| `JWT_REFRESH_EXPIRES_IN`      | Refresh token lifetime (e.g. `30d`)                 |
-| `LINE_CHANNEL_ACCESS_TOKEN`   | LINE Messaging API channel token                    |
-| `LINE_CHANNEL_SECRET`         | LINE webhook signature verification key             |
+| Variable                      | Description                                      |
+| ----------------------------- | ------------------------------------------------ |
+| `DATABASE_URL`                | Full PostgreSQL connection string                |
+| `DB_HOST / DB_PORT / DB_NAME` | Individual DB connection parts (used by Compose) |
+| `DB_USER / DB_PASSWORD`       | PostgreSQL credentials                           |
+| `JWT_SECRET`                  | Long random secret for JWT signing               |
+| `JWT_EXPIRES_IN`              | Access token lifetime (e.g. `7d`)                |
+| `JWT_REFRESH_EXPIRES_IN`      | Refresh token lifetime (e.g. `30d`)              |
+| `LINE_CHANNEL_ACCESS_TOKEN`   | LINE Messaging API channel token                 |
+| `LINE_CHANNEL_SECRET`         | LINE webhook signature verification key          |
 
 ### Frontend variables (inlined into the JS bundle at build time)
 
 > ⚠️ `VITE_*` variables are **embedded into the browser bundle** by Vite. Treat them as public. Never put credentials here.
 
-| Variable         | Description                                          |
-|------------------|------------------------------------------------------|
-| `VITE_API_URL`   | API base URL as seen by the browser                  |
-| `VITE_APP_NAME`  | Application display name                             |
-| `VITE_LIFF_ID`   | LINE LIFF App ID (public identifier, safe to expose) |
+| Variable        | Description                                          |
+| --------------- | ---------------------------------------------------- |
+| `VITE_API_URL`  | API base URL as seen by the browser                  |
+| `VITE_APP_NAME` | Application display name                             |
+| `VITE_LIFF_ID`  | LINE LIFF App ID (public identifier, safe to expose) |
 
 > **Security**: Never commit `.env`. It is listed in `.gitignore`.
+
+---
+
+## API Documentation
+
+| Guide                                  | Description                                                                                                     |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [Queue MVP API](docs/queue-mvp-api.md) | `POST /join`, `GET /me`, `GET /:queueId/status`, `GET /current` — curl examples, response shapes, ETA semantics |
+
+Interactive Swagger UI is available at `http://localhost:4000/api-docs` when the API is running.
 
 ---
 
@@ -331,4 +341,3 @@ Copy `.env.example` → `.env`. The file is split into sections with inline comm
 ## License
 
 MIT
-

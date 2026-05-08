@@ -2,6 +2,7 @@ import { queueEntriesRepository } from '../../db/repositories/queue-entries.repo
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
+import { etaService } from '../eta/eta.service';
 
 import {
   JoinQueueResult,
@@ -21,11 +22,6 @@ import { JoinQueueDto } from './queue.validator';
 function formatTicketDisplay(prefix: string, ticketNumber: number): string {
   const width = prefix ? 3 : 4;
   return `${prefix}${String(ticketNumber).padStart(width, '0')}`;
-}
-
-/** ETA = tickets waiting ahead × average service time per ticket. */
-function calcEta(aheadCount: number, avgServiceSeconds: number): number {
-  return aheadCount * avgServiceSeconds;
 }
 
 /**
@@ -107,7 +103,10 @@ export const queueService = {
       return {
         entry: existing,
         aheadCount,
-        estimatedWaitSeconds: calcEta(aheadCount, queue.avg_service_seconds),
+        estimatedWaitSeconds: etaService.calculate({
+          aheadCount,
+          avgServiceSeconds: queue.avg_service_seconds,
+        }).estimatedWaitSeconds,
         isExisting: true,
       };
     }
@@ -140,7 +139,10 @@ export const queueService = {
     return {
       entry,
       aheadCount,
-      estimatedWaitSeconds: calcEta(aheadCount, queue.avg_service_seconds),
+      estimatedWaitSeconds: etaService.calculate({
+        aheadCount,
+        avgServiceSeconds: queue.avg_service_seconds,
+      }).estimatedWaitSeconds,
       isExisting: false,
     };
   },
@@ -166,7 +168,12 @@ export const queueService = {
         return {
           entry,
           aheadCount,
-          estimatedWaitSeconds: queue ? calcEta(aheadCount, queue.avg_service_seconds) : 0,
+          estimatedWaitSeconds: queue
+            ? etaService.calculate({
+                aheadCount,
+                avgServiceSeconds: queue.avg_service_seconds,
+              }).estimatedWaitSeconds
+            : 0,
         };
       })
     );
@@ -181,7 +188,10 @@ export const queueService = {
     return {
       queue,
       waitingCount,
-      estimatedWaitSeconds: calcEta(waitingCount, queue.avg_service_seconds),
+      estimatedWaitSeconds: etaService.calculate({
+        aheadCount: waitingCount,
+        avgServiceSeconds: queue.avg_service_seconds,
+      }).estimatedWaitSeconds,
     };
   },
 
