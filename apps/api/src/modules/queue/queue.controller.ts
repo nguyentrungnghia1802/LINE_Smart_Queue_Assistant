@@ -115,3 +115,47 @@ export const getQueueStatus = asyncHandler(async (req: Request, res: Response) =
 
   sendSuccess(res, result);
 });
+
+// ── POST /api/v1/queue/:queueId/call-next  (staff) ───────────────────────────
+
+/**
+ * Call the next waiting ticket in a queue.
+ *
+ * Staff-only action. Transitions the next waiting entry to `called` and
+ * sends a LINE push message to the ticket holder. Also fires an ETA warning
+ * push to the entry now first-in-line.
+ *
+ * Returns the entry that was called.
+ */
+export const callNextTicket = asyncHandler(async (req: Request, res: Response) => {
+  const { queueId } = req.params as unknown as QueueIdParam;
+  const entry = await queueService.callNextTicket(queueId);
+
+  reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_display }, 'queue.callNext');
+
+  sendSuccess(res, { entry });
+});
+
+// ── POST /api/v1/queue/:entryId/serve  (staff) ───────────────────────────────
+
+/** Mark a called ticket as serving (customer reached the counter). */
+export const serveTicket = asyncHandler(async (req: Request, res: Response) => {
+  const { entryId } = req.params as unknown as EntryIdParam;
+  const entry = await queueService.serveTicket({ entryId, actorUserId: req.user?.id });
+
+  reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.serve');
+
+  sendSuccess(res, { entry });
+});
+
+// ── POST /api/v1/queue/:entryId/complete  (staff) ────────────────────────────
+
+/** Mark a serving ticket as completed and archive to history. */
+export const completeTicket = asyncHandler(async (req: Request, res: Response) => {
+  const { entryId } = req.params as unknown as EntryIdParam;
+  const entry = await queueService.completeTicket({ entryId, actorUserId: req.user?.id });
+
+  reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.complete');
+
+  sendSuccess(res, { entry });
+});
