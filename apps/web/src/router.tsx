@@ -3,6 +3,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { LiffLayout } from './components/layout/LiffLayout';
 import { RootLayout } from './components/layout/RootLayout';
 import { DashboardPage } from './pages/DashboardPage';
+import { HistoryPage } from './pages/liff/HistoryPage';
+import { HomePage } from './pages/liff/HomePage';
 import { LiffInitPage } from './pages/liff/LiffInitPage';
 import { MyTicketsPage } from './pages/liff/MyTicketsPage';
 import { QueueJoinPage } from './pages/liff/QueueJoinPage';
@@ -25,14 +27,18 @@ export const router = createBrowserRouter([
     path: '/liff',
     element: <LiffLayout />,
     children: [
-      // Default LIFF landing — shows a brief loader then redirects contextually
+      // Default LIFF landing — redirects to /liff/home
       { index: true, element: <LiffInitPage /> },
+      // Home / introduction screen
+      { path: 'home', element: <HomePage /> },
       // Join a specific queue (linked from QR code or LINE message)
       { path: 'join/:queueId', element: <QueueJoinPage /> },
       // My active tickets across all queues
       { path: 'tickets', element: <MyTicketsPage /> },
       // Single ticket detail + live ETA
       { path: 'tickets/:entryId', element: <TicketStatusPage /> },
+      // History placeholder
+      { path: 'history', element: <HistoryPage /> },
     ],
   },
 
@@ -48,7 +54,6 @@ export const router = createBrowserRouter([
   },
 
   // ── Convenience redirect ──────────────────────────────────────────────────
-  // Keeps old /dashboard links working if bookmarked
   { path: '/dashboard', element: <Navigate to="/" replace /> },
 
   // ── 404 ───────────────────────────────────────────────────────────────────
