@@ -41,7 +41,19 @@ export function createApp(): Application {
   app.use(httpLoggerMiddleware);
 
   // ── 5. Body parsing ──────────────────────────────────────────────────────────
-  app.use(express.json({ limit: '1mb' }));
+  // The `verify` callback captures the raw bytes before JSON parsing.
+  // This is required by the LINE webhook handler to compute a byte-accurate
+  // HMAC-SHA256 signature — re-serialising the parsed object is not equivalent.
+  // The cast is necessary because body-parser's verify signature uses the base
+  // http.IncomingMessage type; the runtime object IS the Express Request.
+  app.use(
+    express.json({
+      limit: '1mb',
+      verify: (req, _res, buf) => {
+        (req as { rawBody?: Buffer }).rawBody = buf;
+      },
+    })
+  );
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
   // ── 6. API docs (swagger-ui) — non-production only ───────────────────────────
