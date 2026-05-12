@@ -3,7 +3,7 @@ import path from 'node:path';
 import dotenv from 'dotenv';
 
 // Load .env from monorepo root when running locally
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 export const config = {
   nodeEnv: (process.env.NODE_ENV ?? 'development') as 'development' | 'production' | 'test',

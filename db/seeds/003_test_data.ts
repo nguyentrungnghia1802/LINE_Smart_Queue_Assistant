@@ -155,12 +155,12 @@ export async function seed003TestData(client: Client): Promise<void> {
   // ── notifications: 1 sent (notification display tests) ────────────────────
   await client.query(
     `INSERT INTO notifications
-       (user_id, line_user_id, queue_id, type, channel, status,
+       (user_id, type, channel, status,
         payload, sent_at)
-     VALUES ($1, $2, $3, 'your_turn', 'line', 'sent',
+     VALUES ($1, 'called', 'line_push', 'sent',
              '{"message":"It is your turn! Please proceed to Counter A."}',
              NOW() - INTERVAL '5 minutes')`,
-    [SEED_IDS.users.customer1, SEED_IDS.lineUsers.customer1, queueAId]
+    [SEED_IDS.users.customer1]
   );
 
   console.info(
