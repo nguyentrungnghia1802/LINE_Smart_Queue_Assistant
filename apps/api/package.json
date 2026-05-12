@@ -14,10 +14,10 @@
     "test:watch": "jest --watch --passWithNoTests",
     "test:coverage": "jest --coverage --passWithNoTests",
     "clean": "rimraf dist *.tsbuildinfo",
-    "db:migrate": "node-pg-migrate up --migration-file-language ts --tsconfig tsconfig.json --migrations-dir ../../db/migrations/node-pg-migrate",
-    "db:migrate:down": "node-pg-migrate down --migration-file-language ts --tsconfig tsconfig.json --migrations-dir ../../db/migrations/node-pg-migrate",
+    "db:migrate": "node-pg-migrate up --migration-file-language ts --tsconfig tsconfig.migrate.json --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env",
+    "db:migrate:down": "node-pg-migrate down --migration-file-language ts --tsconfig tsconfig.migrate.json --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env",
     "db:migrate:redo": "npm run db:migrate:down && npm run db:migrate",
-    "db:migrate:status": "node-pg-migrate status --migration-file-language ts --tsconfig tsconfig.json --migrations-dir ../../db/migrations/node-pg-migrate",
+    "db:migrate:status": "node-pg-migrate status --migration-file-language ts --tsconfig tsconfig.migrate.json --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env",
     "db:seed": "ts-node --project tsconfig.json ../../db/seeds/index.ts",
     "db:seed:reset": "ts-node --project tsconfig.json ../../db/seeds/index.ts --reset"
   },
