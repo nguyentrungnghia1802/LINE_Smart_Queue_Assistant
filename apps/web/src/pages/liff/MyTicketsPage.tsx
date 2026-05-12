@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 
 import { TicketCard } from '../../components/ticket/TicketCard';
+import { CalledBanner } from '../../components/ui/CalledBanner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
-import { Spinner } from '../../components/ui/Spinner';
+import { TicketCardSkeleton } from '../../components/ui/Skeleton';
 import { useMyTickets } from '../../hooks/useQueueEntry';
 
 /**
@@ -11,17 +12,20 @@ import { useMyTickets } from '../../hooks/useQueueEntry';
  *
  * URL: /liff/tickets
  *
- * Auto-refreshes every 30 s (configured in useMyTickets).
- * Tapping a ticket card navigates to the ticket detail page.
+ * - Auto-refreshes every 30 s (configured in useMyTickets)
+ * - Shows a CalledBanner at the top for any "called" tickets
+ * - Renders a skeleton while loading
  */
 export function MyTicketsPage() {
   const navigate = useNavigate();
   const { data: tickets, isLoading, isError, refetch } = useMyTickets();
 
+  // ── Loading skeleton ─────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex justify-center py-16">
-        <Spinner size="lg" />
+      <div className="max-w-md mx-auto space-y-4">
+        <TicketCardSkeleton />
+        <TicketCardSkeleton />
       </div>
     );
   }
@@ -40,14 +44,27 @@ export function MyTicketsPage() {
       <EmptyState
         icon="🎫"
         title="No active tickets"
-        message="You don't have any active queue tickets right now."
+        message="Scan a QR code or tap a queue link to get your number."
       />
     );
   }
 
+  const calledTickets = tickets.filter((t) => (t.entry.status as unknown as string) === 'called');
+
   return (
     <div className="max-w-md mx-auto space-y-4">
-      <h1 className="text-lg font-semibold text-gray-900">My Tickets</h1>
+      {/* Urgent banners for called tickets */}
+      {calledTickets.map((t) => (
+        <CalledBanner
+          key={t.entry.id}
+          ticketDisplay={t.entry.ticket_display}
+          onDismiss={() => navigate(`/liff/tickets/${t.entry.id}`)}
+        />
+      ))}
+
+      <h1 className="text-lg font-semibold text-gray-900">
+        My Tickets <span className="text-sm font-normal text-gray-400">({tickets.length})</span>
+      </h1>
 
       {tickets.map((ticket) => (
         <TicketCard
