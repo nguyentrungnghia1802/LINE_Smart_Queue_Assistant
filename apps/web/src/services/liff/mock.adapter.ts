@@ -9,18 +9,20 @@
  *   VITE_LIFF_MOCK_LOGGED_IN=false   → start in logged-out state (default: true)
  *   VITE_LIFF_MOCK_USER_ID           → fake userId   (default: 'mock-user-001')
  *   VITE_LIFF_MOCK_DISPLAY_NAME      → fake name     (default: 'Dev User')
- *   VITE_LIFF_MOCK_PICTURE_URL       → fake avatar   (default: blank placeholder)
+ *   VITE_LIFF_MOCK_PICTURE_URL       → fake avatar   (default: inline SVG placeholder)
  *   VITE_LIFF_MOCK_INIT_DELAY_MS     → artificial init delay in ms (default: 400)
  */
 
 import type { LiffAdapter, LiffProfile } from './types';
 
+const DEFAULT_MOCK_PICTURE_URL =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'><rect width='96' height='96' rx='48' fill='%2306c755'/><text x='48' y='56' text-anchor='middle' font-family='Arial, sans-serif' font-size='28' fill='%23ffffff'>DEV</text></svg>";
+
 const MOCK_PROFILE: LiffProfile = {
   userId: import.meta.env.VITE_LIFF_MOCK_USER_ID ?? 'mock-user-001',
   displayName: import.meta.env.VITE_LIFF_MOCK_DISPLAY_NAME ?? 'Dev User',
   pictureUrl:
-    import.meta.env.VITE_LIFF_MOCK_PICTURE_URL ??
-    'https://placehold.co/96x96/06c755/ffffff?text=DEV',
+    import.meta.env.VITE_LIFF_MOCK_PICTURE_URL ?? DEFAULT_MOCK_PICTURE_URL,
   statusMessage: 'Mock LIFF session',
 };
 
