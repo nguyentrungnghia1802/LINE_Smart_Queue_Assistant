@@ -1,5 +1,6 @@
-import { config } from '../../config';
+import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
 import { logger } from '../../utils/logger';
+import { queueService } from '../queue/queue.service';
 
 import type { ILineMessagingAdapter } from './line.adapter';
 import { lineMessagingAdapter } from './line.messaging';
@@ -95,24 +96,41 @@ async function handleMessage(event: LineEvent, adapter: ILineMessagingAdapter): 
   }
 
   if (text === 'STATUS') {
-    // TODO: query queueEntriesRepository.findAllActiveForActor(undefined, userId)
-    //       and format the result into a reply message.
+    const entries = await queueEntriesRepository.findAllActiveForActor(undefined, userId);
+
+    if (entries.length === 0) {
+      await adapter.replyMessage(event.replyToken, [
+        {
+          type: 'text',
+          text: 'You have no active tickets right now.\nScan the QR code at the counter to join a queue!',
+        },
+      ]);
+      return;
+    }
+
+    const lines = entries.map((e) => `• Ticket ${e.ticket_display} — ${e.status}`).join('\n');
+
     await adapter.replyMessage(event.replyToken, [
-      {
-        type: 'text',
-        text: 'Open the app to view your ticket status: ' + config.cors.origin,
-      },
+      { type: 'text', text: `Your active tickets:\n${lines}` },
     ]);
     return;
   }
 
   if (text === 'CANCEL') {
-    // TODO: cancel the user's active ticket and confirm via reply.
+    const entries = await queueEntriesRepository.findAllActiveForActor(undefined, userId);
+
+    if (entries.length === 0) {
+      await adapter.replyMessage(event.replyToken, [
+        { type: 'text', text: 'You have no active tickets to cancel.' },
+      ]);
+      return;
+    }
+
+    // Cancel the most recent active ticket.
+    const target = entries[0];
+    await queueService.cancelTicket({ entryId: target.id, actorLineUserId: userId });
     await adapter.replyMessage(event.replyToken, [
-      {
-        type: 'text',
-        text: 'To cancel your ticket, please use the app: ' + config.cors.origin,
-      },
+      { type: 'text', text: `✅ Ticket ${target.ticket_display} has been cancelled.` },
     ]);
     return;
   }
@@ -131,21 +149,38 @@ async function handlePostback(event: LineEvent, adapter: ILineMessagingAdapter):
   // Expected format: "action=cancel&entryId=<uuid>"
   const params = new URLSearchParams(data);
   const action = params.get('action');
+  const entryId = params.get('entryId');
 
-  if (action === 'cancel' && event.replyToken) {
-    // TODO: const entryId = params.get('entryId');
-    //       await queueService.cancelTicket({ entryId, actorLineUserId: userId });
-    await adapter.replyMessage(event.replyToken, [
-      { type: 'text', text: '✅ Your ticket has been cancelled.' },
-    ]);
+  if (action === 'cancel' && entryId && event.replyToken) {
+    try {
+      await queueService.cancelTicket({ entryId, actorLineUserId: userId });
+      await adapter.replyMessage(event.replyToken, [
+        { type: 'text', text: '✅ Your ticket has been cancelled.' },
+      ]);
+    } catch (err) {
+      logger.warn({ err, entryId, userId }, 'Postback cancel failed');
+      await adapter.replyMessage(event.replyToken, [
+        { type: 'text', text: 'Could not cancel the ticket. It may have already been processed.' },
+      ]);
+    }
     return;
   }
 
-  if (action === 'skip' && event.replyToken) {
-    // TODO: await queueService.skipTicket({ entryId, actorLineUserId: userId });
-    await adapter.replyMessage(event.replyToken, [
-      { type: 'text', text: '↩️ Your ticket has been moved back one position.' },
-    ]);
+  if (action === 'skip' && entryId && event.replyToken) {
+    try {
+      const result = await queueService.skipTicket({ entryId, actorLineUserId: userId });
+      await adapter.replyMessage(event.replyToken, [
+        {
+          type: 'text',
+          text: `↩️ Your ticket ${result.entry.ticket_display} has been moved back one position.`,
+        },
+      ]);
+    } catch (err) {
+      logger.warn({ err, entryId, userId }, 'Postback skip failed');
+      await adapter.replyMessage(event.replyToken, [
+        { type: 'text', text: 'Could not skip the ticket. Please try again.' },
+      ]);
+    }
     return;
   }
 

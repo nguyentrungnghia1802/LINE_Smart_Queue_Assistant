@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 
-import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { logger } from '../../utils/logger';
 import { sendCreated, sendSuccess } from '../../utils/response';
@@ -18,14 +17,6 @@ import { CurrentQueueQuery, EntryIdParam, JoinQueueDto, QueueIdParam } from './q
  */
 function reqLog(req: Request) {
   return (req as { log?: typeof logger }).log ?? logger;
-}
-
-function requireActorUserId(req: Request): string {
-  const actorUserId = req.user?.id;
-  if (!actorUserId) {
-    throw AppError.unauthorized();
-  }
-  return actorUserId;
 }
 
 // ── POST /api/v1/queue/join ───────────────────────────────────────────────────
@@ -151,7 +142,7 @@ export const callNextTicket = asyncHandler(async (req: Request, res: Response) =
 /** Mark a called ticket as serving (customer reached the counter). */
 export const serveTicket = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
-  const entry = await queueService.serveTicket({ entryId, actorUserId: requireActorUserId(req) });
+  const entry = await queueService.serveTicket({ entryId, actorUserId: req.user?.id });
 
   reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.serve');
 
@@ -163,10 +154,7 @@ export const serveTicket = asyncHandler(async (req: Request, res: Response) => {
 /** Mark a serving ticket as completed and archive to history. */
 export const completeTicket = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
-  const entry = await queueService.completeTicket({
-    entryId,
-    actorUserId: requireActorUserId(req),
-  });
+  const entry = await queueService.completeTicket({ entryId, actorUserId: req.user?.id });
 
   reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.complete');
 
@@ -177,7 +165,9 @@ export const completeTicket = asyncHandler(async (req: Request, res: Response) =
 
 /** Return all active penalties for the authenticated caller. */
 export const getMyPenalties = asyncHandler(async (req: Request, res: Response) => {
-  const penalties = await skipPenaltyService.getActivePenalties({ userId: req.user?.id as string });
+  const penalties = await skipPenaltyService.getActivePenalties({
+    userId: req.user?.id as string,
+  });
 
   reqLog(req).debug({ penaltyCount: penalties.length }, 'queue.myPenalties');
 
