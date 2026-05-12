@@ -100,7 +100,7 @@ async function runMigrations() {
       } catch (err) {
         console.log('❌');
         console.error(`\n  Error in ${file}:\n  ${err.message}\n`);
-        process.exit(1);
+        throw err;
       }
     }
 
