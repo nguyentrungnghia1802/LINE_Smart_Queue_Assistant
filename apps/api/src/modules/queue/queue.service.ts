@@ -3,6 +3,7 @@ import { queueEntriesRepository } from '../../db/repositories/queue-entries.repo
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
+import { logger } from '../../utils/logger';
 import { etaService } from '../eta/eta.service';
 import type { ILineMessagingAdapter } from '../line/line.adapter';
 import type { INotificationLogRepository } from '../notifications/notification-log.repository';
@@ -123,17 +124,32 @@ export const queueService = {
       }
     }
 
-    // 5. Atomically increment counter + insert entry inside a transaction
+    // 5. Calculate join-time priority adjustment from active penalties
+    const priorityAdjustment = userId
+      ? await skipPenaltyService
+          .calculatePriorityAdjustment({ userId, organizationId: queue.organization_id })
+          .catch(() => 0)
+      : 0;
+
+    // 6. Atomically increment counter + insert entry inside a transaction
     const entry = await withTransaction(async (client) => {
       const ticketNumber = await queuesRepository.incrementAndGetCounter(queueId, client);
       const ticketDisplay = formatTicketDisplay(queue.prefix ?? '', ticketNumber);
       return queueEntriesRepository.create(
-        { queueId, ticketNumber, ticketDisplay, userId, lineUserId, notes },
+        {
+          queueId,
+          ticketNumber,
+          ticketDisplay,
+          userId,
+          lineUserId,
+          notes,
+          priority: priorityAdjustment !== 0 ? priorityAdjustment : undefined,
+        },
         client
       );
     });
 
-    // 6. Position info (post-transaction read — acceptable eventual consistency)
+    // 7. Position info (post-transaction read — acceptable eventual consistency)
     const aheadCount = await queuesRepository.getWaitingPosition(
       queueId,
       entry.priority,
@@ -256,13 +272,21 @@ export const queueService = {
       throw AppError.conflict(`Cannot skip from status '${entry.status}' — ticket must be waiting`);
     }
 
-    if (entry.skip_count >= queue.max_skips_before_penalty) {
-      throw AppError.conflict(
-        `Skip limit reached (${entry.skip_count}/${queue.max_skips_before_penalty})`
-      );
+    const updated = await queueEntriesRepository.deprioritize(entryId);
+
+    // Record a skip penalty when the customer reaches (or exceeds) the skip limit.
+    // Fire-and-forget — a penalty-write failure must not block the queue operation.
+    if (entry.user_id && updated.skip_count >= queue.max_skips_before_penalty) {
+      void skipPenaltyService
+        .onSkipExhausted({
+          userId: entry.user_id,
+          queueId: entry.queue_id,
+          entryId: entry.id,
+          organizationId: queue.organization_id,
+        })
+        .catch((err: unknown) => logger.warn({ err }, 'skip-penalty: onSkipExhausted failed'));
     }
 
-    const updated = await queueEntriesRepository.deprioritize(entryId);
     const aheadCount = await queuesRepository.getWaitingPosition(
       entry.queue_id,
       updated.priority,
