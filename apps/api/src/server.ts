@@ -1,17 +1,20 @@
 import { createApp } from './app';
 import { config } from './config';
 import { closePool } from './db/client';
+import { scheduler } from './jobs/scheduler';
 
 const app = createApp();
 
 const server = app.listen(config.port, config.host, () => {
   console.info(`🚀  API ready → http://${config.host}:${config.port}`);
   console.info(`📋  Environment: ${config.nodeEnv}`);
+  scheduler.start();
 });
 
 // ── Graceful shutdown ──────────────────────────────────────────────────────────
 const shutdown = (signal: string) => {
   console.info(`\n${signal} received — shutting down gracefully…`);
+  scheduler.stop();
   server.close(async () => {
     console.info('HTTP server closed.');
     await closePool();

@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
 
+import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { logger } from '../../utils/logger';
 import { sendCreated, sendSuccess } from '../../utils/response';
+import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
 import { queueService } from './queue.service';
 import { CurrentQueueQuery, EntryIdParam, JoinQueueDto, QueueIdParam } from './queue.validator';
@@ -16,6 +18,14 @@ import { CurrentQueueQuery, EntryIdParam, JoinQueueDto, QueueIdParam } from './q
  */
 function reqLog(req: Request) {
   return (req as { log?: typeof logger }).log ?? logger;
+}
+
+function requireActorUserId(req: Request): string {
+  const actorUserId = req.user?.id;
+  if (!actorUserId) {
+    throw AppError.unauthorized();
+  }
+  return actorUserId;
 }
 
 // ── POST /api/v1/queue/join ───────────────────────────────────────────────────
@@ -114,4 +124,62 @@ export const getQueueStatus = asyncHandler(async (req: Request, res: Response) =
   reqLog(req).debug({ queueId, waitingCount: result.waitingCount }, 'queue.status');
 
   sendSuccess(res, result);
+});
+
+// ── POST /api/v1/queue/:queueId/call-next  (staff) ───────────────────────────
+
+/**
+ * Call the next waiting ticket in a queue.
+ *
+ * Staff-only action. Transitions the next waiting entry to `called` and
+ * sends a LINE push message to the ticket holder. Also fires an ETA warning
+ * push to the entry now first-in-line.
+ *
+ * Returns the entry that was called.
+ */
+export const callNextTicket = asyncHandler(async (req: Request, res: Response) => {
+  const { queueId } = req.params as unknown as QueueIdParam;
+  const entry = await queueService.callNextTicket(queueId);
+
+  reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_display }, 'queue.callNext');
+
+  sendSuccess(res, { entry });
+});
+
+// ── POST /api/v1/queue/:entryId/serve  (staff) ───────────────────────────────
+
+/** Mark a called ticket as serving (customer reached the counter). */
+export const serveTicket = asyncHandler(async (req: Request, res: Response) => {
+  const { entryId } = req.params as unknown as EntryIdParam;
+  const entry = await queueService.serveTicket({ entryId, actorUserId: requireActorUserId(req) });
+
+  reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.serve');
+
+  sendSuccess(res, { entry });
+});
+
+// ── POST /api/v1/queue/:entryId/complete  (staff) ────────────────────────────
+
+/** Mark a serving ticket as completed and archive to history. */
+export const completeTicket = asyncHandler(async (req: Request, res: Response) => {
+  const { entryId } = req.params as unknown as EntryIdParam;
+  const entry = await queueService.completeTicket({
+    entryId,
+    actorUserId: requireActorUserId(req),
+  });
+
+  reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.complete');
+
+  sendSuccess(res, { entry });
+});
+
+// ── GET /api/v1/queue/me/penalties ────────────────────────────────────────────
+
+/** Return all active penalties for the authenticated caller. */
+export const getMyPenalties = asyncHandler(async (req: Request, res: Response) => {
+  const penalties = await skipPenaltyService.getActivePenalties({ userId: req.user?.id as string });
+
+  reqLog(req).debug({ penaltyCount: penalties.length }, 'queue.myPenalties');
+
+  sendSuccess(res, penalties);
 });

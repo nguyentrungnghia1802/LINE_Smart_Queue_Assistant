@@ -1,5 +1,11 @@
 import { config } from '../../config';
 import { logger } from '../../utils/logger';
+import { queueService } from '../queue/queue.service';
+
+import type { ILineMessagingAdapter } from './line.adapter';
+import { lineMessagingAdapter } from './line.messaging';
+import { verifyLineSignature } from './line.signature';
+import type { LineEvent, LineWebhookBody } from './line.types';
 
 import type { ILineMessagingAdapter } from './line.adapter';
 import { lineMessagingAdapter } from './line.messaging';

@@ -1,8 +1,14 @@
+import { QueueEntryRow } from '../../db/repositories/queue-entries.repository';
 import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
+import { logger } from '../../utils/logger';
 import { etaService } from '../eta/eta.service';
+import type { ILineMessagingAdapter } from '../line/line.adapter';
+import type { INotificationLogRepository } from '../notifications/notification-log.repository';
+import { queueNotificationService } from '../notifications/queue-notification.service';
+import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
 import {
   JoinQueueResult,
@@ -119,17 +125,32 @@ export const queueService = {
       }
     }
 
-    // 5. Atomically increment counter + insert entry inside a transaction
+    // 5. Calculate join-time priority adjustment from active penalties
+    const priorityAdjustment = userId
+      ? await skipPenaltyService
+          .calculatePriorityAdjustment({ userId, organizationId: queue.organization_id })
+          .catch(() => 0)
+      : 0;
+
+    // 6. Atomically increment counter + insert entry inside a transaction
     const entry = await withTransaction(async (client) => {
       const ticketNumber = await queuesRepository.incrementAndGetCounter(queueId, client);
       const ticketDisplay = formatTicketDisplay(queue.prefix ?? '', ticketNumber);
       return queueEntriesRepository.create(
-        { queueId, ticketNumber, ticketDisplay, userId, lineUserId, notes },
+        {
+          queueId,
+          ticketNumber,
+          ticketDisplay,
+          userId,
+          lineUserId,
+          notes,
+          priority: priorityAdjustment !== 0 ? priorityAdjustment : undefined,
+        },
         client
       );
     });
 
-    // 6. Position info (post-transaction read — acceptable eventual consistency)
+    // 7. Position info (post-transaction read — acceptable eventual consistency)
     const aheadCount = await queuesRepository.getWaitingPosition(
       queueId,
       entry.priority,
@@ -252,13 +273,21 @@ export const queueService = {
       throw AppError.conflict(`Cannot skip from status '${entry.status}' — ticket must be waiting`);
     }
 
-    if (entry.skip_count >= queue.max_skips_before_penalty) {
-      throw AppError.conflict(
-        `Skip limit reached (${entry.skip_count}/${queue.max_skips_before_penalty})`
-      );
+    const updated = await queueEntriesRepository.deprioritize(entryId);
+
+    // Record a skip penalty when the customer reaches (or exceeds) the skip limit.
+    // Fire-and-forget — a penalty-write failure must not block the queue operation.
+    if (entry.user_id && updated.skip_count >= queue.max_skips_before_penalty) {
+      void skipPenaltyService
+        .onSkipExhausted({
+          userId: entry.user_id,
+          queueId: entry.queue_id,
+          entryId: entry.id,
+          organizationId: queue.organization_id,
+        })
+        .catch((err: unknown) => logger.warn({ err }, 'skip-penalty: onSkipExhausted failed'));
     }
 
-    const updated = await queueEntriesRepository.deprioritize(entryId);
     const aheadCount = await queuesRepository.getWaitingPosition(
       entry.queue_id,
       updated.priority,
@@ -266,6 +295,118 @@ export const queueService = {
     );
 
     return { entry: updated, aheadCount, skipCount: updated.skip_count };
+  },
+
+  // ── Staff operations ─────────────────────────────────────────────────────────
+
+  /**
+   * Call the next waiting ticket in a queue.
+   *
+   * **State transition**: waiting → called (atomic UPDATE … WHERE status='waiting').
+   * Concurrent calls are safe: the first UPDATE wins; subsequent callers for the
+   * same entry get a 409 from markCalled's RETURNING guard.
+   *
+   * **Notifications** (fire-and-forget):
+   * 1. Push "your turn" to the called ticket holder.
+   * 2. Push "almost your turn" ETA warning to the entry now at position 2
+   *    (if they have a LINE account and haven't been warned yet).
+   *
+   * Both notification calls are non-blocking — a notification failure never
+   * rolls back the queue state transition.
+   *
+   * @param adapter  Injectable LINE adapter — defaults to production singleton.
+   *                 Pass a MockLineAdapter in tests.
+   * @param log      Injectable notification log — defaults to in-memory registry.
+   *                 Pass a fresh mock registry in tests.
+   */
+  async callNextTicket(
+    queueId: string,
+    adapter?: ILineMessagingAdapter,
+    log?: INotificationLogRepository
+  ): Promise<QueueEntryRow> {
+    const queue = await queuesRepository.findById(queueId);
+    if (!queue) throw AppError.notFound('Queue');
+
+    const waiting = await queueEntriesRepository.listWaiting(queueId);
+    if (waiting.length === 0) {
+      throw AppError.conflict('No waiting entries in this queue');
+    }
+
+    const [next, nextUp] = waiting;
+
+    // Atomic status transition — throws if entry was concurrently moved.
+    const called = await queueEntriesRepository.markCalled(next.id);
+
+    // Fire-and-forget: failures are logged but must not block the response
+    // or raise to the caller.
+    void queueNotificationService.notifyTicketCalled(called, adapter, log);
+
+    // Warn the entry now at position 1 (was position 2 before calling `next`).
+    if (nextUp) {
+      void queueNotificationService.notifyEtaWarning(nextUp, 1, adapter, log);
+    }
+
+    return called;
+  },
+
+  /**
+   * Mark a called ticket as serving (customer has reached the counter).
+   * Requires the entry to be in `called` status.
+   */
+  async serveTicket(params: { entryId: string; actorUserId?: string }): Promise<QueueEntryRow> {
+    const { entryId } = params;
+
+    const entry = await queueEntriesRepository.findById(entryId);
+    if (!entry) throw AppError.notFound('Ticket');
+
+    if (entry.status !== 'called') {
+      throw AppError.conflict(
+        `Ticket must be in 'called' status to start serving (was '${entry.status}')`
+      );
+    }
+
+    return queueEntriesRepository.markServing(entryId);
+  },
+
+  /**
+   * Mark a called ticket as no-show (staff action).
+   * Transitions called → no_show. The customer did not appear at the counter.
+   */
+  async noShowTicket(params: { entryId: string; actorUserId?: string }): Promise<QueueEntryRow> {
+    const { entryId } = params;
+
+    const entry = await queueEntriesRepository.findById(entryId);
+    if (!entry) throw AppError.notFound('Ticket');
+
+    if (entry.status !== 'called') {
+      throw AppError.conflict(
+        `Ticket must be in 'called' status to mark as no-show (was '${entry.status}')`
+      );
+    }
+
+    return queueEntriesRepository.markNoShow(entryId);
+  },
+
+  /**
+   * Mark a serving ticket as completed.
+   * Writes a queue_histories row via archiveToHistory (called inside markCompleted transaction).
+   */
+  async completeTicket(params: { entryId: string; actorUserId?: string }): Promise<QueueEntryRow> {
+    const { entryId } = params;
+
+    const entry = await queueEntriesRepository.findById(entryId);
+    if (!entry) throw AppError.notFound('Ticket');
+
+    if (entry.status !== 'serving') {
+      throw AppError.conflict(
+        `Ticket must be in 'serving' status to complete (was '${entry.status}')`
+      );
+    }
+
+    const completed = await queueEntriesRepository.markCompleted(entryId);
+    // Free the anti-duplicate registry for this entry — it has reached
+    // a terminal state and will never trigger further notifications.
+    return completed;
   },
 };
 
