@@ -275,7 +275,7 @@ export const queueService = {
 
     const updated = await queueEntriesRepository.deprioritize(entryId);
 
-    // Record a skip penalty when the customer has exhausted their skip allowance.
+    // Record a skip penalty when the customer reaches (or exceeds) the skip limit.
     // Fire-and-forget — a penalty-write failure must not block the queue operation.
     if (entry.user_id && updated.skip_count >= queue.max_skips_before_penalty) {
       void skipPenaltyService
