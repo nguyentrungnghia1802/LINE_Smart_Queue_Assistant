@@ -1,12 +1,15 @@
 import { Router } from 'express';
 
-import { strictRateLimiter, validate } from '../../middlewares';
+import { UserRole } from '@line-queue/shared';
+
+import { requireAuth, requireRole, strictRateLimiter, validate } from '../../middlewares';
 
 import {
   callNextTicket,
   cancelTicket,
   completeTicket,
   getCurrentQueue,
+  getMyPenalties,
   getMyTicket,
   getQueueStatus,
   joinQueue,
@@ -35,6 +38,9 @@ queueEntryRouter.get('/current', validate(CurrentQueueQuerySchema, 'query'), get
 
 // GET /api/v1/queue/me
 queueEntryRouter.get('/me', getMyTicket);
+
+// GET /api/v1/queue/me/penalties  — active penalties for the authenticated caller
+queueEntryRouter.get('/me/penalties', getMyPenalties);
 
 // POST /api/v1/queue/:entryId/cancel
 queueEntryRouter.post('/:entryId/cancel', validate(EntryIdParamSchema, 'params'), cancelTicket);
