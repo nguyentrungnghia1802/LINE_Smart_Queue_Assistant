@@ -22,7 +22,7 @@ export function LiffInitPage() {
   useEffect(() => {
     // Redirect to my tickets as the default LIFF entry point.
     // Future: read liff.state / query params to redirect to a specific queue.
-    navigate('/liff/tickets', { replace: true });
+    navigate('/liff/home', { replace: true });
   }, [navigate, isLoggedIn]);
 
   return (

@@ -326,7 +326,7 @@ Copy `.env.example` → `.env`. The file is split into sections with inline comm
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | [Queue MVP API](docs/queue-mvp-api.md) | `POST /join`, `GET /me`, `GET /:queueId/status`, `GET /current` — curl examples, response shapes, ETA semantics |
 
-Interactive Swagger UI is available at `http://localhost:4000/api-docs` when the API is running.
+Interactive Swagger UI is available at `http://localhost:4000/api/docs` when the API is running.
 
 ---
 

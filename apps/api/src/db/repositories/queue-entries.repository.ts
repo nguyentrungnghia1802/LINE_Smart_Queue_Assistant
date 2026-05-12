@@ -182,6 +182,20 @@ export class QueueEntriesRepository extends BaseRepository {
   }
 
   /**
+   * Find the most recent entry for a queue filtered by status.
+   * Used by the staff board to display the currently called/serving entry.
+   */
+  async findByQueueAndStatus(queueId: string, status: string): Promise<QueueEntryRow | null> {
+    return this.queryOne<QueueEntryRow>(
+      `SELECT * FROM queue_entries
+       WHERE queue_id = $1 AND status = $2
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+      [queueId, status]
+    );
+  }
+
+  /**
    * Transition a called entry to 'no_show'.
    * Staff action when a called customer does not present within the allowed window.
    */
@@ -313,6 +327,67 @@ export class QueueEntriesRepository extends BaseRepository {
     } else {
       await this.query(sql, args);
     }
+  }
+
+  /**
+   * Find waiting entries in open queues whose queue-position is within
+   * `threshold` places from the front (exclusive of position 0, which is
+   * handled by the "called" notification).
+   *
+   * Uses a window function so only one DB round-trip is needed regardless
+   * of the number of active queues.  Only includes entries with a
+   * `line_user_id` — those without cannot receive a LINE push.
+   *
+   * `ahead_count` = number of entries ahead of this one within the queue
+   * (0-indexed, so position 1 has ahead_count = 1).
+   *
+   * Range: `1 ≤ ahead_count ≤ threshold`
+   */
+  async findNearThresholdWaiting(
+    threshold: number
+  ): Promise<Array<QueueEntryRow & { ahead_count: number }>> {
+    return this.query<QueueEntryRow & { ahead_count: number }>(
+      `WITH ranked AS (
+         SELECT e.*,
+           (ROW_NUMBER() OVER (
+             PARTITION BY e.queue_id
+             ORDER BY e.priority DESC, e.ticket_number ASC
+           ) - 1)::int AS ahead_count
+         FROM queue_entries e
+         JOIN queues q ON q.id = e.queue_id
+         WHERE e.status = 'waiting'
+           AND q.status = 'open'
+           AND q.is_active = TRUE
+           AND e.line_user_id IS NOT NULL
+       )
+       SELECT * FROM ranked
+       WHERE ahead_count BETWEEN 1 AND $1`,
+      [threshold]
+    );
+  }
+
+  /**
+   * Find entries that have been called but whose "called" notification may
+   * not have been delivered (e.g., LINE API was unavailable).
+   *
+   * Only returns entries where:
+   *   - `status = 'called'`
+   *   - `called_at` is within the last `maxAgeMinutes` (stale entries excluded)
+   *   - `called_at` is at least `minAgeSeconds` ago (allows initial delivery)
+   *   - `line_user_id IS NOT NULL`
+   *
+   * The anti-duplicate registry (`notificationLogRepository`) is checked by
+   * the caller — this query intentionally returns all candidates.
+   */
+  async findRecentlyCalled(maxAgeMinutes: number, minAgeSeconds: number): Promise<QueueEntryRow[]> {
+    return this.query<QueueEntryRow>(
+      `SELECT * FROM queue_entries
+       WHERE status = 'called'
+         AND called_at >= NOW() - ($1 * INTERVAL '1 minute')
+         AND called_at <  NOW() - ($2 * INTERVAL '1 second')
+         AND line_user_id IS NOT NULL`,
+      [maxAgeMinutes, minAgeSeconds]
+    );
   }
 }
 

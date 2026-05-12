@@ -3,11 +3,15 @@ import { Router } from 'express';
 import { strictRateLimiter, validate } from '../../middlewares';
 
 import {
+  callNextTicket,
   cancelTicket,
+  completeTicket,
   getCurrentQueue,
+  getMyPenalties,
   getMyTicket,
   getQueueStatus,
   joinQueue,
+  serveTicket,
   skipTicket,
 } from './queue.controller';
 import {
@@ -33,6 +37,9 @@ queueEntryRouter.get('/current', validate(CurrentQueueQuerySchema, 'query'), get
 // GET /api/v1/queue/me
 queueEntryRouter.get('/me', getMyTicket);
 
+// GET /api/v1/queue/me/penalties  — active penalties for the authenticated caller
+queueEntryRouter.get('/me/penalties', getMyPenalties);
+
 // POST /api/v1/queue/:entryId/cancel
 queueEntryRouter.post('/:entryId/cancel', validate(EntryIdParamSchema, 'params'), cancelTicket);
 
@@ -44,5 +51,18 @@ queueEntryRouter.post(
   skipTicket
 );
 
+// POST /api/v1/queue/:entryId/serve  (staff — mark ticket as serving)
+queueEntryRouter.post('/:entryId/serve', validate(EntryIdParamSchema, 'params'), serveTicket);
+
+// POST /api/v1/queue/:entryId/complete  (staff — mark ticket as completed)
+queueEntryRouter.post('/:entryId/complete', validate(EntryIdParamSchema, 'params'), completeTicket);
+
 // GET /api/v1/queue/:queueId/status  (public — no auth required)
 queueEntryRouter.get('/:queueId/status', validate(QueueIdParamSchema, 'params'), getQueueStatus);
+
+// POST /api/v1/queue/:queueId/call-next  (staff — advance queue)
+queueEntryRouter.post(
+  '/:queueId/call-next',
+  validate(QueueIdParamSchema, 'params'),
+  callNextTicket
+);

@@ -1,26 +1,29 @@
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
-import { Spinner } from '../../components/ui/Spinner';
+import { QueueInfoSkeleton } from '../../components/ui/Skeleton';
 import { useLiff } from '../../hooks/useLiff';
 import { useJoinQueue, useQueueStatus } from '../../hooks/useQueueEntry';
 
 /**
- * Allows a customer to join a specific queue.
+ * Join-queue screen.
  *
  * URL: /liff/join/:queueId
  *
  * Flow:
- *   1. Fetch live queue status (name, waiting count, ETA)
- *   2. User taps "Join Queue"
- *   3. Mutation fires POST /api/v1/queue/join
- *   4. On success, redirect to /liff/tickets/:entryId
+ *   1. Fetch live queue status (name, count, ETA)
+ *   2. Optional: user enters notes
+ *   3. Tap "Join Queue" → POST /api/v1/queue/join
+ *   4a. New ticket → navigate to /liff/tickets/:entryId
+ *   4b. isExisting ticket → same navigation (idempotent)
  */
 export function QueueJoinPage() {
   const { queueId = '' } = useParams<{ queueId: string }>();
   const { profile } = useLiff();
   const navigate = useNavigate();
+  const [notes, setNotes] = useState('');
 
   const { data: statusData, isLoading, isError, refetch } = useQueueStatus(queueId);
   const joinMutation = useJoinQueue();
@@ -29,24 +32,33 @@ export function QueueJoinPage() {
     const result = await joinMutation.mutateAsync({
       queueId,
       lineUserId: profile?.userId,
+      notes: notes.trim() || undefined,
     });
     navigate(`/liff/tickets/${result.entry.id}`, { replace: true });
   }
 
+  // ── Guard: missing queueId ─────────────────────────────────────────────
   if (!queueId) {
     return (
-      <EmptyState icon="❌" title="Invalid link" message="Queue ID is missing from the URL." />
+      <EmptyState
+        icon="❌"
+        title="Invalid link"
+        message="Queue ID is missing from the URL. Please use the original link."
+      />
     );
   }
 
+  // ── Loading skeleton ───────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex justify-center py-16">
-        <Spinner size="lg" />
+      <div className="max-w-md mx-auto space-y-4">
+        <QueueInfoSkeleton />
+        <div className="h-14 bg-gray-200 rounded-xl animate-pulse" aria-hidden="true" />
       </div>
     );
   }
 
+  // ── Error ──────────────────────────────────────────────────────────────
   if (isError || !statusData) {
     return (
       <ErrorState
@@ -61,55 +73,91 @@ export function QueueJoinPage() {
   const isQueueOpen = queue.status === 'open';
 
   return (
-    <div className="max-w-md mx-auto space-y-6">
-      {/* Queue info card */}
-      <div className="bg-white rounded-[var(--radius-card)] border border-gray-200 shadow-sm p-6 space-y-4">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">{queue.name}</h1>
-          {queue.description && <p className="text-sm text-gray-500 mt-1">{queue.description}</p>}
+    <div className="max-w-md mx-auto space-y-5">
+      {/* ── Queue info card ──────────────────────────────────────────────── */}
+      <div className="bg-white rounded-(--radius-card) border border-gray-200 shadow-sm p-6 space-y-4">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">{queue.name}</h1>
+            {queue.description && <p className="text-sm text-gray-500 mt-1">{queue.description}</p>}
+          </div>
+          {/* Queue status pill */}
+          <span
+            className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${
+              isQueueOpen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
+            }`}
+          >
+            {queue.status.replace('_', ' ')}
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Stat label="Waiting" value={String(waitingCount)} />
-          <Stat label="Est. wait" value={waitingCount === 0 ? '< 1 min' : `~${waitMin} min`} />
+        {/* Stats */}
+        <div className="grid grid-cols-3 divide-x divide-gray-100 text-center">
+          <StatCell label="Waiting" value={String(waitingCount)} />
+          <StatCell label="Est. wait" value={waitingCount === 0 ? '< 1 min' : `~${waitMin} min`} />
+          <StatCell label="Avg. service" value={`${queue.avg_service_seconds}s`} />
         </div>
 
-        {/* Queue status indicator */}
-        {!isQueueOpen && (
-          <p className="text-sm text-red-600 font-medium">
-            This queue is currently{' '}
-            <span className="capitalize">{queue.status.replace('_', ' ')}</span> and not accepting
-            new entries.
+        {/* Capacity warning */}
+        {queue.max_capacity !== null && waitingCount >= queue.max_capacity && (
+          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+            This queue is at full capacity.
           </p>
         )}
       </div>
 
-      {/* Join button */}
+      {/* ── Notes input ─────────────────────────────────────────────────── */}
+      <div>
+        <label htmlFor="join-notes" className="block text-sm font-medium text-gray-700 mb-1">
+          Notes <span className="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <textarea
+          id="join-notes"
+          rows={2}
+          maxLength={200}
+          placeholder="e.g. wheelchair access, appointment reference…"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-line-green resize-none"
+        />
+      </div>
+
+      {/* ── Join button ──────────────────────────────────────────────────── */}
       <button
         type="button"
         onClick={() => void handleJoin()}
         disabled={!isQueueOpen || joinMutation.isPending}
-        className="w-full bg-line-green hover:opacity-90 disabled:opacity-50 text-white font-semibold py-4 rounded-xl text-lg transition-opacity"
+        className="w-full bg-line-green hover:opacity-90 active:scale-[0.98] disabled:opacity-50 text-white font-semibold py-4 rounded-xl text-lg transition-all"
+        aria-busy={joinMutation.isPending}
       >
         {joinMutation.isPending ? 'Joining…' : 'Join Queue'}
       </button>
 
+      {/* ── Error feedback ────────────────────────────────────────────────── */}
       {joinMutation.isError && (
-        <p className="text-sm text-red-600 text-center">
+        <p role="alert" className="text-sm text-red-600 text-center">
           {joinMutation.error instanceof Error
             ? joinMutation.error.message
             : 'Could not join queue. Please try again.'}
+        </p>
+      )}
+
+      {/* ── Closed notice ─────────────────────────────────────────────────── */}
+      {!isQueueOpen && (
+        <p className="text-sm text-gray-500 text-center">
+          This queue is not accepting new entries right now.
         </p>
       )}
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function StatCell({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
-    <div className="text-center">
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+    <div className="py-1 px-2">
+      <p className="text-xl font-bold text-gray-900">{value}</p>
+      <p className="text-xs text-gray-400 mt-0.5">{label}</p>
     </div>
   );
 }
