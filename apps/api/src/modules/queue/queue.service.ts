@@ -384,24 +384,7 @@ export const queueService = {
       );
     }
 
-    const noShown = await queueEntriesRepository.markNoShow(entryId);
-
-    // Record no-show penalty (fire-and-forget).
-    if (entry.user_id) {
-      const queue = await queuesRepository.findById(entry.queue_id);
-      if (queue) {
-        void skipPenaltyService
-          .onNoShow({
-            userId: entry.user_id,
-            queueId: entry.queue_id,
-            entryId: entry.id,
-            organizationId: queue.organization_id,
-          })
-          .catch((err: unknown) => logger.warn({ err }, 'skip-penalty: onNoShow failed'));
-      }
-    }
-
-    return noShown;
+    return queueEntriesRepository.markNoShow(entryId);
   },
 
   /**

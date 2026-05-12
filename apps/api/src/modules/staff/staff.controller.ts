@@ -30,7 +30,7 @@ export const getQueueOverview = asyncHandler(async (req: Request, res: Response)
 /** Advance the queue — transition the next waiting entry to 'called'. */
 export const callNext = asyncHandler(async (req: Request, res: Response) => {
   const { queueId } = req.params as unknown as QueueIdParam;
-  const entry = await staffService.callNext(queueId, req.user?.id);
+  const entry = await staffService.callNext(queueId, req.user?.id as string);
 
   reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_display }, 'staff.callNext');
 
@@ -42,7 +42,7 @@ export const callNext = asyncHandler(async (req: Request, res: Response) => {
 /** Mark a called ticket as serving (customer reached the counter). */
 export const serveEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
-  const entry = await staffService.serve(entryId, req.user?.id);
+  const entry = await staffService.serve(entryId, req.user?.id as string);
 
   reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'staff.serve');
 
@@ -54,7 +54,7 @@ export const serveEntry = asyncHandler(async (req: Request, res: Response) => {
 /** Mark a serving ticket as completed. */
 export const completeEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
-  const entry = await staffService.complete(entryId, req.user?.id);
+  const entry = await staffService.complete(entryId, req.user?.id as string);
 
   reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'staff.complete');
 
@@ -66,7 +66,7 @@ export const completeEntry = asyncHandler(async (req: Request, res: Response) =>
 /** Mark a called entry as no-show (customer did not appear). */
 export const noShowEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
-  const entry = await staffService.markNoShow(entryId, req.user?.id);
+  const entry = await staffService.markNoShow(entryId, req.user?.id as string);
 
   reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'staff.noShow');
 
@@ -78,7 +78,7 @@ export const noShowEntry = asyncHandler(async (req: Request, res: Response) => {
 /** Cancel any waiting or called ticket as a staff action. */
 export const cancelEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
-  const entry = await staffService.cancelEntry(entryId, req.user?.id);
+  const entry = await staffService.cancelEntry(entryId, req.user?.id as string);
 
   reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'staff.cancel');
 
