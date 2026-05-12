@@ -24,7 +24,7 @@ export interface QueueOverview {
  * Fire-and-forget: a logging failure must never roll back the queue operation.
  */
 function auditStaff(
-  actorUserId: string,
+  actorUserId: string | undefined,
   action: string,
   resourceType: string,
   resourceId: string,
@@ -72,7 +72,7 @@ export const staffService = {
   },
 
   /** Call the next waiting ticket. Records audit log entry. */
-  async callNext(queueId: string, actorUserId: string): Promise<QueueEntryRow> {
+  async callNext(queueId: string, actorUserId?: string): Promise<QueueEntryRow> {
     const entry = await queueService.callNextTicket(queueId);
     auditStaff(actorUserId, 'call_next', 'queue_entry', entry.id, {
       queueId,
@@ -82,7 +82,7 @@ export const staffService = {
   },
 
   /** Mark a called ticket as serving. Records audit log entry. */
-  async serve(entryId: string, actorUserId: string): Promise<QueueEntryRow> {
+  async serve(entryId: string, actorUserId?: string): Promise<QueueEntryRow> {
     const entry = await queueService.serveTicket({ entryId, actorUserId });
     auditStaff(actorUserId, 'serve', 'queue_entry', entry.id, {
       ticket: entry.ticket_display,
@@ -91,7 +91,7 @@ export const staffService = {
   },
 
   /** Mark a serving ticket as completed. Records audit log entry. */
-  async complete(entryId: string, actorUserId: string): Promise<QueueEntryRow> {
+  async complete(entryId: string, actorUserId?: string): Promise<QueueEntryRow> {
     const entry = await queueService.completeTicket({ entryId, actorUserId });
     auditStaff(actorUserId, 'complete', 'queue_entry', entry.id, {
       ticket: entry.ticket_display,
@@ -103,7 +103,7 @@ export const staffService = {
    * Mark a called ticket as no-show (customer did not appear).
    * Records audit log entry.
    */
-  async markNoShow(entryId: string, actorUserId: string): Promise<QueueEntryRow> {
+  async markNoShow(entryId: string, actorUserId?: string): Promise<QueueEntryRow> {
     const entry = await queueService.noShowTicket({ entryId, actorUserId });
     auditStaff(actorUserId, 'no_show', 'queue_entry', entry.id, {
       ticket: entry.ticket_display,
@@ -115,7 +115,7 @@ export const staffService = {
    * Cancel an entry as a staff action. Works on waiting or called entries.
    * Records audit log entry.
    */
-  async cancelEntry(entryId: string, actorUserId: string): Promise<QueueEntryRow> {
+  async cancelEntry(entryId: string, actorUserId?: string): Promise<QueueEntryRow> {
     // Staff cancel — load entry first to confirm it exists, then cancel
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
