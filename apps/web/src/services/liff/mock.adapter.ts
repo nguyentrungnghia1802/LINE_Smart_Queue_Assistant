@@ -53,6 +53,10 @@ export class MockLiffAdapter implements LiffAdapter {
   }
 
   async getProfile(): Promise<LiffProfile> {
+    if (!this._loggedIn) {
+      throw new Error('Cannot get LIFF profile when logged out.');
+    }
+
     return Promise.resolve({ ...MOCK_PROFILE });
   }
 
