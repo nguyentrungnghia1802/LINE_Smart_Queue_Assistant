@@ -182,6 +182,20 @@ export class QueueEntriesRepository extends BaseRepository {
   }
 
   /**
+   * Find the most recent entry for a queue filtered by status.
+   * Used by the staff board to display the currently called/serving entry.
+   */
+  async findByQueueAndStatus(queueId: string, status: string): Promise<QueueEntryRow | null> {
+    return this.queryOne<QueueEntryRow>(
+      `SELECT * FROM queue_entries
+       WHERE queue_id = $1 AND status = $2
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+      [queueId, status]
+    );
+  }
+
+  /**
    * Transition a called entry to 'no_show'.
    * Staff action when a called customer does not present within the allowed window.
    */

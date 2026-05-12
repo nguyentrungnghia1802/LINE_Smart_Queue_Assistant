@@ -8,6 +8,7 @@ import { etaService } from '../eta/eta.service';
 import type { ILineMessagingAdapter } from '../line/line.adapter';
 import type { INotificationLogRepository } from '../notifications/notification-log.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
+import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
 import {
   JoinQueueResult,
@@ -387,6 +388,25 @@ export const queueService = {
     // Free the anti-duplicate registry for this entry — it has reached
     // a terminal state and will never trigger further notifications.
     return completed;
+  },
+
+  /**
+   * Mark a called ticket as no-show (customer did not appear).
+   * Staff action — requires entry to be in `called` status.
+   */
+  async noShowTicket(params: { entryId: string; actorUserId?: string }): Promise<QueueEntryRow> {
+    const { entryId } = params;
+
+    const entry = await queueEntriesRepository.findById(entryId);
+    if (!entry) throw AppError.notFound('Ticket');
+
+    if (entry.status !== 'called') {
+      throw AppError.conflict(
+        `Ticket must be in 'called' status to mark as no-show (was '${entry.status}')`
+      );
+    }
+
+    return queueEntriesRepository.markNoShow(entryId);
   },
 };
 

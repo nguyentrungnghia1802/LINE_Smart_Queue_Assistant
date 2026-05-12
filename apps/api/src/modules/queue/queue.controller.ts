@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { logger } from '../../utils/logger';
 import { sendCreated, sendSuccess } from '../../utils/response';
+import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
 import { queueService } from './queue.service';
 import { CurrentQueueQuery, EntryIdParam, JoinQueueDto, QueueIdParam } from './queue.validator';
@@ -158,4 +159,17 @@ export const completeTicket = asyncHandler(async (req: Request, res: Response) =
   reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.complete');
 
   sendSuccess(res, { entry });
+});
+
+// ── GET /api/v1/queue/me/penalties ────────────────────────────────────────────
+
+/** Return all active penalties for the authenticated caller. */
+export const getMyPenalties = asyncHandler(async (req: Request, res: Response) => {
+  const penalties = await skipPenaltyService.getActivePenalties({
+    userId: req.user?.id as string,
+  });
+
+  reqLog(req).debug({ penaltyCount: penalties.length }, 'queue.myPenalties');
+
+  sendSuccess(res, penalties);
 });
