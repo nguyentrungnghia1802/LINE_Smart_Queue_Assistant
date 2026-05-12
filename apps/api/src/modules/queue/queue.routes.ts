@@ -1,8 +1,6 @@
 import { Router } from 'express';
 
-import { UserRole } from '@line-queue/shared';
-
-import { requireAuth, requireRole, strictRateLimiter, validate } from '../../middlewares';
+import { strictRateLimiter, validate } from '../../middlewares';
 
 import {
   callNextTicket,

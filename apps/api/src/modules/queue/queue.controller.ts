@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
 
-import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { logger } from '../../utils/logger';
 import { sendCreated, sendSuccess } from '../../utils/response';
-import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
 import { queueService } from './queue.service';
 import { CurrentQueueQuery, EntryIdParam, JoinQueueDto, QueueIdParam } from './queue.validator';
@@ -18,14 +16,6 @@ import { CurrentQueueQuery, EntryIdParam, JoinQueueDto, QueueIdParam } from './q
  */
 function reqLog(req: Request) {
   return (req as { log?: typeof logger }).log ?? logger;
-}
-
-function requireActorUserId(req: Request): string {
-  const actorUserId = req.user?.id;
-  if (!actorUserId) {
-    throw AppError.unauthorized();
-  }
-  return actorUserId;
 }
 
 // ── POST /api/v1/queue/join ───────────────────────────────────────────────────
