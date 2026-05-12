@@ -60,7 +60,7 @@ export function LiffLayout() {
       {/* ── Bottom tab bar ── */}
       <nav
         aria-label="Main navigation"
-        className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex items-stretch z-10 safe-bottom"
+        className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex items-stretch z-10 pb-[env(safe-area-inset-bottom)]"
       >
         {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
           <NavLink
