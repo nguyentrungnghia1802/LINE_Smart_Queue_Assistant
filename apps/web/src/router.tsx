@@ -13,6 +13,7 @@ import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { QueueDetailPage } from './pages/QueueDetailPage';
 import { QueuesPage } from './pages/QueuesPage';
+import { StaffQueuePage } from './pages/StaffQueuePage';
 
 export const router = createBrowserRouter([
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
       { index: true, element: <DashboardPage /> },
       { path: 'queues', element: <QueuesPage /> },
       { path: 'queues/:id', element: <QueueDetailPage /> },
+      { path: 'staff/queues/:queueId', element: <StaffQueuePage /> },
     ],
   },
 

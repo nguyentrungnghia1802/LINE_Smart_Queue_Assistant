@@ -15,6 +15,14 @@ declare global {
        * Use requireAuth middleware to enforce presence.
        */
       user?: AuthUser;
+
+      /**
+       * Raw request body bytes captured by the `verify` hook on express.json().
+       * Used by the LINE webhook controller to verify the HMAC-SHA256 signature
+       * against the exact bytes LINE signed — re-serialising parsed JSON would
+       * not be byte-for-byte equivalent.
+       */
+      rawBody?: Buffer;
     }
   }
 }
