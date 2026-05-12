@@ -164,12 +164,13 @@ export const completeTicket = asyncHandler(async (req: Request, res: Response) =
 // ── GET /api/v1/queue/me/penalties ────────────────────────────────────────────
 
 /** Return all active penalties for the authenticated caller. */
-export const getMyPenalties = asyncHandler(async (req: Request, res: Response) => {
+export const getMyPenalties = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const userId = req.user?.id;
 
   if (!userId) {
     reqLog(req).warn('queue.myPenalties.unauthorized');
-    return res.status(401).json({ message: 'Unauthorized' });
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
   }
 
   const penalties = await skipPenaltyService.getActivePenalties({
