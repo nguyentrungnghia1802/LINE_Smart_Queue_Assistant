@@ -1,6 +1,8 @@
 import { Router } from 'express';
 
-import { strictRateLimiter, validate } from '../../middlewares';
+import { UserRole } from '@line-queue/shared';
+
+import { requireAuth, requireRole, strictRateLimiter, validate } from '../../middlewares';
 
 import {
   callNextTicket,
@@ -52,10 +54,22 @@ queueEntryRouter.post(
 );
 
 // POST /api/v1/queue/:entryId/serve  (staff — mark ticket as serving)
-queueEntryRouter.post('/:entryId/serve', validate(EntryIdParamSchema, 'params'), serveTicket);
+queueEntryRouter.post(
+  '/:entryId/serve',
+  requireAuth,
+  requireRole(UserRole.STAFF, UserRole.ADMIN),
+  validate(EntryIdParamSchema, 'params'),
+  serveTicket
+);
 
 // POST /api/v1/queue/:entryId/complete  (staff — mark ticket as completed)
-queueEntryRouter.post('/:entryId/complete', validate(EntryIdParamSchema, 'params'), completeTicket);
+queueEntryRouter.post(
+  '/:entryId/complete',
+  requireAuth,
+  requireRole(UserRole.STAFF, UserRole.ADMIN),
+  validate(EntryIdParamSchema, 'params'),
+  completeTicket
+);
 
 // GET /api/v1/queue/:queueId/status  (public — no auth required)
 queueEntryRouter.get('/:queueId/status', validate(QueueIdParamSchema, 'params'), getQueueStatus);
@@ -63,6 +77,8 @@ queueEntryRouter.get('/:queueId/status', validate(QueueIdParamSchema, 'params'),
 // POST /api/v1/queue/:queueId/call-next  (staff — advance queue)
 queueEntryRouter.post(
   '/:queueId/call-next',
+  requireAuth,
+  requireRole(UserRole.STAFF, UserRole.ADMIN),
   validate(QueueIdParamSchema, 'params'),
   callNextTicket
 );
