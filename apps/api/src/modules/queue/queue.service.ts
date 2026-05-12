@@ -8,6 +8,7 @@ import { etaService } from '../eta/eta.service';
 import type { ILineMessagingAdapter } from '../line/line.adapter';
 import type { INotificationLogRepository } from '../notifications/notification-log.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
+import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
 import {
   JoinQueueResult,
