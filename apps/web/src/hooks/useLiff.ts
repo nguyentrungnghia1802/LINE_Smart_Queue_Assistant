@@ -1,20 +1,28 @@
-import liff from '@line/liff';
 import { useCallback, useEffect, useState } from 'react';
 
+import { isLiffMockMode, liffAdapter } from '../services/liff';
 import type { LiffContext, LiffInitStatus, LiffProfile } from '../types/liff';
 
+/**
+ * LIFF ID resolved from env.
+ * In mock mode this value is ignored by the adapter (no real SDK call is made).
+ */
 const LIFF_ID = import.meta.env.VITE_LIFF_ID ?? '';
 
 /**
- * Initialises the LIFF SDK and exposes profile / auth state.
+ * Initialises the LIFF SDK (or mock adapter) and exposes profile / auth state.
  *
  * Usage:
- *   const { isInitialized, isLoggedIn, profile, login } = useLiff();
+ *   const { isInitialized, isLoggedIn, profile, login, logout } = useLiff();
  *
- * Notes:
- *   - VITE_LIFF_ID must be set; without it the hook enters error state immediately.
- *   - Safe to use outside the LINE in-app browser (isInClient will be false).
- *   - The access token should be sent to POST /api/v1/auth/line to exchange for a JWT.
+ * SDK coupling is handled exclusively by the adapter layer (services/liff/).
+ * This hook never imports @line/liff directly.
+ *
+ * Environment variables:
+ *   VITE_LIFF_ID        — required for production; ignored when mock mode is on.
+ *   VITE_LIFF_MOCK=true — enables MockLiffAdapter for local development.
+ *
+ * See apps/web/.env.example for a full reference.
  */
 export function useLiff(): LiffContext {
   const [initStatus, setInitStatus] = useState<LiffInitStatus>('idle');
@@ -25,8 +33,15 @@ export function useLiff(): LiffContext {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!LIFF_ID) {
-      setError(new Error('VITE_LIFF_ID is not configured. Add it to your .env file.'));
+    // In real mode a LIFF ID is mandatory; fail fast with a clear message.
+    if (!isLiffMockMode && !LIFF_ID) {
+      setError(
+        new Error(
+          'VITE_LIFF_ID is not configured.\n' +
+            'Add it to apps/web/.env.local or set VITE_LIFF_MOCK=true for local development.\n' +
+            'See apps/web/.env.example for details.'
+        )
+      );
       setInitStatus('error');
       return;
     }
@@ -34,20 +49,20 @@ export function useLiff(): LiffContext {
     let cancelled = false;
     setInitStatus('loading');
 
-    (async () => {
+    const run = async () => {
       try {
-        await liff.init({ liffId: LIFF_ID });
+        await liffAdapter.init(LIFF_ID);
         if (cancelled) return;
 
-        const inClient = liff.isInClient();
-        const loggedIn = liff.isLoggedIn();
+        const inClient = liffAdapter.isInClient();
+        const loggedIn = liffAdapter.isLoggedIn();
         setIsInClient(inClient);
         setIsLoggedIn(loggedIn);
 
         if (loggedIn) {
           const [liffProfile, token] = await Promise.all([
-            liff.getProfile(),
-            Promise.resolve(liff.getAccessToken()),
+            liffAdapter.getProfile(),
+            Promise.resolve(liffAdapter.getAccessToken()),
           ]);
           if (!cancelled) {
             setProfile(liffProfile);
@@ -62,7 +77,9 @@ export function useLiff(): LiffContext {
           setInitStatus('error');
         }
       }
-    })();
+    };
+
+    void run();
 
     return () => {
       cancelled = true;
@@ -70,11 +87,11 @@ export function useLiff(): LiffContext {
   }, []);
 
   const login = useCallback(() => {
-    liff.login();
+    liffAdapter.login();
   }, []);
 
   const logout = useCallback(() => {
-    liff.logout();
+    liffAdapter.logout();
     setIsLoggedIn(false);
     setProfile(null);
     setAccessToken(null);

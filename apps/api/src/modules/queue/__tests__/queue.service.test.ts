@@ -4,6 +4,7 @@ import {
 } from '../../../db/repositories/queue-entries.repository';
 import { QueueRow, queuesRepository } from '../../../db/repositories/queues.repository';
 import { withTransaction } from '../../../db/transaction';
+import { skipPenaltyService } from '../../skip-penalty/skip-penalty.service';
 import { queueService } from '../queue.service';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
@@ -11,6 +12,16 @@ import { queueService } from '../queue.service';
 jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
+jest.mock('../../skip-penalty/skip-penalty.service');
+
+// db/client must be mocked so the penalty repository module loads cleanly
+jest.mock('../../../db/client', () => ({
+  pool: { query: jest.fn(), connect: jest.fn() },
+  closePool: jest.fn().mockResolvedValue(undefined),
+  query: jest.fn().mockResolvedValue([]),
+  queryOne: jest.fn().mockResolvedValue(null),
+  queryWithClient: jest.fn().mockResolvedValue([]),
+}));
 
 const mockFindQueueById = queuesRepository.findById as jest.MockedFunction<
   typeof queuesRepository.findById
@@ -47,6 +58,12 @@ const mockDeprioritize = queueEntriesRepository.deprioritize as jest.MockedFunct
   typeof queueEntriesRepository.deprioritize
 >;
 const mockWithTransaction = withTransaction as jest.MockedFunction<typeof withTransaction>;
+const mockCalcPriority = skipPenaltyService.calculatePriorityAdjustment as jest.MockedFunction<
+  typeof skipPenaltyService.calculatePriorityAdjustment
+>;
+const mockOnSkipExhausted = skipPenaltyService.onSkipExhausted as jest.MockedFunction<
+  typeof skipPenaltyService.onSkipExhausted
+>;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -106,6 +123,14 @@ const waitingEntry: QueueEntryRow = {
 function mockTx() {
   mockWithTransaction.mockImplementation(async (fn) => fn({} as never));
 }
+
+// ── Global setup ──────────────────────────────────────────────────────────────
+
+// Default: no penalties → priority adjustment = 0 (no deduction)
+beforeEach(() => {
+  mockCalcPriority.mockResolvedValue(0);
+  mockOnSkipExhausted.mockResolvedValue(undefined);
+});
 
 // ── joinQueue ─────────────────────────────────────────────────────────────────
 
@@ -352,15 +377,21 @@ describe('queueService.skipTicket', () => {
     ).rejects.toMatchObject({ statusCode: 409 });
   });
 
-  it('throws 409 when the skip limit has been reached', async () => {
-    mockFindEntryById.mockResolvedValue({
-      ...waitingEntry,
-      skip_count: 2, // equals max_skips_before_penalty (2)
-    });
+  it('allows skip and records penalty when skip limit has been reached', async () => {
+    const atLimitEntry = { ...waitingEntry, skip_count: 2, user_id: USER_ID }; // equals max_skips_before_penalty (2)
+    const deprioritisedAtLimit = { ...atLimitEntry, priority: -3, skip_count: 3 };
+    mockFindEntryById.mockResolvedValue(atLimitEntry);
     mockFindQueueById.mockResolvedValue(openQueue); // max_skips_before_penalty = 2
+    mockDeprioritize.mockResolvedValue(deprioritisedAtLimit);
+    mockGetWaitingPosition.mockResolvedValue(5);
+    mockOnSkipExhausted.mockResolvedValue(undefined);
 
-    await expect(
-      queueService.skipTicket({ entryId: ENTRY_ID, actorUserId: USER_ID })
-    ).rejects.toMatchObject({ statusCode: 409 });
+    // P20: skip is allowed even at limit — no longer throws 409
+    const result = await queueService.skipTicket({ entryId: ENTRY_ID, actorUserId: USER_ID });
+
+    expect(result.skipCount).toBe(3);
+    expect(mockOnSkipExhausted).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_ID, queueId: QUEUE_ID })
+    );
   });
 });

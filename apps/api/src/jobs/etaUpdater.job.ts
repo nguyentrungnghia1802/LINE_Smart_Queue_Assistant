@@ -1,48 +1,44 @@
 import { pool } from '../db/client';
-import { notificationsService } from '../modules/notifications/notifications.service';
+import { queueEntriesRepository } from '../db/repositories/queue-entries.repository';
 import { logger } from '../utils/logger';
 
 /**
  * ETA updater job.
  *
- * Periodically recalculates estimated wait time for all currently-waiting
- * queue entries and triggers LINE push notifications for users whose
- * position has changed significantly.
+ * Periodically recalculates `estimated_call_at` for all waiting entries
+ * across every open queue.  The recalculated value is used by LIFF screens
+ * to display a live countdown and by the ETA warning scan job to determine
+ * which entries are approaching the threshold.
  *
- * Schedule: every 30 seconds (polling interval for MVP; replace with
- * event-driven approach once real-time infrastructure is in place).
+ * Schedule: every 30 seconds (see scheduler.ts).
+ * Notification delivery is handled separately by `notificationScan.job.ts`.
  *
- * Algorithm (stub):
- *   For each open queue:
- *     1. Count waiting entries by priority.
- *     2. Recalculate ETA = position * avg_service_seconds.
- *     3. If ETA changed by > 20 % vs stored value → push update to user.
- *     4. If user is next (position = 1) → push "You're up next!" message.
+ * Algorithm:
+ *   For each open queue with at least one waiting entry:
+ *     estimated_call_at = NOW() + (queue_position × avg_service_seconds)
+ *   Uses `queueEntriesRepository.bulkUpdateEta` which runs a single UPDATE
+ *   with a window function — one statement per queue, no row-by-row loop.
  */
 export async function runEtaUpdater(): Promise<void> {
-  logger.debug('etaUpdater job: starting cycle');
+  logger.debug('etaUpdater: starting cycle');
 
-  try {
-    const result = await pool.query<{ id: string; avg_service_seconds: number }>(
-      `SELECT id, avg_service_seconds FROM queues WHERE is_active = TRUE AND status = 'open'`
-    );
+  const result = await pool.query<{ id: string; avg_service_seconds: number }>(
+    `SELECT id, avg_service_seconds FROM queues WHERE is_active = TRUE AND status = 'open'`
+  );
 
-    for (const queue of result.rows) {
-      await processQueue(queue.id, queue.avg_service_seconds);
-    }
-
-    logger.debug('etaUpdater job: cycle complete');
-  } catch (err) {
-    logger.error({ err }, 'etaUpdater job: cycle failed');
+  if (result.rows.length === 0) {
+    logger.debug('etaUpdater: no open queues');
+    return;
   }
-}
 
-async function processQueue(queueId: string, avgServiceSeconds: number): Promise<void> {
-  // TODO: fetch waiting entries, recalculate ETAs, compare to last known ETAs,
-  //       and send push notifications via notificationsService.send() for
-  //       users whose position or ETA has crossed a threshold.
+  await Promise.allSettled(
+    result.rows.map((q) =>
+      queueEntriesRepository
+        .bulkUpdateEta(q.id, q.avg_service_seconds)
+        .then(() => logger.debug({ queueId: q.id }, 'etaUpdater: updated queue'))
+        .catch((err) => logger.error({ queueId: q.id, err }, 'etaUpdater: queue failed'))
+    )
+  );
 
-  void queueId;
-  void avgServiceSeconds;
-  void notificationsService;
+  logger.debug({ queueCount: result.rows.length }, 'etaUpdater: cycle complete');
 }
