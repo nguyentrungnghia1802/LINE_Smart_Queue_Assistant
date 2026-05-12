@@ -344,6 +344,25 @@ export const queueService = {
   },
 
   /**
+   * Mark a called ticket as no-show (staff action).
+   * Transitions called → no_show. The customer did not appear at the counter.
+   */
+  async noShowTicket(params: { entryId: string; actorUserId?: string }): Promise<QueueEntryRow> {
+    const { entryId } = params;
+
+    const entry = await queueEntriesRepository.findById(entryId);
+    if (!entry) throw AppError.notFound('Ticket');
+
+    if (entry.status !== 'called') {
+      throw AppError.conflict(
+        `Ticket must be in 'called' status to mark as no-show (was '${entry.status}')`
+      );
+    }
+
+    return queueEntriesRepository.markNoShow(entryId);
+  },
+
+  /**
    * Mark a serving ticket as completed.
    * Writes a queue_histories row via archiveToHistory (called inside markCompleted transaction).
    */

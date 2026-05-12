@@ -316,6 +316,20 @@ export class QueueEntriesRepository extends BaseRepository {
   }
 
   /**
+   * Find the first entry in a queue with a specific status.
+   * Used by the staff board to surface the currently called/serving entry.
+   */
+  async findByQueueAndStatus(queueId: string, status: string): Promise<QueueEntryRow | null> {
+    return this.queryOne<QueueEntryRow>(
+      `SELECT * FROM queue_entries
+       WHERE queue_id = $1 AND status = $2
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+      [queueId, status]
+    );
+  }
+
+  /**
    * Find waiting entries in open queues whose queue-position is within
    * `threshold` places from the front (exclusive of position 0, which is
    * handled by the "called" notification).
