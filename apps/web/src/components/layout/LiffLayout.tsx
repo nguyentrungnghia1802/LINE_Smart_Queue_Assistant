@@ -53,14 +53,14 @@ export function LiffLayout() {
       </header>
 
       {/* ── Page content (scrollable) ── */}
-      <main className="flex-1 overflow-y-auto px-4 py-5 pb-24">
+      <main className="flex-1 overflow-y-auto px-4 py-5 pb-[calc(4rem+env(safe-area-inset-bottom))]">
         <Outlet />
       </main>
 
       {/* ── Bottom tab bar ── */}
       <nav
         aria-label="Main navigation"
-        className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex items-stretch z-10 safe-bottom"
+        className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex items-stretch z-10 pb-[env(safe-area-inset-bottom)]"
       >
         {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
           <NavLink
