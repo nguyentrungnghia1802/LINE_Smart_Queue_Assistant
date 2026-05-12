@@ -32,11 +32,10 @@ export function CalledBanner({ ticketDisplay, onDismiss }: Readonly<CalledBanner
       {onDismiss && (
         <button
           type="button"
-          aria-label="Dismiss"
           onClick={onDismiss}
-          className="shrink-0 text-amber-900 hover:text-amber-950 text-lg leading-none"
+          className="shrink-0 rounded-md border border-amber-900/20 px-3 py-1.5 text-sm font-medium text-amber-900 hover:text-amber-950 hover:bg-amber-300/40"
         >
-          ×
+          View ticket
         </button>
       )}
     </div>

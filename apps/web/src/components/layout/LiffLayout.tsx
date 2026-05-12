@@ -53,7 +53,7 @@ export function LiffLayout() {
       </header>
 
       {/* ── Page content (scrollable) ── */}
-      <main className="flex-1 overflow-y-auto px-4 py-5 pb-[calc(4rem+env(safe-area-inset-bottom))]">
+      <main className="flex-1 overflow-y-auto px-4 py-5 pb-24">
         <Outlet />
       </main>
 

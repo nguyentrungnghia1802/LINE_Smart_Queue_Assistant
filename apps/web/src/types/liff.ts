@@ -25,7 +25,7 @@ export interface LiffContext {
   profile: LiffProfile | null;
   /**
    * LIFF access token — exchange at POST /api/v1/auth/line to obtain a JWT.
-   * null when not logged in; in mock mode a fake token may be returned when logged in.
+   * null when not logged in or in mock mode (mock returns a fake token string).
    */
   accessToken: string | null;
   error: Error | null;

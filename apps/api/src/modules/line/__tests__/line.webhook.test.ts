@@ -20,9 +20,6 @@ jest.mock('../../../db/client', () => ({
   pool: {
     query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
   },
-  query: jest.fn().mockResolvedValue([]),
-  queryOne: jest.fn().mockResolvedValue(null),
-  queryWithClient: jest.fn().mockResolvedValue([]),
   closePool: jest.fn().mockResolvedValue(undefined),
 }));
 
