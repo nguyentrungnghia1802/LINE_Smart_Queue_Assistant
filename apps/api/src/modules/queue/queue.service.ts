@@ -8,6 +8,7 @@ import { etaService } from '../eta/eta.service';
 import type { ILineMessagingAdapter } from '../line/line.adapter';
 import type { INotificationLogRepository } from '../notifications/notification-log.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
+import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
 import {
   JoinQueueResult,
@@ -284,7 +285,7 @@ export const queueService = {
           entryId: entry.id,
           organizationId: queue.organization_id,
         })
-        .catch((err) => logger.warn({ err }, 'skip-penalty: onSkipExhausted failed'));
+        .catch((err: unknown) => logger.warn({ err }, 'skip-penalty: onSkipExhausted failed'));
     }
 
     const aheadCount = await queuesRepository.getWaitingPosition(
@@ -365,6 +366,42 @@ export const queueService = {
     }
 
     return queueEntriesRepository.markServing(entryId);
+  },
+
+  /**
+   * Mark a called ticket as no-show (staff action).
+   * Transitions called → no_show. The customer did not appear at the counter.
+   */
+  async noShowTicket(params: { entryId: string; actorUserId?: string }): Promise<QueueEntryRow> {
+    const { entryId } = params;
+
+    const entry = await queueEntriesRepository.findById(entryId);
+    if (!entry) throw AppError.notFound('Ticket');
+
+    if (entry.status !== 'called') {
+      throw AppError.conflict(
+        `Ticket must be in 'called' status to mark as no-show (was '${entry.status}')`
+      );
+    }
+
+    const noShown = await queueEntriesRepository.markNoShow(entryId);
+
+    // Record no-show penalty (fire-and-forget).
+    if (entry.user_id) {
+      const queue = await queuesRepository.findById(entry.queue_id);
+      if (queue) {
+        void skipPenaltyService
+          .onNoShow({
+            userId: entry.user_id,
+            queueId: entry.queue_id,
+            entryId: entry.id,
+            organizationId: queue.organization_id,
+          })
+          .catch((err: unknown) => logger.warn({ err }, 'skip-penalty: onNoShow failed'));
+      }
+    }
+
+    return noShown;
   },
 
   /**

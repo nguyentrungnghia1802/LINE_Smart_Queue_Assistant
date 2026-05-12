@@ -161,3 +161,14 @@ export const completeTicket = asyncHandler(async (req: Request, res: Response) =
 
   sendSuccess(res, { entry });
 });
+
+// ── GET /api/v1/queue/me/penalties ──────────────────────────────────────────────────
+
+/** Return the caller’s currently active penalty records. */
+export const getMyPenalties = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) throw AppError.unauthorized();
+
+  const penalties = await skipPenaltyService.getActivePenalties({ userId });
+  sendSuccess(res, { penalties });
+});
