@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 import { AppError } from '../utils/AppError';
 
@@ -17,7 +17,8 @@ export const apiRateLimiter = rateLimit({
   keyGenerator: (req) => {
     const forwarded = req.headers['x-forwarded-for'];
     const ip = Array.isArray(forwarded) ? forwarded[0] : (forwarded ?? req.ip ?? 'unknown');
-    return typeof ip === 'string' ? ip : 'unknown';
+    const resolvedIp = typeof ip === 'string' ? ip : 'unknown';
+    return ipKeyGenerator(resolvedIp);
   },
 });
 
