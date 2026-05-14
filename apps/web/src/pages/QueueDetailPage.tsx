@@ -35,12 +35,34 @@ export function QueueDetailPage() {
         </Link>
       </div>
 
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{queue.name}</h1>
         <QueueStatusBadge status={queue.status} />
       </div>
 
-      {queue.description && <p className="text-gray-500 mb-8">{queue.description}</p>}
+      {queue.description && <p className="text-gray-500 mb-6">{queue.description}</p>}
+
+      {/* Action buttons */}
+      <div className="flex flex-wrap gap-3 mb-8">
+        <Link
+          to={`/staff/queues/${id}`}
+          className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+        >
+          📋 Quản lý hàng đợi
+        </Link>
+        <Link
+          to={`/queues/${id}/display`}
+          className="inline-flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+        >
+          📺 Hiển thị QR
+        </Link>
+        <Link
+          to={`/queues/${id}/settings`}
+          className="inline-flex items-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+        >
+          ⚙️ Cài đặt
+        </Link>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <DetailCard label="Current Number" value={String(queue.currentNumber)} />

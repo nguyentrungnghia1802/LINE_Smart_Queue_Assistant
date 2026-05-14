@@ -10,6 +10,7 @@ import {
   getMyPenalties,
   getMyTicket,
   getQueueStatus,
+  getTicketStatus,
   joinQueue,
   serveTicket,
   skipTicket,
@@ -39,6 +40,9 @@ queueEntryRouter.get('/me', getMyTicket);
 
 // GET /api/v1/queue/me/penalties  — active penalties for the authenticated caller
 queueEntryRouter.get('/me/penalties', getMyPenalties);
+
+// GET /api/v1/queue/entry/:entryId  (public — no auth required, for guest tracking)
+queueEntryRouter.get('/entry/:entryId', validate(EntryIdParamSchema, 'params'), getTicketStatus);
 
 // POST /api/v1/queue/:entryId/cancel
 queueEntryRouter.post('/:entryId/cancel', validate(EntryIdParamSchema, 'params'), cancelTicket);

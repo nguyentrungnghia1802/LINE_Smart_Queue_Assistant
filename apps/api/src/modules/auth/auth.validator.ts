@@ -6,3 +6,11 @@ export const LineLoginSchema = z.object({
 });
 
 export type LineLoginDto = z.infer<typeof LineLoginSchema>;
+
+/** Body schema for POST /api/v1/auth/login */
+export const EmailPasswordLoginSchema = z.object({
+  email: z.string().email().max(255),
+  password: z.string().min(1).max(128),
+});
+
+export type EmailPasswordLoginDto = z.infer<typeof EmailPasswordLoginSchema>;

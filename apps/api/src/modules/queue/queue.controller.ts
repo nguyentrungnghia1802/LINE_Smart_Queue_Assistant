@@ -34,7 +34,7 @@ export const joinQueue = asyncHandler(async (req: Request, res: Response) => {
     // Prefer the lineUserId from the JWT; fall back to the body value for
     // anonymous LIFF users who have a LINE UID but no backend session yet.
     lineUserId: req.user?.lineUserId ?? dto.lineUserId,
-  });
+  } as Parameters<typeof queueService.joinQueue>[0]);
 
   reqLog(req).info(
     {
@@ -180,4 +180,13 @@ export const getMyPenalties = asyncHandler(async (req: Request, res: Response): 
   reqLog(req).debug({ penaltyCount: penalties.length }, 'queue.myPenalties');
 
   sendSuccess(res, penalties);
+});
+
+// ── GET /api/v1/queue/entry/:entryId ─────────────────────────────────────────
+
+/** Public ticket status by entry ID — no auth required. Used by guest tracking page. */
+export const getTicketStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { entryId } = req.params as unknown as EntryIdParam;
+  const result = await queueService.getTicketStatus(entryId);
+  sendSuccess(res, result);
 });
