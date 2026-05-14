@@ -8,6 +8,7 @@ export interface UserRow {
   id: string;
   display_name: string;
   email: string | null;
+  password_hash: string | null;
   role: string;
   is_active: boolean;
   created_at: Date;

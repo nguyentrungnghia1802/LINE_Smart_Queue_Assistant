@@ -104,6 +104,13 @@ export class OrganizationsRepository extends BaseRepository {
       [organizationId]
     );
   }
+
+  async findMembershipByUserId(userId: string): Promise<OrgMemberRow | null> {
+    return this.queryOne<OrgMemberRow>(
+      `SELECT * FROM organization_members WHERE user_id = $1 ORDER BY joined_at LIMIT 1`,
+      [userId]
+    );
+  }
 }
 
 export const organizationsRepository = new OrganizationsRepository();

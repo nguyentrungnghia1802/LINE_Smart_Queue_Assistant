@@ -87,7 +87,12 @@ export const queueService = {
   async joinQueue(
     dto: JoinQueueDto & { userId?: string; lineUserId?: string }
   ): Promise<JoinQueueResult> {
-    const { queueId, userId, lineUserId, notes } = dto;
+    const { queueId, userId, lineUserId, notes, guestName } = dto as JoinQueueDto & {
+      userId?: string;
+      lineUserId?: string;
+      guestName?: string;
+    };
+    const resolvedNotes = guestName ? `[Guest] ${guestName}${notes ? ` | ${notes}` : ''}` : notes;
 
     // 1. Load queue
     const queue = await queuesRepository.findById(queueId);
@@ -143,7 +148,7 @@ export const queueService = {
           ticketDisplay,
           userId,
           lineUserId,
-          notes,
+          notes: resolvedNotes,
           priority: priorityAdjustment !== 0 ? priorityAdjustment : undefined,
         },
         client
@@ -407,6 +412,38 @@ export const queueService = {
     }
 
     return queueEntriesRepository.markNoShow(entryId);
+  },
+
+  /** Public ticket status — no auth required. Used by the guest ticket-tracking page. */
+  async getTicketStatus(entryId: string): Promise<{
+    entry: QueueEntryRow;
+    aheadCount: number;
+    estimatedWaitSeconds: number | null;
+    queueName: string;
+  }> {
+    const entry = await queueEntriesRepository.findById(entryId);
+    if (!entry) throw AppError.notFound('Ticket');
+
+    const queue = await queuesRepository.findById(entry.queue_id);
+    if (!queue) throw AppError.notFound('Queue');
+
+    const aheadCount = ['waiting', 'called'].includes(entry.status)
+      ? await queuesRepository.getWaitingPosition(
+          entry.queue_id,
+          entry.priority,
+          entry.ticket_number
+        )
+      : 0;
+
+    return {
+      entry,
+      aheadCount,
+      estimatedWaitSeconds: etaService.calculate({
+        aheadCount,
+        avgServiceSeconds: queue.avg_service_seconds,
+      }).estimatedWaitSeconds,
+      queueName: queue.name,
+    };
   },
 };
 
