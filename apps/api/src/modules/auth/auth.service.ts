@@ -102,6 +102,8 @@ export const authService = {
       id: userRow.id,
       role: userRow.role as UserRole,
       organizationId: membership?.organization_id,
+      displayName: userRow.display_name,
+      email: userRow.email ?? undefined,
     };
 
     return { token, user };

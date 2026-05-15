@@ -39,6 +39,7 @@
     "db:migrate:status": "node scripts/migrate.mjs status",
     "db:reset": "node scripts/migrate.mjs reset",
     "db:seed": "npm run db:seed -w apps/api",
+    "db:seed:demo": "psql $DATABASE_URL -f db/seed_demo.sql",
     "db:seed:reset": "npm run db:seed:reset -w apps/api"
   },
   "devDependencies": {

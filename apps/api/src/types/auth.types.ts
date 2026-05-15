@@ -14,4 +14,8 @@ export interface AuthUser {
   role: UserRole;
   /** Org the user belongs to — may be absent for standalone customers. */
   organizationId?: string;
+  /** Display name for UI. */
+  displayName?: string;
+  /** Email for UI. */
+  email?: string;
 }
