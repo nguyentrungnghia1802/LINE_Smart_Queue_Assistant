@@ -1,8 +1,12 @@
+import bcrypt from 'bcryptjs';
+
 import { UserRole } from '@line-queue/shared';
 
+import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
 import { withTransaction } from '../../db/transaction';
 import { AuthUser } from '../../types/auth.types';
+import { AppError } from '../../utils/AppError';
 import { signToken, TokenPayload } from '../../utils/jwt';
 
 import { verifyLineIdToken } from './line/lineIdToken.verifier';
@@ -66,6 +70,40 @@ export const authService = {
       id: userRow.id,
       lineUserId: profile.lineUserId,
       role: userRow.role as UserRole,
+    };
+
+    return { token, user };
+  },
+
+  async loginWithEmailPassword(
+    email: string,
+    password: string
+  ): Promise<{ token: string; user: AuthUser }> {
+    const userRow = await usersRepository.findByEmail(email);
+    if (!userRow || !userRow.password_hash) {
+      throw AppError.unauthorized('Invalid email or password');
+    }
+
+    const valid = await bcrypt.compare(password, userRow.password_hash);
+    if (!valid) {
+      throw AppError.unauthorized('Invalid email or password');
+    }
+
+    const membership = await organizationsRepository.findMembershipByUserId(userRow.id);
+
+    const payload: TokenPayload = {
+      sub: userRow.id,
+      role: userRow.role as UserRole,
+      orgId: membership?.organization_id,
+    };
+    const token = signToken(payload);
+
+    const user: AuthUser = {
+      id: userRow.id,
+      role: userRow.role as UserRole,
+      organizationId: membership?.organization_id,
+      displayName: userRow.display_name,
+      email: userRow.email ?? undefined,
     };
 
     return { token, user };

@@ -270,18 +270,19 @@ export class QueueEntriesRepository extends BaseRepository {
    */
   async bulkUpdateEta(queueId: string, avgServiceSeconds: number): Promise<void> {
     await this.query(
-      `UPDATE queue_entries AS qe
-       SET estimated_call_at = NOW() + (
-         (ROW_NUMBER() OVER (
-           PARTITION BY qe.queue_id
-           ORDER BY qe.priority DESC, qe.ticket_number ASC
-         ) - 1) * $2
-       ) * INTERVAL '1 second'
-       FROM (
-         SELECT id FROM queue_entries
+      `WITH ranked AS (
+         SELECT
+           id,
+           (ROW_NUMBER() OVER (
+             ORDER BY priority DESC, ticket_number ASC
+           ) - 1) AS pos
+         FROM queue_entries
          WHERE queue_id = $1 AND status = 'waiting'
-       ) AS waiting
-       WHERE qe.id = waiting.id`,
+       )
+       UPDATE queue_entries
+       SET estimated_call_at = NOW() + (ranked.pos * $2) * INTERVAL '1 second'
+       FROM ranked
+       WHERE queue_entries.id = ranked.id`,
       [queueId, avgServiceSeconds]
     );
   }
