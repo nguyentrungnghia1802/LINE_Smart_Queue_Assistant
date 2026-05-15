@@ -109,46 +109,144 @@ ON CONFLICT (id) DO NOTHING;
 -- ── Queue Entries (active demo tickets) ───────────────────────────────────────
 
 -- Phở Sài Gòn — Hàng Đợi Ăn Tại Chỗ (A001–A004 waiting, A005 called)
-INSERT INTO queues (id, daily_ticket_counter) VALUES ('00000000-0005-0000-0000-000000000001', 5)
-  ON CONFLICT (id) DO UPDATE SET daily_ticket_counter = GREATEST(queues.daily_ticket_counter, 5);
+UPDATE queues SET daily_ticket_counter = GREATEST(daily_ticket_counter, 5) WHERE id = '00000000-0005-0000-0000-000000000001';
 
-INSERT INTO queue_entries (id, queue_id, organization_id, user_id, line_user_id, ticket_number, ticket_display, status, notes, priority) VALUES
-  ('00000000-0006-0000-0000-000000000001', '00000000-0005-0000-0000-000000000001', '00000000-0001-0000-0000-000000000001', '00000000-0002-0000-0000-000000000010', 'Uabc0000000001', 1, 'A001', 'waiting', NULL, 0),
-  ('00000000-0006-0000-0000-000000000002', '00000000-0005-0000-0000-000000000001', '00000000-0001-0000-0000-000000000001', '00000000-0002-0000-0000-000000000011', 'Uabc0000000002', 2, 'A002', 'waiting', NULL, 0),
-  ('00000000-0006-0000-0000-000000000003', '00000000-0005-0000-0000-000000000001', '00000000-0001-0000-0000-000000000001', NULL,                                   NULL,             3, 'A003', 'waiting', '[Guest] Khách bàn 5', 0),
-  ('00000000-0006-0000-0000-000000000004', '00000000-0005-0000-0000-000000000001', '00000000-0001-0000-0000-000000000001', '00000000-0002-0000-0000-000000000012', 'Uabc0000000003', 4, 'A004', 'waiting', NULL, 0),
-  ('00000000-0006-0000-0000-000000000005', '00000000-0005-0000-0000-000000000001', '00000000-0001-0000-0000-000000000001', '00000000-0002-0000-0000-000000000013', 'Uabc0000000004', 5, 'A005', 'called',  NULL, 0)
+INSERT INTO queue_entries (id, queue_id, user_id, line_user_id, ticket_number, ticket_display, status, notes, priority, called_at) VALUES
+  ('00000000-0006-0000-0000-000000000001', '00000000-0005-0000-0000-000000000001', '00000000-0002-0000-0000-000000000010', 'Uabc0000000001', 1, 'A001', 'waiting', NULL, 0, NULL),
+  ('00000000-0006-0000-0000-000000000002', '00000000-0005-0000-0000-000000000001', '00000000-0002-0000-0000-000000000011', 'Uabc0000000002', 2, 'A002', 'waiting', NULL, 0, NULL),
+  ('00000000-0006-0000-0000-000000000003', '00000000-0005-0000-0000-000000000001', NULL,                                   NULL,             3, 'A003', 'waiting', '[Guest] Khách bàn 5', 0, NULL),
+  ('00000000-0006-0000-0000-000000000004', '00000000-0005-0000-0000-000000000001', '00000000-0002-0000-0000-000000000012', 'Uabc0000000003', 4, 'A004', 'waiting', NULL, 0, NULL),
+  ('00000000-0006-0000-0000-000000000005', '00000000-0005-0000-0000-000000000001', '00000000-0002-0000-0000-000000000013', 'Uabc0000000004', 5, 'A005', 'called',  NULL, 0, NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- Phòng Khám — Khám Tổng Quát (K001–K003 waiting)
-INSERT INTO queues (id, daily_ticket_counter) VALUES ('00000000-0005-0000-0000-000000000003', 3)
-  ON CONFLICT (id) DO UPDATE SET daily_ticket_counter = GREATEST(queues.daily_ticket_counter, 3);
+UPDATE queues SET daily_ticket_counter = GREATEST(daily_ticket_counter, 3) WHERE id = '00000000-0005-0000-0000-000000000003';
 
-INSERT INTO queue_entries (id, queue_id, organization_id, user_id, line_user_id, ticket_number, ticket_display, status, notes, priority) VALUES
-  ('00000000-0006-0000-0000-000000000010', '00000000-0005-0000-0000-000000000003', '00000000-0001-0000-0000-000000000002', '00000000-0002-0000-0000-000000000014', 'Uabc0000000005', 1, 'K001', 'waiting', NULL, 0),
-  ('00000000-0006-0000-0000-000000000011', '00000000-0005-0000-0000-000000000003', '00000000-0001-0000-0000-000000000002', '00000000-0002-0000-0000-000000000015', 'Uabc0000000006', 2, 'K002', 'waiting', NULL, 0),
-  ('00000000-0006-0000-0000-000000000012', '00000000-0005-0000-0000-000000000003', '00000000-0001-0000-0000-000000000002', NULL,                                   NULL,             3, 'K003', 'waiting', '[Guest] Nguyễn Thị Lan', 0)
+INSERT INTO queue_entries (id, queue_id, user_id, line_user_id, ticket_number, ticket_display, status, notes, priority) VALUES
+  ('00000000-0006-0000-0000-000000000010', '00000000-0005-0000-0000-000000000003', '00000000-0002-0000-0000-000000000014', 'Uabc0000000005', 1, 'K001', 'waiting', NULL, 0),
+  ('00000000-0006-0000-0000-000000000011', '00000000-0005-0000-0000-000000000003', '00000000-0002-0000-0000-000000000015', 'Uabc0000000006', 2, 'K002', 'waiting', NULL, 0),
+  ('00000000-0006-0000-0000-000000000012', '00000000-0005-0000-0000-000000000003', NULL,                                   NULL,             3, 'K003', 'waiting', '[Guest] Nguyễn Thị Lan', 0)
 ON CONFLICT (id) DO NOTHING;
 
 -- Ngân Hàng — Giao Dịch (G001–G002 waiting, G003 serving)
-INSERT INTO queues (id, daily_ticket_counter) VALUES ('00000000-0005-0000-0000-000000000005', 3)
-  ON CONFLICT (id) DO UPDATE SET daily_ticket_counter = GREATEST(queues.daily_ticket_counter, 3);
+UPDATE queues SET daily_ticket_counter = GREATEST(daily_ticket_counter, 3) WHERE id = '00000000-0005-0000-0000-000000000005';
 
-INSERT INTO queue_entries (id, queue_id, organization_id, user_id, line_user_id, ticket_number, ticket_display, status, notes, priority) VALUES
-  ('00000000-0006-0000-0000-000000000020', '00000000-0005-0000-0000-000000000005', '00000000-0001-0000-0000-000000000003', '00000000-0002-0000-0000-000000000016', 'Uabc0000000007', 1, 'G001', 'waiting', NULL, 0),
-  ('00000000-0006-0000-0000-000000000021', '00000000-0005-0000-0000-000000000005', '00000000-0001-0000-0000-000000000003', '00000000-0002-0000-0000-000000000017', 'Uabc0000000008', 2, 'G002', 'waiting', NULL, 0),
-  ('00000000-0006-0000-0000-000000000022', '00000000-0005-0000-0000-000000000005', '00000000-0001-0000-0000-000000000003', '00000000-0002-0000-0000-000000000018', 'Uabc0000000009', 3, 'G003', 'serving', NULL, 0)
+INSERT INTO queue_entries (id, queue_id, user_id, line_user_id, ticket_number, ticket_display, status, notes, priority, called_at, serving_at) VALUES
+  ('00000000-0006-0000-0000-000000000020', '00000000-0005-0000-0000-000000000005', '00000000-0002-0000-0000-000000000016', 'Uabc0000000007', 1, 'G001', 'waiting', NULL, 0, NULL,  NULL),
+  ('00000000-0006-0000-0000-000000000021', '00000000-0005-0000-0000-000000000005', '00000000-0002-0000-0000-000000000017', 'Uabc0000000008', 2, 'G002', 'waiting', NULL, 0, NULL,  NULL),
+  ('00000000-0006-0000-0000-000000000022', '00000000-0005-0000-0000-000000000005', '00000000-0002-0000-0000-000000000018', 'Uabc0000000009', 3, 'G003', 'serving', NULL, 0, NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- Cắt Tóc — Nam (N001 waiting)
-INSERT INTO queues (id, daily_ticket_counter) VALUES ('00000000-0005-0000-0000-000000000007', 1)
-  ON CONFLICT (id) DO UPDATE SET daily_ticket_counter = GREATEST(queues.daily_ticket_counter, 1);
+UPDATE queues SET daily_ticket_counter = GREATEST(daily_ticket_counter, 1) WHERE id = '00000000-0005-0000-0000-000000000007';
 
-INSERT INTO queue_entries (id, queue_id, organization_id, user_id, line_user_id, ticket_number, ticket_display, status, notes, priority) VALUES
-  ('00000000-0006-0000-0000-000000000030', '00000000-0005-0000-0000-000000000007', '00000000-0001-0000-0000-000000000004', '00000000-0002-0000-0000-000000000019', 'Uabc0000000010', 1, 'N001', 'waiting', NULL, 0)
+INSERT INTO queue_entries (id, queue_id, user_id, line_user_id, ticket_number, ticket_display, status, notes, priority) VALUES
+  ('00000000-0006-0000-0000-000000000030', '00000000-0005-0000-0000-000000000007', '00000000-0002-0000-0000-000000000019', 'Uabc0000000010', 1, 'N001', 'waiting', NULL, 0)
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Re-enable FK checks ────────────────────────────────────────────────────────
 SET session_replication_role = 'origin';
 
 COMMIT;
+
+-- =============================================================================
+-- seed_products_orders.sql — Run AFTER migration 008 + 009
+-- =============================================================================
+
+BEGIN;
+SET session_replication_role = 'replica';
+
+-- ── Update orgs with contact / branding info ─────────────────────────────────
+
+UPDATE organizations SET
+  phone        = '028-3822-5566',
+  address      = '123 Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP.HCM',
+  payment_info = 'Vietcombank - STK: 1234567890 - Nhà Hàng Phở Sài Gòn',
+  logo_url     = 'https://placehold.co/120x120/FF6B35/white?text=Phở'
+WHERE id = '00000000-0001-0000-0000-000000000001';
+
+UPDATE organizations SET
+  phone        = '028-3811-2233',
+  address      = '456 Lê Văn Sỹ, Phường 14, Quận 3, TP.HCM',
+  payment_info = 'Techcombank - STK: 9876543210 - PK Minh Đức',
+  logo_url     = 'https://placehold.co/120x120/2196F3/white?text=PK'
+WHERE id = '00000000-0001-0000-0000-000000000002';
+
+UPDATE organizations SET
+  phone        = '1800-9999',
+  address      = '789 Đinh Tiên Hoàng, Phường 3, Quận Bình Thạnh, TP.HCM',
+  payment_info = NULL,
+  logo_url     = 'https://placehold.co/120x120/1565C0/white?text=VC'
+WHERE id = '00000000-0001-0000-0000-000000000003';
+
+UPDATE organizations SET
+  phone        = '090-123-4567',
+  address      = '12 Cách Mạng Tháng 8, Phường 15, Quận 10, TP.HCM',
+  payment_info = 'MoMo: 090-123-4567 - Cắt Tóc Phong Cách',
+  logo_url     = 'https://placehold.co/120x120/4CAF50/white?text=CT'
+WHERE id = '00000000-0001-0000-0000-000000000004';
+
+-- ── Products ─────────────────────────────────────────────────────────────────
+
+INSERT INTO products (id, organization_id, name, description, price, service_time_minutes, max_wait_minutes, requires_prepayment, stock_quantity, is_active) VALUES
+  -- Phở Sài Gòn
+  ('00000000-0007-0000-0000-000000000001', '00000000-0001-0000-0000-000000000001',
+    'Phở Bò Tái', 'Phở bò với thịt tái mềm, nước dùng thanh ngọt', 65000, 10, 30, FALSE, NULL, TRUE),
+  ('00000000-0007-0000-0000-000000000002', '00000000-0001-0000-0000-000000000001',
+    'Phở Bò Chín', 'Phở bò chín mềm, đậm đà', 65000, 10, 30, FALSE, NULL, TRUE),
+  ('00000000-0007-0000-0000-000000000003', '00000000-0001-0000-0000-000000000001',
+    'Bún Bò Huế', 'Bún bò cay đặc trưng xứ Huế', 70000, 10, 30, FALSE, NULL, TRUE),
+  ('00000000-0007-0000-0000-000000000004', '00000000-0001-0000-0000-000000000001',
+    'Nước Ngọt', 'Pepsi, 7Up, Mirinda', 20000, 2, 30, FALSE, 50, TRUE),
+  -- Phòng Khám Minh Đức
+  ('00000000-0007-0000-0000-000000000010', '00000000-0001-0000-0000-000000000002',
+    'Khám Tổng Quát', 'Khám sức khoẻ toàn diện, tư vấn bác sĩ', 200000, 20, 60, TRUE, NULL, TRUE),
+  ('00000000-0007-0000-0000-000000000011', '00000000-0001-0000-0000-000000000002',
+    'Xét Nghiệm Máu', 'Xét nghiệm công thức máu toàn phần', 150000, 15, 60, TRUE, NULL, TRUE),
+  ('00000000-0007-0000-0000-000000000012', '00000000-0001-0000-0000-000000000002',
+    'Siêu Âm Bụng', 'Siêu âm ổ bụng tổng quát', 250000, 20, 60, TRUE, NULL, TRUE),
+  -- Ngân Hàng
+  ('00000000-0007-0000-0000-000000000020', '00000000-0001-0000-0000-000000000003',
+    'Gửi / Rút Tiền', 'Giao dịch tiền mặt thông thường', 0, 10, 30, FALSE, NULL, TRUE),
+  ('00000000-0007-0000-0000-000000000021', '00000000-0001-0000-0000-000000000003',
+    'Chuyển Khoản', 'Chuyển khoản trong / ngoài ngân hàng', 0, 10, 30, FALSE, NULL, TRUE),
+  ('00000000-0007-0000-0000-000000000022', '00000000-0001-0000-0000-000000000003',
+    'Tư Vấn Vay Vốn', 'Tư vấn và lập hồ sơ vay tín dụng', 0, 30, 60, FALSE, NULL, TRUE),
+  -- Cắt Tóc
+  ('00000000-0007-0000-0000-000000000030', '00000000-0001-0000-0000-000000000004',
+    'Cắt Tóc Nam', 'Cắt tóc + gội đầu nam', 80000, 30, 60, FALSE, NULL, TRUE),
+  ('00000000-0007-0000-0000-000000000031', '00000000-0001-0000-0000-000000000004',
+    'Cắt Tóc Nữ', 'Cắt tóc + gội đầu nữ', 120000, 45, 90, FALSE, NULL, TRUE),
+  ('00000000-0007-0000-0000-000000000032', '00000000-0001-0000-0000-000000000004',
+    'Nhuộm Tóc', 'Nhuộm màu + dưỡng tóc', 350000, 90, 120, TRUE, NULL, TRUE),
+  ('00000000-0007-0000-0000-000000000033', '00000000-0001-0000-0000-000000000004',
+    'Uốn Tóc', 'Uốn xoăn + dưỡng phục hồi', 450000, 120, 150, TRUE, NULL, TRUE)
+ON CONFLICT (id) DO NOTHING;
+
+-- ── Orders (linked to existing queue entries) ─────────────────────────────────
+
+INSERT INTO orders (id, organization_id, queue_entry_id, order_number, customer_name, status, subtotal, payment_status) VALUES
+  ('00000000-0008-0000-0000-000000000001', '00000000-0001-0000-0000-000000000001',
+    '00000000-0006-0000-0000-000000000001', 'A001', 'Nguyễn Văn An', 'pending', 85000, 'unpaid'),
+  ('00000000-0008-0000-0000-000000000002', '00000000-0001-0000-0000-000000000001',
+    '00000000-0006-0000-0000-000000000002', 'A002', 'Trần Thị Bình', 'pending', 130000, 'unpaid'),
+  ('00000000-0008-0000-0000-000000000003', '00000000-0001-0000-0000-000000000001',
+    '00000000-0006-0000-0000-000000000005', 'A005', 'Phạm Thị Dung', 'processing', 65000, 'paid')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO order_items (id, order_id, product_id, product_name, product_price, service_time_minutes, quantity, subtotal) VALUES
+  ('00000000-0009-0000-0000-000000000001', '00000000-0008-0000-0000-000000000001',
+    '00000000-0007-0000-0000-000000000001', 'Phở Bò Tái', 65000, 10, 1, 65000),
+  ('00000000-0009-0000-0000-000000000002', '00000000-0008-0000-0000-000000000001',
+    '00000000-0007-0000-0000-000000000004', 'Nước Ngọt', 20000, 2, 1, 20000),
+  ('00000000-0009-0000-0000-000000000003', '00000000-0008-0000-0000-000000000002',
+    '00000000-0007-0000-0000-000000000002', 'Phở Bò Chín', 65000, 10, 1, 65000),
+  ('00000000-0009-0000-0000-000000000004', '00000000-0008-0000-0000-000000000002',
+    '00000000-0007-0000-0000-000000000004', 'Nước Ngọt', 20000, 2, 1, 20000),
+  ('00000000-0009-0000-0000-000000000005', '00000000-0008-0000-0000-000000000003',
+    '00000000-0007-0000-0000-000000000001', 'Phở Bò Tái', 65000, 10, 1, 65000)
+ON CONFLICT (id) DO NOTHING;
+
+SET session_replication_role = 'origin';
+COMMIT;
+

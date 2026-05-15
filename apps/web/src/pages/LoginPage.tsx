@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { UserRole } from '@line-queue/shared';
+
 import { useAuthStore } from '../store/authStore';
 
 const DEMO_ACCOUNTS = [
@@ -24,7 +26,15 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/');
+      // get updated user from store after login
+      const updatedUser = useAuthStore.getState().user;
+      if (updatedUser?.role === UserRole.MANAGER || updatedUser?.role === UserRole.ADMIN || updatedUser?.role === UserRole.SUPER_ADMIN) {
+        navigate('/manager');
+      } else if (updatedUser?.role === UserRole.STAFF) {
+        navigate('/staff');
+      } else {
+        navigate('/');
+      }
     } catch {
       setError('Email hoặc mật khẩu không đúng.');
     } finally {

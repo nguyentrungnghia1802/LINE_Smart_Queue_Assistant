@@ -10,6 +10,10 @@ export interface OrganizationRow {
   line_oa_basic_id: string | null;
   timezone: string;
   settings: Record<string, unknown>;
+  logo_url: string | null;
+  phone: string | null;
+  address: string | null;
+  payment_info: string | null;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
@@ -110,6 +114,37 @@ export class OrganizationsRepository extends BaseRepository {
       `SELECT * FROM organization_members WHERE user_id = $1 ORDER BY joined_at LIMIT 1`,
       [userId]
     );
+  }
+
+  async updateOrg(
+    id: string,
+    data: Partial<{
+      name: string;
+      logoUrl: string | null;
+      phone: string | null;
+      address: string | null;
+      paymentInfo: string | null;
+    }>
+  ): Promise<OrganizationRow | null> {
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let i = 1;
+    const map: Record<string, string> = {
+      name: 'name', logoUrl: 'logo_url', phone: 'phone', address: 'address', paymentInfo: 'payment_info',
+    };
+    for (const [key, col] of Object.entries(map)) {
+      if (key in data) {
+        fields.push(`${col} = $${i++}`);
+        values.push((data as Record<string, unknown>)[key]);
+      }
+    }
+    if (fields.length === 0) return this.findById(id);
+    values.push(id);
+    const rows = await this.query<OrganizationRow>(
+      `UPDATE organizations SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
+      values
+    );
+    return rows[0] ?? null;
   }
 }
 
