@@ -36,6 +36,8 @@ INSERT INTO users (id, display_name, email, password_hash, role, is_active) VALU
   ('00000000-0002-0000-0000-000000000007', 'Nhân Viên Phòng Khám',  'staff.clinic@linequeue.test',    '$2b$10$W/XzmPlWw6Za0bUZwdAPBONCuMDyIR3pC6YYRnfdGHJ/Uc.9uRj9a', 'staff',    TRUE),
   ('00000000-0002-0000-0000-000000000008', 'Nhân Viên Ngân Hàng',   'staff.bank@linequeue.test',      '$2b$10$W/XzmPlWw6Za0bUZwdAPBONCuMDyIR3pC6YYRnfdGHJ/Uc.9uRj9a', 'staff',    TRUE),
   ('00000000-0002-0000-0000-000000000009', 'Nhân Viên Cắt Tóc',     'staff.barber@linequeue.test',    '$2b$10$W/XzmPlWw6Za0bUZwdAPBONCuMDyIR3pC6YYRnfdGHJ/Uc.9uRj9a', 'staff',    TRUE),
+  -- Demo customer (email/password — for login page testing)
+  ('00000000-0002-0000-0000-000000000020', 'Khách Demo',            'customer.demo@linequeue.test',   '$2b$10$W/XzmPlWw6Za0bUZwdAPBONCuMDyIR3pC6YYRnfdGHJ/Uc.9uRj9a', 'customer', TRUE),
   -- LINE Customers (no email/password — authenticated via LINE)
   ('00000000-0002-0000-0000-000000000010', 'Nguyễn Văn An',         NULL, NULL, 'customer', TRUE),
   ('00000000-0002-0000-0000-000000000011', 'Trần Thị Bình',         NULL, NULL, 'customer', TRUE),

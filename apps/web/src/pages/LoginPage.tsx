@@ -6,9 +6,9 @@ import { UserRole } from '@line-queue/shared';
 import { useAuthStore } from '../store/authStore';
 
 const DEMO_ACCOUNTS = [
-  { label: 'Admin', email: 'admin@linequeue.test', role: 'admin' },
   { label: 'Quản lý', email: 'manager.pho@linequeue.test', role: 'manager' },
   { label: 'Nhân viên', email: 'staff.pho@linequeue.test', role: 'staff' },
+  { label: 'Khách hàng', email: 'customer.demo@linequeue.test', role: 'customer' },
 ];
 const DEMO_PASSWORD = 'Demo@1234';
 
@@ -28,10 +28,16 @@ export function LoginPage() {
       await login(email, password);
       // get updated user from store after login
       const updatedUser = useAuthStore.getState().user;
-      if (updatedUser?.role === UserRole.MANAGER || updatedUser?.role === UserRole.ADMIN || updatedUser?.role === UserRole.SUPER_ADMIN) {
+      if (
+        updatedUser?.role === UserRole.MANAGER ||
+        updatedUser?.role === UserRole.ADMIN ||
+        updatedUser?.role === UserRole.SUPER_ADMIN
+      ) {
         navigate('/manager');
       } else if (updatedUser?.role === UserRole.STAFF) {
         navigate('/staff');
+      } else if (updatedUser?.role === UserRole.CUSTOMER) {
+        navigate('/q/pho-sai-gon');
       } else {
         navigate('/');
       }
@@ -114,7 +120,7 @@ export function LoginPage() {
                 className="border border-gray-200 bg-white hover:bg-gray-50 rounded-lg py-2 px-3 text-center text-xs font-medium text-gray-700 transition-colors shadow-sm"
               >
                 <span className="block text-lg mb-0.5">
-                  {acc.role === 'admin' ? '🛡️' : acc.role === 'manager' ? '👔' : '👤'}
+                  {acc.role === 'manager' ? '👔' : acc.role === 'staff' ? '🧑‍💼' : '🛒'}
                 </span>
                 {acc.label}
               </button>
