@@ -11,6 +11,7 @@ export interface ProductRow {
   max_wait_minutes: number | null;
   requires_prepayment: boolean;
   stock_quantity: number | null;
+  product_type: 'product' | 'service';
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
@@ -54,12 +55,13 @@ export const productsRepository = {
     maxWaitMinutes?: number;
     requiresPrepayment: boolean;
     stockQuantity?: number;
+    productType?: 'product' | 'service';
   }): Promise<ProductRow> {
     const { rows } = await pool.query<ProductRow>(
       `INSERT INTO products
          (organization_id, name, description, image_url, price, service_time_minutes,
-          max_wait_minutes, requires_prepayment, stock_quantity)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+          max_wait_minutes, requires_prepayment, stock_quantity, product_type)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
       [
         data.organizationId,
@@ -71,6 +73,7 @@ export const productsRepository = {
         data.maxWaitMinutes ?? null,
         data.requiresPrepayment,
         data.stockQuantity ?? null,
+        data.productType ?? 'service',
       ]
     );
     return rows[0];
@@ -87,6 +90,7 @@ export const productsRepository = {
       maxWaitMinutes: number | null;
       requiresPrepayment: boolean;
       stockQuantity: number | null;
+      productType: 'product' | 'service';
       isActive: boolean;
     }>
   ): Promise<ProductRow | null> {
@@ -103,6 +107,7 @@ export const productsRepository = {
       maxWaitMinutes: 'max_wait_minutes',
       requiresPrepayment: 'requires_prepayment',
       stockQuantity: 'stock_quantity',
+      productType: 'product_type',
       isActive: 'is_active',
     };
 

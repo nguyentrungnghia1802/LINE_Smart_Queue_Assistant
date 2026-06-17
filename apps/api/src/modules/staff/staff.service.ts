@@ -1,4 +1,5 @@
 import { auditLogRepository } from '../../db/repositories/audit-log.repository';
+import { OrderWithItems, ordersRepository } from '../../db/repositories/orders.repository';
 import { QueueEntryRow } from '../../db/repositories/queue-entries.repository';
 import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
@@ -14,6 +15,20 @@ export interface QueueOverview {
   waitingEntries: QueueEntryRow[];
   calledEntry: QueueEntryRow | null;
   servingEntry: QueueEntryRow | null;
+  waitingCount: number;
+}
+
+export interface EntryWithOrder extends QueueEntryRow {
+  order: OrderWithItems | null;
+}
+
+export interface EnrichedQueueOverview {
+  queueId: string;
+  queueName: string;
+  orgId: string;
+  waitingEntriesWithOrders: EntryWithOrder[];
+  calledEntryWithOrder: EntryWithOrder | null;
+  servingEntryWithOrder: EntryWithOrder | null;
   waitingCount: number;
 }
 
@@ -132,5 +147,39 @@ export const staffService = {
       previousStatus: entry.status,
     });
     return cancelled;
+  },
+
+  /**
+   * Get the org's active queue enriched with orders for each entry.
+   * Used by the staff dashboard to show the full picture in one request.
+   */
+  async getMyQueueOverview(organizationId: string): Promise<EnrichedQueueOverview | null> {
+    const queues = await queuesRepository.findActiveByOrg(organizationId);
+    if (queues.length === 0) return null;
+    const queue = queues[0];
+
+    const overview = await this.getQueueOverview(queue.id);
+
+    const enrichEntry = async (entry: QueueEntryRow | null): Promise<EntryWithOrder | null> => {
+      if (!entry) return null;
+      const order = await ordersRepository.findByQueueEntry(entry.id);
+      return { ...entry, order: order ?? null };
+    };
+
+    const [waitingWithOrders, calledWithOrder, servingWithOrder] = await Promise.all([
+      Promise.all(overview.waitingEntries.map((e) => enrichEntry(e))),
+      enrichEntry(overview.calledEntry),
+      enrichEntry(overview.servingEntry),
+    ]);
+
+    return {
+      queueId: queue.id,
+      queueName: queue.name,
+      orgId: organizationId,
+      waitingEntriesWithOrders: waitingWithOrders.filter(Boolean) as EntryWithOrder[],
+      calledEntryWithOrder: calledWithOrder,
+      servingEntryWithOrder: servingWithOrder,
+      waitingCount: overview.waitingCount,
+    };
   },
 };

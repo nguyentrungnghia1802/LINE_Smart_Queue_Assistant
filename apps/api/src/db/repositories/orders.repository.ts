@@ -1,3 +1,5 @@
+import { PoolClient } from 'pg';
+
 import { pool } from '../client';
 
 export interface OrderRow {
@@ -6,6 +8,8 @@ export interface OrderRow {
   queue_entry_id: string | null;
   order_number: string;
   customer_name: string | null;
+  customer_user_id: string | null;
+  customer_phone: string | null;
   status: string;
   subtotal: string;
   payment_status: string;
@@ -13,6 +17,9 @@ export interface OrderRow {
   notes: string | null;
   created_at: Date;
   updated_at: Date;
+  // Enriched fields from queue_entries join (present in some queries)
+  ticket_display?: string | null;
+  queue_entry_status?: string | null;
 }
 
 export interface OrderItemRow {
@@ -37,6 +44,8 @@ export const ordersRepository = {
     const params: unknown[] = status ? [orgId, status] : [orgId];
     const { rows } = await pool.query<OrderRow & { items_json: string }>(
       `SELECT o.*,
+         qe.ticket_display,
+         qe.status AS queue_entry_status,
          COALESCE(
            json_agg(
              json_build_object(
@@ -55,8 +64,9 @@ export const ordersRepository = {
          ) AS items_json
        FROM orders o
        LEFT JOIN order_items oi ON oi.order_id = o.id
+       LEFT JOIN queue_entries qe ON qe.id = o.queue_entry_id
        WHERE o.organization_id = $1 ${statusClause}
-       GROUP BY o.id
+       GROUP BY o.id, qe.ticket_display, qe.status
        ORDER BY o.created_at DESC`,
       params
     );
@@ -107,20 +117,26 @@ export const ordersRepository = {
     queueEntryId?: string;
     orderNumber: string;
     customerName?: string;
+    customerUserId?: string;
+    customerPhone?: string;
     subtotal: number;
     paymentCode?: string;
     notes?: string;
-  }): Promise<OrderRow> {
-    const { rows } = await pool.query<OrderRow>(
+  }, client?: PoolClient): Promise<OrderRow> {
+    const executor = client ?? pool;
+    const { rows } = await executor.query<OrderRow>(
       `INSERT INTO orders
-         (organization_id, queue_entry_id, order_number, customer_name, subtotal, payment_code, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
+         (organization_id, queue_entry_id, order_number, customer_name,
+          customer_user_id, customer_phone, subtotal, payment_code, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING *`,
       [
         data.organizationId,
         data.queueEntryId ?? null,
         data.orderNumber,
         data.customerName ?? null,
+        data.customerUserId ?? null,
+        data.customerPhone ?? null,
         data.subtotal,
         data.paymentCode ?? null,
         data.notes ?? null,
@@ -137,8 +153,9 @@ export const ordersRepository = {
     serviceTimeMinutes: number;
     quantity: number;
     subtotal: number;
-  }): Promise<OrderItemRow> {
-    const { rows } = await pool.query<OrderItemRow>(
+  }, client?: PoolClient): Promise<OrderItemRow> {
+    const executor = client ?? pool;
+    const { rows } = await executor.query<OrderItemRow>(
       `INSERT INTO order_items
          (order_id, product_id, product_name, product_price, service_time_minutes, quantity, subtotal)
        VALUES ($1,$2,$3,$4,$5,$6,$7)
@@ -249,3 +266,21 @@ export const ordersRepository = {
     };
   },
 };
+
+/**
+ * Calculate total workload (in minutes) for queue entries.
+ * Returns sum of (service_time_minutes × quantity) for all order items
+ * linked to the specified queue entry IDs.
+ * Used for workload-aware ETA calculation.
+ */
+export async function calculateWorkloadForEntries(entryIds: string[]): Promise<number> {
+  if (!entryIds || entryIds.length === 0) return 0;
+  const { rows } = await pool.query<{ total_minutes: string }>(
+    `SELECT COALESCE(SUM(oi.service_time_minutes * oi.quantity), 0) AS total_minutes
+     FROM order_items oi
+     JOIN orders o ON oi.order_id = o.id
+     WHERE o.queue_entry_id = ANY($1)`,
+    [entryIds]
+  );
+  return parseFloat(rows[0]?.total_minutes ?? '0');
+}

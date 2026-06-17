@@ -1,5 +1,6 @@
 import { QueueEntryRow } from '../../db/repositories/queue-entries.repository';
 import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
+import { calculateWorkloadForEntries, OrderWithItems, ordersRepository } from '../../db/repositories/orders.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
@@ -187,10 +188,15 @@ export const queueService = {
 
     return Promise.all(
       entries.map(async (entry) => {
-        const [aheadCount, queue] = await Promise.all([
+        const [aheadCount, queue, entryIdsAhead] = await Promise.all([
           queuesRepository.getWaitingPosition(entry.queue_id, entry.priority, entry.ticket_number),
           queuesRepository.findById(entry.queue_id),
+          queueEntriesRepository.getEntryIdsAhead(entry.queue_id, entry.priority, entry.ticket_number),
         ]);
+
+        // Calculate workload-aware ETA
+        const totalWorkloadMinutes = await calculateWorkloadForEntries(entryIdsAhead);
+
         return {
           entry,
           aheadCount,
@@ -198,6 +204,7 @@ export const queueService = {
             ? etaService.calculate({
                 aheadCount,
                 avgServiceSeconds: queue.avg_service_seconds,
+                totalWorkloadMinutes,
               }).estimatedWaitSeconds
             : 0,
         };
@@ -417,6 +424,7 @@ export const queueService = {
   /** Public ticket status — no auth required. Used by the guest ticket-tracking page. */
   async getTicketStatus(entryId: string): Promise<{
     entry: QueueEntryRow;
+    order: OrderWithItems | null;
     aheadCount: number;
     estimatedWaitSeconds: number | null;
     queueName: string;
@@ -435,12 +443,29 @@ export const queueService = {
         )
       : 0;
 
+    // Workload-aware ETA: sum service_time_minutes × qty for entries ahead
+    const entryIdsAhead = aheadCount > 0
+      ? await queueEntriesRepository.getEntryIdsAhead(
+          entry.queue_id,
+          entry.priority,
+          entry.ticket_number
+        )
+      : [];
+    const totalWorkloadMinutes = entryIdsAhead.length > 0
+      ? await calculateWorkloadForEntries(entryIdsAhead)
+      : 0;
+
+    // Fetch linked order for customer display
+    const order = await ordersRepository.findByQueueEntry(entryId);
+
     return {
       entry,
+      order: order ?? null,
       aheadCount,
       estimatedWaitSeconds: etaService.calculate({
         aheadCount,
         avgServiceSeconds: queue.avg_service_seconds,
+        totalWorkloadMinutes,
       }).estimatedWaitSeconds,
       queueName: queue.name,
     };

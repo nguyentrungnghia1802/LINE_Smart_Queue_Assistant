@@ -13,6 +13,7 @@ interface ProductRow {
   max_wait_minutes: number | null;
   requires_prepayment: boolean;
   stock_quantity: number | null;
+  product_type: 'product' | 'service';
   is_active: boolean;
 }
 
@@ -53,6 +54,7 @@ export function ManagerProductDetailPage() {
         <table className="text-sm w-full">
           <tbody className="divide-y divide-gray-100">
             {[
+              ['Loại', product.product_type === 'service' ? 'Dịch vụ' : 'Sản phẩm'],
               ['Giá', Number(product.price).toLocaleString('vi-VN') + '₫'],
               ['Thời gian phục vụ', `${product.service_time_minutes} phút`],
               ['Chờ tối đa', product.max_wait_minutes ? `${product.max_wait_minutes} phút` : '—'],

@@ -35,6 +35,7 @@ const existingUserRow = {
   id: 'user-uuid-001',
   display_name: 'Tester',
   email: null,
+  password_hash: null,
   role: UserRole.CUSTOMER, // value: 'CUSTOMER' — matches enum used in auth service
   is_active: true,
   created_at: new Date(),

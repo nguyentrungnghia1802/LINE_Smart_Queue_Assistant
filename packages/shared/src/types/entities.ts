@@ -7,6 +7,7 @@ import type {
   OrderStatus,
   PaymentStatus,
   PenaltyReason,
+  ProductType,
   QueueStatus,
   TicketStatus,
   UserRole,
@@ -35,6 +36,8 @@ export interface Organization extends BaseEntity {
   phone?: string;
   address?: string;
   paymentInfo?: string;
+  /** Stable token used to generate public QR codes. Not the same as slug. */
+  publicQrToken?: string;
   /** Current operation mode — drives queue-level behaviour across the org */
   operationMode: OperationMode;
 }
@@ -172,6 +175,8 @@ export interface Product extends BaseEntity {
   name: string;
   description?: string;
   imageUrl?: string;
+  /** Distinguishes tangible product from service */
+  productType: ProductType;
   /** Price in VND (or local currency) */
   price: number;
   /** Average service time per customer in minutes */
@@ -205,6 +210,10 @@ export interface Order extends BaseEntity {
   queueEntryId?: string;
   orderNumber: string;
   customerName?: string;
+  /** Links order to an authenticated user (null for anonymous/guest orders) */
+  customerUserId?: string;
+  /** Customer contact phone for traceability */
+  customerPhone?: string;
   status: OrderStatus;
   subtotal: number;
   paymentStatus: PaymentStatus;

@@ -6,9 +6,8 @@ import { UserRole } from '@line-queue/shared';
 import { useAuthStore } from '../store/authStore';
 
 const DEMO_ACCOUNTS = [
-  { label: 'Quản lý', email: 'manager.pho@linequeue.test', role: 'manager' },
-  { label: 'Nhân viên', email: 'staff.pho@linequeue.test', role: 'staff' },
-  { label: 'Khách hàng', email: 'customer.demo@linequeue.test', role: 'customer' },
+  { label: 'Quản lý', email: 'alice@queue-lab.test', role: 'manager' },
+  { label: 'Nhân viên', email: 'bob@queue-lab.test', role: 'staff' },
 ];
 const DEMO_PASSWORD = 'Demo@1234';
 
@@ -37,7 +36,7 @@ export function LoginPage() {
       } else if (updatedUser?.role === UserRole.STAFF) {
         navigate('/staff');
       } else if (updatedUser?.role === UserRole.CUSTOMER) {
-        navigate('/q/pho-sai-gon');
+        navigate('/qr/demo_the_queue_lab_token_001');
       } else {
         navigate('/');
       }

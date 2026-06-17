@@ -84,3 +84,20 @@ export const cancelEntry = asyncHandler(async (req: Request, res: Response) => {
 
   sendSuccess(res, { entry });
 });
+
+// ── GET /api/v1/staff/my-queue ────────────────────────────────────────────────
+
+/** Staff queue overview enriched with orders — one request for the full dashboard. */
+export const getMyQueue = asyncHandler(async (req: Request, res: Response) => {
+  const orgId = req.user?.organizationId;
+  if (!orgId) {
+    res.status(400).json({ success: false, error: { code: 'NO_ORG', message: 'User has no organization' } });
+    return;
+  }
+
+  const overview = await staffService.getMyQueueOverview(orgId);
+
+  reqLog(req).debug({ orgId, waitingCount: overview?.waitingCount ?? 0 }, 'staff.myQueue');
+
+  sendSuccess(res, overview ?? { queueId: null, queueName: null, orgId, waitingEntriesWithOrders: [], calledEntryWithOrder: null, servingEntryWithOrder: null, waitingCount: 0 });
+});

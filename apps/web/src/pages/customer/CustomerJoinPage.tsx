@@ -31,6 +31,7 @@ interface Product {
   service_time_minutes: number;
   requires_prepayment: boolean;
   stock_quantity: number | null;
+  product_type: 'product' | 'service';
 }
 
 interface OrgResponse {
@@ -49,25 +50,29 @@ function formatCurrency(n: string | number) {
 }
 
 export function CustomerJoinPage() {
-  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const { orgSlug, token } = useParams<{ orgSlug?: string; token?: string }>();
   const navigate = useNavigate();
 
   const [cart, setCart] = useState<Record<string, number>>({});
   const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Determine API endpoint based on route
+  const apiEndpoint = token ? `/api/v1/orgs/by-token/${token}` : `/api/v1/orgs/${orgSlug}`;
+
   const { data, isLoading, isError } = useQuery<OrgResponse>({
-    queryKey: ['org', orgSlug],
-    queryFn: () => get<OrgResponse>(`/api/v1/orgs/${orgSlug}`),
-    enabled: !!orgSlug,
+    queryKey: ['org', orgSlug, token],
+    queryFn: () => get<OrgResponse>(apiEndpoint),
+    enabled: !!(orgSlug || token),
     staleTime: 30_000,
   });
 
   // Reset cart when org changes
   useEffect(() => {
     setCart({});
-  }, [orgSlug]);
+  }, [orgSlug, token]);
 
   const cartItems: CartItem[] = useMemo(
     () =>
@@ -113,8 +118,9 @@ export function CustomerJoinPage() {
       const result = await post<{ order: { id: string }; queueEntry: { id: string } }>(
         '/api/v1/orders',
         {
-          orgSlug,
+          orgSlug: data?.org.slug,
           customerName: customerName.trim() || undefined,
+          customerPhone: customerPhone.trim() || undefined,
           items: cartItems,
         }
       );
@@ -207,6 +213,9 @@ export function CustomerJoinPage() {
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className="text-brand-700 font-bold text-sm">{formatCurrency(p.price)}</span>
                     <span className="text-xs text-gray-400">· {p.service_time_minutes} phút</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${p.product_type === 'service' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {p.product_type === 'service' ? 'Dịch vụ' : 'Sản phẩm'}
+                    </span>
                     {p.requires_prepayment && (
                       <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
                         Cần đặt cọc
@@ -251,6 +260,19 @@ export function CustomerJoinPage() {
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               placeholder="Ví dụ: Nguyễn Văn A"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Số điện thoại (tuỳ chọn)
+            </label>
+            <input
+              type="tel"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              placeholder="Ví dụ: 0901234567"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             />
           </div>

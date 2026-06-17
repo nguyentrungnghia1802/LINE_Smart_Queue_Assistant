@@ -15,6 +15,7 @@ interface ProductRow {
   max_wait_minutes: number | null;
   requires_prepayment: boolean;
   stock_quantity: number | null;
+  product_type: 'product' | 'service';
   is_active: boolean;
 }
 
@@ -27,6 +28,7 @@ interface FormState {
   maxWaitMinutes: string;
   requiresPrepayment: boolean;
   stockQuantity: string;
+  productType: 'product' | 'service';
 }
 
 const empty: FormState = {
@@ -38,6 +40,7 @@ const empty: FormState = {
   maxWaitMinutes: '',
   requiresPrepayment: false,
   stockQuantity: '',
+  productType: 'service',
 };
 
 export function ManagerProductFormPage() {
@@ -67,6 +70,7 @@ export function ManagerProductFormPage() {
         maxWaitMinutes: existing.max_wait_minutes ? String(existing.max_wait_minutes) : '',
         requiresPrepayment: existing.requires_prepayment,
         stockQuantity: existing.stock_quantity !== null ? String(existing.stock_quantity) : '',
+        productType: existing.product_type ?? 'service',
       });
     }
   }, [existing]);
@@ -95,6 +99,7 @@ export function ManagerProductFormPage() {
       maxWaitMinutes: form.maxWaitMinutes ? parseInt(form.maxWaitMinutes) : undefined,
       requiresPrepayment: form.requiresPrepayment,
       stockQuantity: form.stockQuantity ? parseInt(form.stockQuantity) : undefined,
+      productType: form.productType,
     });
   }
 
@@ -120,6 +125,16 @@ export function ManagerProductFormPage() {
         {field('Tên sản phẩm *', (
           <input className={inputCls} required value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        ))}
+        {field('Loại *', (
+          <select
+            className={inputCls}
+            value={form.productType}
+            onChange={(e) => setForm((f) => ({ ...f, productType: e.target.value as 'product' | 'service' }))}
+          >
+            <option value="service">Dịch vụ (Service)</option>
+            <option value="product">Sản phẩm (Product)</option>
+          </select>
         ))}
         {field('Mô tả', (
           <textarea className={inputCls} rows={3} value={form.description}

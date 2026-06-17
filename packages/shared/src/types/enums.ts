@@ -62,6 +62,16 @@ export enum UserRole {
 // Order domain
 // ─────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────
+// Product domain
+// ─────────────────────────────────────────────────────
+
+/** Distinguishes tangible goods from services in the product catalog. */
+export enum ProductType {
+  PRODUCT = 'product',
+  SERVICE = 'service',
+}
+
 export enum OrderStatus {
   PENDING = 'pending',
   PROCESSING = 'processing',

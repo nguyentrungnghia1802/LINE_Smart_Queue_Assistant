@@ -7,6 +7,7 @@ import { requireRole } from '../../middlewares/requireRole.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 
 import {
+  cancelOrder,
   createOrder,
   getOrder,
   getOrderStats,
@@ -20,6 +21,9 @@ export const ordersRouter = Router();
 
 // Public: create order (guest customers scanning QR)
 ordersRouter.post('/', validate(CreateOrderSchema), createOrder);
+
+// Public: customer cancel their own order
+ordersRouter.post('/:id/cancel', cancelOrder);
 
 // Authenticated staff/manager
 ordersRouter.get('/', requireAuth, requireRole(UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN), listOrders);

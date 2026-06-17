@@ -25,8 +25,8 @@ export const getOrderStats = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
-  const result = await ordersService.create(req.body as CreateOrderDto);
-  res.status(201).json({ success: true, data: result });
+  const result = await ordersService.create(req.body as CreateOrderDto, req.user?.id);
+  res.status(201).json({ success: true, data: { order: result.order, queueEntry: result.entry } });
 });
 
 export const patchOrderStatus = asyncHandler(async (req: Request, res: Response) => {
@@ -38,5 +38,11 @@ export const patchOrderStatus = asyncHandler(async (req: Request, res: Response)
 export const patchOrderPayment = asyncHandler(async (req: Request, res: Response) => {
   const orgId = req.user!.organizationId!;
   const order = await ordersService.updatePayment(req.params.id, orgId, req.body as UpdateOrderPaymentDto);
+  sendSuccess(res, order);
+});
+
+/** Public cancel — customer cancels their own order by orderId. */
+export const cancelOrder = asyncHandler(async (req: Request, res: Response) => {
+  const order = await ordersService.cancelByOrderId(req.params.id, req.user?.id);
   sendSuccess(res, order);
 });

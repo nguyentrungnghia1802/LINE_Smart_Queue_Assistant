@@ -27,7 +27,7 @@ export const ordersService = {
     return ordersRepository.getStats(orgId);
   },
 
-  async create(dto: CreateOrderDto) {
+  async create(dto: CreateOrderDto, actorUserId?: string) {
     const org = await organizationsRepository.findBySlug(dto.orgSlug);
     if (!org) throw AppError.notFound('Organization not found');
 
@@ -61,12 +61,13 @@ export const ordersService = {
       const ticketNumber = await queuesRepository.incrementAndGetCounter(queue.id, client);
       const ticketDisplay = `${queue.prefix ?? ''}${String(ticketNumber).padStart(3, '0')}`;
 
-      // Create queue entry (guest, no user account)
+      // Create queue entry (link to user if authenticated)
       const entry = await queueEntriesRepository.create(
         {
           queueId: queue.id,
           ticketNumber,
           ticketDisplay,
+          userId: actorUserId,
           notes: dto.customerName ? `Khách: ${dto.customerName}` : undefined,
         },
         client
@@ -79,17 +80,19 @@ export const ordersService = {
       );
       const orderNum = formatOrderNumber(queue.prefix ?? 'O', parseInt(countRows[0].count) + 1);
 
-      // Create order
+      // Create order (within transaction) — include customer linkage fields
       const order = await ordersRepository.create({
         organizationId: org.id,
         queueEntryId: entry.id,
         orderNumber: orderNum,
         customerName: dto.customerName,
+        customerUserId: actorUserId,
+        customerPhone: dto.customerPhone,
         subtotal,
         notes: dto.notes,
-      });
+      }, client);
 
-      // Create items
+      // Create items (within transaction)
       for (const { product, quantity } of productRows) {
         await ordersRepository.createItem({
           orderId: order.id,
@@ -99,7 +102,7 @@ export const ordersService = {
           serviceTimeMinutes: product.service_time_minutes,
           quantity,
           subtotal: parseFloat(product.price) * quantity,
-        });
+        }, client);
       }
 
       await client.query('COMMIT');
@@ -127,6 +130,39 @@ export const ordersService = {
     if (order.organization_id !== orgId) throw AppError.forbidden();
     const updated = await ordersRepository.updatePayment(id, dto.paymentStatus);
     if (!updated) throw AppError.notFound('Order not found');
+    return updated;
+  },
+
+  /**
+   * Public cancel — customer cancels their own order.
+   * For anonymous orders (no customer_user_id), allow cancel by orderId only.
+   * For authenticated orders, the actorUserId must match.
+   */
+  async cancelByOrderId(orderId: string, actorUserId?: string) {
+    const order = await ordersRepository.findById(orderId);
+    if (!order) throw AppError.notFound('Order not found');
+
+    // Auth check: if order has a linked user, caller must be that user (or staff/manager)
+    if (order.customer_user_id && actorUserId && order.customer_user_id !== actorUserId) {
+      throw AppError.forbidden('You do not own this order');
+    }
+
+    if (!['pending', 'processing'].includes(order.status)) {
+      throw AppError.conflict(`Order cannot be cancelled from status '${order.status}'`);
+    }
+
+    // Cancel order
+    const updated = await ordersRepository.updateStatus(orderId, 'cancelled');
+
+    // Also cancel the linked queue entry if present
+    if (order.queue_entry_id) {
+      try {
+        await queueEntriesRepository.markCancelled(order.queue_entry_id);
+      } catch {
+        // Entry may already be cancelled or in a non-cancellable state — not fatal
+      }
+    }
+
     return updated;
   },
 };

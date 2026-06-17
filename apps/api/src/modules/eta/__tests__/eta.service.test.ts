@@ -193,4 +193,86 @@ describe('etaService.calculate', () => {
       expect(result.confidence).toBe(EtaConfidence.LOW);
     });
   });
+
+  // ── Workload-based ETA (totalWorkloadMinutes) ──────────────────────────────
+
+  describe('workload-based ETA when totalWorkloadMinutes is provided', () => {
+    it('uses totalWorkloadMinutes × 60 as estimatedWaitSeconds when > 0', () => {
+      // haircut 30 min + dyeing 120 min = 150 min = 9 000 s
+      const result = etaService.calculate(
+        makeInput({ aheadCount: 2, avgServiceSeconds: 300, totalWorkloadMinutes: 150 })
+      );
+      expect(result.estimatedWaitSeconds).toBe(9_000);
+      expect(result.isFallback).toBe(false);
+    });
+
+    it('ignores avgServiceSeconds when totalWorkloadMinutes is provided', () => {
+      // If both are present, workload wins
+      const workloadResult = etaService.calculate(
+        makeInput({ aheadCount: 5, avgServiceSeconds: 300, totalWorkloadMinutes: 60 })
+      );
+      const avgResult = etaService.calculate(
+        makeInput({ aheadCount: 5, avgServiceSeconds: 300 })
+      );
+      expect(workloadResult.estimatedWaitSeconds).toBe(3_600); // 60 × 60
+      expect(avgResult.estimatedWaitSeconds).toBe(1_500);       // 5 × 300
+      expect(workloadResult.estimatedWaitSeconds).not.toBe(avgResult.estimatedWaitSeconds);
+    });
+
+    it('falls back to avgServiceSeconds when totalWorkloadMinutes is 0', () => {
+      const result = etaService.calculate(
+        makeInput({ aheadCount: 3, avgServiceSeconds: 60, totalWorkloadMinutes: 0 })
+      );
+      expect(result.estimatedWaitSeconds).toBe(180); // 3 × 60 (fallback)
+    });
+
+    it('falls back to avgServiceSeconds when totalWorkloadMinutes is undefined', () => {
+      const result = etaService.calculate(
+        makeInput({ aheadCount: 3, avgServiceSeconds: 60, totalWorkloadMinutes: undefined })
+      );
+      expect(result.estimatedWaitSeconds).toBe(180); // 3 × 60 (fallback)
+    });
+
+    it('converts workload-based wait to minutes correctly', () => {
+      // 90 min workload → 5 400 s → ceil(5400/60) = 90 min
+      const result = etaService.calculate(
+        makeInput({ aheadCount: 1, avgServiceSeconds: 60, totalWorkloadMinutes: 90 })
+      );
+      expect(result.estimatedWaitMinutes).toBe(90);
+    });
+
+    it('computes correct expectedCallAt using workload minutes', () => {
+      // 30 min = 1 800 s after FIXED_NOW
+      const result = etaService.calculate(
+        makeInput({ aheadCount: 1, avgServiceSeconds: 60, totalWorkloadMinutes: 30 })
+      );
+      const expected = new Date(FIXED_NOW.getTime() + 1_800 * 1_000);
+      expect(result.expectedCallAt).toEqual(expected);
+    });
+
+    it('derives confidence from aheadCount even when using workload-based ETA', () => {
+      // aheadCount=2 with workload → still HIGH (2 < 5 threshold)
+      const highResult = etaService.calculate(
+        makeInput({ aheadCount: 2, avgServiceSeconds: 300, totalWorkloadMinutes: 90 })
+      );
+      expect(highResult.confidence).toBe(EtaConfidence.HIGH);
+
+      // aheadCount=25 with workload → still LOW (25 >= 20 threshold)
+      const lowResult = etaService.calculate(
+        makeInput({ aheadCount: 25, avgServiceSeconds: 300, totalWorkloadMinutes: 90 })
+      );
+      expect(lowResult.confidence).toBe(EtaConfidence.LOW);
+    });
+
+    it('heterogeneous services: haircut (30 min) + dyeing (120 min) yields 150 min', () => {
+      // Real-world scenario: 2 customers ahead, one getting haircut, one getting dyeing
+      const totalWorkloadMinutes = 30 + 120; // 150 minutes
+      const result = etaService.calculate(
+        makeInput({ aheadCount: 2, avgServiceSeconds: 300, totalWorkloadMinutes })
+      );
+      expect(result.estimatedWaitSeconds).toBe(9_000);   // 150 min × 60
+      expect(result.estimatedWaitMinutes).toBe(150);
+      expect(result.isFallback).toBe(false);
+    });
+  });
 });

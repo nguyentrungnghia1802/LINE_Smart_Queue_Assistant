@@ -16,5 +16,15 @@ export const UpdateUserSchema = z
     message: 'At least one field must be provided',
   });
 
+export const UpdateMyProfileSchema = z
+  .object({
+    displayName: z.string().min(1).max(120).optional(),
+    email: z.string().email().optional(),
+  })
+  .refine((d) => Object.values(d).some((v) => v !== undefined), {
+    message: 'At least one field must be provided',
+  });
+
 export type CreateUserDto = z.infer<typeof CreateUserSchema>;
 export type UpdateUserDto = z.infer<typeof UpdateUserSchema>;
+export type UpdateMyProfileDto = z.infer<typeof UpdateMyProfileSchema>;

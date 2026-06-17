@@ -15,6 +15,7 @@ import { Client } from 'pg';
 import { seed001Organization } from './001_organization';
 import { seed002Queues } from './002_queues';
 import { seed003TestData } from './003_test_data';
+import { seed004Products } from './004_products';
 
 // ── Load env ──────────────────────────────────────────────────────────────────
 // __dirname is db/seeds/ — go two levels up to reach the monorepo root .env
@@ -36,9 +37,12 @@ async function resetDatabase(client: Client): Promise<void> {
       queue_histories,
       notifications,
       penalty_records,
+      order_items,
+      orders,
       queue_entries,
       organization_members,
       line_accounts,
+      products,
       queues,
       users,
       organizations
@@ -63,6 +67,7 @@ async function main(): Promise<void> {
     await seed001Organization(client);
     await seed002Queues(client);
     await seed003TestData(client);
+    await seed004Products(client);
 
     console.info('[seed] All seeds completed successfully.');
   } catch (err) {
