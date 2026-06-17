@@ -25,6 +25,12 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
 
 export const getProduct = asyncHandler(async (req: Request, res: Response) => {
   const product = await productsService.getById(req.params.id);
+  const canReadInactive =
+    req.user?.organizationId === product.organization_id &&
+    ['manager', 'admin'].includes(req.user.role);
+  if (!product.is_active && !canReadInactive) {
+    throw AppError.notFound('Product not found');
+  }
   sendSuccess(res, product);
 });
 

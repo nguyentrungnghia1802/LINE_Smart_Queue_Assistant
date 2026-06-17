@@ -26,6 +26,7 @@
 
 import type { QueueEntryRow } from '../../db/repositories/queue-entries.repository';
 import { logger } from '../../utils/logger';
+import { metricsService } from '../../utils/metrics';
 import type { ILineMessagingAdapter } from '../line/line.adapter';
 import { lineMessagingAdapter } from '../line/line.messaging';
 
@@ -77,12 +78,14 @@ export const queueNotificationService = {
         },
       ]);
       log.markSent(entry.id, 'called');
+      metricsService.increment('notifications_sent_total');
       logger.info(
         { entryId: entry.id, lineUserId: entry.line_user_id },
         'Called notification sent'
       );
     } catch (err) {
       // A notification failure must never roll back the queue state transition.
+      metricsService.increment('notifications_failed_total');
       logger.error({ err, entryId: entry.id }, 'Failed to send called notification');
     }
   },
@@ -123,8 +126,10 @@ export const queueNotificationService = {
         },
       ]);
       log.markSent(entry.id, 'eta_warning');
+      metricsService.increment('notifications_sent_total');
       logger.info({ entryId: entry.id, aheadCount }, 'ETA warning notification sent');
     } catch (err) {
+      metricsService.increment('notifications_failed_total');
       logger.error({ err, entryId: entry.id }, 'Failed to send ETA warning');
     }
   },
@@ -154,8 +159,10 @@ export const queueNotificationService = {
         },
       ]);
       log.markSent(entry.id, 'cancelled');
+      metricsService.increment('notifications_sent_total');
       logger.info({ entryId: entry.id }, 'Cancelled notification sent');
     } catch (err) {
+      metricsService.increment('notifications_failed_total');
       logger.error({ err, entryId: entry.id }, 'Failed to send cancelled notification');
     }
   },

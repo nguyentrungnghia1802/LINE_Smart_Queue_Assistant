@@ -4,22 +4,37 @@
  * Uses supertest to spin up the app in-process without binding a real port.
  * The DB pool is mocked so these tests run without a live database.
  */
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import request from 'supertest';
 
 import { createApp } from '../app';
+
+type MockQueryResult = { rows: Array<Record<string, number>>; rowCount: number };
 
 // ── Mock the DB pool so /ready can be tested without a live DB ─────────────────
 
 jest.mock('../db/client', () => ({
   pool: {
-    query: jest.fn().mockResolvedValue({ rows: [{ '?column?': 1 }], rowCount: 1 }),
+    query: jest.fn(),
   },
-  closePool: jest.fn().mockResolvedValue(undefined),
+  closePool: jest.fn(),
 }));
 
 // ── Shared app instance ────────────────────────────────────────────────────────
 
 const app = createApp();
+
+const { pool, closePool } = jest.requireMock('../db/client') as {
+  pool: { query: jest.MockedFunction<() => Promise<MockQueryResult>> };
+  closePool: jest.MockedFunction<() => Promise<void>>;
+};
+
+beforeEach(() => {
+  pool.query.mockReset();
+  closePool.mockReset();
+  pool.query.mockResolvedValue({ rows: [{ '?column?': 1 }], rowCount: 1 });
+  closePool.mockResolvedValue(undefined);
+});
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
@@ -59,7 +74,6 @@ describe('GET /ready', () => {
   });
 
   it('returns 503 when DB pool throws', async () => {
-    const { pool } = jest.requireMock('../db/client') as { pool: { query: jest.Mock } };
     pool.query.mockRejectedValueOnce(new Error('Connection refused'));
 
     const res = await request(app).get('/ready');

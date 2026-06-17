@@ -12,16 +12,19 @@
  *   GET    /api/v1/queue/current?queueId=<uuid>
  */
 
+import type { PoolClient } from 'pg';
 import request from 'supertest';
 
 import { UserRole } from '@line-queue/shared';
 
 import { createApp } from '../../../app';
+import { organizationsRepository } from '../../../db/repositories/organizations.repository';
 import {
   queueEntriesRepository,
   QueueEntryRow,
 } from '../../../db/repositories/queue-entries.repository';
 import { QueueRow, queuesRepository } from '../../../db/repositories/queues.repository';
+import { usersRepository } from '../../../db/repositories/users.repository';
 import { withTransaction } from '../../../db/transaction';
 import { signToken } from '../../../utils/jwt';
 
@@ -30,6 +33,8 @@ import { signToken } from '../../../utils/jwt';
 jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
+jest.mock('../../../db/repositories/users.repository');
+jest.mock('../../../db/repositories/organizations.repository');
 
 // Pool is referenced by withTransaction; mock it so the module loads cleanly.
 jest.mock('../../../db/client', () => ({
@@ -71,6 +76,13 @@ const mockCreateEntry = queueEntriesRepository.create as jest.MockedFunction<
   typeof queueEntriesRepository.create
 >;
 const mockWithTransaction = withTransaction as jest.MockedFunction<typeof withTransaction>;
+const mockFindUserById = usersRepository.findById as jest.MockedFunction<
+  typeof usersRepository.findById
+>;
+const mockFindMembershipByUserId =
+  organizationsRepository.findMembershipByUserId as jest.MockedFunction<
+    typeof organizationsRepository.findMembershipByUserId
+  >;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -127,6 +139,11 @@ const waitingEntry: QueueEntryRow = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const app = createApp();
+const mockPoolClient = {
+  connect: jest.fn(),
+  query: jest.fn(),
+  release: jest.fn(),
+} as unknown as PoolClient;
 
 /** Issue a test JWT for an authenticated user. */
 function authToken(overrides: Partial<{ id: string; lineUserId: string; role: UserRole }> = {}) {
@@ -139,13 +156,24 @@ function authToken(overrides: Partial<{ id: string; lineUserId: string; role: Us
 
 /** Make withTransaction execute the callback synchronously with a dummy client. */
 function mockTx() {
-  mockWithTransaction.mockImplementation(async (fn) => fn({} as never));
+  mockWithTransaction.mockImplementation(async (fn) => fn(mockPoolClient));
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockFindActiveByUser.mockResolvedValue(null);
   mockFindActiveByLineUser.mockResolvedValue(null);
+  mockFindUserById.mockResolvedValue({
+    id: USER_ID,
+    display_name: 'Queue Customer',
+    email: null,
+    password_hash: null,
+    role: UserRole.CUSTOMER,
+    is_active: true,
+    created_at: new Date(),
+    updated_at: new Date(),
+  });
+  mockFindMembershipByUserId.mockResolvedValue(null);
 });
 
 // ── POST /api/v1/queue/join ───────────────────────────────────────────────────
@@ -332,13 +360,11 @@ describe('GET /api/v1/queue/me', () => {
       expect(res.body.data).toEqual([]);
     });
 
-    it('returns 200 for anonymous callers (empty array)', async () => {
-      // No Authorization header; findAllActiveForActor resolves empty
-      mockFindAllActiveForActor.mockResolvedValue([]);
-
+    it('returns 401 for anonymous callers because /me now requires auth', async () => {
       const res = await request(app).get('/api/v1/queue/me');
-      expect(res.status).toBe(200);
-      expect(res.body.data).toEqual([]);
+
+      expect(res.status).toBe(401);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
     });
 
     it('returns estimatedWaitSeconds = 0 when queue not found (defensive fallback)', async () => {

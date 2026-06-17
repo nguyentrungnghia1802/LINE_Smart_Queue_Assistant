@@ -27,14 +27,15 @@ function reqLog(req: Request) {
  * active ticket (idempotent retry).
  */
 export const joinQueue = asyncHandler(async (req: Request, res: Response) => {
-  const dto = req.body as JoinQueueDto;
-  const result = await queueService.joinQueue({
+  const dto: JoinQueueDto = req.body;
+  const joinRequest: Parameters<typeof queueService.joinQueue>[0] = {
     ...dto,
     userId: req.user?.id,
     // Prefer the lineUserId from the JWT; fall back to the body value for
     // anonymous LIFF users who have a LINE UID but no backend session yet.
     lineUserId: req.user?.lineUserId ?? dto.lineUserId,
-  } as Parameters<typeof queueService.joinQueue>[0]);
+  };
+  const result = await queueService.joinQueue(joinRequest);
 
   reqLog(req).info(
     {
@@ -130,7 +131,12 @@ export const getQueueStatus = asyncHandler(async (req: Request, res: Response) =
  */
 export const callNextTicket = asyncHandler(async (req: Request, res: Response) => {
   const { queueId } = req.params as unknown as QueueIdParam;
-  const entry = await queueService.callNextTicket(queueId);
+  const entry = await queueService.callNextTicket(
+    queueId,
+    undefined,
+    undefined,
+    req.user?.organizationId
+  );
 
   reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_display }, 'queue.callNext');
 
@@ -142,7 +148,11 @@ export const callNextTicket = asyncHandler(async (req: Request, res: Response) =
 /** Mark a called ticket as serving (customer reached the counter). */
 export const serveTicket = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
-  const entry = await queueService.serveTicket({ entryId, actorUserId: req.user?.id });
+  const entry = await queueService.serveTicket({
+    entryId,
+    actorUserId: req.user?.id,
+    actorOrganizationId: req.user?.organizationId,
+  });
 
   reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.serve');
 
@@ -154,7 +164,11 @@ export const serveTicket = asyncHandler(async (req: Request, res: Response) => {
 /** Mark a serving ticket as completed and archive to history. */
 export const completeTicket = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
-  const entry = await queueService.completeTicket({ entryId, actorUserId: req.user?.id });
+  const entry = await queueService.completeTicket({
+    entryId,
+    actorUserId: req.user?.id,
+    actorOrganizationId: req.user?.organizationId,
+  });
 
   reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.complete');
 

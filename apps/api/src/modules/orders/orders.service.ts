@@ -17,9 +17,14 @@ export const ordersService = {
     return ordersRepository.findByOrg(orgId, status);
   },
 
-  async getById(id: string) {
+  async getById(id: string, orgId?: string) {
     const order = await ordersRepository.findById(id);
     if (!order) throw AppError.notFound('Order not found');
+
+    if (orgId && order.organization_id !== orgId) {
+      throw AppError.forbidden("Access denied to this organization's order");
+    }
+
     return order;
   },
 
@@ -41,16 +46,15 @@ export const ordersService = {
       dto.items.map(async (item) => {
         const p = await productsRepository.findById(item.productId);
         if (!p) throw AppError.notFound(`Product ${item.productId} not found`);
-        if (p.organization_id !== org.id) throw AppError.badRequest('Product does not belong to this organization');
+        if (p.organization_id !== org.id)
+          throw AppError.badRequest('Product does not belong to this organization');
         if (!p.is_active) throw AppError.badRequest(`Product "${p.name}" is not available`);
-        return { product: p, quantity: item.quantity };
+        const price = Number.parseFloat(p.price);
+        return { product: p, quantity: item.quantity, price };
       })
     );
 
-    const subtotal = productRows.reduce(
-      (sum, { product, quantity }) => sum + parseFloat(product.price) * quantity,
-      0
-    );
+    const subtotal = productRows.reduce((sum, { price, quantity }) => sum + price * quantity, 0);
 
     // Create queue entry + order + items in a transaction
     const client = await pool.connect();
@@ -78,31 +82,40 @@ export const ordersService = {
         `SELECT COUNT(*) FROM orders WHERE organization_id = $1`,
         [org.id]
       );
-      const orderNum = formatOrderNumber(queue.prefix ?? 'O', parseInt(countRows[0].count) + 1);
+      const orderNum = formatOrderNumber(
+        queue.prefix ?? 'O',
+        Number.parseInt(countRows[0].count, 10) + 1
+      );
 
       // Create order (within transaction) — include customer linkage fields
-      const order = await ordersRepository.create({
-        organizationId: org.id,
-        queueEntryId: entry.id,
-        orderNumber: orderNum,
-        customerName: dto.customerName,
-        customerUserId: actorUserId,
-        customerPhone: dto.customerPhone,
-        subtotal,
-        notes: dto.notes,
-      }, client);
+      const order = await ordersRepository.create(
+        {
+          organizationId: org.id,
+          queueEntryId: entry.id,
+          orderNumber: orderNum,
+          customerName: dto.customerName,
+          customerUserId: actorUserId,
+          customerPhone: dto.customerPhone,
+          subtotal,
+          notes: dto.notes,
+        },
+        client
+      );
 
       // Create items (within transaction)
-      for (const { product, quantity } of productRows) {
-        await ordersRepository.createItem({
-          orderId: order.id,
-          productId: product.id,
-          productName: product.name,
-          productPrice: parseFloat(product.price),
-          serviceTimeMinutes: product.service_time_minutes,
-          quantity,
-          subtotal: parseFloat(product.price) * quantity,
-        }, client);
+      for (const { product, quantity, price } of productRows) {
+        await ordersRepository.createItem(
+          {
+            orderId: order.id,
+            productId: product.id,
+            productName: product.name,
+            productPrice: price,
+            serviceTimeMinutes: product.service_time_minutes,
+            quantity,
+            subtotal: price * quantity,
+          },
+          client
+        );
       }
 
       await client.query('COMMIT');
@@ -138,12 +151,22 @@ export const ordersService = {
    * For anonymous orders (no customer_user_id), allow cancel by orderId only.
    * For authenticated orders, the actorUserId must match.
    */
-  async cancelByOrderId(orderId: string, actorUserId?: string) {
+  async cancelByOrderId(
+    orderId: string,
+    actor?: string | { userId: string; role: string; organizationId?: string }
+  ) {
     const order = await ordersRepository.findById(orderId);
     if (!order) throw AppError.notFound('Order not found');
 
-    // Auth check: if order has a linked user, caller must be that user (or staff/manager)
-    if (order.customer_user_id && actorUserId && order.customer_user_id !== actorUserId) {
+    if (!actor) throw AppError.unauthorized();
+    const resolvedActor = typeof actor === 'string' ? { userId: actor, role: 'customer' } : actor;
+
+    const isOperator = ['staff', 'manager', 'admin'].includes(resolvedActor.role);
+    if (isOperator) {
+      if (!resolvedActor.organizationId || order.organization_id !== resolvedActor.organizationId) {
+        throw AppError.forbidden('Order is outside your organization');
+      }
+    } else if (!order.customer_user_id || order.customer_user_id !== resolvedActor.userId) {
       throw AppError.forbidden('You do not own this order');
     }
 

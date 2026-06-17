@@ -21,7 +21,8 @@ export const listOrders = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getOrder = asyncHandler(async (req: Request, res: Response) => {
-  const order = await ordersService.getById(req.params.id);
+  const orgId = requireOrgId(req);
+  const order = await ordersService.getById(req.params.id, orgId);
   sendSuccess(res, order);
 });
 
@@ -58,6 +59,12 @@ export const patchOrderPayment = asyncHandler(async (req: Request, res: Response
 
 /** Public cancel — customer cancels their own order by orderId. */
 export const cancelOrder = asyncHandler(async (req: Request, res: Response) => {
-  const order = await ordersService.cancelByOrderId(req.params.id, req.user?.id);
+  const user = req.user;
+  if (!user) throw AppError.unauthorized();
+  const order = await ordersService.cancelByOrderId(req.params.id, {
+    userId: user.id,
+    role: user.role,
+    organizationId: user.organizationId,
+  });
   sendSuccess(res, order);
 });

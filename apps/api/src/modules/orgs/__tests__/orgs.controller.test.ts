@@ -25,6 +25,9 @@ jest.mock('../../../db/repositories/queue-entries.repository');
 const mockFindByPublicToken = organizationsRepository.findByPublicToken as jest.MockedFunction<
   typeof organizationsRepository.findByPublicToken
 >;
+const mockFindById = organizationsRepository.findById as jest.MockedFunction<
+  typeof organizationsRepository.findById
+>;
 const mockFindActiveByOrg = queuesRepository.findActiveByOrg as jest.MockedFunction<
   typeof queuesRepository.findActiveByOrg
 >;
@@ -77,6 +80,7 @@ function makeReq(token: string) {
 describe('getOrgByToken controller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFindById.mockResolvedValue(orgRow);
     mockFindActiveByOrg.mockResolvedValue([]);
     mockFindByOrgProducts.mockResolvedValue([]);
     mockListWaiting.mockResolvedValue([]);
@@ -95,9 +99,13 @@ describe('getOrgByToken controller', () => {
 
     // sendSuccess calls res.status(200).json({ success: true, data: ... })
     expect(res.status).toHaveBeenCalledWith(200);
-    const jsonMock = (res.status as jest.Mock).mock.results[0]?.value?.json as jest.Mock | undefined;
+    const statusMock = res.status as jest.Mock;
+    const jsonMock = statusMock.mock.results[0]?.value?.json;
     expect(jsonMock).toBeDefined();
-    const body = jsonMock?.mock.calls[0]?.[0] as { success: boolean; data?: { org?: { publicQrToken?: string } } };
+    const body = jsonMock?.mock.calls[0]?.[0] as {
+      success: boolean;
+      data?: { org?: { publicQrToken?: string } };
+    };
     expect(body?.success).toBe(true);
     expect(body?.data?.org?.publicQrToken).toBe(ORG_TOKEN);
   });
