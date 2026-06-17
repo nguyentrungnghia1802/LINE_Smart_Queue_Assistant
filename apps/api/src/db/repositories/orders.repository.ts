@@ -112,17 +112,20 @@ export const ordersRepository = {
     return this.findById(rows[0].id);
   },
 
-  async create(data: {
-    organizationId: string;
-    queueEntryId?: string;
-    orderNumber: string;
-    customerName?: string;
-    customerUserId?: string;
-    customerPhone?: string;
-    subtotal: number;
-    paymentCode?: string;
-    notes?: string;
-  }, client?: PoolClient): Promise<OrderRow> {
+  async create(
+    data: {
+      organizationId: string;
+      queueEntryId?: string;
+      orderNumber: string;
+      customerName?: string;
+      customerUserId?: string;
+      customerPhone?: string;
+      subtotal: number;
+      paymentCode?: string;
+      notes?: string;
+    },
+    client?: PoolClient
+  ): Promise<OrderRow> {
     const executor = client ?? pool;
     const { rows } = await executor.query<OrderRow>(
       `INSERT INTO orders
@@ -145,15 +148,18 @@ export const ordersRepository = {
     return rows[0];
   },
 
-  async createItem(data: {
-    orderId: string;
-    productId: string;
-    productName: string;
-    productPrice: number;
-    serviceTimeMinutes: number;
-    quantity: number;
-    subtotal: number;
-  }, client?: PoolClient): Promise<OrderItemRow> {
+  async createItem(
+    data: {
+      orderId: string;
+      productId: string;
+      productName: string;
+      productPrice: number;
+      serviceTimeMinutes: number;
+      quantity: number;
+      subtotal: number;
+    },
+    client?: PoolClient
+  ): Promise<OrderItemRow> {
     const executor = client ?? pool;
     const { rows } = await executor.query<OrderItemRow>(
       `INSERT INTO order_items
@@ -191,26 +197,58 @@ export const ordersRepository = {
 
   async getStats(orgId: string): Promise<{
     totalRevenue: number;
+    totalOrders: number;
     completedOrders: number;
     cancelledOrders: number;
     pendingOrders: number;
+    cancellationRate: number;
+    activeQueueEntries: number;
+    averageEtaSeconds: number;
     dailyRevenue: Array<{ date: string; revenue: number; orders: number }>;
     topProducts: Array<{ product_name: string; total_sold: number; revenue: number }>;
     totalProducts: number;
     currentQueueDepth: number;
+    recentOrders: Array<{
+      id: string;
+      order_number: string;
+      customer_name: string | null;
+      status: string;
+      subtotal: number;
+      payment_status: string;
+      created_at: Date;
+      item_count: number;
+    }>;
+    recentQueueActivities: Array<{
+      entry_id: string;
+      queue_id: string;
+      queue_name: string;
+      ticket_display: string;
+      status: string;
+      updated_at: Date;
+      order_number: string | null;
+      customer_name: string | null;
+    }>;
   }> {
-    const [summary, daily, top, products, queue] = await Promise.all([
-      pool.query<{ completed: string; cancelled: string; pending: string; revenue: string }>(
-        `SELECT
+    const [summary, daily, top, products, queue, eta, recentOrders, recentQueueActivities] =
+      await Promise.all([
+        pool.query<{
+          total: string;
+          completed: string;
+          cancelled: string;
+          pending: string;
+          revenue: string;
+        }>(
+          `SELECT
+           COUNT(*) AS total,
            COUNT(*) FILTER (WHERE status = 'completed') AS completed,
            COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled,
            COUNT(*) FILTER (WHERE status IN ('pending','processing')) AS pending,
            COALESCE(SUM(subtotal) FILTER (WHERE status = 'completed'), 0) AS revenue
          FROM orders WHERE organization_id = $1`,
-        [orgId]
-      ),
-      pool.query<{ date: string; revenue: string; orders: string }>(
-        `SELECT DATE(created_at)::text AS date,
+          [orgId]
+        ),
+        pool.query<{ date: string; revenue: string; orders: string }>(
+          `SELECT DATE(created_at)::text AS date,
                 COALESCE(SUM(subtotal), 0) AS revenue,
                 COUNT(*) AS orders
          FROM orders
@@ -219,10 +257,10 @@ export const ordersRepository = {
            AND created_at >= NOW() - INTERVAL '7 days'
          GROUP BY DATE(created_at)
          ORDER BY date`,
-        [orgId]
-      ),
-      pool.query<{ product_name: string; total_sold: string; revenue: string }>(
-        `SELECT oi.product_name,
+          [orgId]
+        ),
+        pool.query<{ product_name: string; total_sold: string; revenue: string }>(
+          `SELECT oi.product_name,
                 SUM(oi.quantity) AS total_sold,
                 SUM(oi.subtotal) AS revenue
          FROM order_items oi
@@ -231,26 +269,105 @@ export const ordersRepository = {
          GROUP BY oi.product_name
          ORDER BY total_sold DESC
          LIMIT 5`,
-        [orgId]
-      ),
-      pool.query<{ count: string }>(
-        `SELECT COUNT(*) FROM products WHERE organization_id = $1 AND is_active = TRUE`,
-        [orgId]
-      ),
-      pool.query<{ count: string }>(
-        `SELECT COUNT(*) FROM queue_entries qe
+          [orgId]
+        ),
+        pool.query<{ count: string }>(
+          `SELECT COUNT(*) FROM products WHERE organization_id = $1 AND is_active = TRUE`,
+          [orgId]
+        ),
+        pool.query<{ count: string }>(
+          `SELECT COUNT(*) FROM queue_entries qe
          JOIN queues q ON qe.queue_id = q.id
-         WHERE q.organization_id = $1 AND qe.status = 'waiting'`,
-        [orgId]
-      ),
-    ]);
+         WHERE q.organization_id = $1 AND qe.status IN ('waiting','called','serving')`,
+          [orgId]
+        ),
+        pool.query<{ average_eta_seconds: string }>(
+          `WITH ranked AS (
+           SELECT
+             qe.id,
+             q.avg_service_seconds,
+             (ROW_NUMBER() OVER (
+               PARTITION BY qe.queue_id
+               ORDER BY qe.priority DESC, qe.ticket_number ASC
+             ) - 1) AS ahead_count
+           FROM queue_entries qe
+           JOIN queues q ON q.id = qe.queue_id
+           WHERE q.organization_id = $1
+             AND q.is_active = TRUE
+             AND qe.status = 'waiting'
+         )
+         SELECT COALESCE(AVG(ahead_count * avg_service_seconds), 0) AS average_eta_seconds
+         FROM ranked`,
+          [orgId]
+        ),
+        pool.query<{
+          id: string;
+          order_number: string;
+          customer_name: string | null;
+          status: string;
+          subtotal: string;
+          payment_status: string;
+          created_at: Date;
+          item_count: string;
+        }>(
+          `SELECT
+           o.id,
+           o.order_number,
+           o.customer_name,
+           o.status,
+           o.subtotal,
+           o.payment_status,
+           o.created_at,
+           COALESCE(SUM(oi.quantity), 0) AS item_count
+         FROM orders o
+         LEFT JOIN order_items oi ON oi.order_id = o.id
+         WHERE o.organization_id = $1
+         GROUP BY o.id
+         ORDER BY o.created_at DESC
+         LIMIT 10`,
+          [orgId]
+        ),
+        pool.query<{
+          entry_id: string;
+          queue_id: string;
+          queue_name: string;
+          ticket_display: string;
+          status: string;
+          updated_at: Date;
+          order_number: string | null;
+          customer_name: string | null;
+        }>(
+          `SELECT
+           qe.id AS entry_id,
+           q.id AS queue_id,
+           q.name AS queue_name,
+           qe.ticket_display,
+           qe.status,
+           qe.updated_at,
+           o.order_number,
+           o.customer_name
+         FROM queue_entries qe
+         JOIN queues q ON q.id = qe.queue_id
+         LEFT JOIN orders o ON o.queue_entry_id = qe.id
+         WHERE q.organization_id = $1
+         ORDER BY qe.updated_at DESC
+         LIMIT 10`,
+          [orgId]
+        ),
+      ]);
 
     const s = summary.rows[0];
+    const totalOrders = parseInt(s.total);
+    const cancelledOrders = parseInt(s.cancelled);
     return {
       totalRevenue: parseFloat(s.revenue),
+      totalOrders,
       completedOrders: parseInt(s.completed),
-      cancelledOrders: parseInt(s.cancelled),
+      cancelledOrders,
       pendingOrders: parseInt(s.pending),
+      cancellationRate: totalOrders > 0 ? cancelledOrders / totalOrders : 0,
+      activeQueueEntries: parseInt(queue.rows[0]?.count ?? '0'),
+      averageEtaSeconds: Math.round(parseFloat(eta.rows[0]?.average_eta_seconds ?? '0')),
       dailyRevenue: daily.rows.map((r) => ({
         date: r.date,
         revenue: parseFloat(r.revenue),
@@ -263,6 +380,12 @@ export const ordersRepository = {
       })),
       totalProducts: parseInt(products.rows[0]?.count ?? '0'),
       currentQueueDepth: parseInt(queue.rows[0]?.count ?? '0'),
+      recentOrders: recentOrders.rows.map((r) => ({
+        ...r,
+        subtotal: parseFloat(r.subtotal),
+        item_count: parseInt(r.item_count),
+      })),
+      recentQueueActivities: recentQueueActivities.rows,
     };
   },
 };
