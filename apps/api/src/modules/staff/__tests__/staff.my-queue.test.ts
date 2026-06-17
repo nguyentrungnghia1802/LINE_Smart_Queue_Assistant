@@ -6,6 +6,8 @@
  *   2. Returns enriched overview (waiting + called + serving with orders).
  *   3. Orders are fetched for each entry via findByQueueEntry.
  */
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
 import { ordersRepository } from '../../../db/repositories/orders.repository';
 import { queueEntriesRepository } from '../../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../../db/repositories/queues.repository';
@@ -65,7 +67,7 @@ function makeEntry(id: string, ticket: string, status: string) {
     queue_id: QUEUE_ID,
     user_id: null,
     line_user_id: null,
-    ticket_number: parseInt(ticket.replace('A-', '')),
+    ticket_number: Number.parseInt(ticket.replace('A-', '')),
     ticket_display: ticket,
     status,
     skip_count: 0,
@@ -110,13 +112,13 @@ describe('staffService.getMyQueueOverview', () => {
     mockFindByQueueAndStatus.mockResolvedValue(null); // no called/serving
 
     const result = await staffService.getMyQueueOverview(ORG_ID);
+    if (!result) throw new Error('Expected queue overview for active queue');
 
-    expect(result).not.toBeNull();
-    expect(result!.queueId).toBe(QUEUE_ID);
-    expect(result!.waitingCount).toBe(2);
-    expect(result!.waitingEntriesWithOrders).toHaveLength(2);
-    expect(result!.calledEntryWithOrder).toBeNull();
-    expect(result!.servingEntryWithOrder).toBeNull();
+    expect(result.queueId).toBe(QUEUE_ID);
+    expect(result.waitingCount).toBe(2);
+    expect(result.waitingEntriesWithOrders).toHaveLength(2);
+    expect(result.calledEntryWithOrder).toBeNull();
+    expect(result.servingEntryWithOrder).toBeNull();
   });
 
   it('attaches order to each entry via findByQueueEntry', async () => {
@@ -145,9 +147,10 @@ describe('staffService.getMyQueueOverview', () => {
     mockFindByQueueEntry.mockResolvedValue(mockOrder);
 
     const result = await staffService.getMyQueueOverview(ORG_ID);
+    if (!result) throw new Error('Expected queue overview for active queue');
 
     expect(mockFindByQueueEntry).toHaveBeenCalledWith('e003');
-    expect(result!.waitingEntriesWithOrders[0]?.order).toEqual(mockOrder);
+    expect(result.waitingEntriesWithOrders[0]?.order).toEqual(mockOrder);
   });
 
   it('includes called and serving entries with orders', async () => {
@@ -157,14 +160,16 @@ describe('staffService.getMyQueueOverview', () => {
     mockFindActiveByOrg.mockResolvedValue([queueRow]);
     mockListWaiting.mockResolvedValue([]);
     mockFindByQueueAndStatus
-      .mockResolvedValueOnce(calledEntry)  // first call: 'called'
+      .mockResolvedValueOnce(calledEntry) // first call: 'called'
       .mockResolvedValueOnce(servingEntry); // second call: 'serving'
 
     const result = await staffService.getMyQueueOverview(ORG_ID);
+    if (!result) throw new Error('Expected queue overview for active queue');
+    if (!result.calledEntryWithOrder || !result.servingEntryWithOrder) {
+      throw new Error('Expected called and serving entries in queue overview');
+    }
 
-    expect(result!.calledEntryWithOrder).not.toBeNull();
-    expect(result!.calledEntryWithOrder!.ticket_display).toBe('A-006');
-    expect(result!.servingEntryWithOrder).not.toBeNull();
-    expect(result!.servingEntryWithOrder!.ticket_display).toBe('A-007');
+    expect(result.calledEntryWithOrder.ticket_display).toBe('A-006');
+    expect(result.servingEntryWithOrder.ticket_display).toBe('A-007');
   });
 });

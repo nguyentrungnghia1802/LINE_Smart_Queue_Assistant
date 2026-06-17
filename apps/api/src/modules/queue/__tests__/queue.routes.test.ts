@@ -12,7 +12,12 @@
 
 import request from 'supertest';
 
+import { UserRole } from '@line-queue/shared';
+
 import { createApp } from '../../../app';
+import { organizationsRepository } from '../../../db/repositories/organizations.repository';
+import { usersRepository } from '../../../db/repositories/users.repository';
+import { signToken } from '../../../utils/jwt';
 
 // Stub out DB so app boots cleanly and repositories return no data
 jest.mock('../../../db/client', () => ({
@@ -26,11 +31,44 @@ jest.mock('../../../db/client', () => ({
   queryOne: jest.fn().mockResolvedValue(null),
   queryWithClient: jest.fn().mockResolvedValue([]),
 }));
+jest.mock('../../../db/repositories/users.repository');
+jest.mock('../../../db/repositories/organizations.repository');
 
 const app = createApp();
 
+const mockFindUserById = usersRepository.findById as jest.MockedFunction<
+  typeof usersRepository.findById
+>;
+const mockFindMembershipByUserId =
+  organizationsRepository.findMembershipByUserId as jest.MockedFunction<
+    typeof organizationsRepository.findMembershipByUserId
+  >;
+
 const VALID_UUID = '123e4567-e89b-12d3-a456-426614174000';
 const VALID_UUID2 = '223e4567-e89b-12d3-a456-426614174000';
+
+function authToken() {
+  return signToken({
+    sub: '123e4567-e89b-12d3-a456-426614174999',
+    lineUserId: 'Uf0000000000000000000000000000099',
+    role: UserRole.CUSTOMER,
+  });
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockFindUserById.mockResolvedValue({
+    id: '123e4567-e89b-12d3-a456-426614174999',
+    display_name: 'Route Test User',
+    email: null,
+    password_hash: null,
+    role: UserRole.CUSTOMER,
+    is_active: true,
+    created_at: new Date(),
+    updated_at: new Date(),
+  });
+  mockFindMembershipByUserId.mockResolvedValue(null);
+});
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -105,8 +143,15 @@ describe('GET /api/v1/queue/current', () => {
 // ── GET /api/v1/queue/me ──────────────────────────────────────────────────────
 
 describe('GET /api/v1/queue/me', () => {
-  it('returns 200 with empty array when caller has no active tickets', async () => {
+  it('returns 401 when caller is unauthenticated', async () => {
     const res = await request(app).get('/api/v1/queue/me');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 200 with empty array when caller is authenticated but has no active tickets', async () => {
+    const res = await request(app)
+      .get('/api/v1/queue/me')
+      .set('Authorization', `Bearer ${authToken()}`);
     expect(res.status).toBe(200);
     expect((res.body as { data: unknown[] }).data).toEqual([]);
   });
@@ -116,13 +161,17 @@ describe('GET /api/v1/queue/me', () => {
 
 describe('POST /api/v1/queue/:entryId/cancel', () => {
   it('returns 422 when entryId is not a UUID', async () => {
-    const res = await request(app).post('/api/v1/queue/not-a-uuid/cancel');
+    const res = await request(app)
+      .post('/api/v1/queue/not-a-uuid/cancel')
+      .set('Authorization', `Bearer ${authToken()}`);
     expect(res.status).toBe(422);
     expectValidationError(res.body as Record<string, unknown>);
   });
 
   it('returns 404 when the ticket is not found (mocked DB returns no rows)', async () => {
-    const res = await request(app).post(`/api/v1/queue/${VALID_UUID}/cancel`);
+    const res = await request(app)
+      .post(`/api/v1/queue/${VALID_UUID}/cancel`)
+      .set('Authorization', `Bearer ${authToken()}`);
     expect(res.status).toBe(404);
     expectNotFound(res.body as Record<string, unknown>);
   });
@@ -132,13 +181,17 @@ describe('POST /api/v1/queue/:entryId/cancel', () => {
 
 describe('POST /api/v1/queue/:entryId/skip', () => {
   it('returns 422 when entryId is not a UUID', async () => {
-    const res = await request(app).post('/api/v1/queue/bad/skip');
+    const res = await request(app)
+      .post('/api/v1/queue/bad/skip')
+      .set('Authorization', `Bearer ${authToken()}`);
     expect(res.status).toBe(422);
     expectValidationError(res.body as Record<string, unknown>);
   });
 
   it('returns 404 when the ticket is not found (mocked DB returns no rows)', async () => {
-    const res = await request(app).post(`/api/v1/queue/${VALID_UUID}/skip`);
+    const res = await request(app)
+      .post(`/api/v1/queue/${VALID_UUID}/skip`)
+      .set('Authorization', `Bearer ${authToken()}`);
     expect(res.status).toBe(404);
     expectNotFound(res.body as Record<string, unknown>);
   });

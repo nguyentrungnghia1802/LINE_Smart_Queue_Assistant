@@ -1,5 +1,9 @@
 import { Request, Response } from 'express';
 
+import { UserRole } from '@line-queue/shared';
+
+import { organizationsRepository } from '../../db/repositories/organizations.repository';
+import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendCreated, sendNoContent, sendSuccess } from '../../utils/response';
 
@@ -7,17 +11,32 @@ import { usersService } from './users.service';
 import { CreateUserDto } from './users.validator';
 
 export const getUser = asyncHandler(async (req: Request, res: Response) => {
-  const user = await usersService.getUser(req.params['id'] ?? '');
+  const actor = req.user;
+  if (!actor) throw AppError.unauthorized();
+  const targetUserId = req.params['id'] ?? '';
+
+  if (actor.id !== targetUserId && actor.role !== UserRole.ADMIN) {
+    const orgId = actor.organizationId;
+    if (!orgId) throw AppError.forbidden();
+    const member = await organizationsRepository.findMember(orgId, targetUserId);
+    if (!member) throw AppError.forbidden('User is outside your organization');
+  }
+
+  const user = await usersService.getUser(targetUserId);
   sendSuccess(res, user);
 });
 
 export const listUsers = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = req.query['orgId'] as string | undefined;
+  const actor = req.user;
+  if (!actor) throw AppError.unauthorized();
+  const requestedOrgId = req.query['orgId'] as string | undefined;
   const role = req.query['role'] as string | undefined;
+  const orgId = actor.role === UserRole.ADMIN ? requestedOrgId : actor.organizationId;
+
   if (!orgId) {
-    res.status(400).json({ message: 'orgId is required' });
-    return;
+    throw AppError.badRequest('orgId is required');
   }
+
   const users = await usersService.listUsersByOrg(orgId, role);
   sendSuccess(res, users);
 });
@@ -46,10 +65,16 @@ export const deactivateUser = asyncHandler(async (req: Request, res: Response) =
 export const createStaff = asyncHandler(async (req: Request, res: Response) => {
   const orgId = req.user?.organizationId;
   if (!orgId) {
-    res.status(400).json({ success: false, error: { code: 'NO_ORG', message: 'User has no organization' } });
+    res
+      .status(400)
+      .json({ success: false, error: { code: 'NO_ORG', message: 'User has no organization' } });
     return;
   }
-  const { displayName, email, password } = req.body as { displayName: string; email: string; password: string };
+  const { displayName, email, password } = req.body as {
+    displayName: string;
+    email: string;
+    password: string;
+  };
   const user = await usersService.createStaff(orgId, { displayName, email, password });
   sendCreated(res, user);
 });
@@ -58,7 +83,9 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
 export const updateStaffStatus = asyncHandler(async (req: Request, res: Response) => {
   const orgId = req.user?.organizationId;
   if (!orgId) {
-    res.status(400).json({ success: false, error: { code: 'NO_ORG', message: 'User has no organization' } });
+    res
+      .status(400)
+      .json({ success: false, error: { code: 'NO_ORG', message: 'User has no organization' } });
     return;
   }
   const { userId } = req.params as { userId: string };

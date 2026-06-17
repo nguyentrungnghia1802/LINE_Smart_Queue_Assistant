@@ -35,3 +35,34 @@ export const strictRateLimiter = rateLimit({
     next(AppError.tooManyRequests());
   },
 });
+
+export const publicReadRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(AppError.tooManyRequests());
+  },
+});
+
+export const publicWriteRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 15,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(AppError.tooManyRequests());
+  },
+});
+
+export const authenticatedActionRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(AppError.tooManyRequests());
+  },
+  keyGenerator: (req) => req.user?.id ?? ipKeyGenerator(req.ip ?? 'unknown'),
+});

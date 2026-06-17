@@ -9,6 +9,7 @@
  *   5. Cancels order and linked queue entry for authenticated orders (matching user).
  */
 import { ordersRepository } from '../../../db/repositories/orders.repository';
+import type { QueueEntryRow } from '../../../db/repositories/queue-entries.repository';
 import { queueEntriesRepository } from '../../../db/repositories/queue-entries.repository';
 import { ordersService } from '../orders.service';
 
@@ -18,21 +19,50 @@ jest.mock('../../../db/repositories/products.repository');
 jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
 
-const mockFindById = ordersRepository.findById as jest.MockedFunction<typeof ordersRepository.findById>;
-const mockUpdateStatus = ordersRepository.updateStatus as jest.MockedFunction<typeof ordersRepository.updateStatus>;
-const mockMarkCancelled = queueEntriesRepository.markCancelled as jest.MockedFunction<typeof queueEntriesRepository.markCancelled>;
+const mockFindById = ordersRepository.findById as jest.MockedFunction<
+  typeof ordersRepository.findById
+>;
+const mockUpdateStatus = ordersRepository.updateStatus as jest.MockedFunction<
+  typeof ordersRepository.updateStatus
+>;
+const mockMarkCancelled = queueEntriesRepository.markCancelled as jest.MockedFunction<
+  typeof queueEntriesRepository.markCancelled
+>;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 const ORDER_ID = 'order-uuid-001';
 const ENTRY_ID = 'entry-uuid-001';
 const USER_ID = 'user-uuid-001';
+const cancelledEntry: QueueEntryRow = {
+  id: ENTRY_ID,
+  queue_id: 'queue-uuid-001',
+  user_id: USER_ID,
+  line_user_id: null,
+  ticket_number: 1,
+  ticket_display: 'A001',
+  status: 'cancelled',
+  skip_count: 0,
+  priority: 0,
+  notes: null,
+  metadata: {},
+  called_at: null,
+  serving_at: null,
+  completed_at: null,
+  skipped_at: null,
+  cancelled_at: new Date(),
+  estimated_call_at: null,
+  created_at: new Date(),
+  updated_at: new Date(),
+};
 
-function makeOrder(overrides: Partial<{
-  status: string;
-  customer_user_id: string | null;
-  queue_entry_id: string | null;
-}> = {}) {
+function makeOrder(
+  overrides: Partial<{
+    status: string;
+    customer_user_id: string | null;
+    queue_entry_id: string | null;
+  }> = {}
+) {
   return {
     id: ORDER_ID,
     organization_id: 'org-001',
@@ -56,9 +86,11 @@ function makeOrder(overrides: Partial<{
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('ordersService.cancelByOrderId', () => {
+  const operatorActor = { userId: 'staff-uuid-001', role: 'staff', organizationId: 'org-001' };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    mockMarkCancelled.mockResolvedValue({} as never);
+    mockMarkCancelled.mockResolvedValue(cancelledEntry);
     mockUpdateStatus.mockResolvedValue({ ...makeOrder(), status: 'cancelled' });
   });
 
@@ -71,17 +103,17 @@ describe('ordersService.cancelByOrderId', () => {
   });
 
   it('throws 409 when order is already completed', async () => {
-    mockFindById.mockResolvedValue(makeOrder({ status: 'completed' }));
+    mockFindById.mockResolvedValue(makeOrder({ status: 'completed', customer_user_id: USER_ID }));
 
-    await expect(ordersService.cancelByOrderId(ORDER_ID)).rejects.toMatchObject({
+    await expect(ordersService.cancelByOrderId(ORDER_ID, USER_ID)).rejects.toMatchObject({
       statusCode: 409,
     });
   });
 
   it('throws 409 when order is already cancelled', async () => {
-    mockFindById.mockResolvedValue(makeOrder({ status: 'cancelled' }));
+    mockFindById.mockResolvedValue(makeOrder({ status: 'cancelled', customer_user_id: USER_ID }));
 
-    await expect(ordersService.cancelByOrderId(ORDER_ID)).rejects.toMatchObject({
+    await expect(ordersService.cancelByOrderId(ORDER_ID, USER_ID)).rejects.toMatchObject({
       statusCode: 409,
     });
   });
@@ -94,10 +126,18 @@ describe('ordersService.cancelByOrderId', () => {
     });
   });
 
-  it('cancels anonymous order without auth check', async () => {
+  it('throws 401 when actor is missing', async () => {
     mockFindById.mockResolvedValue(makeOrder({ customer_user_id: null }));
 
-    await ordersService.cancelByOrderId(ORDER_ID);
+    await expect(ordersService.cancelByOrderId(ORDER_ID)).rejects.toMatchObject({
+      statusCode: 401,
+    });
+  });
+
+  it('allows an operator to cancel an anonymous order inside the same organization', async () => {
+    mockFindById.mockResolvedValue(makeOrder({ customer_user_id: null }));
+
+    await ordersService.cancelByOrderId(ORDER_ID, operatorActor);
 
     expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled');
     expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID);
@@ -117,14 +157,14 @@ describe('ordersService.cancelByOrderId', () => {
     mockMarkCancelled.mockRejectedValue(new Error('Entry already cancelled'));
 
     // Should NOT throw — entry cancel failure is non-fatal
-    await expect(ordersService.cancelByOrderId(ORDER_ID)).resolves.not.toThrow();
+    await expect(ordersService.cancelByOrderId(ORDER_ID, operatorActor)).resolves.not.toThrow();
     expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled');
   });
 
   it('handles order with no queue_entry_id gracefully', async () => {
     mockFindById.mockResolvedValue(makeOrder({ queue_entry_id: null }));
 
-    await ordersService.cancelByOrderId(ORDER_ID);
+    await ordersService.cancelByOrderId(ORDER_ID, operatorActor);
 
     expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled');
     expect(mockMarkCancelled).not.toHaveBeenCalled();

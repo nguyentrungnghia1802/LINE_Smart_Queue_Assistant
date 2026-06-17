@@ -1,6 +1,9 @@
 import { Router } from 'express';
 
+import { config } from '../config';
 import { pool } from '../db/client';
+import { scheduler } from '../jobs/scheduler';
+import { metricsService } from '../utils/metrics';
 import { sendError } from '../utils/response';
 
 export const healthRouter = Router();
@@ -10,11 +13,29 @@ export const healthRouter = Router();
  * Liveness probe — always returns 200 if the process is running.
  * Does NOT check database connectivity (use /ready for that).
  */
-healthRouter.get('/health', (_req, res) => {
-  res.json({
-    status: 'ok',
+healthRouter.get('/health', async (_req, res) => {
+  let dbStatus: 'connected' | 'unreachable' = 'connected';
+
+  try {
+    await pool.query('SELECT 1');
+  } catch {
+    dbStatus = 'unreachable';
+  }
+
+  const notificationConfigured = Boolean(
+    config.line.channelAccessToken && config.line.channelSecret
+  );
+
+  const status = dbStatus === 'connected' ? 'ok' : 'degraded';
+
+  res.status(status === 'ok' ? 200 : 503).json({
+    status,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    api: 'ok',
+    db: dbStatus,
+    scheduler: scheduler.status(),
+    notificationService: notificationConfigured ? 'configured' : 'not_configured',
   });
 });
 
@@ -30,4 +51,8 @@ healthRouter.get('/ready', async (_req, res) => {
   } catch {
     sendError(res, 503, 'SERVICE_UNAVAILABLE', 'Database not reachable');
   }
+});
+
+healthRouter.get('/metrics', (_req, res) => {
+  res.type('text/plain').send(metricsService.toPrometheus());
 });

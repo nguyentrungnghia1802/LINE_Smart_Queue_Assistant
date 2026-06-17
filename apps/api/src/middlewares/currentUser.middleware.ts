@@ -1,5 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
 
+import { UserRole } from '@line-queue/shared';
+
+import { organizationsRepository } from '../db/repositories/organizations.repository';
+import { usersRepository } from '../db/repositories/users.repository';
 import { AuthUser } from '../types/auth.types';
 import { AppError } from '../utils/AppError';
 import { verifyToken } from '../utils/jwt';
@@ -19,7 +23,11 @@ import { verifyToken } from '../utils/jwt';
  * Mount globally AFTER body parsing so all routes can benefit from it.
  * Use `requireAuth` or `requireRole` on specific routes to enforce access.
  */
-export function currentUserMiddleware(req: Request, _res: Response, next: NextFunction): void {
+export async function currentUserMiddleware(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {
@@ -31,12 +39,25 @@ export function currentUserMiddleware(req: Request, _res: Response, next: NextFu
 
   try {
     const payload = verifyToken(token);
+    const userRow = await usersRepository.findById(payload.sub);
+    if (!userRow?.is_active) {
+      return next(AppError.unauthorized('User is inactive or no longer exists'));
+    }
+
+    const membership = await organizationsRepository.findMembershipByUserId(userRow.id);
+    const role = userRow.role as UserRole;
+
+    if ([UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN].includes(role) && !membership) {
+      return next(AppError.forbidden('User has no organization membership'));
+    }
 
     const user: AuthUser = {
-      id: payload.sub,
+      id: userRow.id,
       lineUserId: payload.lineUserId,
-      role: payload.role,
-      organizationId: payload.orgId,
+      role,
+      organizationId: membership?.organization_id,
+      displayName: userRow.display_name,
+      email: userRow.email ?? undefined,
     };
 
     req.user = user;

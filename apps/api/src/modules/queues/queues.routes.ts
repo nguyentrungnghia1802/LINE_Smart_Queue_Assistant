@@ -2,7 +2,12 @@ import { Router } from 'express';
 
 import { UserRole } from '@line-queue/shared';
 
-import { requireAuth, requireRole, strictRateLimiter } from '../../middlewares';
+import {
+  authenticatedActionRateLimiter,
+  requireAuth,
+  requireRole,
+  strictRateLimiter,
+} from '../../middlewares';
 import { validate } from '../../middlewares/validate.middleware';
 import { UUIDParamSchema } from '../shared/shared.validator';
 
@@ -28,6 +33,7 @@ queuesRouter.post('/', strictRateLimiter, validate(CreateQueueSchema), createQue
 
 queuesRouter.patch(
   '/:id',
+  authenticatedActionRateLimiter,
   validate(UUIDParamSchema, 'params'),
   validate(UpdateQueueSchema),
   updateQueue
@@ -35,9 +41,15 @@ queuesRouter.patch(
 
 queuesRouter.patch(
   '/:id/status',
+  authenticatedActionRateLimiter,
   validate(UUIDParamSchema, 'params'),
   validate(UpdateQueueStatusSchema),
   updateQueueStatus
 );
 
-queuesRouter.delete('/:id', validate(UUIDParamSchema, 'params'), deleteQueue);
+queuesRouter.delete(
+  '/:id',
+  authenticatedActionRateLimiter,
+  validate(UUIDParamSchema, 'params'),
+  deleteQueue
+);
