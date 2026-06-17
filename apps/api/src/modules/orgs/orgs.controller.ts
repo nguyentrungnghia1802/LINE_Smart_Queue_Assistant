@@ -8,6 +8,9 @@ import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 
+import { orgsService } from './orgs.service';
+import { UpdateOrgSettingsDto } from './orgs.validator';
+
 // ── Shared helper ─────────────────────────────────────────────────────────────
 
 async function buildOrgResponse(orgId: string) {
@@ -71,12 +74,48 @@ export const getOrgByToken = asyncHandler(async (req: Request, res: Response) =>
 export const getManagerOrg = asyncHandler(async (req: Request, res: Response) => {
   const orgId = req.user?.organizationId;
   if (!orgId) {
-    res.status(400).json({ success: false, error: { code: 'NO_ORG', message: 'User has no organization' } });
+    res
+      .status(400)
+      .json({ success: false, error: { code: 'NO_ORG', message: 'User has no organization' } });
     return;
   }
 
   const org = await organizationsRepository.findById(orgId);
   if (!org) throw AppError.notFound('Organization not found');
+
+  const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+  const joinUrl = org.public_qr_token ? `${frontendUrl}/qr/${org.public_qr_token}` : null;
+
+  sendSuccess(res, {
+    id: org.id,
+    name: org.name,
+    slug: org.slug,
+    logoUrl: org.logo_url,
+    phone: org.phone,
+    address: org.address,
+    paymentInfo: org.payment_info,
+    publicQrToken: org.public_qr_token,
+    joinUrl,
+  });
+});
+
+/** Manager updates their organization profile and payment information. */
+export const updateManagerOrg = asyncHandler(async (req: Request, res: Response) => {
+  const orgId = req.user?.organizationId;
+  const actorUserId = req.user?.id;
+  if (!orgId || !actorUserId) {
+    res.status(400).json({
+      success: false,
+      error: { code: 'NO_ORG', message: 'User has no organization' },
+    });
+    return;
+  }
+
+  const org = await orgsService.updateSettings(orgId, req.body as UpdateOrgSettingsDto, {
+    actorUserId,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
 
   const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
   const joinUrl = org.public_qr_token ? `${frontendUrl}/qr/${org.public_qr_token}` : null;

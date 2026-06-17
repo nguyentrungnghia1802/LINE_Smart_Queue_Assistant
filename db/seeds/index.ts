@@ -66,8 +66,8 @@ async function main(): Promise<void> {
 
     await seed001Organization(client);
     await seed002Queues(client);
-    await seed003TestData(client);
     await seed004Products(client);
+    await seed003TestData(client);
 
     console.info('[seed] All seeds completed successfully.');
   } catch (err) {

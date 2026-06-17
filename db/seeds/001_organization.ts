@@ -40,11 +40,12 @@ export async function seed001Organization(client: Client): Promise<void> {
   // Manager user (Alice) + Staff user (Bob)
   await client.query(
     `INSERT INTO users (id, display_name, email, role, password_hash) VALUES
-       ($1, 'Alice (Manager)', 'alice@queue-lab.test', 'staff', $3),
+       ($1, 'Alice (Manager)', 'alice@queue-lab.test', 'manager', $3),
        ($2, 'Bob (Staff)',     'bob@queue-lab.test',  'staff', $3)
      ON CONFLICT (id) DO UPDATE SET
        password_hash = EXCLUDED.password_hash,
-       display_name  = EXCLUDED.display_name`,
+       display_name  = EXCLUDED.display_name,
+       role          = EXCLUDED.role`,
     [SEED_IDS.users.manager, SEED_IDS.users.staff, demoPassword]
   );
 

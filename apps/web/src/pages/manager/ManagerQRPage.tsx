@@ -23,9 +23,11 @@ export function ManagerQRPage() {
     queryFn: () => get<OrgInfo>('/api/v1/orgs/my-org'),
   });
 
-  const joinUrl = orgData?.joinUrl ?? orgData?.publicQrToken
-    ? `${window.location.origin}/qr/${orgData?.publicQrToken}`
-    : `${window.location.origin}/join/demo`;
+  const joinUrl =
+    orgData?.joinUrl ??
+    (orgData?.publicQrToken
+      ? `${window.location.origin}/qr/${orgData.publicQrToken}`
+      : `${window.location.origin}/join/demo`);
 
   function handleCopy() {
     void navigator.clipboard.writeText(joinUrl ?? '');

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 
 import type { ProductRow } from '../../db/repositories/products.repository';
+import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 
@@ -28,19 +29,40 @@ export const getProduct = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const createProduct = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = req.user!.organizationId!;
-  const product = await productsService.create(orgId, req.body as CreateProductDto);
+  const orgId = req.user?.organizationId;
+  const actorUserId = req.user?.id;
+  if (!orgId || !actorUserId) throw AppError.badRequest('User has no organization');
+
+  const product = await productsService.create(orgId, req.body as CreateProductDto, {
+    actorUserId,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
   res.status(201).json({ success: true, data: product });
 });
 
 export const updateProduct = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = req.user!.organizationId!;
-  const product = await productsService.update(req.params.id, orgId, req.body as UpdateProductDto);
+  const orgId = req.user?.organizationId;
+  const actorUserId = req.user?.id;
+  if (!orgId || !actorUserId) throw AppError.badRequest('User has no organization');
+
+  const product = await productsService.update(req.params.id, orgId, req.body as UpdateProductDto, {
+    actorUserId,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
   sendSuccess(res, product);
 });
 
 export const deleteProduct = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = req.user!.organizationId!;
-  await productsService.remove(req.params.id, orgId);
+  const orgId = req.user?.organizationId;
+  const actorUserId = req.user?.id;
+  if (!orgId || !actorUserId) throw AppError.badRequest('User has no organization');
+
+  await productsService.remove(req.params.id, orgId, {
+    actorUserId,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
   sendSuccess(res, null);
 });
