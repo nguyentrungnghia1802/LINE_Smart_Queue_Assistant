@@ -1,5 +1,7 @@
 import { PoolClient } from 'pg';
 
+import { queueConfigCache } from '../../utils/cache';
+
 import { BaseRepository } from './base.repository';
 
 // ── Row types ──────────────────────────────────────────────────────────────────
@@ -49,7 +51,16 @@ export interface CreateQueueParams {
 
 export class QueuesRepository extends BaseRepository {
   async findById(id: string): Promise<QueueRow | null> {
-    return this.queryOne<QueueRow>('SELECT * FROM queues WHERE id = $1 AND is_active = TRUE', [id]);
+    const cacheKey = `queue:${id}`;
+    const cached = queueConfigCache.get(cacheKey);
+    if (cached !== null) return cached;
+
+    const row = await this.queryOne<QueueRow>(
+      'SELECT * FROM queues WHERE id = $1 AND is_active = TRUE',
+      [id]
+    );
+    if (row) queueConfigCache.set(cacheKey, row, 30_000);
+    return row;
   }
 
   /**
@@ -137,17 +148,21 @@ export class QueuesRepository extends BaseRepository {
     if (sets.length === 0) return this.findById(id);
 
     values.push(id);
-    return this.queryOne<QueueRow>(
+    const updated = await this.queryOne<QueueRow>(
       `UPDATE queues SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${idx} RETURNING *`,
       values
     );
+    if (updated) queueConfigCache.set(`queue:${id}`, updated, 30_000);
+    return updated;
   }
 
   async softDelete(id: string): Promise<void> {
+    queueConfigCache.invalidate(`queue:${id}`);
     await this.query(`UPDATE queues SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, [id]);
   }
 
   async updateStatus(id: string, status: string): Promise<void> {
+    queueConfigCache.invalidate(`queue:${id}`);
     await this.query('UPDATE queues SET status = $1 WHERE id = $2', [status, id]);
   }
 

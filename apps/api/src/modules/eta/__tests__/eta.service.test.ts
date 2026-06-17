@@ -211,11 +211,9 @@ describe('etaService.calculate', () => {
       const workloadResult = etaService.calculate(
         makeInput({ aheadCount: 5, avgServiceSeconds: 300, totalWorkloadMinutes: 60 })
       );
-      const avgResult = etaService.calculate(
-        makeInput({ aheadCount: 5, avgServiceSeconds: 300 })
-      );
+      const avgResult = etaService.calculate(makeInput({ aheadCount: 5, avgServiceSeconds: 300 }));
       expect(workloadResult.estimatedWaitSeconds).toBe(3_600); // 60 × 60
-      expect(avgResult.estimatedWaitSeconds).toBe(1_500);       // 5 × 300
+      expect(avgResult.estimatedWaitSeconds).toBe(1_500); // 5 × 300
       expect(workloadResult.estimatedWaitSeconds).not.toBe(avgResult.estimatedWaitSeconds);
     });
 
@@ -270,9 +268,39 @@ describe('etaService.calculate', () => {
       const result = etaService.calculate(
         makeInput({ aheadCount: 2, avgServiceSeconds: 300, totalWorkloadMinutes })
       );
-      expect(result.estimatedWaitSeconds).toBe(9_000);   // 150 min × 60
+      expect(result.estimatedWaitSeconds).toBe(9_000); // 150 min × 60
       expect(result.estimatedWaitMinutes).toBe(150);
       expect(result.isFallback).toBe(false);
+    });
+  });
+
+  // ── Performance characteristics ────────────────────────────────────────────
+
+  describe('performance characteristics', () => {
+    it('calculate is synchronous and handles 10 000 calls in < 100 ms', () => {
+      const start = Date.now();
+      for (let i = 0; i < 10_000; i++) {
+        etaService.calculate(makeInput({ aheadCount: i % 50, avgServiceSeconds: 120 }));
+      }
+      const elapsed = Date.now() - start;
+      // Budget is generous — on a slow CI agent 10k pure-CPU operations should
+      // complete well within 100 ms with no I/O.
+      expect(elapsed).toBeLessThan(100);
+    });
+
+    it('produces deterministic output for identical inputs', () => {
+      const input = makeInput({ aheadCount: 7, avgServiceSeconds: 90 });
+      const r1 = etaService.calculate(input);
+      const r2 = etaService.calculate(input);
+      expect(r1.estimatedWaitSeconds).toBe(r2.estimatedWaitSeconds);
+      expect(r1.confidence).toBe(r2.confidence);
+      expect(r1.isFallback).toBe(r2.isFallback);
+    });
+
+    it('does not throw for extreme aheadCount values', () => {
+      expect(() =>
+        etaService.calculate(makeInput({ aheadCount: 1_000_000, avgServiceSeconds: 60 }))
+      ).not.toThrow();
     });
   });
 });

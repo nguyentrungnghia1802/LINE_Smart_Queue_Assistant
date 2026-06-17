@@ -1,3 +1,4 @@
+import { productCatalogCache } from '../../utils/cache';
 import { pool } from '../client';
 
 export interface ProductRow {
@@ -19,14 +20,23 @@ export interface ProductRow {
 
 export const productsRepository = {
   async findByOrg(orgId: string): Promise<ProductRow[]> {
+    const cacheKey = `org:${orgId}`;
+    const cached = productCatalogCache.get(cacheKey);
+    if (cached !== null) return cached;
+
     const { rows } = await pool.query<ProductRow>(
       `SELECT * FROM products WHERE organization_id = $1 AND is_active = TRUE ORDER BY created_at`,
       [orgId]
     );
+    productCatalogCache.set(cacheKey, rows);
     return rows;
   },
 
   async findByOrgSlug(slug: string): Promise<ProductRow[]> {
+    const cacheKey = `slug:${slug}`;
+    const cached = productCatalogCache.get(cacheKey);
+    if (cached !== null) return cached;
+
     const { rows } = await pool.query<ProductRow>(
       `SELECT p.* FROM products p
        JOIN organizations o ON p.organization_id = o.id
@@ -34,14 +44,12 @@ export const productsRepository = {
        ORDER BY p.created_at`,
       [slug]
     );
+    productCatalogCache.set(cacheKey, rows);
     return rows;
   },
 
   async findById(id: string): Promise<ProductRow | null> {
-    const { rows } = await pool.query<ProductRow>(
-      `SELECT * FROM products WHERE id = $1`,
-      [id]
-    );
+    const { rows } = await pool.query<ProductRow>(`SELECT * FROM products WHERE id = $1`, [id]);
     return rows[0] ?? null;
   },
 
@@ -76,6 +84,7 @@ export const productsRepository = {
         data.productType ?? 'service',
       ]
     );
+    productCatalogCache.invalidate(`org:${data.organizationId}`);
     return rows[0];
   },
 
@@ -124,10 +133,16 @@ export const productsRepository = {
       `UPDATE products SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
       values
     );
-    return rows[0] ?? null;
+    const updated = rows[0] ?? null;
+    if (updated) {
+      productCatalogCache.invalidate(`org:${updated.organization_id}`);
+    }
+    return updated;
   },
 
   async softDelete(id: string): Promise<void> {
+    const existing = await this.findById(id);
     await pool.query(`UPDATE products SET is_active = FALSE WHERE id = $1`, [id]);
+    if (existing) productCatalogCache.invalidate(`org:${existing.organization_id}`);
   },
 };

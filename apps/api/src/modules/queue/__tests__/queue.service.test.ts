@@ -14,6 +14,15 @@ jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
 jest.mock('../../skip-penalty/skip-penalty.service');
 
+// Mock orders repository so batchWorkloadForEntries returns an empty Map in tests.
+jest.mock('../../../db/repositories/orders.repository', () => ({
+  batchWorkloadForEntries: jest.fn().mockResolvedValue(new Map()),
+  calculateWorkloadForEntries: jest.fn().mockResolvedValue(0),
+  ordersRepository: {
+    findByQueueEntry: jest.fn().mockResolvedValue(null),
+  },
+}));
+
 // db/client must be mocked so the penalty repository module loads cleanly
 jest.mock('../../../db/client', () => ({
   pool: { query: jest.fn(), connect: jest.fn() },
@@ -48,6 +57,9 @@ const mockFindAllActiveForActor =
   queueEntriesRepository.findAllActiveForActor as jest.MockedFunction<
     typeof queueEntriesRepository.findAllActiveForActor
   >;
+const mockGetEntryIdsAhead = queueEntriesRepository.getEntryIdsAhead as jest.MockedFunction<
+  typeof queueEntriesRepository.getEntryIdsAhead
+>;
 const mockCreateEntry = queueEntriesRepository.create as jest.MockedFunction<
   typeof queueEntriesRepository.create
 >;
@@ -250,7 +262,10 @@ describe('queueService.getQueueStatus', () => {
 // ── getMyTickets ──────────────────────────────────────────────────────────────
 
 describe('queueService.getMyTickets', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetEntryIdsAhead.mockResolvedValue([]);
+  });
 
   it('returns an annotated array of active tickets', async () => {
     mockFindAllActiveForActor.mockResolvedValue([waitingEntry]);
