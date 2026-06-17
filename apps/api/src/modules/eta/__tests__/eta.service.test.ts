@@ -1,7 +1,6 @@
 import { EtaConfidence } from '@line-queue/shared';
 
-import { DEFAULT_ETA_CONFIG } from '../eta.service';
-import { etaService } from '../eta.service';
+import { DEFAULT_ETA_CONFIG, etaService } from '../eta.service';
 import { EtaConfig, EtaInput } from '../eta.types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
