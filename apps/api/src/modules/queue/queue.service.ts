@@ -1,4 +1,5 @@
 import {
+  batchWorkloadForEntries,
   calculateWorkloadForEntries,
   ordersRepository,
   OrderWithItems,
@@ -15,6 +16,7 @@ import { metricsService } from '../../utils/metrics';
 import { etaService } from '../eta/eta.service';
 import type { ILineMessagingAdapter } from '../line/line.adapter';
 import type { INotificationLogRepository } from '../notifications/notification-log.repository';
+import { notificationLogRepository } from '../notifications/notification-log.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
@@ -203,6 +205,11 @@ export const queueService = {
    * Return all active tickets the caller holds across all queues,
    * each annotated with queue position and ETA.
    * Used on the "My Tickets" LIFF screen.
+   *
+   * Performance: uses batch queries to avoid N+1 pattern.
+   *   - One findAllActiveForActor call
+   *   - N parallel getWaitingPosition + findById + getEntryIdsAhead (already batched per entry)
+   *   - ONE batchWorkloadForEntries call for all entry IDs at once
    */
   async getMyTickets(params: {
     userId?: string;
@@ -211,7 +218,10 @@ export const queueService = {
     const { userId, lineUserId } = params;
     const entries = await queueEntriesRepository.findAllActiveForActor(userId, lineUserId);
 
-    return Promise.all(
+    if (entries.length === 0) return [];
+
+    // Step 1: fetch position + queue config for all entries in parallel
+    const enriched = await Promise.all(
       entries.map(async (entry) => {
         const [aheadCount, queue, entryIdsAhead] = await Promise.all([
           queuesRepository.getWaitingPosition(entry.queue_id, entry.priority, entry.ticket_number),
@@ -222,23 +232,32 @@ export const queueService = {
             entry.ticket_number
           ),
         ]);
-
-        // Calculate workload-aware ETA
-        const totalWorkloadMinutes = await calculateWorkloadForEntries(entryIdsAhead);
-
-        return {
-          entry,
-          aheadCount,
-          estimatedWaitSeconds: queue
-            ? etaService.calculate({
-                aheadCount,
-                avgServiceSeconds: queue.avg_service_seconds,
-                totalWorkloadMinutes,
-              }).estimatedWaitSeconds
-            : 0,
-        };
+        return { entry, aheadCount, queue, entryIdsAhead };
       })
     );
+
+    // Step 2: batch workload calculation — single DB round-trip for all entries
+    const allIdsAhead = enriched.flatMap((e) => e.entryIdsAhead);
+    const workloadMap = await batchWorkloadForEntries(allIdsAhead);
+
+    // Step 3: compute ETA using pre-fetched workload data
+    return enriched.map(({ entry, aheadCount, queue, entryIdsAhead }) => {
+      const totalWorkloadMinutes = entryIdsAhead.reduce(
+        (sum, id) => sum + (workloadMap.get(id) ?? 0),
+        0
+      );
+      return {
+        entry,
+        aheadCount,
+        estimatedWaitSeconds: queue
+          ? etaService.calculate({
+              aheadCount,
+              avgServiceSeconds: queue.avg_service_seconds,
+              totalWorkloadMinutes,
+            }).estimatedWaitSeconds
+          : 0,
+      };
+    });
   },
 
   /** Public queue stats — no auth required. */
@@ -442,8 +461,8 @@ export const queueService = {
 
     const completed = await queueEntriesRepository.markCompleted(entryId);
     metricsService.increment('queue_served_total');
-    // Free the anti-duplicate registry for this entry - it has reached
-    // a terminal state and will never trigger further notifications.
+    // Free the anti-duplicate registry for this entry — reached terminal state.
+    notificationLogRepository.clearEntry(entryId);
     return completed;
   },
 
@@ -468,7 +487,10 @@ export const queueService = {
       );
     }
 
-    return queueEntriesRepository.markNoShow(entryId);
+    const noShow = await queueEntriesRepository.markNoShow(entryId);
+    // Free the anti-duplicate registry — no further notifications possible.
+    notificationLogRepository.clearEntry(entryId);
+    return noShow;
   },
 
   /** Public ticket status — no auth required. Used by the guest ticket-tracking page. */

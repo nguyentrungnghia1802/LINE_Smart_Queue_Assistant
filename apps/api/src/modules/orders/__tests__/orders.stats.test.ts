@@ -15,6 +15,14 @@ describe('ordersRepository.getStats dashboard analytics', () => {
   });
 
   it('builds manager dashboard analytics from database query results', async () => {
+    // New call order after performance optimization:
+    // 1. summaryEta CTE (merged summary + average_eta_seconds)
+    // 2. daily revenue
+    // 3. top products
+    // 4. queueAndProducts[0] — queue depth (inner Promise.all)
+    // 5. queueAndProducts[1] — product count (inner Promise.all)
+    // 6. recentOrders
+    // 7. recentQueueActivities
     mockQuery
       .mockResolvedValueOnce({
         rows: [
@@ -24,6 +32,7 @@ describe('ordersRepository.getStats dashboard analytics', () => {
             cancelled: '2',
             pending: '2',
             revenue: '1500000',
+            average_eta_seconds: '420.4',
           },
         ],
       } as never)
@@ -33,9 +42,8 @@ describe('ordersRepository.getStats dashboard analytics', () => {
       .mockResolvedValueOnce({
         rows: [{ product_name: 'Haircut', total_sold: '5', revenue: '600000' }],
       } as never)
-      .mockResolvedValueOnce({ rows: [{ count: '4' }] } as never)
-      .mockResolvedValueOnce({ rows: [{ count: '3' }] } as never)
-      .mockResolvedValueOnce({ rows: [{ average_eta_seconds: '420.4' }] } as never)
+      .mockResolvedValueOnce({ rows: [{ count: '3' }] } as never) // queue depth
+      .mockResolvedValueOnce({ rows: [{ count: '4' }] } as never) // product count
       .mockResolvedValueOnce({
         rows: [
           {

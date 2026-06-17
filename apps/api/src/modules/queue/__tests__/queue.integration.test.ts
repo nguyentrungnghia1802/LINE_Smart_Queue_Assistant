@@ -36,6 +36,16 @@ jest.mock('../../../db/transaction');
 jest.mock('../../../db/repositories/users.repository');
 jest.mock('../../../db/repositories/organizations.repository');
 
+// Mock batchWorkloadForEntries so getMyTickets doesn't need a real DB.
+jest.mock('../../../db/repositories/orders.repository', () => ({
+  batchWorkloadForEntries: jest.fn().mockResolvedValue(new Map()),
+  calculateWorkloadForEntries: jest.fn().mockResolvedValue(0),
+  ordersRepository: {
+    findByQueueEntry: jest.fn().mockResolvedValue(null),
+    findById: jest.fn().mockResolvedValue(null),
+  },
+}));
+
 // Pool is referenced by withTransaction; mock it so the module loads cleanly.
 jest.mock('../../../db/client', () => ({
   pool: {
@@ -72,6 +82,9 @@ const mockFindAllActiveForActor =
   queueEntriesRepository.findAllActiveForActor as jest.MockedFunction<
     typeof queueEntriesRepository.findAllActiveForActor
   >;
+const mockGetEntryIdsAhead = queueEntriesRepository.getEntryIdsAhead as jest.MockedFunction<
+  typeof queueEntriesRepository.getEntryIdsAhead
+>;
 const mockCreateEntry = queueEntriesRepository.create as jest.MockedFunction<
   typeof queueEntriesRepository.create
 >;
@@ -174,6 +187,7 @@ beforeEach(() => {
     updated_at: new Date(),
   });
   mockFindMembershipByUserId.mockResolvedValue(null);
+  mockGetEntryIdsAhead.mockResolvedValue([]);
 });
 
 // ── POST /api/v1/queue/join ───────────────────────────────────────────────────
