@@ -1,7 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 
-import { get } from '../../services/apiClient';
+import { get, post } from '../../services/apiClient';
+
+interface OrderItem {
+  id: string;
+  product_name: string;
+  product_price: string;
+  quantity: number;
+  subtotal: string;
+}
 
 interface TicketStatus {
   entry: {
@@ -10,6 +18,15 @@ interface TicketStatus {
     status: string;
     created_at: string;
   };
+  order: {
+    id: string;
+    order_number: string;
+    customer_name: string | null;
+    subtotal: string;
+    payment_status: string;
+    status: string;
+    items: OrderItem[];
+  } | null;
   aheadCount: number;
   estimatedWaitSeconds: number | null;
   queueName: string;
@@ -21,13 +38,13 @@ function fmtWait(seconds: number | null): string {
   return m < 60 ? `~${m} phút` : `~${Math.floor(m / 60)} giờ ${m % 60} phút`;
 }
 
+function formatCurrency(n: string | number) {
+  return Number(n).toLocaleString('vi-VN') + '₫';
+}
+
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: string }> = {
   waiting: { label: 'Đang chờ', color: 'bg-yellow-100 text-yellow-800', icon: '⏳' },
-  called: {
-    label: 'Được gọi! Vui lòng đến quầy',
-    color: 'bg-green-100 text-green-800',
-    icon: '📢',
-  },
+  called: { label: 'Được gọi! Vui lòng đến quầy', color: 'bg-green-100 text-green-800', icon: '📢' },
   serving: { label: 'Đang được phục vụ', color: 'bg-blue-100 text-blue-800', icon: '✅' },
   completed: { label: 'Hoàn thành', color: 'bg-gray-100 text-gray-800', icon: '✔️' },
   cancelled: { label: 'Đã huỷ', color: 'bg-red-100 text-red-800', icon: '❌' },
@@ -36,12 +53,18 @@ const STATUS_LABELS: Record<string, { label: string; color: string; icon: string
 
 export function PublicTicketPage() {
   const { entryId } = useParams<{ entryId: string }>();
+  const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery<TicketStatus>({
     queryKey: ['ticket-status', entryId],
     queryFn: () => get<TicketStatus>(`/api/v1/queue/entry/${entryId}`),
     refetchInterval: 15_000,
     enabled: !!entryId,
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: () => post(`/api/v1/orders/${data!.order!.id}/cancel`, {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ticket-status', entryId] }),
   });
 
   if (isLoading) {
@@ -63,18 +86,15 @@ export function PublicTicketPage() {
     );
   }
 
-  const { entry, aheadCount, estimatedWaitSeconds, queueName } = data;
-  const statusInfo = STATUS_LABELS[entry.status] ?? {
-    label: entry.status,
-    color: 'bg-gray-100 text-gray-800',
-    icon: '❓',
-  };
+  const { entry, order, aheadCount, estimatedWaitSeconds, queueName } = data;
+  const statusInfo = STATUS_LABELS[entry.status] ?? { label: entry.status, color: 'bg-gray-100 text-gray-800', icon: '❓' };
   const isCalled = entry.status === 'called';
   const isActive = ['waiting', 'called'].includes(entry.status);
+  const canCancel = isActive && order && ['pending', 'processing'].includes(order.status);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start px-4 py-8">
+      <div className="w-full max-w-sm space-y-5">
         {/* Header */}
         <div className="text-center">
           <span className="text-5xl">🟢</span>
@@ -83,13 +103,9 @@ export function PublicTicketPage() {
         </div>
 
         {/* Ticket number */}
-        <div
-          className={`rounded-2xl p-8 text-center shadow-sm border ${isCalled ? 'bg-green-50 border-green-300 animate-pulse' : 'bg-white border-gray-200'}`}
-        >
+        <div className={`rounded-2xl p-8 text-center shadow-sm border ${isCalled ? 'bg-green-50 border-green-300 animate-pulse' : 'bg-white border-gray-200'}`}>
           <p className="text-7xl font-black text-brand-600">{entry.ticket_display}</p>
-          <div
-            className={`mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${statusInfo.color}`}
-          >
+          <div className={`mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${statusInfo.color}`}>
             <span>{statusInfo.icon}</span>
             {statusInfo.label}
           </div>
@@ -112,10 +128,47 @@ export function PublicTicketPage() {
         {isCalled && (
           <div className="bg-green-50 border-2 border-green-400 rounded-xl p-4 text-center">
             <p className="text-green-800 font-bold text-lg">📢 Đến quầy ngay!</p>
-            <p className="text-green-700 text-sm mt-1">
-              Số của bạn đã được gọi. Vui lòng đến quầy phục vụ.
-            </p>
+            <p className="text-green-700 text-sm mt-1">Số của bạn đã được gọi. Vui lòng đến quầy phục vụ.</p>
           </div>
+        )}
+
+        {/* Order summary */}
+        {order && (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <span className="text-sm font-semibold text-gray-700">Đơn hàng #{order.order_number}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                {order.payment_status === 'paid' ? '✓ Đã thanh toán' : 'Chưa thanh toán'}
+              </span>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {order.items.map((item) => (
+                <div key={item.id} className="px-4 py-2 flex items-center justify-between text-sm">
+                  <span className="text-gray-700">{item.product_name} × {item.quantity}</span>
+                  <span className="font-medium text-gray-800">{formatCurrency(item.subtotal)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+              <span className="font-semibold text-gray-700">Tổng</span>
+              <span className="text-lg font-bold text-gray-900">{formatCurrency(order.subtotal)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel button */}
+        {canCancel && (
+          <button
+            onClick={() => {
+              if (confirm('Bạn có chắc muốn huỷ đơn và số thứ tự không?')) {
+                cancelMutation.mutate();
+              }
+            }}
+            disabled={cancelMutation.isPending}
+            className="w-full py-2.5 bg-white border border-red-300 text-red-600 text-sm font-medium rounded-xl hover:bg-red-50 disabled:opacity-50 transition-colors"
+          >
+            {cancelMutation.isPending ? 'Đang huỷ...' : 'Huỷ đơn và số thứ tự'}
+          </button>
         )}
 
         <p className="text-center text-xs text-gray-400">Tự động cập nhật mỗi 15 giây</p>

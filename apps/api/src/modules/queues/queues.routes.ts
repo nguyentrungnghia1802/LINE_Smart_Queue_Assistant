@@ -1,6 +1,8 @@
 import { Router } from 'express';
 
-import { strictRateLimiter } from '../../middlewares';
+import { UserRole } from '@line-queue/shared';
+
+import { requireAuth, requireRole, strictRateLimiter } from '../../middlewares';
 import { validate } from '../../middlewares/validate.middleware';
 import { UUIDParamSchema } from '../shared/shared.validator';
 
@@ -15,6 +17,9 @@ import {
 import { CreateQueueSchema, UpdateQueueSchema, UpdateQueueStatusSchema } from './queues.validator';
 
 export const queuesRouter = Router();
+
+// All queue management routes require authentication + MANAGER or ADMIN role
+queuesRouter.use(requireAuth, requireRole(UserRole.MANAGER, UserRole.ADMIN));
 
 queuesRouter.get('/', listQueues);
 queuesRouter.get('/:id', validate(UUIDParamSchema, 'params'), getQueue);

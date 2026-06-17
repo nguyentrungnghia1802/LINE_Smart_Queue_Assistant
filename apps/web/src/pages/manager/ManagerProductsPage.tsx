@@ -13,6 +13,7 @@ interface ProductRow {
   price: string;
   service_time_minutes: number;
   stock_quantity: number | null;
+  product_type: 'product' | 'service';
   is_active: boolean;
 }
 
@@ -62,6 +63,7 @@ export function ManagerProductsPage() {
             <thead>
               <tr className="bg-gray-50 text-left text-gray-500 border-b border-gray-200">
                 <th className="px-4 py-3 font-medium">Tên</th>
+                <th className="px-4 py-3 font-medium hidden sm:table-cell">Loại</th>
                 <th className="px-4 py-3 font-medium text-right">Giá</th>
                 <th className="px-4 py-3 font-medium text-right hidden sm:table-cell">Thời gian</th>
                 <th className="px-4 py-3 font-medium text-right hidden md:table-cell">Tồn kho</th>
@@ -82,6 +84,11 @@ export function ManagerProductsPage() {
                       )}
                       <span className="font-medium text-gray-800">{p.name}</span>
                     </div>
+                  </td>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${p.product_type === 'service' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {p.product_type === 'service' ? 'Dịch vụ' : 'Sản phẩm'}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(p.price)}</td>
                   <td className="px-4 py-3 text-right text-gray-500 hidden sm:table-cell">

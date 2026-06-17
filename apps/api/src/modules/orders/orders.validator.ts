@@ -8,6 +8,7 @@ export const OrderItemSchema = z.object({
 export const CreateOrderSchema = z.object({
   orgSlug: z.string().min(1),
   customerName: z.string().min(1).max(100).optional(),
+  customerPhone: z.string().max(20).optional(),
   items: z.array(OrderItemSchema).min(1),
   notes: z.string().max(500).optional(),
 });

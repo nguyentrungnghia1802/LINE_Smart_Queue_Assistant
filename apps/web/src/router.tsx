@@ -46,6 +46,7 @@ export const router = createBrowserRouter([
   { path: '/join/:queueId', element: <PublicJoinPage /> },
   { path: '/ticket/:entryId', element: <PublicTicketPage /> },
   { path: '/q/:orgSlug', element: <CustomerJoinPage /> },
+  { path: '/qr/:token', element: <CustomerJoinPage /> },
 
   // ── Manager ───────────────────────────────────────────────────────────────
   {

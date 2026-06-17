@@ -8,6 +8,7 @@ import {
   callNext,
   cancelEntry,
   completeEntry,
+  getMyQueue,
   getQueueOverview,
   noShowEntry,
   serveEntry,
@@ -16,8 +17,13 @@ import { EntryIdParamSchema, QueueIdParamSchema } from './staff.validator';
 
 export const staffRouter = Router();
 
-// All staff routes require authentication + STAFF or ADMIN role
-staffRouter.use(requireAuth, requireRole(UserRole.STAFF, UserRole.ADMIN));
+// All staff routes require authentication + STAFF, MANAGER, or ADMIN role
+staffRouter.use(requireAuth, requireRole(UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN));
+
+// ── My-Queue endpoint ──────────────────────────────────────────────────────────
+
+// GET /api/v1/staff/my-queue — full queue overview for staff's org
+staffRouter.get('/my-queue', getMyQueue);
 
 // ── Queue-level actions ───────────────────────────────────────────────────────
 

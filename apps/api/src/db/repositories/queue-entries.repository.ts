@@ -234,6 +234,26 @@ export class QueueEntriesRepository extends BaseRepository {
   }
 
   /**
+   * Get entry IDs of all active tickets ahead of a specific entry.
+   * Used for workload-aware ETA calculation.
+   * Returns IDs of entries with higher priority OR same priority + earlier ticket number.
+   */
+  async getEntryIdsAhead(queueId: string, priority: number, ticketNumber: number): Promise<string[]> {
+    const rows = await this.query<{ id: string }>(
+      `SELECT id FROM queue_entries
+       WHERE queue_id = $1
+         AND status IN ('waiting', 'called', 'serving')
+         AND (
+           priority > $2
+           OR (priority = $2 AND ticket_number < $3)
+         )
+       ORDER BY priority DESC, ticket_number ASC`,
+      [queueId, priority, ticketNumber]
+    );
+    return rows.map((r) => r.id);
+  }
+
+  /**
    * All active tickets (waiting | called | serving) for a given actor across queues.
    * Used to populate the "My Tickets" LIFF screen.
    */

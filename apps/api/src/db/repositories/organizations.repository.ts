@@ -14,6 +14,7 @@ export interface OrganizationRow {
   phone: string | null;
   address: string | null;
   payment_info: string | null;
+  public_qr_token: string | null;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
@@ -52,6 +53,13 @@ export class OrganizationsRepository extends BaseRepository {
     return this.queryOne<OrganizationRow>(
       'SELECT * FROM organizations WHERE slug = $1 AND is_active = TRUE',
       [slug]
+    );
+  }
+
+  async findByPublicToken(token: string): Promise<OrganizationRow | null> {
+    return this.queryOne<OrganizationRow>(
+      'SELECT * FROM organizations WHERE public_qr_token = $1 AND is_active = TRUE',
+      [token]
     );
   }
 

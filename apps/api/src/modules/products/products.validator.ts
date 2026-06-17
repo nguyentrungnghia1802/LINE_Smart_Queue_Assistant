@@ -9,6 +9,7 @@ export const CreateProductSchema = z.object({
   maxWaitMinutes: z.number().int().min(1).optional(),
   requiresPrepayment: z.boolean().default(false),
   stockQuantity: z.number().int().min(0).optional(),
+  productType: z.enum(['product', 'service']).default('service'),
 });
 
 export const UpdateProductSchema = CreateProductSchema.partial().extend({

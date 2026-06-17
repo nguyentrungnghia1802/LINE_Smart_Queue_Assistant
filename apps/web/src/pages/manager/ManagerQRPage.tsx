@@ -1,18 +1,35 @@
+import { useQuery } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
 import { useRef } from 'react';
 
-import { useAuthStore } from '../../store/authStore';
+import { get } from '../../services/apiClient';
+
+interface OrgInfo {
+  id: string;
+  name: string;
+  slug: string;
+  publicQrToken: string | null;
+  joinUrl: string | null;
+  phone: string | null;
+  address: string | null;
+}
 
 export function ManagerQRPage() {
-  const { user } = useAuthStore();
   const printRef = useRef<HTMLDivElement>(null);
 
-  // We need the org slug — stored via the login flow we can get it from the API
-  // For now use organizationId-based QR as fallback until slug is stored in authStore
-  const orgSlug = (user as { orgSlug?: string } | null)?.orgSlug;
-  const joinUrl = orgSlug
-    ? `${window.location.origin}/q/${orgSlug}`
+  // Fetch org info via authenticated endpoint
+  const { data: orgData, isLoading } = useQuery<OrgInfo>({
+    queryKey: ['manager-my-org'],
+    queryFn: () => get<OrgInfo>('/api/v1/orgs/my-org'),
+  });
+
+  const joinUrl = orgData?.joinUrl ?? orgData?.publicQrToken
+    ? `${window.location.origin}/qr/${orgData?.publicQrToken}`
     : `${window.location.origin}/join/demo`;
+
+  function handleCopy() {
+    void navigator.clipboard.writeText(joinUrl ?? '');
+  }
 
   function handlePrint() {
     const content = printRef.current;
@@ -26,13 +43,23 @@ export function ManagerQRPage() {
     w.print();
   }
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-xl font-bold text-gray-900">Xuất mã QR</h1>
+        <p className="text-gray-400">Đang tải...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-gray-900">Xuất mã QR</h1>
 
       <div className="bg-white rounded-xl border border-gray-200 p-8 flex flex-col items-center gap-6 max-w-sm">
         <div ref={printRef} className="flex flex-col items-center gap-3">
-          <p className="text-sm font-semibold text-gray-700">{user?.displayName ?? 'Cơ sở của bạn'}</p>
+          <p className="text-sm font-semibold text-gray-700">{orgData?.name ?? 'Cơ sở của bạn'}</p>
+          {orgData?.address && <p className="text-xs text-gray-500">{orgData.address}</p>}
           <QRCodeSVG value={joinUrl} size={220} />
           <p className="text-xs text-gray-400 text-center break-all">{joinUrl}</p>
         </div>
@@ -41,12 +68,31 @@ export function ManagerQRPage() {
           Khách hàng quét mã QR này để đặt hàng và lấy số thứ tự
         </p>
 
-        <button
-          onClick={handlePrint}
-          className="w-full py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700"
-        >
-          In QR
-        </button>
+        <div className="flex gap-2 w-full">
+          <button
+            onClick={handleCopy}
+            className="flex-1 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200"
+          >
+            📋 Copy link
+          </button>
+          <button
+            onClick={handlePrint}
+            className="flex-1 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700"
+          >
+            In QR
+          </button>
+        </div>
+      </div>
+
+      {/* Join URL display */}
+      <div className="max-w-sm">
+        <label className="block text-xs font-medium text-gray-500 mb-1">Link QR public</label>
+        <input
+          readOnly
+          value={joinUrl}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-700 bg-gray-50 focus:outline-none"
+          onFocus={(e) => e.target.select()}
+        />
       </div>
     </div>
   );
