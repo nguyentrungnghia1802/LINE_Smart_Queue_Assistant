@@ -9,7 +9,7 @@ const config: Config = {
     '^.+\\.tsx?$': [
       'ts-jest',
       {
-        tsconfig: './tsconfig.json',
+        tsconfig: './tsconfig.test.json',
         diagnostics: {
           ignoreCodes: [151002],
         },
