@@ -1,4 +1,4 @@
-import { PoolClient } from 'pg';
+﻿import { PoolClient } from 'pg';
 
 import { pool } from '../client';
 
@@ -18,7 +18,7 @@ export interface OrderRow {
   created_at: Date;
   updated_at: Date;
   // Enriched fields from queue_entries join (present in some queries)
-  ticket_display?: string | null;
+  ticket_code?: string | null;
   queue_entry_status?: string | null;
 }
 
@@ -44,7 +44,7 @@ export const ordersRepository = {
     const params: unknown[] = status ? [orgId, status] : [orgId];
     const { rows } = await pool.query<OrderRow & { items_json: string }>(
       `SELECT o.*,
-         qe.ticket_display,
+         qe.ticket_code,
          qe.status AS queue_entry_status,
          COALESCE(
            json_agg(
@@ -66,7 +66,7 @@ export const ordersRepository = {
        LEFT JOIN order_items oi ON oi.order_id = o.id
        LEFT JOIN queue_entries qe ON qe.id = o.queue_entry_id
        WHERE o.organization_id = $1 ${statusClause}
-       GROUP BY o.id, qe.ticket_display, qe.status
+       GROUP BY o.id, qe.ticket_code, qe.status
        ORDER BY o.created_at DESC`,
       params
     );
@@ -249,7 +249,7 @@ export const ordersRepository = {
       entry_id: string;
       queue_id: string;
       queue_name: string;
-      ticket_display: string;
+      ticket_code: string;
       status: string;
       updated_at: Date;
       order_number: string | null;
@@ -383,7 +383,7 @@ export const ordersRepository = {
           entry_id: string;
           queue_id: string;
           queue_name: string;
-          ticket_display: string;
+          ticket_code: string;
           status: string;
           updated_at: Date;
           order_number: string | null;
@@ -393,7 +393,7 @@ export const ordersRepository = {
            qe.id AS entry_id,
            q.id AS queue_id,
            q.name AS queue_name,
-           qe.ticket_display,
+           qe.ticket_code,
            qe.status,
            qe.updated_at,
            o.order_number,

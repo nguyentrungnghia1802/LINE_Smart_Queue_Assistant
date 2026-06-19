@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Unit tests for ordersRepository.getStats (analytics queries).
  *
  * Verifies:
@@ -70,7 +70,7 @@ function setupHappyPath(): void {
           entry_id: 'entry-1',
           queue_id: 'queue-1',
           queue_name: 'Counter A',
-          ticket_display: 'A001',
+          ticket_code: 'A001',
           status: 'waiting',
           updated_at: new Date(),
           order_number: null,

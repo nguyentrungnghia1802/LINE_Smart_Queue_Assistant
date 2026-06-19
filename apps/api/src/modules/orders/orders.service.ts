@@ -63,16 +63,15 @@ export const ordersService = {
 
       // Increment ticket counter
       const ticketNumber = await queuesRepository.incrementAndGetCounter(queue.id, client);
-      const ticketDisplay = `${queue.prefix ?? ''}${String(ticketNumber).padStart(3, '0')}`;
+      const ticketCode = `${queue.prefix ?? ''}${String(ticketNumber).padStart(3, '0')}`;
 
       // Create queue entry (link to user if authenticated)
       const entry = await queueEntriesRepository.create(
         {
           queueId: queue.id,
           ticketNumber,
-          ticketDisplay,
+          ticketCode,
           userId: actorUserId,
-          notes: dto.customerName ? `Khách: ${dto.customerName}` : undefined,
         },
         client
       );

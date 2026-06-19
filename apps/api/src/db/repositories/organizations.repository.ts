@@ -112,14 +112,14 @@ export class OrganizationsRepository extends BaseRepository {
 
   async listMembers(organizationId: string): Promise<OrgMemberRow[]> {
     return this.query<OrgMemberRow>(
-      `SELECT * FROM organization_members WHERE organization_id = $1 ORDER BY joined_at`,
+      `SELECT * FROM organization_members WHERE organization_id = $1 AND is_active = TRUE ORDER BY joined_at`,
       [organizationId]
     );
   }
 
   async findMembershipByUserId(userId: string): Promise<OrgMemberRow | null> {
     return this.queryOne<OrgMemberRow>(
-      `SELECT * FROM organization_members WHERE user_id = $1 ORDER BY joined_at LIMIT 1`,
+      `SELECT * FROM organization_members WHERE user_id = $1 AND is_active = TRUE ORDER BY joined_at LIMIT 1`,
       [userId]
     );
   }
@@ -138,7 +138,11 @@ export class OrganizationsRepository extends BaseRepository {
     const values: unknown[] = [];
     let i = 1;
     const map: Record<string, string> = {
-      name: 'name', logoUrl: 'logo_url', phone: 'phone', address: 'address', paymentInfo: 'payment_info',
+      name: 'name',
+      logoUrl: 'logo_url',
+      phone: 'phone',
+      address: 'address',
+      paymentInfo: 'payment_info',
     };
     for (const [key, col] of Object.entries(map)) {
       if (key in data) {

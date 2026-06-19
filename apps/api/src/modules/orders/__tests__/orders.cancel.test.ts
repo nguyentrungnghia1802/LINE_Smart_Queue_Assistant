@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Unit tests for ordersService.cancelByOrderId.
  *
  * Verifies:
@@ -38,20 +38,20 @@ const cancelledEntry: QueueEntryRow = {
   id: ENTRY_ID,
   queue_id: 'queue-uuid-001',
   user_id: USER_ID,
+  order_id: null,
   line_user_id: null,
   ticket_number: 1,
-  ticket_display: 'A001',
+  ticket_code: 'A001',
   status: 'cancelled',
-  skip_count: 0,
   priority: 0,
-  notes: null,
-  metadata: {},
+  position_snapshot: null,
   called_at: null,
-  serving_at: null,
-  completed_at: null,
+  serving_started_at: null,
+  served_at: null,
   skipped_at: null,
   cancelled_at: new Date(),
-  estimated_call_at: null,
+  no_show_at: null,
+  estimated_wait_seconds: null,
   created_at: new Date(),
   updated_at: new Date(),
 };

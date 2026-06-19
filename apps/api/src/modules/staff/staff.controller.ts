@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+﻿import { Request, Response } from 'express';
 
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
@@ -34,7 +34,7 @@ export const callNext = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw AppError.unauthorized();
   const entry = await staffService.callNext(queueId, req.user.id, req.user.organizationId);
 
-  reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_display }, 'staff.callNext');
+  reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_code }, 'staff.callNext');
 
   sendSuccess(res, { entry });
 });
@@ -47,7 +47,7 @@ export const serveEntry = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw AppError.unauthorized();
   const entry = await staffService.serve(entryId, req.user.id, req.user.organizationId);
 
-  reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'staff.serve');
+  reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.serve');
 
   sendSuccess(res, { entry });
 });
@@ -60,7 +60,7 @@ export const completeEntry = asyncHandler(async (req: Request, res: Response) =>
   if (!req.user) throw AppError.unauthorized();
   const entry = await staffService.complete(entryId, req.user.id, req.user.organizationId);
 
-  reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'staff.complete');
+  reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.complete');
 
   sendSuccess(res, { entry });
 });
@@ -73,7 +73,7 @@ export const noShowEntry = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw AppError.unauthorized();
   const entry = await staffService.markNoShow(entryId, req.user.id, req.user.organizationId);
 
-  reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'staff.noShow');
+  reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.noShow');
 
   sendSuccess(res, { entry });
 });
@@ -86,7 +86,7 @@ export const cancelEntry = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw AppError.unauthorized();
   const entry = await staffService.cancelEntry(entryId, req.user.id, req.user.organizationId);
 
-  reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'staff.cancel');
+  reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.cancel');
 
   sendSuccess(res, { entry });
 });

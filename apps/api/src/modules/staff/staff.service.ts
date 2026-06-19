@@ -106,7 +106,7 @@ export const staffService = {
     );
     auditStaff(actorUserId, 'call_next', 'queue_entry', entry.id, {
       queueId,
-      ticket: entry.ticket_display,
+      ticket: entry.ticket_code,
     });
     return entry;
   },
@@ -119,7 +119,7 @@ export const staffService = {
   ): Promise<QueueEntryRow> {
     const entry = await queueService.serveTicket({ entryId, actorUserId, actorOrganizationId });
     auditStaff(actorUserId, 'serve', 'queue_entry', entry.id, {
-      ticket: entry.ticket_display,
+      ticket: entry.ticket_code,
     });
     return entry;
   },
@@ -132,7 +132,7 @@ export const staffService = {
   ): Promise<QueueEntryRow> {
     const entry = await queueService.completeTicket({ entryId, actorUserId, actorOrganizationId });
     auditStaff(actorUserId, 'complete', 'queue_entry', entry.id, {
-      ticket: entry.ticket_display,
+      ticket: entry.ticket_code,
     });
     return entry;
   },
@@ -148,7 +148,7 @@ export const staffService = {
   ): Promise<QueueEntryRow> {
     const entry = await queueService.noShowTicket({ entryId, actorUserId, actorOrganizationId });
     auditStaff(actorUserId, 'no_show', 'queue_entry', entry.id, {
-      ticket: entry.ticket_display,
+      ticket: entry.ticket_code,
     });
     return entry;
   },
@@ -180,7 +180,7 @@ export const staffService = {
     const cancelled = await queueEntriesRepository.markCancelled(entryId);
     metricsService.increment('queue_cancelled_total');
     auditStaff(actorUserId, 'staff_cancel', 'queue_entry', cancelled.id, {
-      ticket: cancelled.ticket_display,
+      ticket: cancelled.ticket_code,
       previousStatus: entry.status,
     });
     return cancelled;

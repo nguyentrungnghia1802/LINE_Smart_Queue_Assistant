@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Background Job Scheduler
  *
  * ── Responsibility ────────────────────────────────────────────────────────────
@@ -8,7 +8,7 @@
  * ── Job inventory ─────────────────────────────────────────────────────────────
  *
  * etaUpdater  (30 s)
- *   Recalculates `estimated_call_at` for waiting entries in every open queue.
+ *   Recalculates `estimated_wait_seconds` for waiting entries in every open queue.
  *   Keeps the LIFF countdown displays accurate.
  *
  * etaWarning  (30 s)

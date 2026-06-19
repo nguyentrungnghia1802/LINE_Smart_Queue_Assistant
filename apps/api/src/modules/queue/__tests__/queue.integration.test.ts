@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Integration tests for the 4 MVP queue APIs.
  *
  * Strategy: mock repositories + withTransaction (data layer) while keeping the
@@ -131,20 +131,20 @@ const waitingEntry: QueueEntryRow = {
   id: ENTRY_ID,
   queue_id: QUEUE_ID,
   user_id: USER_ID,
+  order_id: null,
   line_user_id: LINE_USER_ID,
   ticket_number: 6,
-  ticket_display: 'A006',
+  ticket_code: 'A006',
   status: 'waiting',
   priority: 0,
-  skip_count: 0,
-  notes: null,
-  metadata: {},
+  position_snapshot: null,
   called_at: null,
-  serving_at: null,
-  completed_at: null,
+  serving_started_at: null,
+  served_at: null,
   skipped_at: null,
   cancelled_at: null,
-  estimated_call_at: null,
+  no_show_at: null,
+  estimated_wait_seconds: null,
   created_at: new Date('2025-01-15T09:00:00Z'),
   updated_at: new Date('2025-01-15T09:00:00Z'),
 };
@@ -210,13 +210,13 @@ describe('POST /api/v1/queue/join', () => {
       expect(res.body.success).toBe(true);
 
       const data = res.body.data as {
-        entry: { ticket_display: string; status: string };
+        entry: { ticket_code: string; status: string };
         aheadCount: number;
         estimatedWaitSeconds: number;
         isExisting: boolean;
       };
       expect(data.isExisting).toBe(false);
-      expect(data.entry.ticket_display).toBe('A006');
+      expect(data.entry.ticket_code).toBe('A006');
       expect(data.entry.status).toBe('waiting');
       expect(data.aheadCount).toBe(2);
       expect(data.estimatedWaitSeconds).toBe(2 * 120); // 2 ahead × 120 s/ticket
@@ -243,7 +243,7 @@ describe('POST /api/v1/queue/join', () => {
     it('accepts an anonymous request with lineUserId in body', async () => {
       mockFindQueueById.mockResolvedValue(openQueue);
       mockIncrementCounter.mockResolvedValue(7);
-      mockCreateEntry.mockResolvedValue({ ...waitingEntry, user_id: null, ticket_display: 'A007' });
+      mockCreateEntry.mockResolvedValue({ ...waitingEntry, user_id: null, ticket_code: 'A007' });
       mockGetWaitingPosition.mockResolvedValue(0);
       mockTx();
 
@@ -354,11 +354,11 @@ describe('GET /api/v1/queue/me', () => {
       expect(res.body.data).toHaveLength(1);
 
       const ticket = res.body.data[0] as {
-        entry: { ticket_display: string };
+        entry: { ticket_code: string };
         aheadCount: number;
         estimatedWaitSeconds: number;
       };
-      expect(ticket.entry.ticket_display).toBe('A006');
+      expect(ticket.entry.ticket_code).toBe('A006');
       expect(ticket.aheadCount).toBe(3);
       expect(ticket.estimatedWaitSeconds).toBe(3 * 120);
     });
