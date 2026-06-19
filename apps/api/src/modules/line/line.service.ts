@@ -1,4 +1,4 @@
-import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
+﻿import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
 import { logger } from '../../utils/logger';
 import { queueService } from '../queue/queue.service';
 
@@ -108,7 +108,7 @@ async function handleMessage(event: LineEvent, adapter: ILineMessagingAdapter): 
       return;
     }
 
-    const lines = entries.map((e) => `• Ticket ${e.ticket_display} — ${e.status}`).join('\n');
+    const lines = entries.map((e) => `• Ticket ${e.ticket_code} — ${e.status}`).join('\n');
 
     await adapter.replyMessage(event.replyToken, [
       { type: 'text', text: `Your active tickets:\n${lines}` },
@@ -130,7 +130,7 @@ async function handleMessage(event: LineEvent, adapter: ILineMessagingAdapter): 
     const target = entries[0];
     await queueService.cancelTicket({ entryId: target.id, actorLineUserId: userId });
     await adapter.replyMessage(event.replyToken, [
-      { type: 'text', text: `✅ Ticket ${target.ticket_display} has been cancelled.` },
+      { type: 'text', text: `✅ Ticket ${target.ticket_code} has been cancelled.` },
     ]);
     return;
   }
@@ -172,7 +172,7 @@ async function handlePostback(event: LineEvent, adapter: ILineMessagingAdapter):
       await adapter.replyMessage(event.replyToken, [
         {
           type: 'text',
-          text: `↩️ Your ticket ${result.entry.ticket_display} has been moved back one position.`,
+          text: `↩️ Your ticket ${result.entry.ticket_code} has been moved back one position.`,
         },
       ]);
     } catch (err) {

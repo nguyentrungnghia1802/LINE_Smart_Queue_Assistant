@@ -1,4 +1,4 @@
-jest.mock('../../../db/client', () => ({
+﻿jest.mock('../../../db/client', () => ({
   pool: {
     query: jest.fn(),
   },
@@ -64,7 +64,7 @@ describe('ordersRepository.getStats dashboard analytics', () => {
             entry_id: 'entry-1',
             queue_id: 'queue-1',
             queue_name: 'Counter A',
-            ticket_display: 'A001',
+            ticket_code: 'A001',
             status: 'waiting',
             updated_at: new Date('2026-06-18T08:01:00.000Z'),
             order_number: 'A001',
@@ -97,7 +97,7 @@ describe('ordersRepository.getStats dashboard analytics', () => {
     });
     expect(stats.recentQueueActivities[0]).toMatchObject({
       entry_id: 'entry-1',
-      ticket_display: 'A001',
+      ticket_code: 'A001',
       status: 'waiting',
     });
   });

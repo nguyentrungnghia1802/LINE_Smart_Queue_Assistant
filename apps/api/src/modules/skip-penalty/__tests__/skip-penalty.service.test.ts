@@ -49,13 +49,10 @@ const basePenalty: PenaltyRecordRow = {
   organization_id: ORG_ID,
   queue_id: QUEUE_ID,
   queue_entry_id: ENTRY_ID,
-  type: 'skip',
-  severity: 'warning',
-  is_active: true,
-  applied_at: new Date(),
-  expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-  notes: null,
-  created_by: null,
+  penalty_type: 'excessive_cancel',
+  points: 1,
+  reason: null,
+  metadata: {},
   created_at: new Date(),
 };
 
@@ -85,11 +82,9 @@ describe('skipPenaltyService.onSkipExhausted', () => {
     expect(params.queueId).toBe(QUEUE_ID);
     expect(params.queueEntryId).toBe(ENTRY_ID);
     expect(params.organizationId).toBe(ORG_ID);
-    expect(params.type).toBe('skip');
-    expect(params.severity).toBe(SKIP_PENALTY_POLICY.SKIP_PENALTY_SEVERITY);
-    expect(params.expiresAt).toBeInstanceOf(Date);
-    // expiresAt should be in the future
-    expect((params.expiresAt as Date).getTime()).toBeGreaterThan(Date.now());
+    expect(params.penaltyType).toBe('excessive_cancel');
+    expect(params.points).toBe(1);
+    expect(params.reason).toBeTruthy();
   });
 
   it('propagates repository errors so callers can catch them', async () => {
@@ -119,11 +114,10 @@ describe('skipPenaltyService.onNoShow', () => {
 
     expect(mockCreate).toHaveBeenCalledTimes(1);
     const params = mockCreate.mock.calls[0][0];
-    expect(params.type).toBe('no_show');
-    expect(params.severity).toBe(SKIP_PENALTY_POLICY.NO_SHOW_PENALTY_SEVERITY);
+    expect(params.penaltyType).toBe('no_show');
+    expect(params.points).toBe(2);
     expect(params.userId).toBe(USER_ID);
-    expect(params.expiresAt).toBeInstanceOf(Date);
-    expect((params.expiresAt as Date).getTime()).toBeGreaterThan(Date.now());
+    expect(params.reason).toBeTruthy();
   });
 
   it('propagates repository errors so callers can catch them', async () => {
@@ -192,7 +186,7 @@ describe('skipPenaltyService.getActivePenalties', () => {
   });
 
   it('returns all active penalties for the user', async () => {
-    const noPenalty: PenaltyRecordRow = { ...basePenalty, type: 'no_show', severity: 'minor' };
+    const noPenalty: PenaltyRecordRow = { ...basePenalty, penalty_type: 'no_show', points: 2 };
     mockFindActiveByUser.mockResolvedValue([basePenalty, noPenalty]);
 
     const result = await skipPenaltyService.getActivePenalties({

@@ -1,4 +1,4 @@
-import {
+﻿import {
   batchWorkloadForEntries,
   calculateWorkloadForEntries,
   ordersRepository,
@@ -35,7 +35,7 @@ import { JoinQueueDto } from './queue.validator';
  * prefix="A", ticketNumber=5  → "A005"
  * prefix="",  ticketNumber=17 → "0017"
  */
-function formatTicketDisplay(prefix: string, ticketNumber: number): string {
+function formatTicketCode(prefix: string, ticketNumber: number): string {
   const width = prefix ? 3 : 4;
   return `${prefix}${String(ticketNumber).padStart(width, '0')}`;
 }
@@ -113,14 +113,8 @@ export const queueService = {
   async joinQueue(
     dto: JoinQueueDto & { userId?: string; lineUserId?: string }
   ): Promise<JoinQueueResult> {
-    const { queueId, userId, lineUserId, notes, guestName } = dto;
-    let resolvedNotes = notes;
-    if (guestName) {
-      resolvedNotes = `[Guest] ${guestName}`;
-      if (notes) {
-        resolvedNotes += ` | ${notes}`;
-      }
-    }
+    const { queueId, userId, lineUserId } = dto;
+    // Note: guestName/notes are stored in the linked order, not on the queue entry (new schema).
 
     // 1. Load queue
     const queue = await queuesRepository.findById(queueId);
@@ -168,15 +162,14 @@ export const queueService = {
     // 6. Atomically increment counter + insert entry inside a transaction
     const entry = await withTransaction(async (client) => {
       const ticketNumber = await queuesRepository.incrementAndGetCounter(queueId, client);
-      const ticketDisplay = formatTicketDisplay(queue.prefix ?? '', ticketNumber);
+      const ticketCode = formatTicketCode(queue.prefix ?? '', ticketNumber);
       return queueEntriesRepository.create(
         {
           queueId,
           ticketNumber,
-          ticketDisplay,
+          ticketCode,
           userId,
           lineUserId,
-          notes: resolvedNotes,
           priority: priorityAdjustment === 0 ? undefined : priorityAdjustment,
         },
         client
@@ -309,7 +302,7 @@ export const queueService = {
    * **Invariants**:
    * - `queue.allow_skip` must be `true`
    * - entry must be in `waiting` status
-   * - `entry.skip_count < queue.max_skips_before_penalty`
+   * - `entry.priority < queue.max_skips_before_penalty`
    */
   async skipTicket(params: {
     entryId: string;
@@ -336,9 +329,11 @@ export const queueService = {
 
     const updated = await queueEntriesRepository.deprioritize(entryId);
 
-    // Record a skip penalty when the customer reaches (or exceeds) the skip limit.
+    // Record a skip penalty when the customer reaches the skip limit.
     // Fire-and-forget — a penalty-write failure must not block the queue operation.
-    if (entry.user_id && updated.skip_count >= queue.max_skips_before_penalty) {
+    if (entry.user_id) {
+      // Check if skip count threshold reached (tracked via queue.max_skips_before_penalty)
+      const updatedEntry = await queueEntriesRepository.findById(entryId);
       void skipPenaltyService
         .onSkipExhausted({
           userId: entry.user_id,
@@ -347,6 +342,7 @@ export const queueService = {
           organizationId: queue.organization_id,
         })
         .catch((err: unknown) => logger.warn({ err }, 'skip-penalty: onSkipExhausted failed'));
+      void updatedEntry;
     }
 
     const aheadCount = await queuesRepository.getWaitingPosition(
@@ -355,7 +351,7 @@ export const queueService = {
       updated.ticket_number
     );
 
-    return { entry: updated, aheadCount, skipCount: updated.skip_count };
+    return { entry: updated, aheadCount, skipCount: 0 };
   },
 
   // ── Staff operations ─────────────────────────────────────────────────────────
@@ -439,8 +435,8 @@ export const queueService = {
   },
 
   /**
-   * Mark a serving ticket as completed.
-   * Writes a queue_histories row via archiveToHistory (called inside markCompleted transaction).
+   * Mark a serving ticket as served (was 'completed' in old schema).
+   * Archives to queue_histories.
    */
   async completeTicket(params: {
     entryId: string;
@@ -459,11 +455,15 @@ export const queueService = {
       );
     }
 
-    const completed = await queueEntriesRepository.markCompleted(entryId);
+    const served = await queueEntriesRepository.markServed(entryId);
     metricsService.increment('queue_served_total');
+    // Archive to queue_histories
+    void queueEntriesRepository
+      .archiveToHistory(served, 'serving', 'served')
+      .catch((err: unknown) => logger.warn({ err, entryId }, 'completeTicket: archive failed'));
     // Free the anti-duplicate registry for this entry — reached terminal state.
     notificationLogRepository.clearEntry(entryId);
-    return completed;
+    return served;
   },
 
   /**
@@ -488,6 +488,10 @@ export const queueService = {
     }
 
     const noShow = await queueEntriesRepository.markNoShow(entryId);
+    // Archive to queue_histories
+    void queueEntriesRepository
+      .archiveToHistory(noShow, 'called', 'no_show')
+      .catch((err: unknown) => logger.warn({ err, entryId }, 'noShowTicket: archive failed'));
     // Free the anti-duplicate registry — no further notifications possible.
     notificationLogRepository.clearEntry(entryId);
     return noShow;

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Unit tests for staffService.getMyQueueOverview.
  *
  * Verifies:
@@ -9,7 +9,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { ordersRepository } from '../../../db/repositories/orders.repository';
-import { queueEntriesRepository } from '../../../db/repositories/queue-entries.repository';
+import {
+  queueEntriesRepository,
+  QueueEntryRow,
+} from '../../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../../db/repositories/queues.repository';
 import { staffService } from '../staff.service';
 
@@ -61,25 +64,25 @@ const queueRow = {
   updated_at: new Date(),
 };
 
-function makeEntry(id: string, ticket: string, status: string) {
+function makeEntry(id: string, ticket: string, status: string): QueueEntryRow {
   return {
     id,
     queue_id: QUEUE_ID,
     user_id: null,
+    order_id: null,
     line_user_id: null,
     ticket_number: Number.parseInt(ticket.replace('A-', '')),
-    ticket_display: ticket,
+    ticket_code: ticket,
     status,
-    skip_count: 0,
     priority: 0,
-    notes: null,
-    metadata: {},
+    position_snapshot: null,
     called_at: null,
-    serving_at: null,
-    completed_at: null,
+    serving_started_at: null,
+    served_at: null,
     skipped_at: null,
     cancelled_at: null,
-    estimated_call_at: null,
+    no_show_at: null,
+    estimated_wait_seconds: null,
     created_at: new Date(),
     updated_at: new Date(),
   };
@@ -169,7 +172,7 @@ describe('staffService.getMyQueueOverview', () => {
       throw new Error('Expected called and serving entries in queue overview');
     }
 
-    expect(result.calledEntryWithOrder.ticket_display).toBe('A-006');
-    expect(result.servingEntryWithOrder.ticket_display).toBe('A-007');
+    expect(result.calledEntryWithOrder.ticket_code).toBe('A-006');
+    expect(result.servingEntryWithOrder.ticket_code).toBe('A-007');
   });
 });

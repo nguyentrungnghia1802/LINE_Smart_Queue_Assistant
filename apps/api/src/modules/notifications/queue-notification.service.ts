@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Queue Notification Service
  *
  * ── Responsibility ───────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ export const queueNotificationService = {
         {
           type: 'text',
           text:
-            `🔔 Ticket ${entry.ticket_display} — It's your turn!\n\n` +
+            `🔔 Ticket ${entry.ticket_code} — It's your turn!\n\n` +
             'Please proceed to the counter now. Thank you for your patience! 🙏',
         },
       ]);
@@ -121,7 +121,7 @@ export const queueNotificationService = {
         {
           type: 'text',
           text:
-            `⏰ Ticket ${entry.ticket_display} — Almost your turn!\n\n` +
+            `⏰ Ticket ${entry.ticket_code} — Almost your turn!\n\n` +
             `${who} ahead of you. Please make your way to the counter.`,
         },
       ]);
@@ -155,7 +155,7 @@ export const queueNotificationService = {
       await adapter.pushMessage(entry.line_user_id, [
         {
           type: 'text',
-          text: `✅ Ticket ${entry.ticket_display} has been cancelled. Thank you!`,
+          text: `✅ Ticket ${entry.ticket_code} has been cancelled. Thank you!`,
         },
       ]);
       log.markSent(entry.id, 'cancelled');

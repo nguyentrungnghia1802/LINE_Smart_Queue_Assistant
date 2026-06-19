@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+﻿import { Request, Response } from 'express';
 
 import { asyncHandler } from '../../utils/asyncHandler';
 import { logger } from '../../utils/logger';
@@ -40,7 +40,7 @@ export const joinQueue = asyncHandler(async (req: Request, res: Response) => {
   reqLog(req).info(
     {
       queueId: dto.queueId,
-      ticket: result.entry.ticket_display,
+      ticket: result.entry.ticket_code,
       aheadCount: result.aheadCount,
       isExisting: result.isExisting,
     },
@@ -138,7 +138,7 @@ export const callNextTicket = asyncHandler(async (req: Request, res: Response) =
     req.user?.organizationId
   );
 
-  reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_display }, 'queue.callNext');
+  reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_code }, 'queue.callNext');
 
   sendSuccess(res, { entry });
 });
@@ -154,7 +154,7 @@ export const serveTicket = asyncHandler(async (req: Request, res: Response) => {
     actorOrganizationId: req.user?.organizationId,
   });
 
-  reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.serve');
+  reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'queue.serve');
 
   sendSuccess(res, { entry });
 });
@@ -170,7 +170,7 @@ export const completeTicket = asyncHandler(async (req: Request, res: Response) =
     actorOrganizationId: req.user?.organizationId,
   });
 
-  reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.complete');
+  reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'queue.complete');
 
   sendSuccess(res, { entry });
 });

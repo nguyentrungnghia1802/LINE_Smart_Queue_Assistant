@@ -1,20 +1,14 @@
-import { PenaltyRecordRow, penaltyRepository } from '../../db/repositories/penalty.repository';
+﻿import { PenaltyRecordRow, penaltyRepository } from '../../db/repositories/penalty.repository';
 import { logger } from '../../utils/logger';
 
 import { SKIP_PENALTY_POLICY } from './skip-penalty.policy';
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function hoursFromNow(hours: number): Date {
-  return new Date(Date.now() + hours * 60 * 60 * 1000);
-}
 
 // ── Service ────────────────────────────────────────────────────────────────────
 
 export const skipPenaltyService = {
   /**
    * Record a 'skip' penalty when a customer exhausts their skip allowance on a
-   * single queue entry (skip_count reaches max_skips_before_penalty).
+   * single queue entry (priority reaches max_skips_before_penalty).
    *
    * Fire-and-forget safe: caller should `void` the promise and `.catch` errors
    * so a penalty-write failure never blocks the queue state transition.
@@ -34,10 +28,9 @@ export const skipPenaltyService = {
       organizationId,
       queueId,
       queueEntryId: entryId,
-      type: 'skip',
-      severity: SKIP_PENALTY_POLICY.SKIP_PENALTY_SEVERITY,
-      expiresAt: hoursFromNow(SKIP_PENALTY_POLICY.SKIP_PENALTY_EXPIRY_HOURS),
-      notes: 'Auto-generated: customer exhausted skip allowance',
+      penaltyType: 'excessive_cancel',
+      points: 1,
+      reason: 'Auto-generated: customer exhausted skip allowance',
     });
     logger.info({ userId, queueId }, 'skip-penalty: skip penalty recorded');
   },
@@ -61,10 +54,9 @@ export const skipPenaltyService = {
       organizationId,
       queueId,
       queueEntryId: entryId,
-      type: 'no_show',
-      severity: SKIP_PENALTY_POLICY.NO_SHOW_PENALTY_SEVERITY,
-      expiresAt: hoursFromNow(SKIP_PENALTY_POLICY.NO_SHOW_PENALTY_EXPIRY_HOURS),
-      notes: 'Auto-generated: ticket marked no-show by staff',
+      penaltyType: 'no_show',
+      points: 2,
+      reason: 'Auto-generated: ticket marked no-show by staff',
     });
     logger.info({ userId, queueId }, 'skip-penalty: no-show penalty recorded');
   },

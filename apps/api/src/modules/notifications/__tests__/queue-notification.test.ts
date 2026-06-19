@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Unit tests for queue-notification.service.ts
  *
  * Strategy:
@@ -19,20 +19,20 @@ function makeEntry(override: Partial<QueueEntryRow> = {}): QueueEntryRow {
     id: 'entry-001',
     queue_id: 'queue-001',
     user_id: null,
+    order_id: null,
     line_user_id: 'U_test_001',
     ticket_number: 5,
-    ticket_display: 'A005',
+    ticket_code: 'A005',
     status: 'waiting',
-    skip_count: 0,
     priority: 0,
-    notes: null,
-    metadata: {},
+    position_snapshot: null,
     called_at: null,
-    serving_at: null,
-    completed_at: null,
+    serving_started_at: null,
+    served_at: null,
     skipped_at: null,
     cancelled_at: null,
-    estimated_call_at: null,
+    no_show_at: null,
+    estimated_wait_seconds: null,
     created_at: new Date('2024-01-01T10:00:00Z'),
     updated_at: new Date('2024-01-01T10:00:00Z'),
     ...override,
