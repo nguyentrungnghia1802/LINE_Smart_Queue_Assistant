@@ -1,25 +1,16 @@
--- =============================================================================
--- LINE Smart Queue Assistant — CLEAN DATABASE RESET SCRIPT v2
--- Source of truth for local/dev database reset
---
--- WARNING:
---   This script DROPS the whole public schema and recreates all tables/types.
---   Use only for local/dev reset. Backup before running on any important DB.
---
--- Run:
---   psql -U postgres -d line_queue -f reset_line_queue_schema_v2_clean.sql
--- =============================================================================
+module.exports.shorthands = undefined;
 
-BEGIN;
-
--- -----------------------------------------------------------------------------
--- 0. Hard reset public schema
--- -----------------------------------------------------------------------------
-DROP SCHEMA IF EXISTS public CASCADE;
-CREATE SCHEMA public;
-GRANT ALL ON SCHEMA public TO postgres;
-GRANT ALL ON SCHEMA public TO public;
-
+/**
+ * Migration 000001 — Clean consolidated schema v2
+ *
+ * Source of truth:
+ *   db/schema/reset_line_queue_schema_v2_clean.sql
+ *
+ * This migration matches the clean v2 SQL schema, but it does not hard-reset
+ * the public schema. Use the SQL reset file directly only for local/dev DB reset.
+ */
+module.exports.up = async (pgm) => {
+  pgm.sql(String.raw`
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- -----------------------------------------------------------------------------
@@ -511,5 +502,40 @@ CREATE INDEX idx_audit_actor ON audit_logs(actor_id, created_at DESC)
 CREATE INDEX idx_audit_org ON audit_logs(organization_id, created_at DESC)
   WHERE organization_id IS NOT NULL;
 CREATE INDEX idx_audit_resource ON audit_logs(resource_type, resource_id, created_at DESC);
+  `);
+}
 
-COMMIT;
+module.exports.down = async (pgm) => {
+  pgm.sql(String.raw`
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS queue_histories CASCADE;
+DROP TABLE IF EXISTS penalty_records CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS queue_entries CASCADE;
+DROP TABLE IF EXISTS order_items CASCADE;
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS queues CASCADE;
+DROP TABLE IF EXISTS products CASCADE;
+DROP TABLE IF EXISTS line_accounts CASCADE;
+DROP TABLE IF EXISTS organization_members CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS organizations CASCADE;
+
+DROP FUNCTION IF EXISTS set_updated_at() CASCADE;
+
+DROP TYPE IF EXISTS audit_actor_type CASCADE;
+DROP TYPE IF EXISTS penalty_type CASCADE;
+DROP TYPE IF EXISTS notification_status CASCADE;
+DROP TYPE IF EXISTS notification_channel CASCADE;
+DROP TYPE IF EXISTS notification_type CASCADE;
+DROP TYPE IF EXISTS payment_status CASCADE;
+DROP TYPE IF EXISTS order_status CASCADE;
+DROP TYPE IF EXISTS queue_entry_status CASCADE;
+DROP TYPE IF EXISTS queue_type CASCADE;
+DROP TYPE IF EXISTS queue_status CASCADE;
+DROP TYPE IF EXISTS product_type CASCADE;
+DROP TYPE IF EXISTS org_member_role CASCADE;
+DROP TYPE IF EXISTS user_role CASCADE;
+  `);
+}
+

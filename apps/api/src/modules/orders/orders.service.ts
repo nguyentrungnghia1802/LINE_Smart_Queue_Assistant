@@ -90,7 +90,6 @@ export const ordersService = {
       const order = await ordersRepository.create(
         {
           organizationId: org.id,
-          queueEntryId: entry.id,
           orderNumber: orderNum,
           customerName: dto.customerName,
           customerUserId: actorUserId,
@@ -100,6 +99,9 @@ export const ordersService = {
         },
         client
       );
+
+      const linkedEntry = await queueEntriesRepository.linkOrder(entry.id, order.id, client);
+      const linkedOrder = { ...order, queue_entry_id: linkedEntry.id };
 
       // Create items (within transaction)
       for (const { product, quantity, price } of productRows) {
@@ -118,7 +120,7 @@ export const ordersService = {
       }
 
       await client.query('COMMIT');
-      return { order, entry };
+      return { order: linkedOrder, entry: linkedEntry };
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

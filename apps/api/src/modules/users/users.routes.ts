@@ -12,7 +12,9 @@ import {
   deactivateUser,
   getUser,
   listUsers,
+  removeStaff,
   updateMyProfile,
+  updateStaff,
   updateStaffStatus,
 } from './users.controller';
 import { CreateUserSchema, UpdateMyProfileSchema } from './users.validator';
@@ -45,6 +47,20 @@ usersRouter.patch(
   requireRole(UserRole.MANAGER, UserRole.ADMIN),
   authenticatedActionRateLimiter,
   updateStaffStatus
+);
+usersRouter.patch(
+  '/staff/:userId',
+  requireAuth,
+  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  authenticatedActionRateLimiter,
+  updateStaff
+);
+usersRouter.delete(
+  '/staff/:userId',
+  requireAuth,
+  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  authenticatedActionRateLimiter,
+  removeStaff
 );
 
 usersRouter.get('/:id', requireAuth, validate(UUIDParamSchema, 'params'), getUser);

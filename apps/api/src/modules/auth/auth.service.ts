@@ -9,6 +9,7 @@ import { AuthUser } from '../../types/auth.types';
 import { AppError } from '../../utils/AppError';
 import { signToken, TokenPayload } from '../../utils/jwt';
 
+import { RegisterCustomerDto } from './auth.validator';
 import { verifyLineIdToken } from './line/lineIdToken.verifier';
 
 export const authService = {
@@ -102,6 +103,38 @@ export const authService = {
       id: userRow.id,
       role: userRow.role as UserRole,
       organizationId: membership?.organization_id,
+      displayName: userRow.display_name,
+      email: userRow.email ?? undefined,
+    };
+
+    return { token, user };
+  },
+
+  async registerCustomer(
+    dto: RegisterCustomerDto
+  ): Promise<{ token: string; user: AuthUser }> {
+    const existing = await usersRepository.findByEmail(dto.email);
+    if (existing) {
+      throw AppError.conflict('A user with this email already exists');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const userRow = await usersRepository.createWithPassword({
+      displayName: dto.displayName,
+      email: dto.email,
+      role: 'customer',
+      passwordHash,
+    });
+
+    const payload: TokenPayload = {
+      sub: userRow.id,
+      role: UserRole.CUSTOMER,
+    };
+    const token = signToken(payload);
+
+    const user: AuthUser = {
+      id: userRow.id,
+      role: UserRole.CUSTOMER,
       displayName: userRow.display_name,
       email: userRow.email ?? undefined,
     };

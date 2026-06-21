@@ -1,36 +1,51 @@
-import { type Client } from 'pg';
+import type { PoolClient } from 'pg';
+import { ORG_ID, PRODUCTS } from './_ids';
 
-import { SEED_IDS } from './_ids';
+const products = [
+  [PRODUCTS.HAIRCUT, 'Cắt tóc nam', 'Basic men haircut service', 'service', 80000, 30, null, false, null],
+  [PRODUCTS.HAIR_DYE, 'Nhuộm tóc', 'Hair coloring service', 'service', 450000, 120, null, true, null],
+  [PRODUCTS.HAIR_WASH, 'Gội đầu', 'Hair wash service', 'service', 50000, 20, null, false, null],
+  [PRODUCTS.CHECKUP, 'Khám tổng quát', 'General health checkup', 'service', 200000, 45, null, true, null],
+  [PRODUCTS.PEACH_TEA, 'Trà đào', 'Peach tea', 'product', 35000, 5, 30, false, 100],
+  [PRODUCTS.BUN_BO, 'Bún bò', 'Food item', 'product', 50000, 10, 30, false, 50],
+  [PRODUCTS.WATER, 'Nước suối', 'Bottled water', 'product', 10000, 3, 15, false, 500],
+] as const;
 
-/**
- * Seed 004 — Products/services for the demo organization.
- *
- * 3 services + 3 products = 6 total, with varying service_time_minutes.
- * At least 1 item has requires_prepayment = TRUE.
- */
-export async function seed004Products(client: Client): Promise<void> {
-  await client.query(
-    `INSERT INTO products
-       (id, organization_id, name, description, price, service_time_minutes,
-        requires_prepayment, product_type, is_active)
-     VALUES
-       ($1,  $7, 'Cắt tóc nam',       'Cắt và tạo kiểu tóc nam',             120000,  30, FALSE, 'service', TRUE),
-       ($2,  $7, 'Nhuộm tóc',         'Nhuộm màu + dưỡng tóc chuyên nghiệp', 350000, 120, TRUE,  'service', TRUE),
-       ($3,  $7, 'Uốn tóc',           'Uốn định hình + dưỡng tóc',           450000, 150, TRUE,  'service', TRUE),
-       ($4,  $7, 'Dầu gội đầu 250ml', 'Dầu gội chăm sóc tóc',                 85000,   5, FALSE, 'product', TRUE),
-       ($5,  $7, 'Dầu xả tóc 200ml',  'Dầu xả phục hồi tóc',                  95000,   5, FALSE, 'product', TRUE),
-       ($6,  $7, 'Ủ tóc phục hồi',    'Ủ dưỡng phục hồi tóc hư tổn',         180000,  45, FALSE, 'product', TRUE)
-     ON CONFLICT (id) DO NOTHING`,
-    [
-      SEED_IDS.products.haircut,
-      SEED_IDS.products.dyeHair,
-      SEED_IDS.products.perm,
-      SEED_IDS.products.shampoo,
-      SEED_IDS.products.conditioner,
-      SEED_IDS.products.hairMask,
-      SEED_IDS.org,
-    ]
-  );
-
-  console.info('[seed] 004 — 6 products/services created (3 services + 3 products)');
+export async function seed(client: PoolClient): Promise<void> {
+  for (const [id, name, description, productType, price, serviceTime, maxWait, requiresPrepayment, stock] of products) {
+    await client.query(
+      `
+        INSERT INTO products (
+          id, organization_id, name, description, image_url, product_type, price,
+          service_time_minutes, max_wait_minutes, requires_prepayment, stock_quantity, is_active
+        )
+        VALUES ($1, $2, $3, $4, $5, $6::product_type, $7, $8, $9, $10, $11, TRUE)
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          image_url = EXCLUDED.image_url,
+          product_type = EXCLUDED.product_type,
+          price = EXCLUDED.price,
+          service_time_minutes = EXCLUDED.service_time_minutes,
+          max_wait_minutes = EXCLUDED.max_wait_minutes,
+          requires_prepayment = EXCLUDED.requires_prepayment,
+          stock_quantity = EXCLUDED.stock_quantity,
+          is_active = TRUE,
+          updated_at = NOW();
+      `,
+      [
+        id,
+        ORG_ID,
+        name,
+        description,
+        `https://placehold.co/512x320?text=${encodeURIComponent(name)}`,
+        productType,
+        price,
+        serviceTime,
+        maxWait,
+        requiresPrepayment,
+        stock,
+      ],
+    );
+  }
 }

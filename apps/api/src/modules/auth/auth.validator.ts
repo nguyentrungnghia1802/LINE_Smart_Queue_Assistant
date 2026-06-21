@@ -14,3 +14,13 @@ export const EmailPasswordLoginSchema = z.object({
 });
 
 export type EmailPasswordLoginDto = z.infer<typeof EmailPasswordLoginSchema>;
+
+/** Body schema for POST /api/v1/auth/register */
+export const RegisterCustomerSchema = z.object({
+  displayName: z.string().min(1).max(120),
+  email: z.string().email().max(255),
+  password: z.string().min(6).max(128),
+  phone: z.string().max(20).optional(),
+});
+
+export type RegisterCustomerDto = z.infer<typeof RegisterCustomerSchema>;

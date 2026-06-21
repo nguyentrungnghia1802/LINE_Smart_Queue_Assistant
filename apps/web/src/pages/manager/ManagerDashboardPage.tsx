@@ -30,7 +30,7 @@ interface StatsData {
     entry_id: string;
     queue_id: string;
     queue_name: string;
-    ticket_display: string;
+    ticket_code: string;
     status: string;
     updated_at: string;
     order_number: string | null;
@@ -192,7 +192,7 @@ export function ManagerDashboardPage() {
               <tbody>
                 {data.recentQueueActivities.map((activity) => (
                   <tr key={activity.entry_id} className="border-b border-gray-50">
-                    <td className="py-2 text-gray-800">{activity.ticket_display}</td>
+                    <td className="py-2 text-gray-800">{activity.ticket_code}</td>
                     <td className="py-2 text-gray-600">{activity.queue_name}</td>
                     <td className="py-2 text-gray-600">{activity.order_number ?? '-'}</td>
                     <td className="py-2 text-right text-gray-500">{activity.status}</td>

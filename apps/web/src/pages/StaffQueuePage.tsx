@@ -20,9 +20,9 @@ function EntryCard({ entry, actions }: { entry: QueueEntryDisplay; actions: Reac
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 flex flex-wrap items-center justify-between gap-3">
       <div>
-        <p className="text-xl font-bold text-gray-900">{entry.ticket_display}</p>
+        <p className="text-xl font-bold text-gray-900">{entry.ticket_code}</p>
         <p className="text-xs text-gray-500 mt-0.5 capitalize">{entry.status}</p>
-        {entry.notes && <p className="text-sm text-gray-600 mt-1">{entry.notes}</p>}
+        {/* notes field removed from queue_entries in schema v2 */}
       </div>
       <div className="flex gap-2 flex-shrink-0 flex-wrap">{actions}</div>
     </div>

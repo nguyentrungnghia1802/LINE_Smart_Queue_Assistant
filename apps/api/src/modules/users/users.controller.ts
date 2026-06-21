@@ -93,3 +93,28 @@ export const updateStaffStatus = asyncHandler(async (req: Request, res: Response
   const user = await usersService.updateStaffStatus(orgId, userId, isActive);
   sendSuccess(res, user);
 });
+
+export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
+  const orgId = req.user?.organizationId;
+  if (!orgId) {
+    throw AppError.badRequest('User has no organization');
+  }
+  const { userId } = req.params as { userId: string };
+  const { displayName, email, password } = req.body as {
+    displayName?: string;
+    email?: string;
+    password?: string;
+  };
+  const user = await usersService.updateStaff(orgId, userId, { displayName, email, password });
+  sendSuccess(res, user);
+});
+
+export const removeStaff = asyncHandler(async (req: Request, res: Response) => {
+  const orgId = req.user?.organizationId;
+  if (!orgId) {
+    throw AppError.badRequest('User has no organization');
+  }
+  const { userId } = req.params as { userId: string };
+  await usersService.removeStaff(orgId, userId);
+  sendNoContent(res);
+});

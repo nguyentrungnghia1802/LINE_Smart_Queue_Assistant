@@ -1,78 +1,66 @@
-/**
- * db/seeds/index.ts — Seed runner
- *
- * Usage (from monorepo root via npm scripts):
- *   npm run db:seed          — insert seed data (idempotent via ON CONFLICT DO NOTHING)
- *   npm run db:seed:reset    — truncate all data, then re-seed from scratch
- *
- * The runner loads DATABASE_URL from the monorepo-root .env file.
- */
+import { Pool } from 'pg';
 import path from 'node:path';
-
 import dotenv from 'dotenv';
-import { Client } from 'pg';
+import { seed as seedOrganizations } from './001_organizations';
+import { seed as seedUsers } from './002_users';
+import { seed as seedLineAccounts } from './003_line_accounts';
+import { seed as seedProducts } from './004_products';
+import { seed as seedQueues } from './005_queues';
+import { seed as seedOrdersAndQueueEntries } from './006_orders_and_queue_entries';
+import { seed as seedNotifications } from './007_notifications';
+import { seed as seedPenalties } from './008_penalties';
 
-import { seed001Organization } from './001_organization';
-import { seed002Queues } from './002_queues';
-import { seed003TestData } from './003_test_data';
-import { seed004Products } from './004_products';
-
-// ── Load env ──────────────────────────────────────────────────────────────────
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) {
-  console.error('[seed] DATABASE_URL is not set. Add it to your .env file.');
-  process.exit(1);
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required to run seeds');
 }
 
-// ── Reset helper ──────────────────────────────────────────────────────────────
-async function resetDatabase(client: Client): Promise<void> {
-  console.info('[seed] Resetting database — truncating all seed tables…');
-  await client.query(`
-    TRUNCATE
-      audit_logs,
-      queue_histories,
-      notifications,
-      penalty_records,
-      order_items,
-      orders,
-      queue_entries,
-      organization_members,
-      line_accounts,
-      products,
-      queues,
-      users,
-      organizations
-    RESTART IDENTITY CASCADE
-  `);
-  console.info('[seed] Database truncated.');
-}
+const pool = new Pool({ connectionString: databaseUrl });
 
-// ── Runner ────────────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
-  const isReset = process.argv.includes('--reset');
-
-  const client = new Client({ connectionString: DATABASE_URL });
-  await client.connect();
-  console.info('[seed] Connected to database.');
+  const client = await pool.connect();
 
   try {
-    if (isReset) {
-      await resetDatabase(client);
-    }
+    await client.query('BEGIN');
 
-    await seed001Organization(client);
-    await seed002Queues(client);
-    await seed004Products(client);
-    await seed003TestData(client);
+    console.log('[seed] 001 — organizations');
+    await seedOrganizations(client);
 
-    console.info('[seed] All seeds completed successfully.');
-  } catch (err) {
-    console.error('[seed] Seed failed:', err);
+    console.log('[seed] 002 — users + organization members');
+    await seedUsers(client);
+
+    console.log('[seed] 003 — LINE accounts');
+    await seedLineAccounts(client);
+
+    console.log('[seed] 004 — products/services');
+    await seedProducts(client);
+
+    console.log('[seed] 005 — queues');
+    await seedQueues(client);
+
+    console.log('[seed] 006 — orders + queue entries + histories');
+    await seedOrdersAndQueueEntries(client);
+
+    console.log('[seed] 007 — notifications');
+    await seedNotifications(client);
+
+    console.log('[seed] 008 — penalties');
+    await seedPenalties(client);
+
+    await client.query('COMMIT');
+    console.log('[seed] All seeds completed successfully.');
+    console.log('[seed] Demo accounts: manager@gmail.com / staff@gmail.com / customer@gmail.com — password: 123456');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('[seed] Failed. Rolled back.');
+    console.error(error);
     process.exitCode = 1;
   } finally {
-    await client.end();
+    client.release();
+    await pool.end();
   }
 }
 

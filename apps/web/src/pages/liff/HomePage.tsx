@@ -42,7 +42,7 @@ export function HomePage() {
       {calledTickets.map((t) => (
         <CalledBanner
           key={t.entry.id}
-          ticketDisplay={t.entry.ticket_display}
+          ticketDisplay={t.entry.ticket_code}
           onDismiss={() => navigate(`/liff/tickets/${t.entry.id}`)}
         />
       ))}

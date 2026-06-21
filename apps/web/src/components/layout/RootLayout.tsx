@@ -6,8 +6,8 @@ import { UserRole } from '@line-queue/shared';
 import { useAuthStore } from '../../store/authStore';
 
 const NAV_LINKS = [
-  { to: '/', label: 'Dashboard', end: true },
-  { to: '/queues', label: 'Hàng đợi' },
+  { to: '/app', label: 'Dashboard', end: true },
+  { to: '/app/queues', label: 'Hàng đợi' },
 ];
 
 export function RootLayout() {

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
-import { get, patch, post } from '../../services/apiClient';
+import { del, get, patch, post } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
 
 interface UserRow {
@@ -24,14 +24,17 @@ export function ManagerUsersPage() {
   const queryClient = useQueryClient();
 
   const [showAdd, setShowAdd] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [form, setForm] = useState({ displayName: '', email: '', password: '' });
   const [addError, setAddError] = useState('');
 
   const { data: users = [], isLoading } = useQuery<UserRow[]>({
     queryKey: ['users-staff', orgId],
-    queryFn: () => get<UserRow[]>(`/api/v1/users?orgId=${orgId}`),
+    queryFn: () => get<UserRow[]>(`/api/v1/users?orgId=${orgId}&role=staff`),
     enabled: !!orgId,
   });
+
+  const staffUsers = useMemo(() => users.filter((u) => u.role === 'staff'), [users]);
 
   const createMutation = useMutation({
     mutationFn: () => post('/api/v1/users/staff', form),
@@ -44,9 +47,20 @@ export function ManagerUsersPage() {
     onError: (err: { message?: string }) => setAddError(err?.message ?? 'Có lỗi xảy ra'),
   });
 
-  const toggleStatusMutation = useMutation({
-    mutationFn: ({ userId, isActive }: { userId: string; isActive: boolean }) =>
-      patch(`/api/v1/users/staff/${userId}/status`, { isActive }),
+  const updateMutation = useMutation({
+    mutationFn: () => patch(`/api/v1/users/staff/${editingUserId}`, form),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['users-staff', orgId] });
+      setEditingUserId(null);
+      setShowAdd(false);
+      setForm({ displayName: '', email: '', password: '' });
+      setAddError('');
+    },
+    onError: (err: { message?: string }) => setAddError(err?.message ?? 'Có lỗi xảy ra'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) => del(`/api/v1/users/staff/${userId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users-staff', orgId] }),
   });
 
@@ -64,7 +78,7 @@ export function ManagerUsersPage() {
         </button>
       </div>
 
-      {users.length === 0 ? (
+      {staffUsers.length === 0 ? (
         <p className="text-gray-400 text-sm">Chưa có nhân viên nào.</p>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -78,21 +92,35 @@ export function ManagerUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {staffUsers.map((u) => (
                 <tr key={u.id} className="border-b border-gray-100 last:border-0">
                   <td className="px-4 py-3 font-medium text-gray-800">{u.display_name}</td>
                   <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{u.email ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-600">{ROLE_LABELS[u.role] ?? u.role}</td>
                   <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => toggleStatusMutation.mutate({ userId: u.id, isActive: !u.is_active })}
-                      disabled={toggleStatusMutation.isPending}
-                      className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
-                        u.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                      }`}
-                    >
-                      {u.is_active ? 'Đang làm' : 'Nghỉ'}
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => {
+                          setEditingUserId(u.id);
+                          setShowAdd(true);
+                          setForm({ displayName: u.display_name, email: u.email ?? '', password: '' });
+                          setAddError('');
+                        }}
+                        className="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100"
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Xóa nhân viên ${u.display_name}?`)) {
+                            deleteMutation.mutate(u.id);
+                          }
+                        }}
+                        className="text-xs px-2 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100"
+                      >
+                        Xóa
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -105,7 +133,9 @@ export function ManagerUsersPage() {
       {showAdd && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-80 shadow-xl space-y-4">
-            <h2 className="font-semibold text-gray-900">Thêm nhân viên mới</h2>
+            <h2 className="font-semibold text-gray-900">
+              {editingUserId ? 'Sửa nhân viên' : 'Thêm nhân viên mới'}
+            </h2>
 
             {[
               { label: 'Tên hiển thị *', key: 'displayName', type: 'text', placeholder: 'Nguyễn Văn X' },
@@ -134,11 +164,27 @@ export function ManagerUsersPage() {
                 Huỷ
               </button>
               <button
-                onClick={() => createMutation.mutate()}
-                disabled={createMutation.isPending || !form.displayName || !form.email || !form.password}
+                onClick={() => {
+                  if (editingUserId) {
+                    updateMutation.mutate();
+                  } else {
+                    createMutation.mutate();
+                  }
+                }}
+                disabled={
+                  createMutation.isPending ||
+                  updateMutation.isPending ||
+                  !form.displayName ||
+                  !form.email ||
+                  (!editingUserId && !form.password)
+                }
                 className="flex-1 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
               >
-                {createMutation.isPending ? 'Đang lưu...' : 'Lưu'}
+                {createMutation.isPending || updateMutation.isPending
+                  ? 'Đang lưu...'
+                  : editingUserId
+                    ? 'Cập nhật'
+                    : 'Lưu'}
               </button>
             </div>
           </div>

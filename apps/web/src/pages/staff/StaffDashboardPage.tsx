@@ -21,7 +21,7 @@ interface Order {
   status: string;
   subtotal: string;
   payment_status: string;
-  ticket_display: string | null;
+  ticket_code: string | null;
   queue_entry_status: string | null;
   created_at: string;
   items: OrderItem[];
@@ -29,7 +29,7 @@ interface Order {
 
 interface QueueEntry {
   id: string;
-  ticket_display: string;
+  ticket_code: string;
   status: string;
   order: Order | null;
 }
@@ -179,7 +179,7 @@ export function StaffDashboardPage() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-gray-800">{entry.ticket_display}</span>
+                  <span className="font-mono font-bold text-gray-800">{entry.ticket_code}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${QUEUE_STATUS_COLORS[entry.status] ?? 'bg-gray-100 text-gray-500'}`}>
                     {QUEUE_STATUS_LABELS[entry.status] ?? entry.status}
                   </span>
@@ -210,7 +210,7 @@ export function StaffDashboardPage() {
             <div className="flex items-center gap-4">
               <div>
                 <p className="text-xs text-gray-400 uppercase tracking-wider">Số thứ tự</p>
-                <p className="text-4xl font-bold font-mono text-gray-900">{selected.ticket_display}</p>
+                <p className="text-4xl font-bold font-mono text-gray-900">{selected.ticket_code}</p>
               </div>
               <div className="ml-auto flex flex-col items-end gap-1">
                 <span className={`text-sm px-3 py-1 rounded-full font-medium ${QUEUE_STATUS_COLORS[selected.status] ?? 'bg-gray-100 text-gray-500'}`}>
@@ -278,11 +278,14 @@ export function StaffDashboardPage() {
 
             {/* Items table — show if entry has an order */}
             {selected.order ? (
+              (() => {
+                const order = selected.order;
+                return (
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-500 uppercase">Đơn hàng {selected.order.order_number}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${ORDER_STATUS_COLORS[selected.order.status] ?? 'bg-gray-100 text-gray-500'}`}>
-                    {ORDER_STATUS_LABELS[selected.order.status] ?? selected.order.status}
+                  <span className="text-xs font-medium text-gray-500 uppercase">Đơn hàng {order.order_number}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${ORDER_STATUS_COLORS[order.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                    {ORDER_STATUS_LABELS[order.status] ?? order.status}
                   </span>
                 </div>
                 <table className="w-full text-sm">
@@ -295,7 +298,7 @@ export function StaffDashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {selected.order.items.map((item) => (
+                    {order.items.map((item) => (
                       <tr key={item.id} className="border-t border-gray-100">
                         <td className="px-4 py-3 font-medium text-gray-800">
                           {item.product_name}
@@ -311,32 +314,32 @@ export function StaffDashboardPage() {
                     <tr>
                       <td colSpan={3} className="px-4 py-3 text-right font-semibold text-gray-700">Tổng cộng</td>
                       <td className="px-4 py-3 text-right text-lg font-bold text-gray-900">
-                        {formatCurrency(selected.order.subtotal)}
+                        {formatCurrency(order.subtotal)}
                       </td>
                     </tr>
                   </tfoot>
                 </table>
 
                 {/* Order-level payment toggle */}
-                {['pending', 'processing'].includes(selected.order.status) && (
+                {['pending', 'processing'].includes(order.status) && (
                   <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
                     <button
                       onClick={() => paymentMutation.mutate({
-                        id: selected.order!.id,
-                        paymentStatus: selected.order!.payment_status === 'paid' ? 'unpaid' : 'paid',
+                        id: order.id,
+                        paymentStatus: order.payment_status === 'paid' ? 'unpaid' : 'paid',
                       })}
                       disabled={paymentMutation.isPending}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                        selected.order.payment_status === 'paid'
+                        order.payment_status === 'paid'
                           ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           : 'bg-green-600 text-white hover:bg-green-700'
                       } disabled:opacity-50`}
                     >
-                      {selected.order.payment_status === 'paid' ? 'Bỏ thanh toán' : '💰 Đánh dấu đã thanh toán'}
+                      {order.payment_status === 'paid' ? 'Bỏ thanh toán' : '💰 Đánh dấu đã thanh toán'}
                     </button>
                     <button
                       onClick={() => {
-                        if (confirm('Huỷ đơn hàng này?')) statusMutation.mutate({ id: selected.order!.id, status: 'cancelled' });
+                        if (confirm('Huỷ đơn hàng này?')) statusMutation.mutate({ id: order.id, status: 'cancelled' });
                       }}
                       disabled={statusMutation.isPending}
                       className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
@@ -346,6 +349,8 @@ export function StaffDashboardPage() {
                   </div>
                 )}
               </div>
+                );
+              })()
             ) : (
               <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-400 text-sm">
                 Không có đơn hàng liên kết với số này.

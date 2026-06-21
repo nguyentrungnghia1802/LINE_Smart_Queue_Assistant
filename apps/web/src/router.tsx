@@ -5,6 +5,7 @@ import { RootLayout } from './components/layout/RootLayout';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { AdminOrgsPage } from './pages/admin/AdminOrgsPage';
+import { CustomerDashboardPage } from './pages/customer/CustomerDashboardPage';
 import { CustomerJoinPage } from './pages/customer/CustomerJoinPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { HistoryPage } from './pages/liff/HistoryPage';
@@ -30,6 +31,8 @@ import { PublicJoinPage } from './pages/public/PublicJoinPage';
 import { PublicTicketPage } from './pages/public/PublicTicketPage';
 import { QueueDetailPage } from './pages/QueueDetailPage';
 import { QueuesPage } from './pages/QueuesPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { RoleRedirectPage } from './pages/RoleRedirectPage';
 import { StaffDashboardPage } from './pages/staff/StaffDashboardPage';
 import { StaffLayout } from './pages/staff/StaffLayout';
 import { StaffProductsPage } from './pages/staff/StaffProductsPage';
@@ -40,6 +43,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/register',
+    element: <RegisterPage />,
   },
 
   // ── Public (no auth required) ─────────────────────────────────────────────
@@ -74,6 +81,12 @@ export const router = createBrowserRouter([
     ],
   },
 
+  // ── Customer dashboard ─────────────────────────────────────────────────────
+  {
+    path: '/customer',
+    element: <CustomerDashboardPage />,
+  },
+
   // ── LIFF customer flow ────────────────────────────────────────────────────
   {
     path: '/liff',
@@ -101,6 +114,11 @@ export const router = createBrowserRouter([
   // ── Staff / manager dashboard ─────────────────────────────────────────────
   {
     path: '/',
+    element: <RoleRedirectPage />,
+  },
+
+  {
+    path: '/app',
     element: <RootLayout />,
     children: [
       { index: true, element: <DashboardPage /> },
@@ -114,7 +132,7 @@ export const router = createBrowserRouter([
   },
 
   // ── Convenience redirect ──────────────────────────────────────────────────
-  { path: '/dashboard', element: <Navigate to="/" replace /> },
+  { path: '/dashboard', element: <Navigate to="/app" replace /> },
 
   // ── 404 ───────────────────────────────────────────────────────────────────
   {

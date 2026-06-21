@@ -124,6 +124,13 @@ export class OrganizationsRepository extends BaseRepository {
     );
   }
 
+  async setMemberActive(organizationId: string, userId: string, isActive: boolean): Promise<void> {
+    await this.query(
+      `UPDATE organization_members SET is_active = $1 WHERE organization_id = $2 AND user_id = $3`,
+      [isActive, organizationId, userId]
+    );
+  }
+
   async updateOrg(
     id: string,
     data: Partial<{

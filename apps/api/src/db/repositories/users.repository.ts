@@ -80,7 +80,10 @@ export class UsersRepository extends BaseRepository {
       `SELECT u.*
        FROM users u
        JOIN organization_members om ON om.user_id = u.id
-       WHERE om.organization_id = $1 ${roleClause}
+       WHERE om.organization_id = $1
+         AND om.is_active = TRUE
+         AND u.is_active = TRUE
+         ${roleClause}
        ORDER BY u.created_at DESC`,
       params
     );
@@ -121,6 +124,13 @@ export class UsersRepository extends BaseRepository {
 
   async setActive(id: string, isActive: boolean): Promise<void> {
     await this.query('UPDATE users SET is_active = $1 WHERE id = $2', [isActive, id]);
+  }
+
+  async setPassword(id: string, passwordHash: string): Promise<void> {
+    await this.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [
+      passwordHash,
+      id,
+    ]);
   }
 
   async deactivate(id: string): Promise<void> {

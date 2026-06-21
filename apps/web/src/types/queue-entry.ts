@@ -15,14 +15,20 @@ export interface QueueEntryDisplay {
   id: string;
   queue_id: string;
   user_id: string | null;
+  order_id: string | null;
   line_user_id: string | null;
   ticket_number: number;
-  ticket_display: string;
+  ticket_code: string;
   status: TicketStatus;
   priority: number;
-  skip_count: number;
-  notes: string | null;
-  estimated_call_at: string | null;
+  position_snapshot: number | null;
+  estimated_wait_seconds: number | null;
+  called_at: string | null;
+  serving_started_at: string | null;
+  served_at: string | null;
+  skipped_at: string | null;
+  cancelled_at: string | null;
+  no_show_at: string | null;
   created_at: string;
   updated_at: string;
 }
