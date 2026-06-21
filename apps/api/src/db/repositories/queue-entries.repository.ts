@@ -95,6 +95,14 @@ export class QueueEntriesRepository extends BaseRepository {
     return this.firstOrThrow(rows, 'queueEntries.create');
   }
 
+  async linkOrder(id: string, orderId: string, client?: PoolClient): Promise<QueueEntryRow> {
+    const sql = `UPDATE queue_entries SET order_id = $2 WHERE id = $1 RETURNING *`;
+    const rows = client
+      ? await this.queryTx<QueueEntryRow>(client, sql, [id, orderId])
+      : await this.query<QueueEntryRow>(sql, [id, orderId]);
+    return this.firstOrThrow(rows, 'queueEntries.linkOrder');
+  }
+
   async markCalled(id: string, client?: PoolClient): Promise<QueueEntryRow> {
     const sql = `UPDATE queue_entries SET status = 'called', called_at = NOW()
       WHERE id = $1 AND status = 'waiting' RETURNING *`;

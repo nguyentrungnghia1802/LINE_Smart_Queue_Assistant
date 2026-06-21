@@ -11,7 +11,7 @@ interface QueueStatus {
 }
 
 interface JoinResult {
-  entry: { id: string; ticket_display: string };
+  entry: { id: string; ticket_code: string };
   aheadCount: number;
   estimatedWaitSeconds: number | null;
 }

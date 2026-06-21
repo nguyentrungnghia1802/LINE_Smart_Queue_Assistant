@@ -44,6 +44,7 @@ export const ordersRepository = {
     const params: unknown[] = status ? [orgId, status] : [orgId];
     const { rows } = await pool.query<OrderRow & { items_json: string }>(
       `SELECT o.*,
+         qe.id AS queue_entry_id,
          qe.ticket_code,
          qe.status AS queue_entry_status,
          COALESCE(
@@ -64,9 +65,9 @@ export const ordersRepository = {
          ) AS items_json
        FROM orders o
        LEFT JOIN order_items oi ON oi.order_id = o.id
-       LEFT JOIN queue_entries qe ON qe.id = o.queue_entry_id
+       LEFT JOIN queue_entries qe ON qe.order_id = o.id
        WHERE o.organization_id = $1 ${statusClause}
-       GROUP BY o.id, qe.ticket_code, qe.status
+       GROUP BY o.id, qe.id, qe.ticket_code, qe.status
        ORDER BY o.created_at DESC`,
       params
     );
@@ -76,6 +77,7 @@ export const ordersRepository = {
   async findById(id: string): Promise<OrderWithItems | null> {
     const { rows } = await pool.query<OrderRow & { items_json: string }>(
       `SELECT o.*,
+         qe.id AS queue_entry_id,
          COALESCE(
            json_agg(
              json_build_object(
@@ -94,8 +96,9 @@ export const ordersRepository = {
          ) AS items_json
        FROM orders o
        LEFT JOIN order_items oi ON oi.order_id = o.id
+       LEFT JOIN queue_entries qe ON qe.order_id = o.id
        WHERE o.id = $1
-       GROUP BY o.id`,
+       GROUP BY o.id, qe.id`,
       [id]
     );
     if (!rows[0]) return null;
@@ -111,6 +114,7 @@ export const ordersRepository = {
   async findByQueueEntry(queueEntryId: string): Promise<OrderWithItems | null> {
     const { rows } = await pool.query<OrderRow & { items_json: string }>(
       `SELECT o.*,
+         qe.id AS queue_entry_id,
          COALESCE(
            json_agg(
              json_build_object(
@@ -128,9 +132,10 @@ export const ordersRepository = {
            '[]'
          ) AS items_json
        FROM orders o
+       JOIN queue_entries qe ON qe.order_id = o.id
        LEFT JOIN order_items oi ON oi.order_id = o.id
-       WHERE o.queue_entry_id = $1
-       GROUP BY o.id
+       WHERE qe.id = $1
+       GROUP BY o.id, qe.id
        LIMIT 1`,
       [queueEntryId]
     );
@@ -142,7 +147,6 @@ export const ordersRepository = {
   async create(
     data: {
       organizationId: string;
-      queueEntryId?: string;
       orderNumber: string;
       customerName?: string;
       customerUserId?: string;
@@ -156,13 +160,12 @@ export const ordersRepository = {
     const executor = client ?? pool;
     const { rows } = await executor.query<OrderRow>(
       `INSERT INTO orders
-         (organization_id, queue_entry_id, order_number, customer_name,
-          customer_user_id, customer_phone, subtotal, payment_code, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-       RETURNING *`,
+       (organization_id, order_number, customer_name, customer_user_id,
+          customer_phone, subtotal, payment_code, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING *, NULL::uuid AS queue_entry_id`,
       [
         data.organizationId,
-        data.queueEntryId ?? null,
         data.orderNumber,
         data.customerName ?? null,
         data.customerUserId ?? null,
@@ -400,7 +403,7 @@ export const ordersRepository = {
            o.customer_name
          FROM queue_entries qe
          JOIN queues q ON q.id = qe.queue_id
-         LEFT JOIN orders o ON o.queue_entry_id = qe.id
+         LEFT JOIN orders o ON o.id = qe.order_id
          WHERE q.organization_id = $1
          ORDER BY qe.updated_at DESC
          LIMIT 10`,
@@ -453,7 +456,8 @@ export async function calculateWorkloadForEntries(entryIds: string[]): Promise<n
     `SELECT COALESCE(SUM(oi.service_time_minutes * oi.quantity), 0) AS total_minutes
      FROM order_items oi
      JOIN orders o ON oi.order_id = o.id
-     WHERE o.queue_entry_id = ANY($1)`,
+     JOIN queue_entries qe ON qe.order_id = o.id
+     WHERE qe.id = ANY($1)`,
     [entryIds]
   );
   return Number.parseFloat(rows[0]?.total_minutes ?? '0');
@@ -471,12 +475,13 @@ export async function batchWorkloadForEntries(entryIds: string[]): Promise<Map<s
   if (entryIds.length === 0) return new Map();
 
   const { rows } = await pool.query<{ queue_entry_id: string; total_minutes: string }>(
-    `SELECT o.queue_entry_id,
+    `SELECT qe.id AS queue_entry_id,
             COALESCE(SUM(oi.service_time_minutes * oi.quantity), 0) AS total_minutes
      FROM order_items oi
      JOIN orders o ON oi.order_id = o.id
-     WHERE o.queue_entry_id = ANY($1)
-     GROUP BY o.queue_entry_id`,
+     JOIN queue_entries qe ON qe.order_id = o.id
+     WHERE qe.id = ANY($1)
+     GROUP BY qe.id`,
     [entryIds]
   );
 

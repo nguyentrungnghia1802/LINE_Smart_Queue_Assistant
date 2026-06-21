@@ -25,7 +25,7 @@ export function TicketCard({ ticket, onClick }: Readonly<TicketCardProps>) {
       className={`w-full text-left bg-white rounded-(--radius-card) border shadow-sm hover:shadow-md transition-shadow p-5 ${
         isCalled ? 'border-amber-300 ring-2 ring-amber-200' : 'border-gray-200'
       }`}
-      aria-label={`Ticket ${entry.ticket_display}, status: ${statusKey}`}
+      aria-label={`Ticket ${entry.ticket_code}, status: ${statusKey}`}
     >
       <div className="flex items-start justify-between gap-3">
         {/* Ticket number */}
@@ -35,7 +35,7 @@ export function TicketCard({ ticket, onClick }: Readonly<TicketCardProps>) {
               isCalled ? 'text-amber-500' : 'text-gray-900'
             }`}
           >
-            {entry.ticket_display}
+            {entry.ticket_code}
           </p>
           <p className="text-xs text-gray-400 mt-1">Queue ticket</p>
         </div>

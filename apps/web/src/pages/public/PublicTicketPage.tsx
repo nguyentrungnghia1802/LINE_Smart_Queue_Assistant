@@ -14,7 +14,7 @@ interface OrderItem {
 interface TicketStatus {
   entry: {
     id: string;
-    ticket_display: string;
+    ticket_code: string;
     status: string;
     created_at: string;
   };
@@ -63,7 +63,11 @@ export function PublicTicketPage() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: () => post(`/api/v1/orders/${data!.order!.id}/cancel`, {}),
+    mutationFn: () => {
+      const orderId = data?.order?.id;
+      if (!orderId) throw new Error('Order not found for cancellation');
+      return post(`/api/v1/orders/${orderId}/cancel`, {});
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ticket-status', entryId] }),
   });
 
@@ -104,7 +108,7 @@ export function PublicTicketPage() {
 
         {/* Ticket number */}
         <div className={`rounded-2xl p-8 text-center shadow-sm border ${isCalled ? 'bg-green-50 border-green-300 animate-pulse' : 'bg-white border-gray-200'}`}>
-          <p className="text-7xl font-black text-brand-600">{entry.ticket_display}</p>
+          <p className="text-7xl font-black text-brand-600">{entry.ticket_code}</p>
           <div className={`mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${statusInfo.color}`}>
             <span>{statusInfo.icon}</span>
             {statusInfo.label}

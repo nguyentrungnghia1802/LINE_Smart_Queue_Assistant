@@ -72,7 +72,7 @@ export function TicketStatusPage() {
   return (
     <div className="max-w-md mx-auto space-y-4">
       {/* Called banner */}
-      {isCalled && <CalledBanner ticketDisplay={entry.ticket_display} />}
+      {isCalled && <CalledBanner ticketDisplay={entry.ticket_code} />}
 
       {/* ── Hero ticket card ──────────────────────────────────────────────── */}
       <div
@@ -86,10 +86,10 @@ export function TicketStatusPage() {
             isCalled ? 'text-amber-500' : 'text-gray-900'
           }`}
         >
-          {entry.ticket_display}
+          {entry.ticket_code}
         </p>
         <StatusBadge status={statusKey} size="md" />
-        {entry.notes && <p className="text-xs text-gray-400 pt-1">Note: {entry.notes}</p>}
+        {/* notes field removed from queue_entries in schema v2 */}
       </div>
 
       {/* ── ETA + position stats — only while waiting or called ───────────── */}
@@ -116,9 +116,9 @@ export function TicketStatusPage() {
               Now serving (approx.)
             </p>
             <p className="text-2xl font-bold text-gray-900 mt-0.5">
-              {entry.queue_id ? entry.ticket_display.replace(/\d+$/, '') : ''}
+              {entry.queue_id ? entry.ticket_code.replace(/\d+$/, '') : ''}
               {String(approxServingNumber).padStart(
-                entry.ticket_display.replace(/\D/g, '').length,
+                entry.ticket_code.replace(/\D/g, '').length,
                 '0'
               )}
             </p>

@@ -1,15 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
 import { useAuthStore } from '../store/authStore';
-
-const DEMO_ACCOUNTS = [
-  { label: 'Quản lý', email: 'alice@queue-lab.test', role: 'manager' },
-  { label: 'Nhân viên', email: 'bob@queue-lab.test', role: 'staff' },
-];
-const DEMO_PASSWORD = 'Demo@1234';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -36,21 +30,15 @@ export function LoginPage() {
       } else if (updatedUser?.role === UserRole.STAFF) {
         navigate('/staff');
       } else if (updatedUser?.role === UserRole.CUSTOMER) {
-        navigate('/qr/demo_the_queue_lab_token_001');
+        navigate('/customer');
       } else {
-        navigate('/');
+        navigate('/app');
       }
     } catch {
       setError('Email hoặc mật khẩu không đúng.');
     } finally {
       setLoading(false);
     }
-  }
-
-  function fillDemo(demoEmail: string) {
-    setEmail(demoEmail);
-    setPassword(DEMO_PASSWORD);
-    setError('');
   }
 
   return (
@@ -105,28 +93,14 @@ export function LoginPage() {
           >
             {loading ? 'Đang đăng nhập…' : 'Đăng nhập'}
           </button>
-        </form>
 
-        {/* Demo accounts */}
-        <div className="mt-6">
-          <p className="text-center text-xs text-gray-400 mb-3">Tài khoản demo (nhấn để điền)</p>
-          <div className="grid grid-cols-3 gap-2">
-            {DEMO_ACCOUNTS.map((acc) => (
-              <button
-                key={acc.email}
-                type="button"
-                onClick={() => fillDemo(acc.email)}
-                className="border border-gray-200 bg-white hover:bg-gray-50 rounded-lg py-2 px-3 text-center text-xs font-medium text-gray-700 transition-colors shadow-sm"
-              >
-                <span className="block text-lg mb-0.5">
-                  {acc.role === 'manager' ? '👔' : acc.role === 'staff' ? '🧑‍💼' : '🛒'}
-                </span>
-                {acc.label}
-              </button>
-            ))}
-          </div>
-          <p className="text-center text-xs text-gray-300 mt-2">Mật khẩu: {DEMO_PASSWORD}</p>
-        </div>
+          <p className="text-sm text-gray-500 text-center pt-2">
+            Chưa có tài khoản?{' '}
+            <Link to="/register" className="text-brand-600 hover:text-brand-700 font-medium">
+              Đăng ký customer
+            </Link>
+          </p>
+        </form>
       </div>
     </div>
   );

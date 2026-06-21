@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
@@ -8,10 +8,7 @@ export function ManagerLayout() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
 
-  if (!isAuthenticated || !user) {
-    navigate('/login');
-    return null;
-  }
+  if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
 
   const isAllowed =
     user.role === UserRole.MANAGER ||
