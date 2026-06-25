@@ -95,6 +95,29 @@ export function LoginPage() {
             </Link>
           </p>
         </form>
+
+        {/* LINE Login divider */}
+        <div className="mt-5 flex items-center gap-3">
+          <hr className="flex-1 border-gray-200" />
+          <span className="text-xs text-gray-400">hoặc</span>
+          <hr className="flex-1 border-gray-200" />
+        </div>
+
+        {/* LINE LIFF shortcut */}
+        <a
+          href="/liff"
+          className="mt-3 flex items-center justify-center gap-2 w-full bg-[#06C755] hover:bg-[#05b54c] text-white font-medium py-2.5 rounded-lg text-sm transition-colors shadow-sm"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="w-5 h-5"
+          >
+            <path d="M19.365 9.89c.50 0 .906.406.906.906s-.406.906-.906.906h-2.344v1.172h2.344c.5 0 .906.406.906.906s-.406.906-.906.906h-3.25a.906.906 0 01-.906-.906V8.984c0-.5.406-.906.906-.906h3.25zm-6.453 4.39a.906.906 0 01-.906.906H9.33a.906.906 0 01-.906-.906V8.984c0-.5.406-.906.906-.906s.906.406.906.906v4.39h1.782c.5 0 .906.406.906.906zM7.5 8.984a.906.906 0 00-1.812 0v5.296c0 .5.406.906.906.906s.906-.406.906-.906V8.984zm-3.188 0A.906.906 0 002.5 8.984v5.296c0 .5.406.906.906.906h3.25c.5 0 .906-.406.906-.906s-.406-.906-.906-.906H4.218v-4.39z" />
+          </svg>
+          Mở LINE App (LIFF)
+        </a>
       </div>
     </div>
   );

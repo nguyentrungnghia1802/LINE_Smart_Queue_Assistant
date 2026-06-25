@@ -1,4 +1,5 @@
 ﻿import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
+import { usersRepository } from '../../db/repositories/users.repository';
 import { logger } from '../../utils/logger';
 import { queueService } from '../queue/queue.service';
 
@@ -51,27 +52,53 @@ async function dispatchEvent(event: LineEvent, adapter: ILineMessagingAdapter): 
 // ── Event handlers ─────────────────────────────────────────────────────────────
 
 async function handleFollow(event: LineEvent, adapter: ILineMessagingAdapter): Promise<void> {
-  const userId = event.source.userId;
-  logger.info({ userId }, 'LINE follow event');
+  const lineUserId = event.source.userId;
+  logger.info({ lineUserId }, 'LINE follow event');
+
+  // Upsert a user + line_account row so the customer is registered in our DB.
+  // This ensures push notifications work immediately after they follow.
+  if (lineUserId) {
+    try {
+      let userRow = await usersRepository.findByLineUserId(lineUserId);
+      if (!userRow) {
+        userRow = await usersRepository.create({
+          displayName: 'LINE User',
+          role: 'customer',
+        });
+      }
+      await usersRepository.upsertLineAccount({
+        userId: userRow.id,
+        lineUserId,
+        displayName: userRow.display_name,
+      });
+      logger.info({ lineUserId, userId: userRow.id }, 'LINE follow: user upserted');
+    } catch (err) {
+      logger.error({ err, lineUserId }, 'LINE follow: failed to upsert user');
+    }
+  }
 
   if (event.replyToken) {
-    // TODO: upsert user via usersRepository.upsertLineAccount(userId)
     await adapter.replyMessage(event.replyToken, [
       {
         type: 'text',
         text:
-          '👋 Welcome to LINE Smart Queue!\n\n' +
-          'You can join a queue by scanning the QR code at the counter.\n' +
-          'Type "STATUS" to see your current tickets, or "HELP" for more commands.',
+          '👋 Xin chào! Chào mừng bạn đến với LINE Smart Queue!\n\n' +
+          'Quét mã QR tại quầy để lấy số thứ tự.\n' +
+          'Gõ "STATUS" để xem vé hiện tại, "HELP" để xem hướng dẫn.',
       },
     ]);
   }
 }
 
 function handleUnfollow(event: LineEvent): void {
-  // No replyToken available for unfollow events.
-  // TODO: mark line_account.is_linked = FALSE via usersRepository.
-  logger.info({ userId: event.source.userId }, 'LINE unfollow event');
+  const lineUserId = event.source.userId;
+  logger.info({ lineUserId }, 'LINE unfollow event');
+  // Mark line_account as unlinked so push notifications are no longer attempted.
+  if (lineUserId) {
+    usersRepository.markLineAccountUnlinked(lineUserId).catch((err: unknown) => {
+      logger.error({ err, lineUserId }, 'LINE unfollow: failed to mark account unlinked');
+    });
+  }
 }
 
 async function handleMessage(event: LineEvent, adapter: ILineMessagingAdapter): Promise<void> {

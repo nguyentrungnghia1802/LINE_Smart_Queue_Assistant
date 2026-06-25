@@ -14,6 +14,8 @@ interface OrgInfo {
   address: string | null;
 }
 
+const LIFF_ID = import.meta.env.VITE_LIFF_ID as string | undefined;
+
 export function ManagerQRPage() {
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -29,8 +31,15 @@ export function ManagerQRPage() {
       ? `${window.location.origin}/qr/${orgData.publicQrToken}`
       : `${window.location.origin}/join/demo`);
 
+  // LIFF URL: https://liff.line.me/{LIFF_ID} (with optional deep-link state)
+  const liffUrl = LIFF_ID ? `https://liff.line.me/${LIFF_ID}` : null;
+
   function handleCopy() {
     void navigator.clipboard.writeText(joinUrl ?? '');
+  }
+
+  function handleCopyLiff() {
+    if (liffUrl) void navigator.clipboard.writeText(liffUrl);
   }
 
   function handlePrint() {
@@ -55,46 +64,97 @@ export function ManagerQRPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <h1 className="text-xl font-bold text-gray-900">Xuất mã QR</h1>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-8 flex flex-col items-center gap-6 max-w-sm">
-        <div ref={printRef} className="flex flex-col items-center gap-3">
-          <p className="text-sm font-semibold text-gray-700">{orgData?.name ?? 'Cơ sở của bạn'}</p>
-          {orgData?.address && <p className="text-xs text-gray-500">{orgData.address}</p>}
-          <QRCodeSVG value={joinUrl} size={220} />
-          <p className="text-xs text-gray-400 text-center break-all">{joinUrl}</p>
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* ── Web QR ── */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col items-center gap-4">
+          <h2 className="text-sm font-semibold text-gray-700 self-start">
+            🌐 Web QR (trình duyệt)
+          </h2>
+          <div ref={printRef} className="flex flex-col items-center gap-3">
+            <p className="text-sm font-semibold text-gray-700">
+              {orgData?.name ?? 'Cơ sở của bạn'}
+            </p>
+            {orgData?.address && <p className="text-xs text-gray-500">{orgData.address}</p>}
+            <QRCodeSVG value={joinUrl} size={200} />
+            <p className="text-xs text-gray-400 text-center break-all">{joinUrl}</p>
+          </div>
+          <p className="text-xs text-gray-500 text-center">
+            Khách quét để đặt hàng qua trình duyệt
+          </p>
+          <div className="flex gap-2 w-full">
+            <button
+              onClick={handleCopy}
+              className="flex-1 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200"
+            >
+              📋 Copy link
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex-1 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700"
+            >
+              In QR
+            </button>
+          </div>
         </div>
 
-        <p className="text-xs text-gray-500 text-center">
-          Khách hàng quét mã QR này để đặt hàng và lấy số thứ tự
-        </p>
-
-        <div className="flex gap-2 w-full">
-          <button
-            onClick={handleCopy}
-            className="flex-1 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200"
-          >
-            📋 Copy link
-          </button>
-          <button
-            onClick={handlePrint}
-            className="flex-1 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700"
-          >
-            In QR
-          </button>
+        {/* ── LINE LIFF QR ── */}
+        <div className="bg-white rounded-xl border border-[#06C755]/40 p-6 flex flex-col items-center gap-4">
+          <h2 className="text-sm font-semibold text-gray-700 self-start flex items-center gap-1">
+            <span className="text-[#06C755] text-base">●</span> LINE LIFF (ứng dụng LINE)
+          </h2>
+          {liffUrl ? (
+            <>
+              <div className="flex flex-col items-center gap-3">
+                <QRCodeSVG value={liffUrl} size={200} fgColor="#06C755" />
+                <p className="text-xs text-gray-400 text-center break-all">{liffUrl}</p>
+              </div>
+              <p className="text-xs text-gray-500 text-center">
+                Khách quét để mở giao diện trong{' '}
+                <span className="font-medium text-[#06C755]">LINE App</span> (cần cài LINE trên điện
+                thoại)
+              </p>
+              <button
+                onClick={handleCopyLiff}
+                className="w-full py-2 bg-[#06C755] text-white text-sm rounded-lg hover:bg-[#05b54c]"
+              >
+                📋 Copy LIFF link
+              </button>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 py-6">
+              <p className="text-3xl">⚙️</p>
+              <p className="text-sm text-gray-500 text-center">
+                Chưa cấu hình <code className="bg-gray-100 px-1 rounded">VITE_LIFF_ID</code>
+              </p>
+              <p className="text-xs text-gray-400 text-center">
+                Thêm LIFF App ID vào file <code>.env</code> để kích hoạt tính năng này.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Join URL display */}
-      <div className="max-w-sm">
-        <label className="block text-xs font-medium text-gray-500 mb-1">Link QR public</label>
-        <input
-          readOnly
-          value={joinUrl}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-700 bg-gray-50 focus:outline-none"
-          onFocus={(e) => e.target.select()}
-        />
+      {/* Info cards */}
+      <div className="grid md:grid-cols-2 gap-4 text-xs text-gray-500">
+        <div className="bg-gray-50 rounded-lg p-3">
+          <p className="font-medium text-gray-700 mb-1">📱 Cách hoạt động — Web QR</p>
+          <ol className="list-decimal list-inside space-y-0.5">
+            <li>Khách quét QR bằng camera hoặc ứng dụng bất kỳ</li>
+            <li>Trình duyệt mở trang đặt hàng</li>
+            <li>Chọn sản phẩm → Lấy số thứ tự</li>
+          </ol>
+        </div>
+        <div className="bg-[#06C755]/5 rounded-lg p-3">
+          <p className="font-medium text-gray-700 mb-1">💬 Cách hoạt động — LINE LIFF</p>
+          <ol className="list-decimal list-inside space-y-0.5">
+            <li>Khách quét QR trong ứng dụng LINE</li>
+            <li>Giao diện LIFF mở trong LINE</li>
+            <li>Tự động đăng nhập → Lấy số + nhận thông báo LINE</li>
+          </ol>
+        </div>
       </div>
     </div>
   );
