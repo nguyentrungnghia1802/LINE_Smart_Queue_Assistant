@@ -11,11 +11,11 @@ export function RoleRedirectPage() {
     return <Navigate to="/login" replace />;
   }
 
-  if (
-    user.role === UserRole.MANAGER ||
-    user.role === UserRole.ADMIN ||
-    user.role === UserRole.SUPER_ADMIN
-  ) {
+  if (user.role === UserRole.ADMIN) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  if (user.role === UserRole.MANAGER) {
     return <Navigate to="/manager" replace />;
   }
 

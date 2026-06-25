@@ -6,12 +6,12 @@ This guide walks through a full end-to-end demo of the system.
 
 ## Demo Accounts
 
-| Role       | Email                | Password  | Notes                                        |
-| ---------- | -------------------- | --------- | -------------------------------------------- |
-| Manager    | alice@queue-lab.test | Demo@1234 | Full access to settings, analytics, products |
-| Staff      | bob@queue-lab.test   | Demo@1234 | Queue board operations                       |
-| Customer 1 | —                    | —         | Nguyen Van An (LINE: U000...001)             |
-| Customer 2 | —                    | —         | Tran Thi Bich (LINE: U000...002)             |
+| Role     | Email              | Password | Notes                                        |
+| -------- | ------------------ | -------- | -------------------------------------------- |
+| Admin    | admin@gmail.com    | 123456   | Platform admin baseline                      |
+| Manager  | manager@gmail.com  | 123456   | Full access to settings, analytics, products |
+| Staff    | staff@gmail.com    | 123456   | Queue board operations                       |
+| Customer | customer@gmail.com | 123456   | Customer dashboard and ticket tracking       |
 
 > **Seed first:** Run `npm run db:seed` (or `npm run db:seed:reset` for a fresh start) to create these accounts and populate demo data.
 
@@ -33,7 +33,7 @@ This guide walks through a full end-to-end demo of the system.
 ### 1. Manager Login
 
 1. Open `http://localhost:5173/login`
-2. Enter `alice@queue-lab.test` / `Demo@1234`
+2. Enter `manager@gmail.com` / `123456`
 3. Click Login → redirected to Manager Dashboard
 
 ---
@@ -112,7 +112,7 @@ The confirmation page (or `/ticket/:entryId`) shows:
 ### 8. Staff Dashboard — Call Next
 
 1. Open `http://localhost:5173/login` in another tab
-2. Log in as `bob@queue-lab.test` / `Demo@1234`
+2. Log in as `staff@gmail.com` / `123456`
 3. Click **Queue Board**
 4. You see the live waiting list (A-001 through A-008)
 5. Click **Call Next** → A-001 transitions from `waiting` → `called`
@@ -166,7 +166,7 @@ curl "http://localhost:4000/api/v1/orgs/by-token/demo_the_queue_lab_token_001"
 # Manager login
 curl -X POST http://localhost:4000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"alice@queue-lab.test","password":"Demo@1234"}'
+  -d '{"email":"manager@gmail.com","password":"123456"}'
 
 # List products (public)
 curl "http://localhost:4000/api/v1/products?orgSlug=the-queue-lab"

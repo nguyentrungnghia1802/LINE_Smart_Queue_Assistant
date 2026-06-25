@@ -1,19 +1,16 @@
-import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Navigate, NavLink, Outlet } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
+import { AccountMenu } from '../../components/layout/AccountMenu';
 import { useAuthStore } from '../../store/authStore';
 
 export function ManagerLayout() {
-  const { user, isAuthenticated, logout } = useAuthStore();
-  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuthStore();
 
   if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
 
-  const isAllowed =
-    user.role === UserRole.MANAGER ||
-    user.role === UserRole.ADMIN ||
-    user.role === UserRole.SUPER_ADMIN;
+  const isAllowed = user.role === UserRole.MANAGER || user.role === UserRole.ADMIN;
 
   if (!isAllowed) {
     return (
@@ -21,11 +18,6 @@ export function ManagerLayout() {
         <p className="text-gray-500">Bạn không có quyền truy cập trang này.</p>
       </div>
     );
-  }
-
-  function handleLogout() {
-    logout();
-    navigate('/login');
   }
 
   const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -58,17 +50,7 @@ export function ManagerLayout() {
               Cài đặt
             </NavLink>
           </nav>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-600 hidden sm:block">
-              {user.displayName ?? user.email}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-gray-500 hover:text-red-600 transition-colors"
-            >
-              Đăng xuất
-            </button>
-          </div>
+          <AccountMenu />
         </div>
       </header>
 
