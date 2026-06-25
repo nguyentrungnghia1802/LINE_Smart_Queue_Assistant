@@ -1,8 +1,10 @@
-import type { PoolClient } from 'pg';
 import bcrypt from 'bcryptjs';
+import type { PoolClient } from 'pg';
+
 import { DEMO_PASSWORD, ORG_ID, USERS } from './_ids';
 
 const demoUsers = [
+  [USERS.ADMIN_1, 'Admin Demo', 'admin@gmail.com', '0900000000', 'admin'],
   [USERS.MANAGER_1, 'Manager Demo', 'manager@gmail.com', '0900000001', 'manager'],
   [USERS.MANAGER_2, 'Manager Two', 'manager2@gmail.com', '0900000002', 'manager'],
   [USERS.STAFF_1, 'Staff Demo', 'staff@gmail.com', '0900000011', 'staff'],
@@ -40,7 +42,7 @@ export async function seed(client: PoolClient): Promise<void> {
           is_active = TRUE,
           updated_at = NOW();
       `,
-      [id, displayName, email, phone, role, passwordHash],
+      [id, displayName, email, phone, role, passwordHash]
     );
   }
 
@@ -53,7 +55,7 @@ export async function seed(client: PoolClient): Promise<void> {
           role = EXCLUDED.role,
           is_active = TRUE;
       `,
-      [ORG_ID, userId, role],
+      [ORG_ID, userId, role]
     );
   }
 }

@@ -1,5 +1,8 @@
+import bcrypt from 'bcryptjs';
+
 import { UserRole } from '@line-queue/shared';
 
+import { organizationsRepository } from '../../../db/repositories/organizations.repository';
 import { usersRepository } from '../../../db/repositories/users.repository';
 import { withTransaction } from '../../../db/transaction';
 import { authService } from '../auth.service';
@@ -9,6 +12,7 @@ import * as verifier from '../line/lineIdToken.verifier';
 
 jest.mock('../line/lineIdToken.verifier');
 jest.mock('../../../db/repositories/users.repository');
+jest.mock('../../../db/repositories/organizations.repository');
 jest.mock('../../../db/transaction');
 
 const mockVerify = verifier.verifyLineIdToken as jest.MockedFunction<
@@ -22,6 +26,13 @@ const mockUpsertLineAccount = usersRepository.upsertLineAccount as jest.MockedFu
 >;
 const mockCreate = usersRepository.create as jest.MockedFunction<typeof usersRepository.create>;
 const mockWithTransaction = withTransaction as jest.MockedFunction<typeof withTransaction>;
+const mockFindByEmail = usersRepository.findByEmail as jest.MockedFunction<
+  typeof usersRepository.findByEmail
+>;
+const mockFindMembershipByUserId =
+  organizationsRepository.findMembershipByUserId as jest.MockedFunction<
+    typeof organizationsRepository.findMembershipByUserId
+  >;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -137,6 +148,37 @@ describe('authService.loginWithLineToken', () => {
       await expect(authService.loginWithLineToken('bad-token')).rejects.toMatchObject({
         statusCode: 401,
       });
+    });
+  });
+});
+
+describe('authService.loginWithEmailPassword', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('logs in admin without organization membership', async () => {
+    const passwordHash = await bcrypt.hash('123456', 10);
+    mockFindByEmail.mockResolvedValue({
+      id: 'admin-user-id',
+      display_name: 'Admin Demo',
+      email: 'admin@gmail.com',
+      password_hash: passwordHash,
+      role: UserRole.ADMIN,
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+    mockFindMembershipByUserId.mockResolvedValue(null);
+
+    const { token, user } = await authService.loginWithEmailPassword('admin@gmail.com', '123456');
+
+    expect(typeof token).toBe('string');
+    expect(user).toMatchObject({
+      id: 'admin-user-id',
+      role: UserRole.ADMIN,
+      organizationId: undefined,
+      email: 'admin@gmail.com',
     });
   });
 });

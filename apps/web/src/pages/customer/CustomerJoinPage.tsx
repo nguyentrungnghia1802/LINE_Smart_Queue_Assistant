@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { get, post } from '../../services/apiClient';
+import { useAuthStore } from '../../store/authStore';
 
 interface OrgInfo {
   id: string;
@@ -52,6 +53,7 @@ function formatCurrency(n: string | number) {
 export function CustomerJoinPage() {
   const { orgSlug, token } = useParams<{ orgSlug?: string; token?: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
 
   const [cart, setCart] = useState<Record<string, number>>({});
   const [customerName, setCustomerName] = useState('');
@@ -166,6 +168,15 @@ export function CustomerJoinPage() {
             <h1 className="font-bold text-gray-900">{org.name}</h1>
             {org.address && <p className="text-xs text-gray-500">{org.address}</p>}
           </div>
+          {isAuthenticated && (
+            <button
+              type="button"
+              onClick={() => navigate('/customer')}
+              className="ml-auto rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              Dashboard
+            </button>
+          )}
         </div>
       </header>
 
@@ -199,7 +210,11 @@ export function CustomerJoinPage() {
                 className="bg-white rounded-xl border border-gray-200 p-4 flex items-start gap-4"
               >
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="w-16 h-16 rounded-lg object-cover shrink-0" />
+                  <img
+                    src={p.image_url}
+                    alt={p.name}
+                    className="w-16 h-16 rounded-lg object-cover shrink-0"
+                  />
                 ) : (
                   <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center text-2xl shrink-0">
                     🛒
@@ -211,9 +226,13 @@ export function CustomerJoinPage() {
                     <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{p.description}</p>
                   )}
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="text-brand-700 font-bold text-sm">{formatCurrency(p.price)}</span>
+                    <span className="text-brand-700 font-bold text-sm">
+                      {formatCurrency(p.price)}
+                    </span>
                     <span className="text-xs text-gray-400">· {p.service_time_minutes} phút</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${p.product_type === 'service' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${p.product_type === 'service' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}
+                    >
                       {p.product_type === 'service' ? 'Dịch vụ' : 'Sản phẩm'}
                     </span>
                     {p.requires_prepayment && (

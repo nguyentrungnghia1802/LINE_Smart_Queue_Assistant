@@ -33,6 +33,11 @@ export interface OrgMemberRow {
 export interface CreateOrganizationParams {
   name: string;
   slug: string;
+  publicQrToken: string;
+  logoUrl?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  paymentInfo?: string | null;
   timezone?: string;
   lineChannelId?: string;
   lineOaBasicId?: string;
@@ -42,6 +47,15 @@ export interface CreateOrganizationParams {
 // ── Repository ─────────────────────────────────────────────────────────────────
 
 export class OrganizationsRepository extends BaseRepository {
+  async listActive(): Promise<OrganizationRow[]> {
+    return this.query<OrganizationRow>(
+      `SELECT *
+       FROM organizations
+       WHERE is_active = TRUE
+       ORDER BY created_at DESC`
+    );
+  }
+
   async findById(id: string): Promise<OrganizationRow | null> {
     return this.queryOne<OrganizationRow>(
       'SELECT * FROM organizations WHERE id = $1 AND is_active = TRUE',
@@ -66,13 +80,21 @@ export class OrganizationsRepository extends BaseRepository {
   async create(params: CreateOrganizationParams): Promise<OrganizationRow> {
     const sql = `
       INSERT INTO organizations
-        (name, slug, timezone, line_channel_id, line_oa_basic_id, settings)
-      VALUES ($1, $2, $3, $4, $5, $6)
+        (
+          name, slug, public_qr_token, logo_url, phone, address, payment_info,
+          timezone, line_channel_id, line_oa_basic_id, settings
+        )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `;
     const rows = await this.query<OrganizationRow>(sql, [
       params.name,
       params.slug,
+      params.publicQrToken,
+      params.logoUrl ?? null,
+      params.phone ?? null,
+      params.address ?? null,
+      params.paymentInfo ?? null,
       params.timezone ?? 'Asia/Bangkok',
       params.lineChannelId ?? null,
       params.lineOaBasicId ?? null,
@@ -98,7 +120,7 @@ export class OrganizationsRepository extends BaseRepository {
   async addMember(
     organizationId: string,
     userId: string,
-    role: 'owner' | 'manager' | 'staff' = 'staff'
+    role: 'manager' | 'staff' = 'staff'
   ): Promise<OrgMemberRow> {
     const sql = `
       INSERT INTO organization_members (organization_id, user_id, role)
@@ -135,6 +157,8 @@ export class OrganizationsRepository extends BaseRepository {
     id: string,
     data: Partial<{
       name: string;
+      slug: string;
+      publicQrToken: string | null;
       logoUrl: string | null;
       phone: string | null;
       address: string | null;
@@ -146,6 +170,8 @@ export class OrganizationsRepository extends BaseRepository {
     let i = 1;
     const map: Record<string, string> = {
       name: 'name',
+      slug: 'slug',
+      publicQrToken: 'public_qr_token',
       logoUrl: 'logo_url',
       phone: 'phone',
       address: 'address',
@@ -164,6 +190,13 @@ export class OrganizationsRepository extends BaseRepository {
       values
     );
     return rows[0] ?? null;
+  }
+
+  async deactivate(id: string): Promise<void> {
+    await this.query(
+      'UPDATE organizations SET is_active = FALSE, updated_at = NOW() WHERE id = $1',
+      [id]
+    );
   }
 }
 

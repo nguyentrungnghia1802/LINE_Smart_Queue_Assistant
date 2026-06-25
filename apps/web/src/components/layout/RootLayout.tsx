@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
 import { useAuthStore } from '../../store/authStore';
+
+import { AccountMenu } from './AccountMenu';
 
 const NAV_LINKS = [
   { to: '/app', label: 'Dashboard', end: true },
@@ -11,14 +13,8 @@ const NAV_LINKS = [
 ];
 
 export function RootLayout() {
-  const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  function handleLogout() {
-    logout();
-    navigate('/login');
-  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -65,15 +61,9 @@ export function RootLayout() {
           </nav>
 
           <div className="flex items-center gap-3">
-            {user && (
-              <span className="text-sm text-gray-600 hidden sm:block">{user.displayName}</span>
-            )}
-            <button
-              onClick={handleLogout}
-              className="text-sm text-gray-500 hover:text-gray-900 transition-colors hidden sm:block"
-            >
-              Đăng xuất
-            </button>
+            <div className="hidden sm:block">
+              <AccountMenu />
+            </div>
 
             {/* Mobile hamburger */}
             <button
@@ -118,16 +108,7 @@ export function RootLayout() {
               </NavLink>
             )}
             <div className="border-t border-gray-100 pt-2 mt-2">
-              {user && <p className="px-3 py-1 text-xs text-gray-400">{user.displayName}</p>}
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  handleLogout();
-                }}
-                className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md"
-              >
-                Đăng xuất
-              </button>
+              <AccountMenu compact />
             </div>
           </div>
         )}

@@ -4,7 +4,7 @@ import { LiffLayout } from './components/layout/LiffLayout';
 import { RootLayout } from './components/layout/RootLayout';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
-import { AdminOrgsPage } from './pages/admin/AdminOrgsPage';
+import { AdminOrganizationsPage } from './pages/admin/AdminOrganizationsPage';
 import { CustomerDashboardPage } from './pages/customer/CustomerDashboardPage';
 import { CustomerJoinPage } from './pages/customer/CustomerJoinPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -107,7 +107,7 @@ export const router = createBrowserRouter([
     element: <AdminLayout />,
     children: [
       { index: true, element: <AdminDashboardPage /> },
-      { path: 'orgs', element: <AdminOrgsPage /> },
+      { path: 'orgs', element: <AdminOrganizationsPage /> },
     ],
   },
 

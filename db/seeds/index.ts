@@ -1,6 +1,8 @@
-import { Pool } from 'pg';
 import path from 'node:path';
+
 import dotenv from 'dotenv';
+import { Pool } from 'pg';
+
 import { seed as seedOrganizations } from './001_organizations';
 import { seed as seedUsers } from './002_users';
 import { seed as seedLineAccounts } from './003_line_accounts';
@@ -20,43 +22,55 @@ if (!databaseUrl) {
 
 const pool = new Pool({ connectionString: databaseUrl });
 
+function log(message: string): void {
+  process.stdout.write(`${message}\n`);
+}
+
+function logError(message: unknown): void {
+  process.stderr.write(
+    `${message instanceof Error ? (message.stack ?? message.message) : String(message)}\n`
+  );
+}
+
 async function main(): Promise<void> {
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    console.log('[seed] 001 — organizations');
+    log('[seed] 001 - organizations');
     await seedOrganizations(client);
 
-    console.log('[seed] 002 — users + organization members');
+    log('[seed] 002 - users + organization members');
     await seedUsers(client);
 
-    console.log('[seed] 003 — LINE accounts');
+    log('[seed] 003 - LINE accounts');
     await seedLineAccounts(client);
 
-    console.log('[seed] 004 — products/services');
+    log('[seed] 004 - products/services');
     await seedProducts(client);
 
-    console.log('[seed] 005 — queues');
+    log('[seed] 005 - queues');
     await seedQueues(client);
 
-    console.log('[seed] 006 — orders + queue entries + histories');
+    log('[seed] 006 - orders + queue entries + histories');
     await seedOrdersAndQueueEntries(client);
 
-    console.log('[seed] 007 — notifications');
+    log('[seed] 007 - notifications');
     await seedNotifications(client);
 
-    console.log('[seed] 008 — penalties');
+    log('[seed] 008 - penalties');
     await seedPenalties(client);
 
     await client.query('COMMIT');
-    console.log('[seed] All seeds completed successfully.');
-    console.log('[seed] Demo accounts: manager@gmail.com / staff@gmail.com / customer@gmail.com — password: 123456');
+    log('[seed] All seeds completed successfully.');
+    log(
+      '[seed] Demo accounts: admin@gmail.com / manager@gmail.com / staff@gmail.com / customer@gmail.com - password: 123456'
+    );
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('[seed] Failed. Rolled back.');
-    console.error(error);
+    logError('[seed] Failed. Rolled back.');
+    logError(error);
     process.exitCode = 1;
   } finally {
     client.release();

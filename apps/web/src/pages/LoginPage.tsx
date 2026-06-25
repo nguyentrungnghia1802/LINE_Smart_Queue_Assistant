@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
@@ -7,11 +7,17 @@ import { useAuthStore } from '../store/authStore';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuthStore();
+  const { isAuthenticated, login, user } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate(roleHomePath(user.role), { replace: true });
+    }
+  }, [isAuthenticated, navigate, user]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,19 +27,7 @@ export function LoginPage() {
       await login(email, password);
       // get updated user from store after login
       const updatedUser = useAuthStore.getState().user;
-      if (
-        updatedUser?.role === UserRole.MANAGER ||
-        updatedUser?.role === UserRole.ADMIN ||
-        updatedUser?.role === UserRole.SUPER_ADMIN
-      ) {
-        navigate('/manager');
-      } else if (updatedUser?.role === UserRole.STAFF) {
-        navigate('/staff');
-      } else if (updatedUser?.role === UserRole.CUSTOMER) {
-        navigate('/customer');
-      } else {
-        navigate('/app');
-      }
+      navigate(updatedUser ? roleHomePath(updatedUser.role) : '/app', { replace: true });
     } catch {
       setError('Email hoặc mật khẩu không đúng.');
     } finally {
@@ -104,4 +98,12 @@ export function LoginPage() {
       </div>
     </div>
   );
+}
+
+function roleHomePath(role: UserRole): string {
+  if (role === UserRole.ADMIN) return '/admin';
+  if (role === UserRole.MANAGER) return '/manager';
+  if (role === UserRole.STAFF) return '/staff';
+  if (role === UserRole.CUSTOMER) return '/customer';
+  return '/app';
 }

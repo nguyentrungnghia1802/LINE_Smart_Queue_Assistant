@@ -51,7 +51,6 @@ export enum PenaltyReason {
 
 /** Values match the `user_role` PostgreSQL ENUM (lowercase). */
 export enum UserRole {
-  SUPER_ADMIN = 'super_admin',
   ADMIN = 'admin',
   MANAGER = 'manager',
   STAFF = 'staff',

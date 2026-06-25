@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { AccountMenu } from '../../components/layout/AccountMenu';
 import { get } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
 
@@ -127,7 +128,10 @@ export function CustomerDashboardPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <h1 className="text-2xl font-bold text-gray-900">Dashboard Customer</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard Customer</h1>
+        <AccountMenu compact />
+      </div>
 
       {error && <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm">{error}</div>}
 
@@ -151,7 +155,8 @@ export function CustomerDashboardPage() {
                     Trạng thái: <span className="font-medium">{statusLabel(t.entry.status)}</span>
                   </div>
                   <div className="text-sm text-gray-500">
-                    Còn {t.aheadCount} người phía trước · ETA {formatDuration(t.estimatedWaitSeconds)}
+                    Còn {t.aheadCount} người phía trước · ETA{' '}
+                    {formatDuration(t.estimatedWaitSeconds)}
                   </div>
                   {t.order && (
                     <div className="text-xs text-gray-400 mt-1">Đơn: {t.order.order_number}</div>

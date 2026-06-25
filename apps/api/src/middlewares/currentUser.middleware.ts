@@ -47,7 +47,7 @@ export async function currentUserMiddleware(
     const membership = await organizationsRepository.findMembershipByUserId(userRow.id);
     const role = userRow.role as UserRole;
 
-    if ([UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN].includes(role) && !membership) {
+    if ([UserRole.STAFF, UserRole.MANAGER].includes(role) && !membership) {
       return next(AppError.forbidden('User has no organization membership'));
     }
 

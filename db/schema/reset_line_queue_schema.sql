@@ -36,12 +36,13 @@ $$ LANGUAGE plpgsql;
 -- -----------------------------------------------------------------------------
 -- 2. ENUM types
 -- -----------------------------------------------------------------------------
--- Scope hiện tại chỉ có 3 role: customer, staff, manager.
--- Không thêm admin/super_admin/owner nếu chưa có use case thật.
+-- Baseline user roles. Admin is a platform role and does not require org membership.
+-- No other platform roles are part of this baseline.
 CREATE TYPE user_role AS ENUM (
   'customer',
   'staff',
-  'manager'
+  'manager',
+  'admin'
 );
 
 -- Role theo từng doanh nghiệp. Quyền thật của staff/manager phải check ở bảng này.

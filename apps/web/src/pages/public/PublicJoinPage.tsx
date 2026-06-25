@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { get, post } from '../../services/apiClient';
+import { useAuthStore } from '../../store/authStore';
 
 interface QueueStatus {
   queue: { id: string; name: string; status: string; avg_service_seconds: number };
@@ -25,6 +26,7 @@ function fmtWait(seconds: number | null): string {
 export function PublicJoinPage() {
   const { queueId } = useParams<{ queueId: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
   const [guestName, setGuestName] = useState('');
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
@@ -80,6 +82,16 @@ export function PublicJoinPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
+        {isAuthenticated && (
+          <button
+            type="button"
+            onClick={() => navigate('/customer')}
+            className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            Dashboard customer
+          </button>
+        )}
+
         {/* Header */}
         <div className="text-center">
           <span className="text-5xl">🟢</span>

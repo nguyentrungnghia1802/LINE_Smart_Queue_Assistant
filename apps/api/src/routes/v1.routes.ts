@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { adminRouter } from '../modules/admin/admin.routes';
 import { authRouter } from '../modules/auth/auth.routes';
 import { lineRouter } from '../modules/line/line.routes';
 import { notificationsRouter } from '../modules/notifications/notifications.routes';
@@ -19,6 +20,7 @@ import { usersRouter } from '../modules/users/users.routes';
 export const v1Router = Router();
 
 v1Router.use('/auth', authRouter);
+v1Router.use('/admin', adminRouter);
 v1Router.use('/queue', queueEntryRouter); // singular: customer ticket ops
 v1Router.use('/queues', queuesRouter); // plural:   admin queue management
 v1Router.use('/staff', staffRouter); // staff/admin queue operations

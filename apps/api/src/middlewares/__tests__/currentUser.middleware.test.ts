@@ -141,6 +141,34 @@ describe('currentUserMiddleware', () => {
     expect(err.statusCode).toBe(403);
   });
 
+  it('allows admin users without organization membership', async () => {
+    mockFindById.mockResolvedValue({
+      id: basePayload.sub,
+      display_name: 'Admin User',
+      email: 'admin@example.com',
+      password_hash: 'hash',
+      role: UserRole.ADMIN,
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+    mockFindMembershipByUserId.mockResolvedValue(null);
+
+    const token = signToken({ ...basePayload, role: UserRole.ADMIN });
+    const req = makeReq(`Bearer ${token}`) as Request;
+    const next = jest.fn() as jest.MockedFunction<NextFunction>;
+
+    await currentUserMiddleware(req, mockRes, next);
+
+    expect(next).toHaveBeenCalledWith();
+    expect(req.user).toMatchObject({
+      id: basePayload.sub,
+      role: UserRole.ADMIN,
+      organizationId: undefined,
+      email: 'admin@example.com',
+    });
+  });
+
   it('calls next(AppError 401) when the token has an invalid signature', async () => {
     const req = makeReq('Bearer invalid.token.here') as Request;
     const next = jest.fn() as jest.MockedFunction<NextFunction>;
