@@ -21,7 +21,7 @@ export function QRDisplayPage() {
     enabled: !!id,
   });
 
-  const queueName = data?.queue.name ?? 'Hàng đợi';
+  const queueName = data?.queue.name ?? 'キュー';
   const waitingCount = data?.waitingCount ?? 0;
 
   return (
@@ -30,7 +30,7 @@ export function QRDisplayPage() {
         <div>
           <span className="text-6xl">🟢</span>
           <h1 className="mt-4 text-4xl font-black">{queueName}</h1>
-          <p className="mt-2 text-gray-400 text-lg">Quét mã QR để lấy số thứ tự</p>
+          <p className="mt-2 text-gray-400 text-lg">QRコードを読み取って受付番号を取得</p>
         </div>
 
         {/* QR Code */}
@@ -43,7 +43,7 @@ export function QRDisplayPage() {
         {/* Live waiting count */}
         <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
           <p className="text-6xl font-black text-brand-400">{waitingCount}</p>
-          <p className="text-gray-400 mt-2 text-lg">người đang chờ</p>
+          <p className="text-gray-400 mt-2 text-lg">人待ち</p>
         </div>
 
         <p className="text-gray-500 text-sm break-all">{joinUrl}</p>
@@ -52,7 +52,7 @@ export function QRDisplayPage() {
           to={`/queues/${id}`}
           className="inline-block mt-4 text-gray-400 hover:text-white text-sm underline transition-colors"
         >
-          ← Quay lại chi tiết hàng đợi
+          ← キュー詳細へ戻る
         </Link>
       </div>
     </div>

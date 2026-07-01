@@ -11,35 +11,35 @@ export function AdminLayout() {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (user?.role !== UserRole.ADMIN) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-4xl mb-3">🚫</p>
-          <p className="text-gray-700 font-medium">Bạn không có quyền truy cập trang Admin.</p>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)]">
+        <div className="rounded-2xl border border-white/80 bg-white p-8 text-center shadow-[var(--shadow-soft)]">
+          <p className="text-gray-700 font-medium">管理者ページにアクセスする権限がありません。</p>
         </div>
       </div>
     );
   }
 
+  const navClass = ({ isActive }: { isActive: boolean }) =>
+    `rounded-full px-3 py-2 text-sm font-semibold transition ${
+      isActive ? 'bg-gray-950 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
+    }`;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-6">
-          <Link to="/admin" className="font-bold text-brand-600">
-            Admin Panel
+    <div className="min-h-screen bg-[var(--app-bg)]">
+      <header className="sticky top-0 z-20 border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
+          <Link to="/admin" className="flex items-center gap-3 font-bold text-gray-950">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-950 text-sm text-white">
+              LQ
+            </span>
+            <span>管理者パネル</span>
           </Link>
-          <nav className="flex items-center gap-1 text-sm">
-            <NavLink
-              to="/admin"
-              end
-              className="px-3 py-1.5 rounded hover:bg-gray-100 text-gray-700"
-            >
-              Dashboard
+          <nav className="flex items-center gap-1">
+            <NavLink to="/admin" end className={navClass}>
+              ダッシュボード
             </NavLink>
-            <NavLink
-              to="/admin/orgs"
-              className="px-3 py-1.5 rounded hover:bg-gray-100 text-gray-700"
-            >
-              Tổ chức
+            <NavLink to="/admin/orgs" className={navClass}>
+              組織
             </NavLink>
           </nav>
           <div className="ml-auto">
@@ -47,7 +47,7 @@ export function AdminLayout() {
           </div>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Outlet />
       </main>
     </div>

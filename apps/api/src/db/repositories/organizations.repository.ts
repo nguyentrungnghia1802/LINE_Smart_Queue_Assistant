@@ -1,3 +1,5 @@
+import { PoolClient } from 'pg';
+
 import { BaseRepository } from './base.repository';
 
 // ── Row types ──────────────────────────────────────────────────────────────────
@@ -13,6 +15,8 @@ export interface OrganizationRow {
   logo_url: string | null;
   phone: string | null;
   address: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
   payment_info: string | null;
   public_qr_token: string | null;
   is_active: boolean;
@@ -77,7 +81,7 @@ export class OrganizationsRepository extends BaseRepository {
     );
   }
 
-  async create(params: CreateOrganizationParams): Promise<OrganizationRow> {
+  async create(params: CreateOrganizationParams, client?: PoolClient): Promise<OrganizationRow> {
     const sql = `
       INSERT INTO organizations
         (
@@ -87,7 +91,7 @@ export class OrganizationsRepository extends BaseRepository {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `;
-    const rows = await this.query<OrganizationRow>(sql, [
+    const args = [
       params.name,
       params.slug,
       params.publicQrToken,
@@ -99,7 +103,10 @@ export class OrganizationsRepository extends BaseRepository {
       params.lineChannelId ?? null,
       params.lineOaBasicId ?? null,
       JSON.stringify(params.settings ?? {}),
-    ]);
+    ];
+    const rows = client
+      ? await this.queryTx<OrganizationRow>(client, sql, args)
+      : await this.query<OrganizationRow>(sql, args);
     return this.firstOrThrow(rows, 'organizations.create');
   }
 
@@ -120,7 +127,8 @@ export class OrganizationsRepository extends BaseRepository {
   async addMember(
     organizationId: string,
     userId: string,
-    role: 'manager' | 'staff' = 'staff'
+    role: 'manager' | 'staff' = 'staff',
+    client?: PoolClient
   ): Promise<OrgMemberRow> {
     const sql = `
       INSERT INTO organization_members (organization_id, user_id, role)
@@ -128,7 +136,10 @@ export class OrganizationsRepository extends BaseRepository {
       ON CONFLICT (organization_id, user_id) DO UPDATE SET role = EXCLUDED.role
       RETURNING *
     `;
-    const rows = await this.query<OrgMemberRow>(sql, [organizationId, userId, role]);
+    const args = [organizationId, userId, role];
+    const rows = client
+      ? await this.queryTx<OrgMemberRow>(client, sql, args)
+      : await this.query<OrgMemberRow>(sql, args);
     return this.firstOrThrow(rows, 'organizations.addMember');
   }
 
@@ -162,7 +173,10 @@ export class OrganizationsRepository extends BaseRepository {
       logoUrl: string | null;
       phone: string | null;
       address: string | null;
+      latitude: number | null;
+      longitude: number | null;
       paymentInfo: string | null;
+      settings: Record<string, unknown>;
     }>
   ): Promise<OrganizationRow | null> {
     const fields: string[] = [];
@@ -175,12 +189,16 @@ export class OrganizationsRepository extends BaseRepository {
       logoUrl: 'logo_url',
       phone: 'phone',
       address: 'address',
+      latitude: 'latitude',
+      longitude: 'longitude',
       paymentInfo: 'payment_info',
+      settings: 'settings',
     };
     for (const [key, col] of Object.entries(map)) {
       if (key in data) {
         fields.push(`${col} = $${i++}`);
-        values.push((data as Record<string, unknown>)[key]);
+        const value = (data as Record<string, unknown>)[key];
+        values.push(key === 'settings' ? JSON.stringify(value ?? {}) : value);
       }
     }
     if (fields.length === 0) return this.findById(id);

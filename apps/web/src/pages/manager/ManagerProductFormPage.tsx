@@ -85,7 +85,7 @@ export function ManagerProductFormPage() {
       void queryClient.invalidateQueries({ queryKey: ['products', orgId] });
       navigate('/manager/products');
     },
-    onError: () => setError('Có lỗi xảy ra. Vui lòng thử lại.'),
+    onError: () => setError('エラーが発生しました。もう一度お試しください。'),
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -119,16 +119,14 @@ export function ManagerProductFormPage() {
 
   return (
     <div className="max-w-lg space-y-4">
-      <h1 className="text-xl font-bold text-gray-900">
-        {isEdit ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm'}
-      </h1>
+      <h1 className="text-xl font-bold text-gray-900">{isEdit ? '商品を編集' : '商品を追加'}</h1>
 
       <form
         onSubmit={handleSubmit}
         className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
       >
         {field(
-          'Tên sản phẩm *',
+          '商品名 *',
           <input
             className={inputCls}
             required
@@ -137,7 +135,7 @@ export function ManagerProductFormPage() {
           />
         )}
         {field(
-          'Loại *',
+          '種類 *',
           <select
             className={inputCls}
             value={form.productType}
@@ -145,12 +143,12 @@ export function ManagerProductFormPage() {
               setForm((f) => ({ ...f, productType: e.target.value as 'product' | 'service' }))
             }
           >
-            <option value="service">Dịch vụ (Service)</option>
-            <option value="product">Sản phẩm (Product)</option>
+            <option value="service">サービス (Service)</option>
+            <option value="product">商品 (Product)</option>
           </select>
         )}
         {field(
-          'Mô tả',
+          '説明',
           <textarea
             className={inputCls}
             rows={3}
@@ -159,7 +157,7 @@ export function ManagerProductFormPage() {
           />
         )}
         {field(
-          'URL ảnh',
+          '画像URL',
           <input
             className={inputCls}
             type="url"
@@ -168,7 +166,7 @@ export function ManagerProductFormPage() {
           />
         )}
         {field(
-          'Giá (₫) *',
+          '価格 (₫) *',
           <input
             className={inputCls}
             type="number"
@@ -179,7 +177,7 @@ export function ManagerProductFormPage() {
           />
         )}
         {field(
-          'Thời gian phục vụ (phút) *',
+          '対応時間（分）*',
           <input
             className={inputCls}
             type="number"
@@ -190,7 +188,7 @@ export function ManagerProductFormPage() {
           />
         )}
         {field(
-          'Thời gian chờ tối đa (phút)',
+          '最大待ち時間（分）',
           <input
             className={inputCls}
             type="number"
@@ -200,7 +198,7 @@ export function ManagerProductFormPage() {
           />
         )}
         {field(
-          'Tồn kho (để trống = không giới hạn)',
+          '在庫（空欄 = 無制限）',
           <input
             className={inputCls}
             type="number"
@@ -215,7 +213,7 @@ export function ManagerProductFormPage() {
             checked={form.requiresPrepayment}
             onChange={(e) => setForm((f) => ({ ...f, requiresPrepayment: e.target.checked }))}
           />
-          Yêu cầu thanh toán trước
+          事前支払いを必須にする
         </label>
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input
@@ -223,7 +221,7 @@ export function ManagerProductFormPage() {
             checked={form.isActive}
             onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
           />
-          Đang hoạt động
+          有効
         </label>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
@@ -234,14 +232,14 @@ export function ManagerProductFormPage() {
             onClick={() => navigate('/manager/products')}
             className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
           >
-            Huỷ
+            キャンセル
           </button>
           <button
             type="submit"
             disabled={mutation.isPending}
             className="px-6 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
           >
-            {mutation.isPending ? 'Đang lưu...' : 'Lưu'}
+            {mutation.isPending ? '保存中...' : '保存'}
           </button>
         </div>
       </form>

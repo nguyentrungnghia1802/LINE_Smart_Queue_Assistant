@@ -1,9 +1,25 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { get, post } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
+import {
+  appendBookingRecord,
+  type BookingGroup,
+  cartSignature,
+  type CheckoutItem,
+  createCheckoutId,
+  formatJPY,
+  getLocalDeviceKey,
+  loadBookingGroup,
+  loadCheckoutDraft,
+  loadPaidCheckout,
+  type PaidCheckout,
+  paymentKeyFor,
+  saveCheckoutDraft,
+  saveCheckoutSession,
+} from '../../utils/checkoutSession';
 
 interface OrgInfo {
   id: string;
@@ -13,6 +29,8 @@ interface OrgInfo {
   phone: string | null;
   address: string | null;
   paymentInfo: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
 }
 
 interface QueueInfo {
@@ -46,13 +64,10 @@ interface CartItem {
   quantity: number;
 }
 
-function formatCurrency(n: string | number) {
-  return Number(n).toLocaleString('vi-VN') + '₫';
-}
-
 export function CustomerJoinPage() {
   const { orgSlug, token } = useParams<{ orgSlug?: string; token?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated } = useAuthStore();
 
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -60,8 +75,17 @@ export function CustomerJoinPage() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [paidRequiredCheckout, setPaidRequiredCheckout] = useState<PaidCheckout | null>(null);
+  const [paidFullCheckout, setPaidFullCheckout] = useState<PaidCheckout | null>(null);
+  const [bookingGroup, setBookingGroup] = useState<BookingGroup | null>(null);
+  const [customerLocation, setCustomerLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    accuracyMeters?: number;
+  } | null>(null);
+  const [locationStatus, setLocationStatus] = useState('');
+  const hydratedDraftKeyRef = useRef<string | null>(null);
 
-  // Determine API endpoint based on route
   const apiEndpoint = token ? `/api/v1/orgs/by-token/${token}` : `/api/v1/orgs/${orgSlug}`;
 
   const { data, isLoading, isError } = useQuery<OrgResponse>({
@@ -71,10 +95,7 @@ export function CustomerJoinPage() {
     staleTime: 30_000,
   });
 
-  // Reset cart when org changes
-  useEffect(() => {
-    setCart({});
-  }, [orgSlug, token]);
+  const draftKey = token ? `qr:${token}` : `q:${orgSlug ?? ''}`;
 
   const cartItems: CartItem[] = useMemo(
     () =>
@@ -84,21 +105,83 @@ export function CustomerJoinPage() {
     [cart]
   );
 
-  const subtotal = useMemo(() => {
-    if (!data) return 0;
-    return cartItems.reduce((acc, item) => {
-      const p = data.products.find((p) => p.id === item.productId);
-      return acc + Number(p?.price ?? 0) * item.quantity;
-    }, 0);
+  const checkoutItems = useMemo<CheckoutItem[]>(() => {
+    if (!data) return [];
+    return cartItems
+      .map((item) => {
+        const product = data.products.find((p) => p.id === item.productId);
+        if (!product) return null;
+        const unitPrice = Number(product.price);
+        return {
+          productId: product.id,
+          name: product.name,
+          imageUrl: product.image_url,
+          quantity: item.quantity,
+          unitPrice,
+          subtotal: unitPrice * item.quantity,
+          requiresPrepayment: product.requires_prepayment,
+        };
+      })
+      .filter((item): item is CheckoutItem => item !== null);
   }, [cartItems, data]);
 
-  const needsPrepayment = useMemo(() => {
-    if (!data) return false;
-    return cartItems.some((item) => {
-      const p = data.products.find((p) => p.id === item.productId);
-      return p?.requires_prepayment;
-    });
-  }, [cartItems, data]);
+  const subtotal = useMemo(
+    () => checkoutItems.reduce((sum, item) => sum + item.subtotal, 0),
+    [checkoutItems]
+  );
+  const requiredPrepaymentItems = useMemo(
+    () => checkoutItems.filter((item) => item.requiresPrepayment),
+    [checkoutItems]
+  );
+  const requiredPrepaymentSubtotal = useMemo(
+    () => requiredPrepaymentItems.reduce((sum, item) => sum + item.subtotal, 0),
+    [requiredPrepaymentItems]
+  );
+  const currentCartSignature = useMemo(() => cartSignature(cartItems), [cartItems]);
+  const paymentKeyBase = data ? `${data.org.slug}:${currentCartSignature}` : '';
+  const requiredPaymentKey = paymentKeyBase ? paymentKeyFor(paymentKeyBase, 'required_items') : '';
+  const fullPaymentKey = paymentKeyBase ? paymentKeyFor(paymentKeyBase, 'all_items') : '';
+  const needsPrepayment = requiredPrepaymentItems.length > 0;
+  const isRequiredPaid =
+    needsPrepayment &&
+    paidRequiredCheckout?.paid === true &&
+    paidRequiredCheckout.cartSignature === currentCartSignature;
+  const isFullyPaid =
+    paidFullCheckout?.paid === true && paidFullCheckout.cartSignature === currentCartSignature;
+  const canBook = !needsPrepayment || isRequiredPaid || isFullyPaid;
+
+  useEffect(() => {
+    if (hydratedDraftKeyRef.current === draftKey) return;
+    hydratedDraftKeyRef.current = draftKey;
+    const draft = loadCheckoutDraft(draftKey);
+    if (draft) {
+      setCart(draft.cart);
+      setCustomerName(draft.customerName);
+      setCustomerPhone(draft.customerPhone);
+    } else {
+      setCart({});
+      setCustomerName('');
+      setCustomerPhone('');
+    }
+    setPaidRequiredCheckout(null);
+    setPaidFullCheckout(null);
+    setBookingGroup(loadBookingGroup(draftKey));
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (hydratedDraftKeyRef.current !== draftKey) return;
+    saveCheckoutDraft(draftKey, { cart, customerName, customerPhone });
+  }, [cart, customerName, customerPhone, draftKey]);
+
+  useEffect(() => {
+    if (!currentCartSignature) {
+      setPaidRequiredCheckout(null);
+      setPaidFullCheckout(null);
+      return;
+    }
+    setPaidRequiredCheckout(requiredPaymentKey ? loadPaidCheckout(requiredPaymentKey) : null);
+    setPaidFullCheckout(fullPaymentKey ? loadPaidCheckout(fullPaymentKey) : null);
+  }, [currentCartSignature, requiredPaymentKey, fullPaymentKey]);
 
   function setQty(productId: string, delta: number) {
     setCart((prev) => {
@@ -108,12 +191,65 @@ export function CustomerJoinPage() {
     });
   }
 
+  function startPayment() {
+    if (!data || checkoutItems.length === 0 || !currentCartSignature) return;
+    if (requiredPrepaymentItems.length === 0) return;
+    const sessionId = createCheckoutId();
+    saveCheckoutSession({
+      id: sessionId,
+      orgName: data.org.name,
+      returnPath: location.pathname,
+      cartSignature: currentCartSignature,
+      paymentKey: requiredPaymentKey,
+      paymentKeyBase,
+      scope: 'required_items',
+      items: checkoutItems,
+      subtotal,
+      coveredProductIds: requiredPrepaymentItems.map((item) => item.productId),
+      requiredProductIds: requiredPrepaymentItems.map((item) => item.productId),
+      requiredSubtotal: requiredPrepaymentSubtotal,
+      createdAt: new Date().toISOString(),
+    });
+    navigate(`/checkout/demo/${sessionId}`);
+  }
+
+  function requestCustomerLocation() {
+    if (!('geolocation' in navigator)) {
+      setLocationStatus('位置情報を利用できません。');
+      return;
+    }
+    setLocationStatus('現在地を取得中...');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCustomerLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracyMeters: Math.round(position.coords.accuracy),
+        });
+        setLocationStatus('現在地を共有しました。');
+      },
+      () => setLocationStatus('現在地を取得できませんでした。'),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 }
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (cartItems.length === 0) {
-      setError('Vui lòng chọn ít nhất một sản phẩm.');
+      setError('商品またはサービスを1つ以上選択してください。');
       return;
     }
+    if (!canBook) {
+      setError('事前支払いが必要な商品があります。対象商品のお支払いを完了してください。');
+      return;
+    }
+    const paidCheckout = isFullyPaid
+      ? paidFullCheckout
+      : isRequiredPaid
+        ? paidRequiredCheckout
+        : null;
+    const localDeviceKey = getLocalDeviceKey();
+    const bookingGroupId = bookingGroup?.id ?? createCheckoutId();
     setError('');
     setSubmitting(true);
     try {
@@ -124,11 +260,53 @@ export function CustomerJoinPage() {
           customerName: customerName.trim() || undefined,
           customerPhone: customerPhone.trim() || undefined,
           items: cartItems,
+          bookingGroupId,
+          localDeviceKey,
+          customerLocation: customerLocation
+            ? {
+                latitude: customerLocation.latitude,
+                longitude: customerLocation.longitude,
+                accuracyMeters: customerLocation.accuracyMeters,
+              }
+            : undefined,
+          paymentStatus: isFullyPaid ? 'paid' : 'unpaid',
+          paymentCode: paidCheckout?.code,
+          payment: paidCheckout
+            ? {
+                status: 'paid',
+                provider: 'demo',
+                method: paidCheckout.method,
+                code: paidCheckout.code,
+                amount: paidCheckout.amount,
+                currency: 'JPY',
+                scope: paidCheckout.scope,
+                coveredProductIds: paidCheckout.coveredProductIds,
+                rawPayload: { paidAt: paidCheckout.paidAt },
+              }
+            : undefined,
         }
       );
+      const nextGroup = appendBookingRecord(
+        draftKey,
+        { orgSlug: data?.org.slug ?? '', token, localDeviceKey, groupId: bookingGroupId },
+        {
+          orderId: result.order.id,
+          queueEntryId: result.queueEntry.id,
+          ticketPath: `/ticket/${result.queueEntry.id}`,
+          createdAt: new Date().toISOString(),
+          items: checkoutItems,
+          subtotal,
+          paymentScope: paidCheckout?.scope,
+          paymentCode: paidCheckout?.code,
+        }
+      );
+      setBookingGroup(nextGroup);
+      setCart({});
+      setPaidRequiredCheckout(null);
+      setPaidFullCheckout(null);
       navigate(`/ticket/${result.queueEntry.id}`);
     } catch {
-      setError('Đặt hàng thất bại. Vui lòng thử lại.');
+      setError('注文に失敗しました。もう一度お試しください。');
     } finally {
       setSubmitting(false);
     }
@@ -136,16 +314,16 @@ export function CustomerJoinPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-400">Đang tải...</p>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)]">
+        <p className="text-gray-500">読み込み中...</p>
       </div>
     );
   }
 
   if (isError || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-red-500">Không tìm thấy cửa hàng. Vui lòng quét lại QR.</p>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)] px-4">
+        <p className="text-red-600">店舗が見つかりません。QRコードをもう一度読み取ってください。</p>
       </div>
     );
   }
@@ -153,176 +331,354 @@ export function CustomerJoinPage() {
   const { org, queue, products } = data;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
+    <div className="min-h-screen bg-[var(--app-bg)] pb-28">
+      <header className="border-b border-white/80 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-4">
           {org.logoUrl ? (
-            <img src={org.logoUrl} alt={org.name} className="w-12 h-12 rounded-lg object-cover" />
+            <img src={org.logoUrl} alt={org.name} className="h-14 w-14 rounded-xl object-cover" />
           ) : (
-            <div className="w-12 h-12 rounded-lg bg-brand-100 flex items-center justify-center text-brand-600 font-bold text-xl">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-brand-100 text-xl font-bold text-brand-700">
               {org.name[0]}
             </div>
           )}
-          <div>
-            <h1 className="font-bold text-gray-900">{org.name}</h1>
-            {org.address && <p className="text-xs text-gray-500">{org.address}</p>}
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
+              受付ページ
+            </p>
+            <h1 className="truncate text-xl font-bold text-gray-950">{org.name}</h1>
+            {org.address && <p className="truncate text-sm text-gray-500">{org.address}</p>}
           </div>
           {isAuthenticated && (
             <button
               type="button"
               onClick={() => navigate('/customer')}
-              className="ml-auto rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+              className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              Dashboard
+              ダッシュボード
             </button>
           )}
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 space-y-5 pt-5">
-        {/* Queue info card */}
-        {queue ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-brand-600">{queue.waitingCount}</p>
-              <p className="text-xs text-gray-500 mt-0.5">người đang đợi</p>
-            </div>
-            <div className="h-10 w-px bg-gray-200" />
-            <div className="text-center">
-              <p className="text-3xl font-bold text-gray-700">{queue.avgWaitMinutes}</p>
-              <p className="text-xs text-gray-500 mt-0.5">phút chờ ước tính</p>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-orange-700 text-sm">
-            Hiện tại không có hàng đợi nào đang mở.
-          </div>
-        )}
-
-        {/* Product list */}
-        {products.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="font-semibold text-gray-800">Chọn sản phẩm / dịch vụ</h2>
-            {products.map((p) => (
-              <div
-                key={p.id}
-                className="bg-white rounded-xl border border-gray-200 p-4 flex items-start gap-4"
-              >
-                {p.image_url ? (
-                  <img
-                    src={p.image_url}
-                    alt={p.name}
-                    className="w-16 h-16 rounded-lg object-cover shrink-0"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center text-2xl shrink-0">
-                    🛒
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-800">{p.name}</p>
-                  {p.description && (
-                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{p.description}</p>
-                  )}
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="text-brand-700 font-bold text-sm">
-                      {formatCurrency(p.price)}
-                    </span>
-                    <span className="text-xs text-gray-400">· {p.service_time_minutes} phút</span>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${p.product_type === 'service' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}
-                    >
-                      {p.product_type === 'service' ? 'Dịch vụ' : 'Sản phẩm'}
-                    </span>
-                    {p.requires_prepayment && (
-                      <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
-                        Cần đặt cọc
-                      </span>
-                    )}
-                  </div>
+      <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[1fr_360px]">
+        <div className="space-y-6">
+          {queue ? (
+            <section className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-950">{queue.name}</h2>
+                  <p className="mt-1 text-sm text-gray-500">オンライン受付中</p>
                 </div>
-                {/* Quantity control */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setQty(p.id, -1)}
-                    disabled={(cart[p.id] ?? 0) === 0}
-                    className="w-8 h-8 rounded-full border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-30 flex items-center justify-center font-bold transition-colors"
-                  >
-                    −
-                  </button>
-                  <span className="w-5 text-center font-semibold text-gray-800">
-                    {cart[p.id] ?? 0}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setQty(p.id, 1)}
-                    className="w-8 h-8 rounded-full border border-brand-500 text-brand-600 hover:bg-brand-50 flex items-center justify-center font-bold transition-colors"
-                  >
-                    +
-                  </button>
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <Metric label="待ち人数" value={`${queue.waitingCount}`} />
+                  <Metric label="目安" value={`${queue.avgWaitMinutes}分`} />
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            </section>
+          ) : (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+              現在受付中のキューはありません。
+            </section>
+          )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+          <section>
+            <div className="mb-4 flex items-end justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-950">商品 / サービス</h2>
+                <p className="mt-1 text-sm text-gray-500">必要な項目を選択してください。</p>
+              </div>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-500 shadow-sm">
+                {products.length} 件
+              </span>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  quantity={cart[product.id] ?? 0}
+                  onDecrease={() => setQty(product.id, -1)}
+                  onIncrease={() => setQty(product.id, 1)}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="h-fit space-y-4 rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)] lg:sticky lg:top-6"
+        >
+          {bookingGroup && bookingGroup.records.length > 0 && (
+            <section className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-bold text-emerald-950">予約済み</h2>
+                  <p className="mt-1 text-xs text-emerald-800">同じ端末から追加予約できます。</p>
+                </div>
+                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-emerald-700">
+                  {bookingGroup.records.length} 件
+                </span>
+              </div>
+              <div className="mt-3 space-y-2">
+                {bookingGroup.records.slice(0, 3).map((record) => (
+                  <button
+                    key={record.queueEntryId}
+                    type="button"
+                    onClick={() => navigate(record.ticketPath)}
+                    className="flex w-full items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-left text-xs text-gray-600 hover:bg-emerald-100/60"
+                  >
+                    <span>{new Date(record.createdAt).toLocaleString('ja-JP')}</span>
+                    <span className="font-bold text-gray-950">{formatJPY(record.subtotal)}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tên của bạn (tuỳ chọn)
-            </label>
-            <input
-              type="text"
+            <h2 className="text-lg font-bold text-gray-950">受付内容</h2>
+            <p className="mt-1 text-sm text-gray-500">選択内容とお客様情報を確認します。</p>
+          </div>
+
+          <div className="space-y-3">
+            <TextInput
+              label="お名前（任意）"
               value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Ví dụ: Nguyễn Văn A"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              onChange={setCustomerName}
+              placeholder="例: 山田太郎"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Số điện thoại (tuỳ chọn)
-            </label>
-            <input
+            <TextInput
+              label="電話番号（任意）"
               type="tel"
               value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="Ví dụ: 0901234567"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              onChange={setCustomerPhone}
+              placeholder="例: 0901234567"
             />
           </div>
 
-          {/* Total */}
-          {subtotal > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center justify-between">
-              <span className="text-sm text-gray-600">Tổng cộng</span>
-              <span className="text-lg font-bold text-gray-900">{formatCurrency(subtotal)}</span>
+          <div className="rounded-xl bg-gray-50 p-4">
+            {checkoutItems.length === 0 ? (
+              <p className="text-sm text-gray-500">まだ商品が選択されていません。</p>
+            ) : (
+              <div className="space-y-2">
+                {checkoutItems.map((item) => (
+                  <div key={item.productId} className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {item.name} x {item.quantity}
+                      </p>
+                      {item.requiresPrepayment && (
+                        <p className="mt-0.5 text-xs text-amber-700">事前支払い対象</p>
+                      )}
+                    </div>
+                    <p className="text-sm font-semibold text-gray-950">
+                      {formatJPY(item.subtotal)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4">
+              <span className="text-sm font-medium text-gray-600">合計</span>
+              <span className="text-xl font-bold text-gray-950">{formatJPY(subtotal)}</span>
             </div>
+          </div>
+
+          <section className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-gray-950">現在地</h3>
+                <p className="mt-1 text-xs leading-5 text-gray-500">
+                  順番が近い時の距離アラートに利用します。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={requestCustomerLocation}
+                className="shrink-0 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
+              >
+                共有
+              </button>
+            </div>
+            {locationStatus && <p className="mt-2 text-xs text-gray-500">{locationStatus}</p>}
+          </section>
+
+          {needsPrepayment && (
+            <section className="rounded-xl border border-brand-100 bg-brand-50 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-brand-900">お支払い</h3>
+                  <p className="mt-1 text-xs leading-5 text-brand-800">
+                    事前支払い対象の商品・サービスがあります。
+                  </p>
+                </div>
+                {(isRequiredPaid || isFullyPaid) && (
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-brand-700">
+                    {isFullyPaid ? '全額支払い済み' : '必須分支払い済み'}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3 space-y-3">
+                {isFullyPaid || isRequiredPaid ? (
+                  <p className="rounded-lg bg-white px-3 py-2 text-xs text-gray-600">
+                    決済番号: {(isFullyPaid ? paidFullCheckout : paidRequiredCheckout)?.code}
+                  </p>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={startPayment}
+                      disabled={checkoutItems.length === 0}
+                      className="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-50"
+                    >
+                      事前支払いへ進む
+                    </button>
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                      予約する前に、事前支払い対象分のお支払いを完了してください。支払い画面で全額支払いも選択できます。
+                    </p>
+                  </>
+                )}
+              </div>
+            </section>
           )}
 
-          {/* Payment info */}
-          {needsPrepayment && org.paymentInfo && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 space-y-1">
-              <p className="text-sm font-semibold text-yellow-800">Thông tin thanh toán trước</p>
-              <p className="text-sm text-yellow-700 whitespace-pre-line">{org.paymentInfo}</p>
-            </div>
-          )}
-
-          {error && <p className="text-red-600 text-sm">{error}</p>}
+          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
           <button
             type="submit"
-            disabled={submitting || !queue}
-            className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-base transition-colors"
+            disabled={submitting || !queue || cartItems.length === 0 || !canBook}
+            className="w-full rounded-xl bg-gray-950 px-4 py-3 text-base font-bold text-white transition hover:bg-gray-800 disabled:opacity-50"
           >
-            {submitting ? 'Đang đặt chỗ...' : 'Lấy số thứ tự'}
+            {submitting ? '予約中...' : canBook ? '予約する' : '必須支払い後に予約'}
           </button>
         </form>
-      </div>
+      </main>
     </div>
+  );
+}
+
+function ProductCard({
+  product,
+  quantity,
+  onDecrease,
+  onIncrease,
+}: Readonly<{
+  product: Product;
+  quantity: number;
+  onDecrease: () => void;
+  onIncrease: () => void;
+}>) {
+  const outOfStock = product.stock_quantity !== null && product.stock_quantity <= 0;
+
+  return (
+    <article className="group rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]">
+      <div className="flex gap-4">
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="h-24 w-24 shrink-0 rounded-xl object-cover"
+          />
+        ) : (
+          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg font-bold text-gray-500">
+            {product.name.slice(0, 1)}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="line-clamp-2 font-bold text-gray-950">{product.name}</h3>
+            <span className="shrink-0 rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
+              {product.product_type === 'service' ? 'サービス' : '商品'}
+            </span>
+          </div>
+          {product.description && (
+            <p className="mt-1 line-clamp-2 text-sm leading-5 text-gray-500">
+              {product.description}
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-lg font-bold text-brand-700">{formatJPY(product.price)}</span>
+            <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-500">
+              {product.service_time_minutes}分
+            </span>
+            {product.requires_prepayment && (
+              <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
+                事前支払い
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between">
+        <p className="text-xs text-gray-500">
+          {outOfStock
+            ? '在庫なし'
+            : product.stock_quantity === null
+              ? '予約可能'
+              : `在庫 ${product.stock_quantity}`}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onDecrease}
+            disabled={quantity === 0}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-30"
+            aria-label={`${product.name} を減らす`}
+          >
+            -
+          </button>
+          <span className="w-8 text-center text-sm font-bold text-gray-950">{quantity}</span>
+          <button
+            type="button"
+            onClick={onIncrease}
+            disabled={outOfStock}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-lg font-bold text-white hover:bg-brand-700 disabled:opacity-40"
+            aria-label={`${product.name} を追加`}
+          >
+            +
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function Metric({ label, value }: Readonly<{ label: string; value: string }>) {
+  return (
+    <div className="min-w-20 rounded-xl bg-gray-50 px-4 py-3">
+      <p className="text-xl font-bold text-gray-950">{value}</p>
+      <p className="mt-0.5 text-xs text-gray-500">{label}</p>
+    </div>
+  );
+}
+
+function TextInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+}: Readonly<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  type?: string;
+}>) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
+      />
+    </label>
   );
 }

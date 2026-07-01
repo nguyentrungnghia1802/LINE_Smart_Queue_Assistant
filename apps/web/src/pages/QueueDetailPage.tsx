@@ -19,9 +19,9 @@ export function QueueDetailPage() {
   if (isError || !queue) {
     return (
       <div className="text-center py-16">
-        <p className="text-gray-500 mb-4">Queue not found.</p>
+        <p className="text-gray-500 mb-4">キューが見つかりません。</p>
         <Link to="/queues" className="text-brand-600 hover:underline text-sm">
-          ← Back to queues
+          ← キューへ戻る
         </Link>
       </div>
     );
@@ -31,7 +31,7 @@ export function QueueDetailPage() {
     <div>
       <div className="flex items-center gap-3 mb-2">
         <Link to="/queues" className="text-gray-400 hover:text-gray-600 text-sm">
-          ← Queues
+          ← キュー
         </Link>
       </div>
 
@@ -48,27 +48,27 @@ export function QueueDetailPage() {
           to={`/staff/queues/${id}`}
           className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
-          📋 Quản lý hàng đợi
+          📋 キューを管理
         </Link>
         <Link
           to={`/queues/${id}/display`}
           className="inline-flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
-          📺 Hiển thị QR
+          📺 QRを表示
         </Link>
         <Link
           to={`/queues/${id}/settings`}
           className="inline-flex items-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
-          ⚙️ Cài đặt
+          ⚙️ 設定
         </Link>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <DetailCard label="Current Number" value={String(queue.currentNumber)} />
-        {queue.maxCapacity && <DetailCard label="Max Capacity" value={String(queue.maxCapacity)} />}
+        <DetailCard label="現在の番号" value={String(queue.currentNumber)} />
+        {queue.maxCapacity && <DetailCard label="最大定員" value={String(queue.maxCapacity)} />}
         {queue.avgServiceTimeMinutes && (
-          <DetailCard label="Avg. Service (min)" value={String(queue.avgServiceTimeMinutes)} />
+          <DetailCard label="平均対応時間（分）" value={String(queue.avgServiceTimeMinutes)} />
         )}
       </div>
     </div>

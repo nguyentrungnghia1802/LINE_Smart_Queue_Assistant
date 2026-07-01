@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 export function DashboardPage() {
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">ダッシュボード</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard label="Active Queues" value="—" />
-        <StatCard label="Waiting Tickets" value="—" />
-        <StatCard label="Avg. Wait (min)" value="—" />
+        <StatCard label="稼働中のキュー" value="—" />
+        <StatCard label="待機中の受付" value="—" />
+        <StatCard label="平均待ち時間（分）" value="—" />
       </div>
 
       <div className="mt-8">
@@ -16,7 +16,7 @@ export function DashboardPage() {
           to="/queues"
           className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
         >
-          Manage Queues →
+          キューを管理 →
         </Link>
       </div>
     </div>

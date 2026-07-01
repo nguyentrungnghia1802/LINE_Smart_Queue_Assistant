@@ -11,7 +11,7 @@
 
 import { logger } from '../../utils/logger';
 
-import type { ILineMessagingAdapter, LineMessage } from './line.adapter';
+import type { ILineMessagingAdapter, LineMessage, LineMessageOptions } from './line.adapter';
 
 const LINE_API_BASE = 'https://api.line.me/v2/bot';
 
@@ -23,12 +23,28 @@ export class LineSdkAdapter implements ILineMessagingAdapter {
     this.authHeader = `Bearer ${channelAccessToken}`;
   }
 
-  async pushMessage(to: string, messages: LineMessage[]): Promise<void> {
-    await this.post('/message/push', { to, messages });
+  async pushMessage(
+    to: string,
+    messages: LineMessage[],
+    options: LineMessageOptions = {}
+  ): Promise<void> {
+    await this.post('/message/push', {
+      to,
+      messages,
+      notificationDisabled: options.notificationDisabled ?? false,
+    });
   }
 
-  async replyMessage(replyToken: string, messages: LineMessage[]): Promise<void> {
-    await this.post('/message/reply', { replyToken, messages });
+  async replyMessage(
+    replyToken: string,
+    messages: LineMessage[],
+    options: LineMessageOptions = {}
+  ): Promise<void> {
+    await this.post('/message/reply', {
+      replyToken,
+      messages,
+      notificationDisabled: options.notificationDisabled ?? false,
+    });
   }
 
   private async post(path: string, body: unknown): Promise<void> {

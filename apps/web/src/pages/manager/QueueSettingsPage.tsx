@@ -62,7 +62,7 @@ export function QueueSettingsPage() {
       setSaved(true);
       setTimeout(() => navigate(`/queues/${id}`), 1000);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Lỗi khi lưu cài đặt.');
+      setError(err instanceof Error ? err.message : '設定の保存中にエラーが発生しました。');
     } finally {
       setSaving(false);
     }
@@ -80,17 +80,17 @@ export function QueueSettingsPage() {
     <div className="max-w-lg mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <Link to={`/queues/${id}`} className="text-gray-400 hover:text-gray-600 text-sm">
-          ← Chi tiết
+          ← 詳細
         </Link>
         <span className="text-gray-300">/</span>
-        <h1 className="text-xl font-bold text-gray-900">Cài đặt hàng đợi</h1>
+        <h1 className="text-xl font-bold text-gray-900">キュー設定</h1>
       </div>
 
       <form
         onSubmit={handleSubmit}
         className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5"
       >
-        <Field label="Tên hàng đợi *">
+        <Field label="キュー名 *">
           <input
             required
             type="text"
@@ -100,7 +100,7 @@ export function QueueSettingsPage() {
           />
         </Field>
 
-        <Field label="Mô tả">
+        <Field label="説明">
           <textarea
             rows={2}
             value={form.description}
@@ -109,34 +109,34 @@ export function QueueSettingsPage() {
           />
         </Field>
 
-        <Field label="Trạng thái">
+        <Field label="ステータス">
           <select
             value={form.status}
             onChange={(e) => set('status', e.target.value)}
             className={inputCls}
           >
-            <option value="open">Mở</option>
-            <option value="paused">Tạm dừng</option>
-            <option value="closed">Đóng</option>
+            <option value="open">受付中</option>
+            <option value="paused">一時停止</option>
+            <option value="closed">終了</option>
           </select>
         </Field>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Sức chứa tối đa">
+          <Field label="最大定員">
             <input
               type="number"
               min="1"
-              placeholder="Không giới hạn"
+              placeholder="無制限"
               value={form.maxCapacity}
               onChange={(e) => set('maxCapacity', e.target.value)}
               className={inputCls}
             />
           </Field>
-          <Field label="Thời gian phục vụ TB (phút)">
+          <Field label="平均対応時間（分）">
             <input
               type="number"
               min="1"
-              placeholder="VD: 15"
+              placeholder="例: 15"
               value={form.avgServiceTimeMinutes}
               onChange={(e) => set('avgServiceTimeMinutes', e.target.value)}
               className={inputCls}
@@ -145,21 +145,21 @@ export function QueueSettingsPage() {
         </div>
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        {saved && <p className="text-green-600 text-sm">✓ Đã lưu. Đang chuyển hướng...</p>}
+        {saved && <p className="text-green-600 text-sm">✓ 保存しました。移動しています...</p>}
 
         <div className="flex gap-3 pt-2">
           <Link
             to={`/queues/${id}`}
             className="flex-1 text-center border border-gray-300 text-gray-700 font-medium py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors"
           >
-            Huỷ
+            キャンセル
           </Link>
           <button
             type="submit"
             disabled={saving}
             className="flex-1 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-sm transition-colors"
           >
-            {saving ? 'Đang lưu...' : 'Lưu cài đặt'}
+            {saving ? '保存中...' : '設定を保存'}
           </button>
         </div>
       </form>

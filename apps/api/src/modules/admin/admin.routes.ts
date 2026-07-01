@@ -14,6 +14,7 @@ import {
   createOrganization,
   listManagers,
   listOrganizations,
+  registerOrganization,
   removeManager,
   removeOrganization,
   updateManager,
@@ -23,6 +24,7 @@ import {
   AdminOrgIdParamSchema,
   AdminOrgManagerParamSchema,
   CreateManagerSchema,
+  CreateOrganizationRegistrationSchema,
   CreateOrganizationSchema,
   UpdateManagerSchema,
   UpdateOrganizationSchema,
@@ -38,6 +40,12 @@ adminRouter.post(
   authenticatedActionRateLimiter,
   validate(CreateOrganizationSchema),
   createOrganization
+);
+adminRouter.post(
+  '/organizations/register',
+  authenticatedActionRateLimiter,
+  validate(CreateOrganizationRegistrationSchema),
+  registerOrganization
 );
 adminRouter.patch(
   '/organizations/:orgId',

@@ -23,16 +23,16 @@ export function CalledBanner({ ticketDisplay, onDismiss }: Readonly<CalledBanner
       </span>
 
       <div className="flex-1">
-        <p className="font-bold text-sm leading-snug">Ticket {ticketDisplay} — please proceed!</p>
+        <p className="font-bold text-sm leading-snug">受付番号 {ticketDisplay} の順番です</p>
         <p className="text-xs mt-0.5 opacity-80">
-          Your number has been called. Please head to the counter now.
+          呼び出し済みです。カウンターまでお越しください。
         </p>
       </div>
 
       {onDismiss && (
         <button
           type="button"
-          aria-label="Dismiss"
+          aria-label="閉じる"
           onClick={onDismiss}
           className="shrink-0 text-amber-900 hover:text-amber-950 text-lg leading-none"
         >

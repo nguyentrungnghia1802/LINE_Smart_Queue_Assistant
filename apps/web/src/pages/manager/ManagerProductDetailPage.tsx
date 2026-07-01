@@ -36,59 +36,86 @@ export function ManagerProductDetailPage() {
     },
   });
 
-  if (isLoading || !product) return <div className="text-gray-400 text-sm">Đang tải...</div>;
+  if (isLoading || !product) return <div className="text-gray-400 text-sm">読み込み中...</div>;
 
   return (
-    <div className="max-w-lg space-y-4">
-      <div className="flex items-center gap-3">
-        <Link to="/manager/products" className="text-sm text-gray-500 hover:underline">
-          ← Danh sách
-        </Link>
-        <h1 className="text-xl font-bold text-gray-900">{product.name}</h1>
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-3">
-        {product.image_url && (
-          <img src={product.image_url} alt={product.name} className="w-32 h-32 rounded-lg object-cover" />
-        )}
-        <table className="text-sm w-full">
-          <tbody className="divide-y divide-gray-100">
-            {[
-              ['Loại', product.product_type === 'service' ? 'Dịch vụ' : 'Sản phẩm'],
-              ['Giá', Number(product.price).toLocaleString('vi-VN') + '₫'],
-              ['Thời gian phục vụ', `${product.service_time_minutes} phút`],
-              ['Chờ tối đa', product.max_wait_minutes ? `${product.max_wait_minutes} phút` : '—'],
-              ['Thanh toán trước', product.requires_prepayment ? 'Có' : 'Không'],
-              ['Tồn kho', product.stock_quantity !== null ? String(product.stock_quantity) : 'Không giới hạn'],
-              ['Trạng thái', product.is_active ? 'Đang hoạt động' : 'Ẩn'],
-            ].map(([label, value]) => (
-              <tr key={label}>
-                <td className="py-2 pr-4 text-gray-500 font-medium w-40">{label}</td>
-                <td className="py-2 text-gray-800">{value}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {product.description && (
-          <p className="text-sm text-gray-600 border-t border-gray-100 pt-3">{product.description}</p>
-        )}
-
-        <div className="flex gap-3 pt-2">
+    <div className="max-w-4xl space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <Link
+            to="/manager/products"
+            className="text-sm font-medium text-brand-700 hover:underline"
+          >
+            ← 一覧
+          </Link>
+          <h1 className="mt-2 text-3xl font-bold text-gray-950">{product.name}</h1>
+        </div>
+        <div className="flex gap-2">
           <Link
             to={`/manager/products/${id}/edit`}
-            className="px-4 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700"
+            className="rounded-xl bg-gray-950 px-4 py-2 text-sm font-bold text-white hover:bg-gray-800"
           >
-            Chỉnh sửa
+            編集
           </Link>
-          <button
-            onClick={() => {
-              if (confirm('Xác nhận xoá sản phẩm này?')) deleteMutation.mutate();
-            }}
-            className="px-4 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600"
-          >
-            Xoá
-          </button>
         </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        <div className="overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[var(--shadow-soft)]">
+          {product.image_url ? (
+            <img src={product.image_url} alt={product.name} className="h-72 w-full object-cover" />
+          ) : (
+            <div className="flex h-72 w-full items-center justify-center bg-gray-100 text-4xl font-bold text-gray-400">
+              {product.name.slice(0, 1)}
+            </div>
+          )}
+        </div>
+        <section className="rounded-2xl border border-white/80 bg-white p-6 shadow-[var(--shadow-soft)]">
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-gray-100">
+              {[
+                ['種類', product.product_type === 'service' ? 'サービス' : '商品'],
+                [
+                  '価格',
+                  new Intl.NumberFormat('ja-JP', {
+                    style: 'currency',
+                    currency: 'JPY',
+                    maximumFractionDigits: 0,
+                  }).format(Number(product.price)),
+                ],
+                ['対応時間', `${product.service_time_minutes} 分`],
+                ['最大待ち時間', product.max_wait_minutes ? `${product.max_wait_minutes} 分` : '—'],
+                ['事前支払い', product.requires_prepayment ? 'はい' : 'いいえ'],
+                [
+                  '在庫',
+                  product.stock_quantity !== null ? String(product.stock_quantity) : '無制限',
+                ],
+                ['ステータス', product.is_active ? '有効' : '非表示'],
+              ].map(([label, value]) => (
+                <tr key={label}>
+                  <td className="py-2 pr-4 text-gray-500 font-medium w-40">{label}</td>
+                  <td className="py-2 text-gray-800">{value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {product.description && (
+            <p className="text-sm text-gray-600 border-t border-gray-100 pt-3">
+              {product.description}
+            </p>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={() => {
+                if (confirm('この商品を削除しますか？')) deleteMutation.mutate();
+              }}
+              className="rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100"
+            >
+              削除
+            </button>
+          </div>
+        </section>
       </div>
     </div>
   );

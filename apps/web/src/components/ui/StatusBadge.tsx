@@ -1,11 +1,11 @@
 const TICKET_STATUS_LABEL: Record<string, string> = {
-  waiting: 'Waiting',
-  called: 'Called',
-  serving: 'Being served',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  skipped: 'Skipped',
-  no_show: 'No show',
+  waiting: '待機中',
+  called: '呼び出し中',
+  serving: '対応中',
+  completed: '完了',
+  cancelled: 'キャンセル済み',
+  skipped: 'スキップ済み',
+  no_show: '不在',
 };
 
 const STATUS_BG: Record<string, string> = {

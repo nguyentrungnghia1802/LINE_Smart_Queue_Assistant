@@ -14,40 +14,45 @@ export function ManagerLayout() {
 
   if (!isAllowed) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Bạn không có quyền truy cập trang này.</p>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)]">
+        <p className="rounded-2xl border border-white/80 bg-white p-8 text-gray-600 shadow-[var(--shadow-soft)]">
+          このページにアクセスする権限がありません。
+        </p>
       </div>
     );
   }
 
   const navClass = ({ isActive }: { isActive: boolean }) =>
-    `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-      isActive ? 'bg-brand-100 text-brand-700' : 'text-gray-600 hover:bg-gray-100'
+    `rounded-full px-3 py-2 text-sm font-semibold transition ${
+      isActive ? 'bg-gray-950 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
     }`;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="flex min-h-screen flex-col bg-[var(--app-bg)]">
       {/* Top nav */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-2">
-          <Link to="/manager" className="font-bold text-brand-600 mr-4">
-            LINE Queue
+      <header className="sticky top-0 z-20 border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4">
+          <Link to="/manager" className="mr-4 flex items-center gap-3 font-bold text-gray-950">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-sm text-white">
+              LQ
+            </span>
+            <span>LINE Queue</span>
           </Link>
-          <nav className="flex items-center gap-1 flex-1">
+          <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
             <NavLink to="/manager" end className={navClass}>
-              Dashboard
+              ダッシュボード
             </NavLink>
             <NavLink to="/manager/products" className={navClass}>
-              Sản phẩm
+              商品
             </NavLink>
             <NavLink to="/manager/users" className={navClass}>
-              Nhân viên
+              スタッフ
             </NavLink>
             <NavLink to="/manager/qr" className={navClass}>
-              Xuất QR
+              QR表示
             </NavLink>
             <NavLink to="/manager/settings" className={navClass}>
-              Cài đặt
+              設定
             </NavLink>
           </nav>
           <AccountMenu />
@@ -55,7 +60,7 @@ export function ManagerLayout() {
       </header>
 
       {/* Page content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8">
         <Outlet />
       </main>
     </div>

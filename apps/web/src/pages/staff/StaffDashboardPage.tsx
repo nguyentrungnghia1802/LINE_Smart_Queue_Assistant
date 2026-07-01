@@ -11,6 +11,9 @@ interface OrderItem {
   service_time_minutes: number;
   quantity: number;
   subtotal: string;
+  payment_status?: string;
+  prepaid_amount?: string;
+  requires_prepayment_snapshot?: boolean;
 }
 
 interface Order {
@@ -44,10 +47,10 @@ interface MyQueueOverview {
 }
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
-  pending: 'Chờ xử lý',
-  processing: 'Đang làm',
-  completed: 'Hoàn thành',
-  cancelled: 'Đã huỷ',
+  pending: '処理待ち',
+  processing: '処理中',
+  completed: '完了',
+  cancelled: 'キャンセル済み',
 };
 
 const ORDER_STATUS_COLORS: Record<string, string> = {
@@ -67,16 +70,73 @@ const QUEUE_STATUS_COLORS: Record<string, string> = {
 };
 
 const QUEUE_STATUS_LABELS: Record<string, string> = {
-  waiting: 'Chờ',
-  called: 'Đã gọi',
-  serving: 'Đang phục vụ',
-  completed: 'Hoàn thành',
-  cancelled: 'Đã huỷ',
-  no_show: 'Vắng mặt',
+  waiting: '待機中',
+  called: '呼び出し済み',
+  serving: '対応中',
+  completed: '完了',
+  cancelled: 'キャンセル済み',
+  no_show: '不在',
 };
 
 function formatCurrency(n: string | number) {
-  return Number(n).toLocaleString('vi-VN') + '₫';
+  return new Intl.NumberFormat('ja-JP', {
+    style: 'currency',
+    currency: 'JPY',
+    maximumFractionDigits: 0,
+  }).format(Number(n));
+}
+
+function printReceipt(order: Order, ticketCode: string) {
+  const rows = order.items
+    .map(
+      (item) => `
+        <tr>
+          <td>${item.product_name}</td>
+          <td class="right">${item.quantity}</td>
+          <td class="right">${formatCurrency(item.product_price)}</td>
+          <td class="right">${formatCurrency(item.subtotal)}</td>
+        </tr>`
+    )
+    .join('');
+  const win = window.open('', '_blank', 'width=420,height=720');
+  if (!win) return;
+  win.document.write(`
+    <html>
+      <head>
+        <title>領収書 ${order.order_number}</title>
+        <style>
+          body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 24px; color: #111827; }
+          h1 { font-size: 20px; margin: 0 0 8px; }
+          .meta { color: #6b7280; font-size: 12px; line-height: 1.7; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; }
+          th, td { border-bottom: 1px solid #e5e7eb; padding: 8px 0; text-align: left; }
+          .right { text-align: right; }
+          .total { font-size: 18px; font-weight: 700; text-align: right; margin-top: 18px; }
+          .paid { display: inline-block; margin-top: 12px; padding: 6px 10px; border-radius: 999px; background: #dcfce7; color: #166534; font-size: 12px; font-weight: 700; }
+        </style>
+      </head>
+      <body>
+        <h1>領収書</h1>
+        <div class="meta">
+          注文番号: ${order.order_number}<br />
+          受付番号: ${ticketCode}<br />
+          顧客: ${order.customer_name ?? 'ゲスト顧客'}<br />
+          発行日時: ${new Date().toLocaleString('ja-JP')}
+        </div>
+        <table>
+          <thead>
+            <tr><th>商品</th><th class="right">数量</th><th class="right">単価</th><th class="right">小計</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="total">合計 ${formatCurrency(order.subtotal)}</div>
+        <span class="paid">支払い済み</span>
+      </body>
+    </html>
+  `);
+  win.document.close();
+  win.focus();
+  win.print();
 }
 
 export function StaffDashboardPage() {
@@ -102,7 +162,8 @@ export function StaffDashboardPage() {
 
   const selectedEntry = allEntries.find((e) => e.id === selectedEntryId) ?? allEntries[0] ?? null;
 
-  const invalidateQueue = () => queryClient.invalidateQueries({ queryKey: ['staff-my-queue', orgId] });
+  const invalidateQueue = () =>
+    queryClient.invalidateQueries({ queryKey: ['staff-my-queue', orgId] });
 
   // Queue actions
   const callNextMutation = useMutation({
@@ -142,14 +203,14 @@ export function StaffDashboardPage() {
   const selected = selectedEntry;
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
+    <div className="flex min-h-[calc(100vh-4rem)] flex-col overflow-hidden bg-[var(--app-bg)] lg:flex-row">
       {/* Left sidebar: queue entries */}
-      <aside className="w-72 shrink-0 border-r border-gray-200 bg-white flex flex-col">
+      <aside className="flex max-h-96 shrink-0 flex-col border-b border-gray-200 bg-white lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
         {/* Queue header + Call Next */}
-        <div className="px-4 py-3 border-b border-gray-100 space-y-2">
+        <div className="space-y-2 border-b border-gray-100 px-4 py-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-700 text-sm">
-              {queueData?.queueName ?? 'Hàng đợi'}
+              {queueData?.queueName ?? 'キュー'}
               <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-xs bg-brand-600 text-white rounded-full">
                 {queueData?.waitingCount ?? 0}
               </span>
@@ -157,16 +218,22 @@ export function StaffDashboardPage() {
           </div>
           <button
             onClick={() => callNextMutation.mutate()}
-            disabled={callNextMutation.isPending || !queueData?.queueId || (queueData?.waitingCount ?? 0) === 0}
-            className="w-full py-1.5 bg-brand-600 text-white text-xs rounded-lg hover:bg-brand-700 disabled:opacity-40 transition-colors font-medium"
+            disabled={
+              callNextMutation.isPending ||
+              !queueData?.queueId ||
+              (queueData?.waitingCount ?? 0) === 0
+            }
+            className="w-full rounded-xl bg-brand-600 py-2 text-xs font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
           >
-            {callNextMutation.isPending ? 'Đang gọi...' : '📣 Gọi số tiếp theo'}
+            {callNextMutation.isPending ? '呼び出し中...' : '📣 次の番号を呼び出す'}
           </button>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {isLoading && <p className="text-gray-400 text-sm px-4 py-6 text-center">Đang tải...</p>}
+          {isLoading && (
+            <p className="text-gray-400 text-sm px-4 py-6 text-center">読み込み中...</p>
+          )}
           {!isLoading && allEntries.length === 0 && (
-            <p className="text-gray-400 text-sm px-4 py-6 text-center">Không có khách.</p>
+            <p className="text-gray-400 text-sm px-4 py-6 text-center">顧客はいません。</p>
           )}
           {allEntries.map((entry) => {
             const ord = entry.order;
@@ -174,23 +241,29 @@ export function StaffDashboardPage() {
               <button
                 key={entry.id}
                 onClick={() => setSelectedEntryId(entry.id)}
-                className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
-                  selected?.id === entry.id ? 'bg-brand-50 border-l-2 border-l-brand-500' : ''
+                className={`w-full border-b border-gray-50 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
+                  selected?.id === entry.id ? 'border-l-4 border-l-brand-500 bg-brand-50' : ''
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono font-bold text-gray-800">{entry.ticket_code}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${QUEUE_STATUS_COLORS[entry.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full ${QUEUE_STATUS_COLORS[entry.status] ?? 'bg-gray-100 text-gray-500'}`}
+                  >
                     {QUEUE_STATUS_LABELS[entry.status] ?? entry.status}
                   </span>
                 </div>
                 {ord ? (
                   <>
-                    <p className="text-sm text-gray-500 mt-0.5 truncate">{ord.customer_name ?? 'Khách lẻ'}</p>
-                    <p className="text-sm font-medium text-gray-700 mt-0.5">{formatCurrency(ord.subtotal)}</p>
+                    <p className="text-sm text-gray-500 mt-0.5 truncate">
+                      {ord.customer_name ?? 'ゲスト顧客'}
+                    </p>
+                    <p className="text-sm font-medium text-gray-700 mt-0.5">
+                      {formatCurrency(ord.subtotal)}
+                    </p>
                   </>
                 ) : (
-                  <p className="text-xs text-gray-400 mt-0.5">Không có đơn</p>
+                  <p className="text-xs text-gray-400 mt-0.5">注文なし</p>
                 )}
               </button>
             );
@@ -199,37 +272,55 @@ export function StaffDashboardPage() {
       </aside>
 
       {/* Main: selected entry detail */}
-      <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {!selected ? (
           <div className="flex items-center justify-center h-full text-gray-400">
-            Chọn số thứ tự để xem chi tiết
+            受付番号を選択して詳細を表示
           </div>
         ) : (
-          <div className="max-w-xl mx-auto space-y-6">
+          <div className="mx-auto max-w-3xl space-y-6">
             {/* Ticket + queue status header */}
-            <div className="flex items-center gap-4">
-              <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider">Số thứ tự</p>
-                <p className="text-4xl font-bold font-mono text-gray-900">{selected.ticket_code}</p>
-              </div>
-              <div className="ml-auto flex flex-col items-end gap-1">
-                <span className={`text-sm px-3 py-1 rounded-full font-medium ${QUEUE_STATUS_COLORS[selected.status] ?? 'bg-gray-100 text-gray-500'}`}>
-                  {QUEUE_STATUS_LABELS[selected.status] ?? selected.status}
-                </span>
-                {selected.order && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${selected.order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                    {selected.order.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+            <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
+              <div className="flex items-center gap-4">
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">受付番号</p>
+                  <p className="text-4xl font-bold font-mono text-gray-900">
+                    {selected.ticket_code}
+                  </p>
+                </div>
+                <div className="ml-auto flex flex-col items-end gap-1">
+                  <span
+                    className={`text-sm px-3 py-1 rounded-full font-medium ${QUEUE_STATUS_COLORS[selected.status] ?? 'bg-gray-100 text-gray-500'}`}
+                  >
+                    {QUEUE_STATUS_LABELS[selected.status] ?? selected.status}
                   </span>
-                )}
+                  {selected.order && (
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${selected.order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}
+                    >
+                      {selected.order.payment_status === 'paid' ? '支払い済み' : '未払い'}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Customer info */}
             {selected.order && (
-              <div className="text-sm text-gray-600 space-y-0.5">
-                <p>Khách: <span className="font-medium text-gray-800">{selected.order.customer_name ?? 'Khách lẻ'}</span></p>
+              <div className="rounded-2xl border border-white/80 bg-white p-5 text-sm text-gray-600 shadow-[var(--shadow-soft)]">
+                <p>
+                  顧客:{' '}
+                  <span className="font-medium text-gray-800">
+                    {selected.order.customer_name ?? 'ゲスト顧客'}
+                  </span>
+                </p>
                 {selected.order.customer_phone && (
-                  <p>SĐT: <span className="font-medium text-gray-800">{selected.order.customer_phone}</span></p>
+                  <p>
+                    電話:{' '}
+                    <span className="font-medium text-gray-800">
+                      {selected.order.customer_phone}
+                    </span>
+                  </p>
                 )}
               </div>
             )}
@@ -243,14 +334,14 @@ export function StaffDashboardPage() {
                     disabled={serveMutation.isPending}
                     className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                   >
-                    ✅ Bắt đầu phục vụ
+                    ✅ 対応開始
                   </button>
                   <button
                     onClick={() => noShowMutation.mutate(selected.id)}
                     disabled={noShowMutation.isPending}
                     className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-100 text-orange-700 hover:bg-orange-200 disabled:opacity-50"
                   >
-                    🚫 Vắng mặt
+                    🚫 不在
                   </button>
                 </>
               )}
@@ -260,18 +351,19 @@ export function StaffDashboardPage() {
                   disabled={completeMutation.isPending}
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50"
                 >
-                  ✔ Hoàn thành
+                  ✔ 完了
                 </button>
               )}
               {['waiting', 'called'].includes(selected.status) && (
                 <button
                   onClick={() => {
-                    if (confirm('Xác nhận huỷ số này?')) cancelEntryMutation.mutate(selected.id);
+                    if (confirm('この受付番号をキャンセルしますか？'))
+                      cancelEntryMutation.mutate(selected.id);
                   }}
                   disabled={cancelEntryMutation.isPending}
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
                 >
-                  Huỷ số
+                  受付をキャンセル
                 </button>
               )}
             </div>
@@ -281,79 +373,117 @@ export function StaffDashboardPage() {
               (() => {
                 const order = selected.order;
                 return (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-500 uppercase">Đơn hàng {order.order_number}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${ORDER_STATUS_COLORS[order.status] ?? 'bg-gray-100 text-gray-500'}`}>
-                    {ORDER_STATUS_LABELS[order.status] ?? order.status}
-                  </span>
-                </div>
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                    <tr>
-                      <th className="px-4 py-2 text-left">Sản phẩm</th>
-                      <th className="px-4 py-2 text-right">SL</th>
-                      <th className="px-4 py-2 text-right">Đơn giá</th>
-                      <th className="px-4 py-2 text-right">Thành tiền</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.items.map((item) => (
-                      <tr key={item.id} className="border-t border-gray-100">
-                        <td className="px-4 py-3 font-medium text-gray-800">
-                          {item.product_name}
-                          <span className="ml-1 text-xs text-gray-400">({item.service_time_minutes}ph)</span>
-                        </td>
-                        <td className="px-4 py-3 text-right text-gray-600">{item.quantity}</td>
-                        <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(item.product_price)}</td>
-                        <td className="px-4 py-3 text-right font-medium">{formatCurrency(item.subtotal)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="border-t-2 border-gray-200">
-                    <tr>
-                      <td colSpan={3} className="px-4 py-3 text-right font-semibold text-gray-700">Tổng cộng</td>
-                      <td className="px-4 py-3 text-right text-lg font-bold text-gray-900">
-                        {formatCurrency(order.subtotal)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+                  <div className="overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[var(--shadow-soft)]">
+                    <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-500 uppercase">
+                        注文 {order.order_number}
+                      </span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full ${ORDER_STATUS_COLORS[order.status] ?? 'bg-gray-100 text-gray-500'}`}
+                      >
+                        {ORDER_STATUS_LABELS[order.status] ?? order.status}
+                      </span>
+                    </div>
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                        <tr>
+                          <th className="px-4 py-2 text-left">商品</th>
+                          <th className="px-4 py-2 text-right">数量</th>
+                          <th className="px-4 py-2 text-right">単価</th>
+                          <th className="px-4 py-2 text-right">小計</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {order.items.map((item) => (
+                          <tr key={item.id} className="border-t border-gray-100">
+                            <td className="px-4 py-3 font-medium text-gray-800">
+                              {item.product_name}
+                              <span className="ml-1 text-xs text-gray-400">
+                                ({item.service_time_minutes}分)
+                              </span>
+                              {item.payment_status === 'paid' && (
+                                <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">
+                                  支払い済み
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right text-gray-600">{item.quantity}</td>
+                            <td className="px-4 py-3 text-right text-gray-600">
+                              {formatCurrency(item.product_price)}
+                            </td>
+                            <td className="px-4 py-3 text-right font-medium">
+                              {formatCurrency(item.subtotal)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="border-t-2 border-gray-200">
+                        <tr>
+                          <td
+                            colSpan={3}
+                            className="px-4 py-3 text-right font-semibold text-gray-700"
+                          >
+                            合計
+                          </td>
+                          <td className="px-4 py-3 text-right text-lg font-bold text-gray-900">
+                            {formatCurrency(order.subtotal)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
 
-                {/* Order-level payment toggle */}
-                {['pending', 'processing'].includes(order.status) && (
-                  <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
-                    <button
-                      onClick={() => paymentMutation.mutate({
-                        id: order.id,
-                        paymentStatus: order.payment_status === 'paid' ? 'unpaid' : 'paid',
-                      })}
-                      disabled={paymentMutation.isPending}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                        order.payment_status === 'paid'
-                          ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          : 'bg-green-600 text-white hover:bg-green-700'
-                      } disabled:opacity-50`}
-                    >
-                      {order.payment_status === 'paid' ? 'Bỏ thanh toán' : '💰 Đánh dấu đã thanh toán'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm('Huỷ đơn hàng này?')) statusMutation.mutate({ id: order.id, status: 'cancelled' });
-                      }}
-                      disabled={statusMutation.isPending}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      Huỷ đơn
-                    </button>
+                    {/* Order-level payment toggle */}
+                    {['pending', 'processing'].includes(order.status) && (
+                      <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            paymentMutation.mutate({
+                              id: order.id,
+                              paymentStatus: order.payment_status === 'paid' ? 'unpaid' : 'paid',
+                            })
+                          }
+                          disabled={paymentMutation.isPending}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            order.payment_status === 'paid'
+                              ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              : 'bg-green-600 text-white hover:bg-green-700'
+                          } disabled:opacity-50`}
+                        >
+                          {order.payment_status === 'paid'
+                            ? '支払いを取り消す'
+                            : '💰 支払い済みにする'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm('この注文をキャンセルしますか？'))
+                              statusMutation.mutate({ id: order.id, status: 'cancelled' });
+                          }}
+                          disabled={statusMutation.isPending}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          注文をキャンセル
+                        </button>
+                      </div>
+                    )}
+                    {order.payment_status === 'paid' && (
+                      <div className="border-t border-gray-100 px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => printReceipt(order, selected.ticket_code)}
+                          className="rounded-lg bg-gray-950 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800"
+                        >
+                          領収書を印刷
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
                 );
               })()
             ) : (
               <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-400 text-sm">
-                Không có đơn hàng liên kết với số này.
+                この受付番号に紐づく注文はありません。
               </div>
             )}
           </div>

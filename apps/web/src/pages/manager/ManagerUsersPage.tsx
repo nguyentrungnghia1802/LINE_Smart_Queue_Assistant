@@ -13,9 +13,9 @@ interface UserRow {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  staff: 'Nhân viên',
-  manager: 'Quản lý',
-  admin: 'Admin',
+  staff: 'スタッフ',
+  manager: 'マネージャー',
+  admin: '管理者',
 };
 
 export function ManagerUsersPage() {
@@ -44,7 +44,7 @@ export function ManagerUsersPage() {
       setForm({ displayName: '', email: '', password: '' });
       setAddError('');
     },
-    onError: (err: { message?: string }) => setAddError(err?.message ?? 'Có lỗi xảy ra'),
+    onError: (err: { message?: string }) => setAddError(err?.message ?? 'エラーが発生しました'),
   });
 
   const updateMutation = useMutation({
@@ -56,7 +56,7 @@ export function ManagerUsersPage() {
       setForm({ displayName: '', email: '', password: '' });
       setAddError('');
     },
-    onError: (err: { message?: string }) => setAddError(err?.message ?? 'Có lỗi xảy ra'),
+    onError: (err: { message?: string }) => setAddError(err?.message ?? 'エラーが発生しました'),
   });
 
   const deleteMutation = useMutation({
@@ -64,31 +64,31 @@ export function ManagerUsersPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users-staff', orgId] }),
   });
 
-  if (isLoading) return <div className="text-gray-400 text-sm">Đang tải...</div>;
+  if (isLoading) return <div className="text-gray-400 text-sm">読み込み中...</div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Nhân viên</h1>
+        <h1 className="text-xl font-bold text-gray-900">スタッフ</h1>
         <button
           onClick={() => setShowAdd(true)}
           className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700"
         >
-          + Thêm nhân viên
+          + スタッフを追加
         </button>
       </div>
 
       {staffUsers.length === 0 ? (
-        <p className="text-gray-400 text-sm">Chưa có nhân viên nào.</p>
+        <p className="text-gray-400 text-sm">スタッフがまだいません。</p>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-left text-gray-500 border-b border-gray-200">
-                <th className="px-4 py-3 font-medium">Tên</th>
+                <th className="px-4 py-3 font-medium">名前</th>
                 <th className="px-4 py-3 font-medium hidden sm:table-cell">Email</th>
-                <th className="px-4 py-3 font-medium">Vai trò</th>
-                <th className="px-4 py-3 font-medium text-center">Trạng thái</th>
+                <th className="px-4 py-3 font-medium">権限</th>
+                <th className="px-4 py-3 font-medium text-center">ステータス</th>
               </tr>
             </thead>
             <tbody>
@@ -103,22 +103,26 @@ export function ManagerUsersPage() {
                         onClick={() => {
                           setEditingUserId(u.id);
                           setShowAdd(true);
-                          setForm({ displayName: u.display_name, email: u.email ?? '', password: '' });
+                          setForm({
+                            displayName: u.display_name,
+                            email: u.email ?? '',
+                            password: '',
+                          });
                           setAddError('');
                         }}
                         className="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100"
                       >
-                        Sửa
+                        編集
                       </button>
                       <button
                         onClick={() => {
-                          if (window.confirm(`Xóa nhân viên ${u.display_name}?`)) {
+                          if (window.confirm(`${u.display_name} を削除しますか？`)) {
                             deleteMutation.mutate(u.id);
                           }
                         }}
                         className="text-xs px-2 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100"
                       >
-                        Xóa
+                        削除
                       </button>
                     </div>
                   </td>
@@ -134,13 +138,13 @@ export function ManagerUsersPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-80 shadow-xl space-y-4">
             <h2 className="font-semibold text-gray-900">
-              {editingUserId ? 'Sửa nhân viên' : 'Thêm nhân viên mới'}
+              {editingUserId ? 'スタッフを編集' : 'スタッフを追加'}
             </h2>
 
             {[
-              { label: 'Tên hiển thị *', key: 'displayName', type: 'text', placeholder: 'Nguyễn Văn X' },
+              { label: '表示名 *', key: 'displayName', type: 'text', placeholder: '山田太郎' },
               { label: 'Email *', key: 'email', type: 'email', placeholder: 'nv@salon.com' },
-              { label: 'Mật khẩu *', key: 'password', type: 'password', placeholder: '••••••••' },
+              { label: 'パスワード *', key: 'password', type: 'password', placeholder: '••••••••' },
             ].map(({ label, key, type, placeholder }) => (
               <div key={key}>
                 <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
@@ -158,10 +162,13 @@ export function ManagerUsersPage() {
 
             <div className="flex gap-2 pt-1">
               <button
-                onClick={() => { setShowAdd(false); setAddError(''); }}
+                onClick={() => {
+                  setShowAdd(false);
+                  setAddError('');
+                }}
                 className="flex-1 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
               >
-                Huỷ
+                キャンセル
               </button>
               <button
                 onClick={() => {
@@ -181,10 +188,10 @@ export function ManagerUsersPage() {
                 className="flex-1 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
               >
                 {createMutation.isPending || updateMutation.isPending
-                  ? 'Đang lưu...'
+                  ? '保存中...'
                   : editingUserId
-                    ? 'Cập nhật'
-                    : 'Lưu'}
+                    ? '更新'
+                    : '保存'}
               </button>
             </div>
           </div>

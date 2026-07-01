@@ -102,23 +102,24 @@ export class UsersRepository extends BaseRepository {
     return this.firstOrThrow(rows, 'users.create');
   }
 
-  async createWithPassword(params: {
-    displayName: string;
-    email: string;
-    role: string;
-    passwordHash: string;
-  }): Promise<UserRow> {
+  async createWithPassword(
+    params: {
+      displayName: string;
+      email: string;
+      role: string;
+      passwordHash: string;
+    },
+    client?: PoolClient
+  ): Promise<UserRow> {
     const sql = `
       INSERT INTO users (display_name, email, role, password_hash)
       VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
-    const rows = await this.query<UserRow>(sql, [
-      params.displayName,
-      params.email,
-      params.role,
-      params.passwordHash,
-    ]);
+    const args = [params.displayName, params.email, params.role, params.passwordHash];
+    const rows = client
+      ? await this.queryTx<UserRow>(client, sql, args)
+      : await this.query<UserRow>(sql, args);
     return this.firstOrThrow(rows, 'users.createWithPassword');
   }
 
@@ -141,7 +142,10 @@ export class UsersRepository extends BaseRepository {
    * Update current user's profile (display_name, email).
    * Used by users/me endpoint for self-service profile editing.
    */
-  async updateProfile(id: string, data: Partial<{ displayName: string; email: string }>): Promise<UserRow | null> {
+  async updateProfile(
+    id: string,
+    data: Partial<{ displayName: string; email: string }>
+  ): Promise<UserRow | null> {
     const fields: string[] = [];
     const values: unknown[] = [];
     let i = 1;

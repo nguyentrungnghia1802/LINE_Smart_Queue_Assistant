@@ -24,10 +24,14 @@ export interface LiffContext {
   isInClient: boolean;
   profile: LiffProfile | null;
   /**
-   * LIFF access token — exchange at POST /api/v1/auth/line to obtain a JWT.
+   * LIFF access token — kept for LINE APIs that require it.
    * null when not logged in or in mock mode (mock returns a fake token string).
    */
   accessToken: string | null;
+  /**
+   * LIFF OIDC ID token — exchanged at POST /api/v1/auth/line to obtain a JWT.
+   */
+  idToken: string | null;
   error: Error | null;
   login: () => void;
   logout: () => void;

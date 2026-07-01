@@ -57,80 +57,82 @@ export function ManagerQRPage() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <h1 className="text-xl font-bold text-gray-900">Xuất mã QR</h1>
-        <p className="text-gray-400">Đang tải...</p>
+        <h1 className="text-xl font-bold text-gray-900">QRコード表示</h1>
+        <p className="text-gray-400">読み込み中...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-gray-900">Xuất mã QR</h1>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">QR</p>
+        <h1 className="mt-2 text-3xl font-bold text-gray-950">QRコード表示</h1>
+        <p className="mt-1 text-sm text-gray-500">顧客が読み取る受付リンクを管理します。</p>
+      </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid gap-6 lg:grid-cols-2">
         {/* ── Web QR ── */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col items-center gap-4">
-          <h2 className="text-sm font-semibold text-gray-700 self-start">
-            🌐 Web QR (trình duyệt)
-          </h2>
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/80 bg-white p-6 shadow-[var(--shadow-soft)]">
+          <h2 className="self-start font-bold text-gray-950">Web QR（ブラウザ）</h2>
           <div ref={printRef} className="flex flex-col items-center gap-3">
-            <p className="text-sm font-semibold text-gray-700">
-              {orgData?.name ?? 'Cơ sở của bạn'}
-            </p>
+            <p className="text-sm font-semibold text-gray-700">{orgData?.name ?? '店舗'}</p>
             {orgData?.address && <p className="text-xs text-gray-500">{orgData.address}</p>}
-            <QRCodeSVG value={joinUrl} size={200} />
+            <div className="rounded-2xl bg-white p-4 shadow-sm">
+              <QRCodeSVG value={joinUrl} size={200} />
+            </div>
             <p className="text-xs text-gray-400 text-center break-all">{joinUrl}</p>
           </div>
           <p className="text-xs text-gray-500 text-center">
-            Khách quét để đặt hàng qua trình duyệt
+            顧客が読み取るとブラウザで注文できます
           </p>
           <div className="flex gap-2 w-full">
             <button
               onClick={handleCopy}
-              className="flex-1 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200"
+              className="flex-1 rounded-xl bg-gray-100 py-2 text-sm font-bold text-gray-700 hover:bg-gray-200"
             >
-              📋 Copy link
+              リンクをコピー
             </button>
             <button
               onClick={handlePrint}
-              className="flex-1 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700"
+              className="flex-1 rounded-xl bg-gray-950 py-2 text-sm font-bold text-white hover:bg-gray-800"
             >
-              In QR
+              QRを印刷
             </button>
           </div>
         </div>
 
         {/* ── LINE LIFF QR ── */}
-        <div className="bg-white rounded-xl border border-[#06C755]/40 p-6 flex flex-col items-center gap-4">
-          <h2 className="text-sm font-semibold text-gray-700 self-start flex items-center gap-1">
-            <span className="text-[#06C755] text-base">●</span> LINE LIFF (ứng dụng LINE)
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-[#06C755]/30 bg-white p-6 shadow-[var(--shadow-soft)]">
+          <h2 className="self-start flex items-center gap-1 font-bold text-gray-950">
+            <span className="text-[#06C755] text-base">●</span> LINE LIFF（LINEアプリ）
           </h2>
           {liffUrl ? (
             <>
               <div className="flex flex-col items-center gap-3">
-                <QRCodeSVG value={liffUrl} size={200} fgColor="#06C755" />
+                <div className="rounded-2xl bg-white p-4 shadow-sm">
+                  <QRCodeSVG value={liffUrl} size={200} fgColor="#06C755" />
+                </div>
                 <p className="text-xs text-gray-400 text-center break-all">{liffUrl}</p>
               </div>
               <p className="text-xs text-gray-500 text-center">
-                Khách quét để mở giao diện trong{' '}
-                <span className="font-medium text-[#06C755]">LINE App</span> (cần cài LINE trên điện
-                thoại)
+                顧客が読み取ると <span className="font-medium text-[#06C755]">LINEアプリ</span>
+                で画面を開きます（端末にLINEが必要です）
               </p>
               <button
                 onClick={handleCopyLiff}
-                className="w-full py-2 bg-[#06C755] text-white text-sm rounded-lg hover:bg-[#05b54c]"
+                className="w-full rounded-xl bg-[#06C755] py-2 text-sm font-bold text-white hover:bg-[#05b54c]"
               >
-                📋 Copy LIFF link
+                LIFFリンクをコピー
               </button>
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-2 py-6">
-              <p className="text-3xl">⚙️</p>
               <p className="text-sm text-gray-500 text-center">
-                Chưa cấu hình <code className="bg-gray-100 px-1 rounded">VITE_LIFF_ID</code>
+                未設定: <code className="bg-gray-100 px-1 rounded">VITE_LIFF_ID</code>
               </p>
               <p className="text-xs text-gray-400 text-center">
-                Thêm LIFF App ID vào file <code>.env</code> để kích hoạt tính năng này.
+                LIFF App IDを <code>.env</code> に追加すると、この機能を有効化できます。
               </p>
             </div>
           )}
@@ -138,21 +140,21 @@ export function ManagerQRPage() {
       </div>
 
       {/* Info cards */}
-      <div className="grid md:grid-cols-2 gap-4 text-xs text-gray-500">
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="font-medium text-gray-700 mb-1">📱 Cách hoạt động — Web QR</p>
+      <div className="grid gap-4 text-xs text-gray-500 md:grid-cols-2">
+        <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)]">
+          <p className="mb-1 font-bold text-gray-700">使い方 — Web QR</p>
           <ol className="list-decimal list-inside space-y-0.5">
-            <li>Khách quét QR bằng camera hoặc ứng dụng bất kỳ</li>
-            <li>Trình duyệt mở trang đặt hàng</li>
-            <li>Chọn sản phẩm → Lấy số thứ tự</li>
+            <li>顧客がカメラまたは任意のアプリでQRを読み取る</li>
+            <li>ブラウザで注文ページが開く</li>
+            <li>商品を選択 → 受付番号を取得</li>
           </ol>
         </div>
-        <div className="bg-[#06C755]/5 rounded-lg p-3">
-          <p className="font-medium text-gray-700 mb-1">💬 Cách hoạt động — LINE LIFF</p>
+        <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)]">
+          <p className="mb-1 font-bold text-gray-700">使い方 — LINE LIFF</p>
           <ol className="list-decimal list-inside space-y-0.5">
-            <li>Khách quét QR trong ứng dụng LINE</li>
-            <li>Giao diện LIFF mở trong LINE</li>
-            <li>Tự động đăng nhập → Lấy số + nhận thông báo LINE</li>
+            <li>顧客がLINEアプリでQRを読み取る</li>
+            <li>LINE内でLIFF画面が開く</li>
+            <li>自動ログイン → 受付番号取得 + LINE通知受信</li>
           </ol>
         </div>
       </div>

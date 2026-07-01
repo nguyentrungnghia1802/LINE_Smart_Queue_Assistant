@@ -11,7 +11,7 @@ describe('Spinner', () => {
 
   it('has accessible label', () => {
     render(<Spinner />);
-    expect(screen.getByLabelText('Loading')).toBeInTheDocument();
+    expect(screen.getByLabelText('読み込み中')).toBeInTheDocument();
   });
 
   it('applies md size by default', () => {

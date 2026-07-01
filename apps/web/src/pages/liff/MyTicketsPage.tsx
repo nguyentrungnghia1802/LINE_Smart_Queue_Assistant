@@ -33,7 +33,7 @@ export function MyTicketsPage() {
   if (isError) {
     return (
       <ErrorState
-        message="Could not load your tickets. Please try again."
+        message="受付番号を読み込めませんでした。もう一度お試しください。"
         onRetry={() => void refetch()}
       />
     );
@@ -43,8 +43,8 @@ export function MyTicketsPage() {
     return (
       <EmptyState
         icon="🎫"
-        title="No active tickets"
-        message="Scan a QR code or tap a queue link to get your number."
+        title="有効な受付番号はありません"
+        message="QRコードまたはリンクから受付番号を取得してください。"
       />
     );
   }
@@ -63,7 +63,7 @@ export function MyTicketsPage() {
       ))}
 
       <h1 className="text-lg font-semibold text-gray-900">
-        My Tickets <span className="text-sm font-normal text-gray-400">({tickets.length})</span>
+        受付番号 <span className="text-sm font-normal text-gray-400">({tickets.length})</span>
       </h1>
 
       {tickets.map((ticket) => (
