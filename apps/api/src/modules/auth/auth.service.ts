@@ -82,12 +82,12 @@ export const authService = {
   ): Promise<{ token: string; user: AuthUser }> {
     const userRow = await usersRepository.findByEmail(email);
     if (!userRow || !userRow.password_hash) {
-      throw AppError.unauthorized('Invalid email or password');
+      throw AppError.unauthorized('メールアドレスまたはパスワードが正しくありません');
     }
 
     const valid = await bcrypt.compare(password, userRow.password_hash);
     if (!valid) {
-      throw AppError.unauthorized('Invalid email or password');
+      throw AppError.unauthorized('メールアドレスまたはパスワードが正しくありません');
     }
 
     const membership = await organizationsRepository.findMembershipByUserId(userRow.id);
@@ -110,12 +110,10 @@ export const authService = {
     return { token, user };
   },
 
-  async registerCustomer(
-    dto: RegisterCustomerDto
-  ): Promise<{ token: string; user: AuthUser }> {
+  async registerCustomer(dto: RegisterCustomerDto): Promise<{ token: string; user: AuthUser }> {
     const existing = await usersRepository.findByEmail(dto.email);
     if (existing) {
-      throw AppError.conflict('A user with this email already exists');
+      throw AppError.conflict('このメールアドレスのユーザーはすでに存在します');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);

@@ -30,7 +30,7 @@ export function CreateQueuePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user?.organizationId) {
-      setError('Bạn không thuộc tổ chức nào.');
+      setError('所属組織がありません。');
       return;
     }
     setError('');
@@ -48,7 +48,7 @@ export function CreateQueuePage() {
       });
       navigate(`/queues/${queue.id}`);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Lỗi khi tạo hàng đợi.');
+      setError(err instanceof Error ? err.message : 'キューの作成中にエラーが発生しました。');
     } finally {
       setSaving(false);
     }
@@ -58,31 +58,31 @@ export function CreateQueuePage() {
     <div className="max-w-lg mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <Link to="/queues" className="text-gray-400 hover:text-gray-600 text-sm">
-          ← Hàng đợi
+          ← キュー
         </Link>
         <span className="text-gray-300">/</span>
-        <h1 className="text-xl font-bold text-gray-900">Tạo hàng đợi mới</h1>
+        <h1 className="text-xl font-bold text-gray-900">新しいキューを作成</h1>
       </div>
 
       <form
         onSubmit={handleSubmit}
         className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5"
       >
-        <Field label="Tên hàng đợi *" required>
+        <Field label="キュー名 *" required>
           <input
             required
             type="text"
-            placeholder="VD: Khám Tổng Quát"
+            placeholder="例: 一般受付"
             value={form.name}
             onChange={(e) => set('name', e.target.value)}
             className={inputCls}
           />
         </Field>
 
-        <Field label="Mô tả">
+        <Field label="説明">
           <textarea
             rows={2}
-            placeholder="Mô tả ngắn về hàng đợi"
+            placeholder="キューの短い説明"
             value={form.description}
             onChange={(e) => set('description', e.target.value)}
             className={inputCls}
@@ -90,21 +90,21 @@ export function CreateQueuePage() {
         </Field>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Tiền tố số (prefix)">
+          <Field label="受付番号のプレフィックス">
             <input
               type="text"
-              placeholder="VD: A"
+              placeholder="例: A"
               maxLength={10}
               value={form.prefix}
               onChange={(e) => set('prefix', e.target.value)}
               className={inputCls}
             />
           </Field>
-          <Field label="Sức chứa tối đa">
+          <Field label="最大定員">
             <input
               type="number"
               min="1"
-              placeholder="Không giới hạn"
+              placeholder="無制限"
               value={form.maxCapacity}
               onChange={(e) => set('maxCapacity', e.target.value)}
               className={inputCls}
@@ -113,21 +113,21 @@ export function CreateQueuePage() {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Thời gian phục vụ TB (phút)">
+          <Field label="平均対応時間（分）">
             <input
               type="number"
               min="1"
-              placeholder="VD: 15"
+              placeholder="例: 15"
               value={form.avgServiceTimeMinutes}
               onChange={(e) => set('avgServiceTimeMinutes', e.target.value)}
               className={inputCls}
             />
           </Field>
-          <Field label="Tự huỷ sau khi gọi (phút)">
+          <Field label="呼び出し後の自動キャンセル（分）">
             <input
               type="number"
               min="1"
-              placeholder="VD: 10"
+              placeholder="例: 10"
               value={form.autoNoShowMinutes}
               onChange={(e) => set('autoNoShowMinutes', e.target.value)}
               className={inputCls}
@@ -142,14 +142,14 @@ export function CreateQueuePage() {
             to="/queues"
             className="flex-1 text-center border border-gray-300 text-gray-700 font-medium py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors"
           >
-            Huỷ
+            キャンセル
           </Link>
           <button
             type="submit"
             disabled={saving}
             className="flex-1 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-sm transition-colors"
           >
-            {saving ? 'Đang tạo...' : 'Tạo hàng đợi'}
+            {saving ? '作成中...' : 'キューを作成'}
           </button>
         </div>
       </form>

@@ -4,11 +4,13 @@ import bcrypt from 'bcryptjs';
 
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
+import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
 
 import {
   CreateManagerDto,
   CreateOrganizationDto,
+  CreateOrganizationRegistrationDto,
   UpdateManagerDto,
   UpdateOrganizationDto,
 } from './admin.validator';
@@ -25,11 +27,49 @@ export const adminService = {
     return organizationsRepository.create({
       name: dto.name,
       slug: dto.slug,
-      publicQrToken: dto.publicQrToken ?? `org-${randomUUID()}`,
+      publicQrToken: `org-${randomUUID()}`,
       logoUrl: dto.logoUrl ?? null,
       phone: dto.phone ?? null,
       address: dto.address ?? null,
       paymentInfo: dto.paymentInfo ?? null,
+    });
+  },
+
+  async registerOrganization(dto: CreateOrganizationRegistrationDto) {
+    const existingOrg = await organizationsRepository.findBySlug(dto.organization.slug);
+    if (existingOrg) throw AppError.conflict('An organization with this slug already exists');
+
+    const existingUser = await usersRepository.findByEmail(dto.manager.email);
+    if (existingUser) throw AppError.conflict('A user with this email already exists');
+
+    return withTransaction(async (client) => {
+      const org = await organizationsRepository.create(
+        {
+          name: dto.organization.name,
+          slug: dto.organization.slug,
+          publicQrToken: `org-${randomUUID()}`,
+          logoUrl: dto.organization.logoUrl ?? null,
+          phone: dto.organization.phone ?? null,
+          address: dto.organization.address ?? null,
+          paymentInfo: dto.organization.paymentInfo ?? null,
+        },
+        client
+      );
+
+      const passwordHash = await bcrypt.hash(dto.manager.password, 10);
+      const manager = await usersRepository.createWithPassword(
+        {
+          displayName: dto.manager.displayName,
+          email: dto.manager.email,
+          role: 'manager',
+          passwordHash,
+        },
+        client
+      );
+
+      await organizationsRepository.addMember(org.id, manager.id, 'manager', client);
+
+      return { organization: org, manager };
     });
   },
 

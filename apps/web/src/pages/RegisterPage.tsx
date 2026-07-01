@@ -22,10 +22,10 @@ export function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      const data = await post<{ token: string; user: { id: string; role: 'customer'; displayName?: string; email?: string } }>(
-        '/api/v1/auth/register',
-        { displayName, email, password, phone: phone || undefined }
-      );
+      const data = await post<{
+        token: string;
+        user: { id: string; role: 'customer'; displayName?: string; email?: string };
+      }>('/api/v1/auth/register', { displayName, email, password, phone: phone || undefined });
       localStorage.setItem('auth_token', data.token);
       setUser({
         id: data.user.id,
@@ -35,7 +35,7 @@ export function RegisterPage() {
       });
       navigate('/customer', { replace: true });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Đăng ký thất bại';
+      const msg = err instanceof Error ? err.message : '登録に失敗しました';
       setError(msg);
     } finally {
       setLoading(false);
@@ -47,8 +47,10 @@ export function RegisterPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <span className="text-5xl">🟢</span>
-          <h1 className="mt-4 text-2xl font-bold text-gray-900">Đăng ký Customer</h1>
-          <p className="mt-1 text-sm text-gray-500">Tạo tài khoản để theo dõi hàng đợi của bạn</p>
+          <h1 className="mt-4 text-2xl font-bold text-gray-900">顧客登録</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            受付状況を確認するためのアカウントを作成します
+          </p>
         </div>
 
         <form
@@ -56,7 +58,7 @@ export function RegisterPage() {
           className="bg-white rounded-[var(--radius-card)] border border-gray-200 shadow-sm p-8 space-y-4"
         >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tên hiển thị</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">表示名</label>
             <input
               type="text"
               required
@@ -78,7 +80,7 @@ export function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại (tuỳ chọn)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">電話番号（任意）</label>
             <input
               type="tel"
               value={phone}
@@ -88,7 +90,7 @@ export function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">パスワード</label>
             <input
               type="password"
               required
@@ -106,13 +108,13 @@ export function RegisterPage() {
             disabled={loading}
             className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-sm transition-colors"
           >
-            {loading ? 'Đang đăng ký…' : 'Đăng ký'}
+            {loading ? '登録しています…' : '登録'}
           </button>
 
           <p className="text-sm text-gray-500 text-center pt-2">
-            Đã có tài khoản?{' '}
+            すでにアカウントをお持ちの場合{' '}
             <Link to="/login" className="text-brand-600 hover:text-brand-700 font-medium">
-              Đăng nhập
+              ログイン
             </Link>
           </p>
         </form>

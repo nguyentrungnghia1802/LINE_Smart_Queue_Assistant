@@ -5,9 +5,9 @@ import { ErrorState } from '../ui/ErrorState';
 import { Spinner } from '../ui/Spinner';
 
 const NAV_ITEMS = [
-  { to: '/liff/home', label: 'Home', icon: HomeIcon },
-  { to: '/liff/tickets', label: 'My Tickets', icon: TicketsIcon },
-  { to: '/liff/history', label: 'History', icon: HistoryIcon },
+  { to: '/liff/home', label: 'ホーム', icon: HomeIcon },
+  { to: '/liff/tickets', label: '受付番号', icon: TicketsIcon },
+  { to: '/liff/history', label: '履歴', icon: HistoryIcon },
 ] as const;
 
 /**
@@ -27,7 +27,7 @@ export function LiffLayout() {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-white">
         <Spinner size="lg" />
-        <p className="mt-4 text-sm text-gray-500">Initialising…</p>
+        <p className="mt-4 text-sm text-gray-500">初期化しています…</p>
       </div>
     );
   }
@@ -36,8 +36,8 @@ export function LiffLayout() {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-white px-6">
         <ErrorState
-          title="Could not initialise"
-          message={error?.message ?? 'LIFF initialisation failed. Please close and reopen.'}
+          title="初期化できませんでした"
+          message={error?.message ?? 'LIFFの初期化に失敗しました。LINEを閉じて再度開いてください。'}
         />
       </div>
     );
@@ -59,7 +59,7 @@ export function LiffLayout() {
 
       {/* ── Bottom tab bar ── */}
       <nav
-        aria-label="Main navigation"
+        aria-label="メインナビゲーション"
         className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex items-stretch z-10 safe-bottom"
       >
         {NAV_ITEMS.map(({ to, label, icon: Icon }) => (

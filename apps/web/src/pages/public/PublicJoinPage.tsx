@@ -18,9 +18,9 @@ interface JoinResult {
 }
 
 function fmtWait(seconds: number | null): string {
-  if (!seconds) return 'Không rõ';
+  if (!seconds) return '不明';
   const m = Math.ceil(seconds / 60);
-  return m < 60 ? `~${m} phút` : `~${Math.floor(m / 60)} giờ ${m % 60} phút`;
+  return m < 60 ? `~${m} 分` : `~${Math.floor(m / 60)}時間${m % 60} 分`;
 }
 
 export function PublicJoinPage() {
@@ -50,7 +50,7 @@ export function PublicJoinPage() {
       });
       navigate(`/ticket/${result.entry.id}`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Không thể tham gia hàng đợi.';
+      const msg = err instanceof Error ? err.message : '順番待ちに参加できませんでした。';
       setError(msg);
     } finally {
       setJoining(false);
@@ -60,7 +60,7 @@ export function PublicJoinPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Đang tải...</p>
+        <p className="text-gray-500">読み込み中...</p>
       </div>
     );
   }
@@ -70,7 +70,7 @@ export function PublicJoinPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="text-center">
           <p className="text-2xl mb-2">😕</p>
-          <p className="text-gray-700 font-medium">Hàng đợi không tồn tại hoặc đã đóng.</p>
+          <p className="text-gray-700 font-medium">キューが存在しない、または終了しています。</p>
         </div>
       </div>
     );
@@ -88,7 +88,7 @@ export function PublicJoinPage() {
             onClick={() => navigate('/customer')}
             className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
           >
-            Dashboard customer
+            顧客ダッシュボード
           </button>
         )}
 
@@ -96,24 +96,24 @@ export function PublicJoinPage() {
         <div className="text-center">
           <span className="text-5xl">🟢</span>
           <h1 className="mt-3 text-2xl font-bold text-gray-900">{queue.name}</h1>
-          <p className="mt-1 text-sm text-gray-500">Lấy số thứ tự trực tuyến</p>
+          <p className="mt-1 text-sm text-gray-500">オンラインで受付番号を取得</p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
             <p className="text-3xl font-bold text-brand-600">{waitingCount}</p>
-            <p className="text-xs text-gray-500 mt-1">Đang chờ</p>
+            <p className="text-xs text-gray-500 mt-1">待機中</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
             <p className="text-lg font-bold text-gray-800">{fmtWait(estimatedWaitSeconds)}</p>
-            <p className="text-xs text-gray-500 mt-1">Thời gian chờ</p>
+            <p className="text-xs text-gray-500 mt-1">待ち時間</p>
           </div>
         </div>
 
         {isClosed ? (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-            <p className="text-red-700 font-medium">Hàng đợi hiện đã đóng.</p>
+            <p className="text-red-700 font-medium">現在このキューは終了しています。</p>
           </div>
         ) : (
           <form
@@ -122,12 +122,12 @@ export function PublicJoinPage() {
           >
             <div>
               <label htmlFor="guestName" className="block text-sm font-medium text-gray-700 mb-1">
-                Tên của bạn <span className="text-gray-400">(tuỳ chọn)</span>
+                お名前 <span className="text-gray-400">（任意）</span>
               </label>
               <input
                 id="guestName"
                 type="text"
-                placeholder="Ví dụ: Nguyễn Văn A"
+                placeholder="例: 山田太郎"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
                 maxLength={100}
@@ -142,7 +142,7 @@ export function PublicJoinPage() {
               disabled={joining}
               className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-base transition-colors"
             >
-              {joining ? 'Đang lấy số...' : '🎫 Lấy số thứ tự'}
+              {joining ? '受付番号を取得中...' : '🎫 受付番号を取得'}
             </button>
           </form>
         )}

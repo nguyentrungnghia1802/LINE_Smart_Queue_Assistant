@@ -71,7 +71,7 @@ function WalkInModal({ queueId, onClose }: { queueId: string; onClose: () => voi
       qc.invalidateQueries({ queryKey: ['staff-queue', queueId] });
       onClose();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : 'Lỗi.');
+      setErr(e instanceof Error ? e.message : 'エラーが発生しました。');
     } finally {
       setSaving(false);
     }
@@ -80,17 +80,17 @@ function WalkInModal({ queueId, onClose }: { queueId: string; onClose: () => voi
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Thêm khách walk-in</h2>
+        <h2 className="text-lg font-bold text-gray-900 mb-4">ウォークイン顧客を追加</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tên khách</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">顧客名</label>
             <input
               type="text"
               required
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="VD: Nguyễn Văn A"
+              placeholder="例: 山田太郎"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
@@ -101,14 +101,14 @@ function WalkInModal({ queueId, onClose }: { queueId: string; onClose: () => voi
               onClick={onClose}
               className="flex-1 border border-gray-300 text-gray-700 font-medium py-2 rounded-lg text-sm hover:bg-gray-50"
             >
-              Huỷ
+              キャンセル
             </button>
             <button
               type="submit"
               disabled={saving}
               className="flex-1 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-sm"
             >
-              {saving ? 'Đang thêm...' : 'Thêm vào hàng đợi'}
+              {saving ? '追加中...' : 'キューに追加'}
             </button>
           </div>
         </form>
@@ -142,9 +142,9 @@ export function StaffQueuePage() {
   if (isError || !overview) {
     return (
       <div className="text-center py-16">
-        <p className="text-gray-500 mb-4">Không tải được dữ liệu hàng đợi.</p>
+        <p className="text-gray-500 mb-4">キューデータを読み込めませんでした。</p>
         <Link to="/queues" className="text-brand-600 hover:underline text-sm">
-          ← Quay lại
+          ← 戻る
         </Link>
       </div>
     );
@@ -165,13 +165,13 @@ export function StaffQueuePage() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-2">
           <Link to="/queues" className="text-gray-400 hover:text-gray-600 text-sm">
-            ← Hàng đợi
+            ← キュー
           </Link>
         </div>
         <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{overview.queueName}</h1>
-            <p className="text-sm text-gray-500 mt-0.5">{overview.waitingCount} người đang chờ</p>
+            <p className="text-sm text-gray-500 mt-0.5">{overview.waitingCount} 人待ち</p>
           </div>
           <div className="flex gap-2">
             <Link
@@ -195,13 +195,13 @@ export function StaffQueuePage() {
             {(({ id, ...rest }) => (
               <>
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  Đang phục vụ
+                  対応中
                 </h2>
                 <EntryCard
                   entry={{ id, ...rest }}
                   actions={
                     <ActionBtn
-                      label="Hoàn thành"
+                      label="完了"
                       variant="primary"
                       disabled={isBusy}
                       onClick={() => complete.mutate(id)}
@@ -219,20 +219,20 @@ export function StaffQueuePage() {
             {(({ id, ...rest }) => (
               <>
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  Đã gọi
+                  呼び出し済み
                 </h2>
                 <EntryCard
                   entry={{ id, ...rest }}
                   actions={
                     <>
                       <ActionBtn
-                        label="Phục vụ"
+                        label="対応"
                         variant="primary"
                         disabled={isBusy}
                         onClick={() => serve.mutate(id)}
                       />
                       <ActionBtn
-                        label="Vắng mặt"
+                        label="不在"
                         variant="danger"
                         disabled={isBusy}
                         onClick={() => noShow.mutate(id)}
@@ -253,7 +253,7 @@ export function StaffQueuePage() {
               disabled={isBusy}
               onClick={() => callNext.mutate()}
             >
-              Gọi số tiếp theo
+              次の番号を呼び出す
             </button>
           </div>
         )}
@@ -261,10 +261,10 @@ export function StaffQueuePage() {
         {/* Waiting list */}
         <section>
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            Đang chờ ({overview.waitingCount})
+            待機中 ({overview.waitingCount})
           </h2>
           {overview.waitingEntries.length === 0 ? (
-            <p className="text-gray-400 text-sm py-8 text-center">Không có ai đang chờ.</p>
+            <p className="text-gray-400 text-sm py-8 text-center">待機中の顧客はいません。</p>
           ) : (
             <div className="space-y-3">
               {overview.waitingEntries.map((entry) => (
@@ -273,7 +273,7 @@ export function StaffQueuePage() {
                   entry={entry}
                   actions={
                     <ActionBtn
-                      label="Huỷ"
+                      label="キャンセル"
                       variant="danger"
                       disabled={isBusy}
                       onClick={() => cancel.mutate(entry.id)}

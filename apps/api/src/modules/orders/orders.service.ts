@@ -5,11 +5,32 @@ import { productsRepository } from '../../db/repositories/products.repository';
 import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
+import { productCatalogCache } from '../../utils/cache';
 
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
 
 function formatOrderNumber(prefix: string, count: number): string {
   return `${prefix}${String(count).padStart(3, '0')}`;
+}
+
+function distanceMeters(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number }
+): number {
+  const radius = 6371_000;
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRad(to.latitude - from.latitude);
+  const dLon = toRad(to.longitude - from.longitude);
+  const lat1 = toRad(from.latitude);
+  const lat2 = toRad(to.latitude);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return Math.round(radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+function nullableNumber(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export const ordersService = {
@@ -55,6 +76,21 @@ export const ordersService = {
     );
 
     const subtotal = productRows.reduce((sum, { price, quantity }) => sum + price * quantity, 0);
+    const coveredProductIds = new Set(dto.payment?.coveredProductIds ?? []);
+    const requiredProductIds = productRows
+      .filter(({ product }) => product.requires_prepayment)
+      .map(({ product }) => product.id);
+    const missingRequiredPrepayment = requiredProductIds.filter((id) => !coveredProductIds.has(id));
+
+    if (missingRequiredPrepayment.length > 0) {
+      throw AppError.badRequest('Prepayment is required for one or more selected products');
+    }
+
+    const paidSubtotal = productRows.reduce((sum, { product, price, quantity }) => {
+      return coveredProductIds.has(product.id) ? sum + price * quantity : sum;
+    }, 0);
+    const isFullyPaid = dto.payment?.scope === 'all_items' && paidSubtotal >= subtotal;
+    const orderPaymentStatus = isFullyPaid ? 'paid' : 'unpaid';
 
     // Create queue entry + order + items in a transaction
     const client = await pool.connect();
@@ -64,6 +100,18 @@ export const ordersService = {
       // Increment ticket counter
       const ticketNumber = await queuesRepository.incrementAndGetCounter(queue.id, client);
       const ticketCode = `${queue.prefix ?? ''}${String(ticketNumber).padStart(3, '0')}`;
+
+      if (dto.bookingGroupId) {
+        await ordersRepository.ensureBookingGroup(
+          {
+            id: dto.bookingGroupId,
+            organizationId: org.id,
+            customerUserId: actorUserId,
+            localDeviceKey: dto.localDeviceKey,
+          },
+          client
+        );
+      }
 
       // Create queue entry (link to user if authenticated)
       const entry = await queueEntriesRepository.create(
@@ -95,16 +143,96 @@ export const ordersService = {
           customerUserId: actorUserId,
           customerPhone: dto.customerPhone,
           subtotal,
+          bookingGroupId: dto.bookingGroupId,
+          paymentStatus: orderPaymentStatus,
+          paymentCode: dto.payment?.code ?? dto.paymentCode,
           notes: dto.notes,
         },
         client
       );
 
+      let paymentTransactionId: string | null = null;
+      if (dto.payment && paidSubtotal > 0) {
+        const paymentTransaction = await ordersRepository.createPaymentTransaction(
+          {
+            organizationId: org.id,
+            orderId: order.id,
+            provider: dto.payment.provider,
+            method: dto.payment.method,
+            externalTransactionId: dto.payment.code,
+            status: 'paid',
+            amount: paidSubtotal,
+            currency: dto.payment.currency,
+            rawPayload: {
+              ...dto.payment.rawPayload,
+              scope: dto.payment.scope,
+              coveredProductIds: dto.payment.coveredProductIds,
+              clientAmount: dto.payment.amount,
+            },
+          },
+          client
+        );
+        paymentTransactionId = paymentTransaction.id;
+      }
+
       const linkedEntry = await queueEntriesRepository.linkOrder(entry.id, order.id, client);
       const linkedOrder = { ...order, queue_entry_id: linkedEntry.id };
 
+      if (dto.customerLocation) {
+        const orgWithLocation = org as typeof org & {
+          latitude?: string | number | null;
+          longitude?: string | number | null;
+        };
+        const orgLatitude = nullableNumber(orgWithLocation.latitude);
+        const orgLongitude = nullableNumber(orgWithLocation.longitude);
+        const distanceToOrgMeters =
+          orgLatitude !== null && orgLongitude !== null
+            ? distanceMeters(dto.customerLocation, {
+                latitude: orgLatitude,
+                longitude: orgLongitude,
+              })
+            : null;
+
+        const savedLocation = await ordersRepository.createCustomerLocation(
+          {
+            organizationId: org.id,
+            queueEntryId: linkedEntry.id,
+            customerUserId: actorUserId,
+            localDeviceKey: dto.localDeviceKey,
+            latitude: dto.customerLocation.latitude,
+            longitude: dto.customerLocation.longitude,
+            accuracyMeters: dto.customerLocation.accuracyMeters,
+            distanceToOrgMeters,
+          },
+          client
+        );
+
+        const alertThresholdMeters = 1000;
+        if (distanceToOrgMeters !== null && distanceToOrgMeters > alertThresholdMeters) {
+          await ordersRepository.createLocationAlert(
+            {
+              organizationId: org.id,
+              queueEntryId: linkedEntry.id,
+              customerLocationId: savedLocation.id,
+              distanceToOrgMeters,
+              thresholdMeters: alertThresholdMeters,
+              dueAt: new Date(),
+              rawPayload: {
+                queueId: queue.id,
+                ticketNumber,
+                ticketCode,
+                notifyAheadPositions: queue.notify_ahead_positions,
+                avgServiceSeconds: queue.avg_service_seconds,
+              },
+            },
+            client
+          );
+        }
+      }
+
       // Create items (within transaction)
       for (const { product, quantity, price } of productRows) {
+        const itemPaid = coveredProductIds.has(product.id);
         await ordersRepository.createItem(
           {
             orderId: order.id,
@@ -114,12 +242,38 @@ export const ordersService = {
             serviceTimeMinutes: product.service_time_minutes,
             quantity,
             subtotal: price * quantity,
+            paymentStatus: itemPaid ? 'paid' : 'unpaid',
+            prepaidAmount: itemPaid ? price * quantity : 0,
+            paymentTransactionId: itemPaid ? paymentTransactionId : null,
+            requiresPrepaymentSnapshot: product.requires_prepayment,
           },
           client
         );
+
+        if (product.stock_quantity !== null) {
+          const { rows } = await client.query<{ id: string }>(
+            `UPDATE products
+             SET stock_quantity = stock_quantity - $1
+             WHERE id = $2 AND stock_quantity >= $1
+             RETURNING id`,
+            [quantity, product.id]
+          );
+          if (!rows[0]) throw AppError.conflict(`Insufficient stock for "${product.name}"`);
+          await ordersRepository.reserveInventory(
+            {
+              organizationId: org.id,
+              orderId: order.id,
+              productId: product.id,
+              quantity,
+            },
+            client
+          );
+        }
       }
 
       await client.query('COMMIT');
+      productCatalogCache.invalidate(`org:${org.id}`);
+      productCatalogCache.invalidate(`slug:${org.slug}`);
       return { order: linkedOrder, entry: linkedEntry };
     } catch (err) {
       await client.query('ROLLBACK');

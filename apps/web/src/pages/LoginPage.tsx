@@ -29,95 +29,101 @@ export function LoginPage() {
       const updatedUser = useAuthStore.getState().user;
       navigate(updatedUser ? roleHomePath(updatedUser.role) : '/app', { replace: true });
     } catch {
-      setError('Email hoặc mật khẩu không đúng.');
+      setError('メールアドレスまたはパスワードが正しくありません。');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <span className="text-5xl">🟢</span>
-          <h1 className="mt-4 text-2xl font-bold text-gray-900">LINE Queue</h1>
-          <p className="mt-1 text-sm text-gray-500">Đăng nhập vào tài khoản của bạn</p>
-        </div>
-
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white rounded-[var(--radius-card)] border border-gray-200 shadow-sm p-8 space-y-4"
-        >
+    <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)] px-4 py-8">
+      <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/80 bg-white shadow-[var(--shadow-soft)] lg:grid-cols-[1fr_420px]">
+        <section className="hidden bg-gray-950 p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-            />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500 text-sm font-bold">
+              LQ
+            </div>
+            <h1 className="mt-8 text-4xl font-bold leading-tight">LINE Smart Queue Assistant</h1>
+            <p className="mt-4 max-w-md text-sm leading-6 text-gray-300">
+              受付、商品選択、スタッフ呼び出し、LINE通知までを一つの画面で管理します。
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div className="rounded-2xl bg-white/10 p-4">
+              <p className="text-2xl font-bold">24h</p>
+              <p className="mt-1 text-gray-300">オンライン受付</p>
+            </div>
+            <div className="rounded-2xl bg-white/10 p-4">
+              <p className="text-2xl font-bold">LINE</p>
+              <p className="mt-1 text-gray-300">通知連携</p>
+            </div>
+            <div className="rounded-2xl bg-white/10 p-4">
+              <p className="text-2xl font-bold">JPY</p>
+              <p className="mt-1 text-gray-300">決済デモ</p>
+            </div>
+          </div>
+        </section>
+
+        <div className="p-6 sm:p-10">
+          <div className="mb-8">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-sm font-bold text-white lg:hidden">
+              LQ
+            </div>
+            <h2 className="mt-5 text-2xl font-bold text-gray-950">ログイン</h2>
+            <p className="mt-1 text-sm text-gray-500">アカウントにログインしてください。</p>
           </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Mật khẩu
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
+                メール
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-3 py-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
+              />
+            </div>
 
-          {error && <p className="text-red-600 text-sm">{error}</p>}
+            <div>
+              <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700">
+                パスワード
+              </label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-3 py-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-sm transition-colors"
-          >
-            {loading ? 'Đang đăng nhập…' : 'Đăng nhập'}
-          </button>
+            {error && (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+            )}
 
-          <p className="text-sm text-gray-500 text-center pt-2">
-            Chưa có tài khoản?{' '}
-            <Link to="/register" className="text-brand-600 hover:text-brand-700 font-medium">
-              Đăng ký customer
-            </Link>
-          </p>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl bg-gray-950 py-3 text-sm font-bold text-white transition hover:bg-gray-800 disabled:opacity-50"
+            >
+              {loading ? 'ログインしています…' : 'ログイン'}
+            </button>
 
-        {/* LINE Login divider */}
-        <div className="mt-5 flex items-center gap-3">
-          <hr className="flex-1 border-gray-200" />
-          <span className="text-xs text-gray-400">hoặc</span>
-          <hr className="flex-1 border-gray-200" />
+            <p className="pt-2 text-center text-sm text-gray-500">
+              アカウントをお持ちでない場合{' '}
+              <Link to="/register" className="font-medium text-brand-700 hover:text-brand-800">
+                顧客登録
+              </Link>
+            </p>
+          </form>
         </div>
-
-        {/* LINE LIFF shortcut */}
-        <a
-          href="/liff"
-          className="mt-3 flex items-center justify-center gap-2 w-full bg-[#06C755] hover:bg-[#05b54c] text-white font-medium py-2.5 rounded-lg text-sm transition-colors shadow-sm"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className="w-5 h-5"
-          >
-            <path d="M19.365 9.89c.50 0 .906.406.906.906s-.406.906-.906.906h-2.344v1.172h2.344c.5 0 .906.406.906.906s-.406.906-.906.906h-3.25a.906.906 0 01-.906-.906V8.984c0-.5.406-.906.906-.906h3.25zm-6.453 4.39a.906.906 0 01-.906.906H9.33a.906.906 0 01-.906-.906V8.984c0-.5.406-.906.906-.906s.906.406.906.906v4.39h1.782c.5 0 .906.406.906.906zM7.5 8.984a.906.906 0 00-1.812 0v5.296c0 .5.406.906.906.906s.906-.406.906-.906V8.984zm-3.188 0A.906.906 0 002.5 8.984v5.296c0 .5.406.906.906.906h3.25c.5 0 .906-.406.906-.906s-.406-.906-.906-.906H4.218v-4.39z" />
-          </svg>
-          Mở LINE App (LIFF)
-        </a>
       </div>
     </div>
   );

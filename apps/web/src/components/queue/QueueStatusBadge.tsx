@@ -2,15 +2,15 @@ import { QueueStatus } from '@line-queue/shared';
 
 const STATUS_CONFIG: Record<QueueStatus, { label: string; className: string }> = {
   [QueueStatus.ACTIVE]: {
-    label: 'Active',
+    label: '稼働中',
     className: 'bg-green-100 text-green-800',
   },
   [QueueStatus.PAUSED]: {
-    label: 'Paused',
+    label: '一時停止',
     className: 'bg-yellow-100 text-yellow-800',
   },
   [QueueStatus.CLOSED]: {
-    label: 'Closed',
+    label: '終了',
     className: 'bg-gray-100 text-gray-600',
   },
 };

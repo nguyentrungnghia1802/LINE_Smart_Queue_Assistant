@@ -25,11 +25,23 @@ export interface ILineMessagingAdapter {
    * Requires a Channel Access Token with push-message permission.
    * Does not need a replyToken — can be called at any time.
    */
-  pushMessage(to: string, messages: LineMessage[]): Promise<void>;
+  pushMessage(to: string, messages: LineMessage[], options?: LineMessageOptions): Promise<void>;
 
   /**
    * Reply to an event using the event's single-use replyToken.
    * The token expires 30 seconds after the event was received.
    */
-  replyMessage(replyToken: string, messages: LineMessage[]): Promise<void>;
+  replyMessage(
+    replyToken: string,
+    messages: LineMessage[],
+    options?: LineMessageOptions
+  ): Promise<void>;
+}
+
+export interface LineMessageOptions {
+  /**
+   * false keeps LINE push notifications enabled.
+   * LINE/OS-level mute settings still remain under the customer's control.
+   */
+  notificationDisabled?: boolean;
 }

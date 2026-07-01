@@ -54,17 +54,18 @@ export function AdminOrgsPage() {
     enabled: !!activeOrgId,
   });
 
-  const invalidateManagers = () =>
+  const invalidateマネージャー = () =>
     queryClient.invalidateQueries({ queryKey: ['admin-org-managers', activeOrgId] });
 
   const createManager = useMutation({
     mutationFn: (payload: ManagerForm) =>
       post<ManagerRow>(`${API_BASE_PATH}/admin/organizations/${activeOrgId}/managers`, payload),
     onSuccess: () => {
-      void invalidateManagers();
+      void invalidateマネージャー();
       resetForm();
     },
-    onError: (err) => setError(err instanceof Error ? err.message : 'Không thể tạo manager.'),
+    onError: (err) =>
+      setError(err instanceof Error ? err.message : 'マネージャーを作成できませんでした。'),
   });
 
   const updateManager = useMutation({
@@ -78,17 +79,19 @@ export function AdminOrgsPage() {
         }
       ),
     onSuccess: () => {
-      void invalidateManagers();
+      void invalidateマネージャー();
       resetForm();
     },
-    onError: (err) => setError(err instanceof Error ? err.message : 'Không thể cập nhật manager.'),
+    onError: (err) =>
+      setError(err instanceof Error ? err.message : 'マネージャーを更新できませんでした。'),
   });
 
   const removeManager = useMutation({
     mutationFn: (managerId: string) =>
       del(`${API_BASE_PATH}/admin/organizations/${activeOrgId}/managers/${managerId}`),
-    onSuccess: () => void invalidateManagers(),
-    onError: (err) => setError(err instanceof Error ? err.message : 'Không thể xoá manager.'),
+    onSuccess: () => void invalidateマネージャー(),
+    onError: (err) =>
+      setError(err instanceof Error ? err.message : 'マネージャーを削除できませんでした。'),
   });
 
   function resetForm() {
@@ -120,7 +123,7 @@ export function AdminOrgsPage() {
   }
 
   function handleDelete(manager: ManagerRow) {
-    const confirmed = window.confirm(`Xoá manager ${manager.display_name}?`);
+    const confirmed = window.confirm(`削除 manager ${manager.display_name}?`);
     if (confirmed) removeManager.mutate(manager.id);
   }
 
@@ -129,23 +132,23 @@ export function AdminOrgsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Tổ chức</h1>
+        <h1 className="text-2xl font-bold text-gray-900">組織</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Chọn một organization để xem và quản lý manager thuộc organization đó.
+          組織を選択して、その組織のマネージャーを表示・管理します。
         </p>
       </div>
 
-      {orgsLoading && <p className="text-gray-500 text-sm">Đang tải...</p>}
+      {orgsLoading && <p className="text-gray-500 text-sm">読み込み中...</p>}
 
       {!orgsLoading && orgs.length === 0 && (
-        <p className="text-gray-500 text-sm">Chưa có tổ chức nào.</p>
+        <p className="text-gray-500 text-sm">組織がまだありません。</p>
       )}
 
       {orgs.length > 0 && (
         <div className="grid gap-6 lg:grid-cols-[minmax(280px,360px)_1fr]">
           <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
             <div className="border-b border-gray-100 px-4 py-3">
-              <h2 className="text-sm font-semibold text-gray-900">Organizations</h2>
+              <h2 className="text-sm font-semibold text-gray-900">組織</h2>
             </div>
             <div className="divide-y divide-gray-100">
               {orgs.map((org) => {
@@ -178,9 +181,7 @@ export function AdminOrgsPage() {
               <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">{selectedOrg?.name}</h2>
-                  <p className="text-sm text-gray-500">
-                    {selectedOrg?.address ?? 'Chưa có địa chỉ'}
-                  </p>
+                  <p className="text-sm text-gray-500">{selectedOrg?.address ?? '住所未設定'}</p>
                 </div>
                 <span className="text-xs font-mono text-gray-400">{selectedOrg?.id}</span>
               </div>
@@ -192,7 +193,7 @@ export function AdminOrgsPage() {
             >
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900">
-                  {editingManagerId ? 'Sửa manager' : 'Thêm manager'}
+                  {editingManagerId ? 'マネージャーを編集' : 'マネージャーを追加'}
                 </h3>
                 {editingManagerId && (
                   <button
@@ -200,7 +201,7 @@ export function AdminOrgsPage() {
                     onClick={resetForm}
                     className="text-sm text-gray-500 hover:text-gray-900"
                   >
-                    Huỷ sửa
+                    編集をキャンセル
                   </button>
                 )}
               </div>
@@ -209,7 +210,7 @@ export function AdminOrgsPage() {
                 <input
                   value={form.displayName}
                   onChange={(e) => setForm((v) => ({ ...v, displayName: e.target.value }))}
-                  placeholder="Tên manager"
+                  placeholder="名前 manager"
                   className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
                   required
                 />
@@ -224,7 +225,7 @@ export function AdminOrgsPage() {
                 <input
                   value={form.password}
                   onChange={(e) => setForm((v) => ({ ...v, password: e.target.value }))}
-                  placeholder={editingManagerId ? 'Mật khẩu mới nếu đổi' : 'Mật khẩu'}
+                  placeholder={editingManagerId ? '変更する場合は新しいパスワード' : 'パスワード'}
                   type="password"
                   className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
                   required={!editingManagerId}
@@ -238,27 +239,29 @@ export function AdminOrgsPage() {
                 disabled={saving}
                 className="mt-4 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
               >
-                {saving ? 'Đang lưu...' : editingManagerId ? 'Lưu thay đổi' : 'Thêm manager'}
+                {saving ? '保存中...' : editingManagerId ? '変更を保存' : 'マネージャーを追加'}
               </button>
             </form>
 
             <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
               <div className="border-b border-gray-100 px-4 py-3">
-                <h3 className="text-sm font-semibold text-gray-900">Managers</h3>
+                <h3 className="text-sm font-semibold text-gray-900">マネージャー</h3>
               </div>
 
               {managersLoading ? (
-                <p className="p-4 text-sm text-gray-500">Đang tải managers...</p>
+                <p className="p-4 text-sm text-gray-500">マネージャーを読み込み中...</p>
               ) : managers.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500">Organization này chưa có manager.</p>
+                <p className="p-4 text-sm text-gray-500">
+                  この組織にはまだマネージャーがいません。
+                </p>
               ) : (
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Tên</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">名前</th>
                       <th className="px-4 py-3 text-left font-medium text-gray-600">Email</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Trạng thái</th>
-                      <th className="px-4 py-3 text-right font-medium text-gray-600">Thao tác</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">ステータス</th>
+                      <th className="px-4 py-3 text-right font-medium text-gray-600">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -285,14 +288,14 @@ export function AdminOrgsPage() {
                             onClick={() => startEdit(manager)}
                             className="rounded-md px-3 py-1.5 text-sm text-brand-700 hover:bg-brand-50"
                           >
-                            Sửa
+                            編集
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDelete(manager)}
                             className="rounded-md px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
                           >
-                            Xoá
+                            削除
                           </button>
                         </td>
                       </tr>

@@ -42,8 +42,8 @@ export function QueueJoinPage() {
     return (
       <EmptyState
         icon="❌"
-        title="Invalid link"
-        message="Queue ID is missing from the URL. Please use the original link."
+        title="リンクが無効です"
+        message="URLにキューIDがありません。元のリンクから開いてください。"
       />
     );
   }
@@ -62,7 +62,7 @@ export function QueueJoinPage() {
   if (isError || !statusData) {
     return (
       <ErrorState
-        message="Could not load queue information. Please try again."
+        message="キュー情報を読み込めませんでした。もう一度お試しください。"
         onRetry={() => void refetch()}
       />
     );
@@ -94,15 +94,18 @@ export function QueueJoinPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-3 divide-x divide-gray-100 text-center">
-          <StatCell label="Waiting" value={String(waitingCount)} />
-          <StatCell label="Est. wait" value={waitingCount === 0 ? '< 1 min' : `~${waitMin} min`} />
-          <StatCell label="Avg. service" value={`${queue.avg_service_seconds}s`} />
+          <StatCell label="待ち人数" value={String(waitingCount)} />
+          <StatCell
+            label="待ち時間目安"
+            value={waitingCount === 0 ? '1分未満' : `約${waitMin}分`}
+          />
+          <StatCell label="平均対応" value={`${queue.avg_service_seconds}秒`} />
         </div>
 
         {/* Capacity warning */}
         {queue.max_capacity !== null && waitingCount >= queue.max_capacity && (
           <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-            This queue is at full capacity.
+            このキューは定員に達しています。
           </p>
         )}
       </div>
@@ -110,13 +113,13 @@ export function QueueJoinPage() {
       {/* ── Notes input ─────────────────────────────────────────────────── */}
       <div>
         <label htmlFor="join-notes" className="block text-sm font-medium text-gray-700 mb-1">
-          Notes <span className="text-gray-400 font-normal">(optional)</span>
+          メモ <span className="text-gray-400 font-normal">（任意）</span>
         </label>
         <textarea
           id="join-notes"
           rows={2}
           maxLength={200}
-          placeholder="e.g. wheelchair access, appointment reference…"
+          placeholder="例: 予約名、配慮事項など"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-line-green resize-none"
@@ -131,7 +134,7 @@ export function QueueJoinPage() {
         className="w-full bg-line-green hover:opacity-90 active:scale-[0.98] disabled:opacity-50 text-white font-semibold py-4 rounded-xl text-lg transition-all"
         aria-busy={joinMutation.isPending}
       >
-        {joinMutation.isPending ? 'Joining…' : 'Join Queue'}
+        {joinMutation.isPending ? '参加しています…' : '順番待ちに参加'}
       </button>
 
       {/* ── Error feedback ────────────────────────────────────────────────── */}
@@ -139,14 +142,14 @@ export function QueueJoinPage() {
         <p role="alert" className="text-sm text-red-600 text-center">
           {joinMutation.error instanceof Error
             ? joinMutation.error.message
-            : 'Could not join queue. Please try again.'}
+            : '順番待ちに参加できませんでした。もう一度お試しください。'}
         </p>
       )}
 
       {/* ── Closed notice ─────────────────────────────────────────────────── */}
       {!isQueueOpen && (
         <p className="text-sm text-gray-500 text-center">
-          This queue is not accepting new entries right now.
+          現在、このキューは新規受付を停止しています。
         </p>
       )}
     </div>

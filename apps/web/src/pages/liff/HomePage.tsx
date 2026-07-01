@@ -9,10 +9,13 @@ import { useMyTickets } from '../../hooks/useQueueEntry';
 
 // ── Step data — defined outside component to avoid re-creation ───────────────
 const STEPS = [
-  { title: 'Scan or tap a queue link', desc: 'From a QR code, LINE message, or direct URL.' },
-  { title: 'Join and get your number', desc: 'Your ticket is issued instantly.' },
-  { title: 'Wait comfortably', desc: 'Monitor your position and ETA in real time.' },
-  { title: 'Return when called', desc: "You'll see an alert when it's your turn." },
+  {
+    title: 'QRコードまたはリンクを開く',
+    desc: '店頭QR、LINEメッセージ、直接URLから開始できます。',
+  },
+  { title: '順番待ちに参加する', desc: '受付番号はすぐに発行されます。' },
+  { title: '待ち時間を確認する', desc: '自分の順番と目安時間をリアルタイムで確認できます。' },
+  { title: '呼び出し後に戻る', desc: '順番になるとLINEメッセージで通知されます。' },
 ];
 
 /**
@@ -98,7 +101,7 @@ function ProfileSection({
         )}
         <div>
           <p className="font-semibold text-gray-900 leading-tight">{profile.displayName}</p>
-          <p className="text-xs text-gray-500">LINE account</p>
+          <p className="text-xs text-gray-500">LINEアカウント</p>
         </div>
       </div>
     );
@@ -107,15 +110,15 @@ function ProfileSection({
   return (
     <div className="bg-line-green/10 rounded-(--radius-card) p-4 flex items-center justify-between">
       <div>
-        <p className="text-sm font-medium text-gray-800">Sign in with LINE</p>
-        <p className="text-xs text-gray-500 mt-0.5">to track your queue tickets</p>
+        <p className="text-sm font-medium text-gray-800">LINEでログイン</p>
+        <p className="text-xs text-gray-500 mt-0.5">受付番号を確認できます</p>
       </div>
       <button
         type="button"
         onClick={onLogin}
         className="bg-line-green text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
       >
-        Sign in
+        ログイン
       </button>
     </div>
   );
@@ -141,18 +144,18 @@ function ActiveTicketsSection({
       return <TicketCardSkeleton />;
     }
     if (isError) {
-      return <ErrorState message="Could not load your tickets." onRetry={onRetry} />;
+      return <ErrorState message="受付番号を読み込めませんでした。" onRetry={onRetry} />;
     }
     if (activeCount === 0) {
       return (
         <EmptyState
           icon="🎫"
-          title="No active tickets"
-          message="Scan a QR code or follow a link to join a queue."
+          title="有効な受付番号はありません"
+          message="QRコードまたはリンクから順番待ちに参加してください。"
         />
       );
     }
-    const label = activeCount === 1 ? 'active ticket' : 'active tickets';
+    const label = '有効な受付番号';
     return (
       <button
         type="button"
@@ -173,9 +176,9 @@ function ActiveTicketsSection({
   }
 
   return (
-    <section aria-label="Your active tickets">
+    <section aria-label="有効な受付番号">
       <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
-        Active tickets
+        有効な受付
       </h2>
       {renderContent()}
     </section>
@@ -184,10 +187,8 @@ function ActiveTicketsSection({
 
 function HowItWorksSection() {
   return (
-    <section aria-label="How it works">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
-        How it works
-      </h2>
+    <section aria-label="使い方">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">使い方</h2>
       <div className="bg-white rounded-(--radius-card) border border-gray-200 p-4 space-y-3">
         {STEPS.map((step, i) => (
           <div key={step.title} className="flex items-start gap-3">

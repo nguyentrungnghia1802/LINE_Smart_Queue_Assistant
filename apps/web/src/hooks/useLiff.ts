@@ -32,6 +32,7 @@ export function useLiff(): LiffContext {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isInClient, setIsInClient] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [idToken, setIdToken] = useState<string | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   const { loginWithLine, isAuthenticated } = useAuthStore();
@@ -64,19 +65,21 @@ export function useLiff(): LiffContext {
         setIsLoggedIn(loggedIn);
 
         if (loggedIn) {
-          const [liffProfile, token] = await Promise.all([
+          const [liffProfile, token, oidcToken] = await Promise.all([
             liffAdapter.getProfile(),
             Promise.resolve(liffAdapter.getAccessToken()),
+            Promise.resolve(liffAdapter.getIDToken()),
           ]);
           if (!cancelled) {
             setProfile(liffProfile);
             setAccessToken(token);
+            setIdToken(oidcToken);
 
-            // Auto-authenticate with backend using LINE access token.
+            // Auto-authenticate with backend using LINE OIDC ID token.
             // Only do this if the user isn't already authenticated.
-            if (!isAuthenticated && token) {
+            if (!isAuthenticated && oidcToken) {
               try {
-                await loginWithLine(token);
+                await loginWithLine(oidcToken);
               } catch {
                 // Non-fatal: user can still browse as guest.
                 // The backend auth will be attempted again on the next LINE action.
@@ -111,6 +114,7 @@ export function useLiff(): LiffContext {
     setIsLoggedIn(false);
     setProfile(null);
     setAccessToken(null);
+    setIdToken(null);
   }, []);
 
   return {
@@ -120,6 +124,7 @@ export function useLiff(): LiffContext {
     isInClient,
     profile,
     accessToken,
+    idToken,
     error,
     login,
     logout,

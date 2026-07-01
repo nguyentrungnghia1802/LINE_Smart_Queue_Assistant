@@ -2,8 +2,11 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import { LiffLayout } from './components/layout/LiffLayout';
 import { RootLayout } from './components/layout/RootLayout';
+import { AccountPage } from './pages/AccountPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
+import { AdminOrganizationDetailPage } from './pages/admin/AdminOrganizationDetailPage';
+import { AdminOrganizationRegisterPage } from './pages/admin/AdminOrganizationRegisterPage';
 import { AdminOrganizationsPage } from './pages/admin/AdminOrganizationsPage';
 import { CustomerDashboardPage } from './pages/customer/CustomerDashboardPage';
 import { CustomerJoinPage } from './pages/customer/CustomerJoinPage';
@@ -27,6 +30,7 @@ import { ManagerUsersPage } from './pages/manager/ManagerUsersPage';
 import { QRDisplayPage } from './pages/manager/QRDisplayPage';
 import { QueueSettingsPage } from './pages/manager/QueueSettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { PaymentDemoPage } from './pages/PaymentDemoPage';
 import { PublicJoinPage } from './pages/public/PublicJoinPage';
 import { PublicTicketPage } from './pages/public/PublicTicketPage';
 import { QueueDetailPage } from './pages/QueueDetailPage';
@@ -48,10 +52,15 @@ export const router = createBrowserRouter([
     path: '/register',
     element: <RegisterPage />,
   },
+  {
+    path: '/account',
+    element: <AccountPage />,
+  },
 
   // ── Public (no auth required) ─────────────────────────────────────────────
   { path: '/join/:queueId', element: <PublicJoinPage /> },
   { path: '/ticket/:entryId', element: <PublicTicketPage /> },
+  { path: '/checkout/demo/:sessionId', element: <PaymentDemoPage /> },
   { path: '/q/:orgSlug', element: <CustomerJoinPage /> },
   { path: '/qr/:token', element: <CustomerJoinPage /> },
 
@@ -108,6 +117,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AdminDashboardPage /> },
       { path: 'orgs', element: <AdminOrganizationsPage /> },
+      { path: 'orgs/register', element: <AdminOrganizationRegisterPage /> },
+      { path: 'orgs/:orgId', element: <AdminOrganizationDetailPage /> },
     ],
   },
 

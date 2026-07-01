@@ -16,28 +16,38 @@
  * Call `adapter.reset()` in `beforeEach` to clear state between tests.
  */
 
-import type { ILineMessagingAdapter, LineMessage } from './line.adapter';
+import type { ILineMessagingAdapter, LineMessage, LineMessageOptions } from './line.adapter';
 
 export interface MockPushCall {
   to: string;
   messages: LineMessage[];
+  options?: LineMessageOptions;
 }
 
 export interface MockReplyCall {
   replyToken: string;
   messages: LineMessage[];
+  options?: LineMessageOptions;
 }
 
 export class MockLineAdapter implements ILineMessagingAdapter {
   readonly pushCalls: MockPushCall[] = [];
   readonly replyCalls: MockReplyCall[] = [];
 
-  async pushMessage(to: string, messages: LineMessage[]): Promise<void> {
-    this.pushCalls.push({ to, messages });
+  async pushMessage(
+    to: string,
+    messages: LineMessage[],
+    options?: LineMessageOptions
+  ): Promise<void> {
+    this.pushCalls.push({ to, messages, options });
   }
 
-  async replyMessage(replyToken: string, messages: LineMessage[]): Promise<void> {
-    this.replyCalls.push({ replyToken, messages });
+  async replyMessage(
+    replyToken: string,
+    messages: LineMessage[],
+    options?: LineMessageOptions
+  ): Promise<void> {
+    this.replyCalls.push({ replyToken, messages, options });
   }
 
   /** Clear recorded calls — call in `beforeEach`. */

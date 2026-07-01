@@ -82,9 +82,9 @@ async function handleFollow(event: LineEvent, adapter: ILineMessagingAdapter): P
       {
         type: 'text',
         text:
-          '👋 Xin chào! Chào mừng bạn đến với LINE Smart Queue!\n\n' +
-          'Quét mã QR tại quầy để lấy số thứ tự.\n' +
-          'Gõ "STATUS" để xem vé hiện tại, "HELP" để xem hướng dẫn.',
+          '👋 LINE Smart Queue Assistantへようこそ。\n\n' +
+          '店頭のQRコードを読み取ると受付番号を取得できます。\n' +
+          '"STATUS"で現在の受付状況、"HELP"で使い方を確認できます。',
       },
     ]);
   }
@@ -113,10 +113,10 @@ async function handleMessage(event: LineEvent, adapter: ILineMessagingAdapter): 
       {
         type: 'text',
         text:
-          '📋 Available commands:\n' +
-          '• STATUS — show your active tickets\n' +
-          '• CANCEL — cancel your current ticket\n' +
-          '• HELP   — show this message',
+          '📋 利用できるコマンド:\n' +
+          '• STATUS — 現在の受付番号を確認\n' +
+          '• CANCEL — 現在の受付をキャンセル\n' +
+          '• HELP   — この案内を表示',
       },
     ]);
     return;
@@ -129,16 +129,20 @@ async function handleMessage(event: LineEvent, adapter: ILineMessagingAdapter): 
       await adapter.replyMessage(event.replyToken, [
         {
           type: 'text',
-          text: 'You have no active tickets right now.\nScan the QR code at the counter to join a queue!',
+          text:
+            '現在有効な受付番号はありません。\n' +
+            '店頭のQRコードを読み取って順番待ちに参加してください。',
         },
       ]);
       return;
     }
 
-    const lines = entries.map((e) => `• Ticket ${e.ticket_code} — ${e.status}`).join('\n');
+    const lines = entries
+      .map((e) => `• 受付番号 ${e.ticket_code} — ${formatEntryStatus(e.status)}`)
+      .join('\n');
 
     await adapter.replyMessage(event.replyToken, [
-      { type: 'text', text: `Your active tickets:\n${lines}` },
+      { type: 'text', text: `現在の受付番号:\n${lines}` },
     ]);
     return;
   }
@@ -148,7 +152,7 @@ async function handleMessage(event: LineEvent, adapter: ILineMessagingAdapter): 
 
     if (entries.length === 0) {
       await adapter.replyMessage(event.replyToken, [
-        { type: 'text', text: 'You have no active tickets to cancel.' },
+        { type: 'text', text: 'キャンセルできる有効な受付番号はありません。' },
       ]);
       return;
     }
@@ -157,14 +161,14 @@ async function handleMessage(event: LineEvent, adapter: ILineMessagingAdapter): 
     const target = entries[0];
     await queueService.cancelTicket({ entryId: target.id, actorLineUserId: userId });
     await adapter.replyMessage(event.replyToken, [
-      { type: 'text', text: `✅ Ticket ${target.ticket_code} has been cancelled.` },
+      { type: 'text', text: `✅ 受付番号 ${target.ticket_code} をキャンセルしました。` },
     ]);
     return;
   }
 
   // Unrecognised message — send a gentle nudge.
   await adapter.replyMessage(event.replyToken, [
-    { type: 'text', text: 'Type "HELP" to see available commands.' },
+    { type: 'text', text: '"HELP"と入力すると使い方を確認できます。' },
   ]);
 }
 
@@ -182,12 +186,12 @@ async function handlePostback(event: LineEvent, adapter: ILineMessagingAdapter):
     try {
       await queueService.cancelTicket({ entryId, actorLineUserId: userId });
       await adapter.replyMessage(event.replyToken, [
-        { type: 'text', text: '✅ Your ticket has been cancelled.' },
+        { type: 'text', text: '✅ 受付番号をキャンセルしました。' },
       ]);
     } catch (err) {
       logger.warn({ err, entryId, userId }, 'Postback cancel failed');
       await adapter.replyMessage(event.replyToken, [
-        { type: 'text', text: 'Could not cancel the ticket. It may have already been processed.' },
+        { type: 'text', text: 'キャンセルできませんでした。すでに処理済みの可能性があります。' },
       ]);
     }
     return;
@@ -199,17 +203,30 @@ async function handlePostback(event: LineEvent, adapter: ILineMessagingAdapter):
       await adapter.replyMessage(event.replyToken, [
         {
           type: 'text',
-          text: `↩️ Your ticket ${result.entry.ticket_code} has been moved back one position.`,
+          text: `↩️ 受付番号 ${result.entry.ticket_code} を1つ後ろに移動しました。`,
         },
       ]);
     } catch (err) {
       logger.warn({ err, entryId, userId }, 'Postback skip failed');
       await adapter.replyMessage(event.replyToken, [
-        { type: 'text', text: 'Could not skip the ticket. Please try again.' },
+        { type: 'text', text: '順番を後ろへ移動できませんでした。もう一度お試しください。' },
       ]);
     }
     return;
   }
 
   logger.debug({ action, data }, 'Unhandled LINE postback action');
+}
+
+function formatEntryStatus(status: string): string {
+  const labels: Record<string, string> = {
+    waiting: '待機中',
+    called: '呼び出し中',
+    serving: '対応中',
+    completed: '完了',
+    cancelled: 'キャンセル済み',
+    skipped: 'スキップ済み',
+    no_show: '不在',
+  };
+  return labels[status] ?? status;
 }

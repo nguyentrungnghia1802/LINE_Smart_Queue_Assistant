@@ -147,6 +147,8 @@ CREATE TABLE organizations (
   logo_url          TEXT,
   phone             TEXT,
   address           TEXT,
+  latitude          NUMERIC(9,6),
+  longitude         NUMERIC(9,6),
   payment_info      TEXT,
   line_channel_id   TEXT,
   line_oa_basic_id  TEXT,
@@ -159,7 +161,9 @@ CREATE TABLE organizations (
   CONSTRAINT organizations_slug_format
     CHECK (slug ~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$'),
   CONSTRAINT organizations_public_qr_token_format
-    CHECK (public_qr_token ~ '^[A-Za-z0-9_-]{8,128}$')
+    CHECK (public_qr_token ~ '^[A-Za-z0-9_-]{8,128}$'),
+  CONSTRAINT organizations_latitude_range CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
+  CONSTRAINT organizations_longitude_range CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180)
 );
 
 CREATE TRIGGER trg_organizations_updated_at
@@ -277,9 +281,27 @@ CREATE TRIGGER trg_queues_updated_at
 BEFORE UPDATE ON queues
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+CREATE TABLE booking_groups (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id    UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  customer_user_id   UUID REFERENCES users(id) ON DELETE SET NULL,
+  customer_line_user_id TEXT,
+  local_device_key   TEXT,
+  status             TEXT NOT NULL DEFAULT 'active',
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT booking_groups_status_valid CHECK (status IN ('active', 'completed', 'cancelled'))
+);
+
+CREATE TRIGGER trg_booking_groups_updated_at
+BEFORE UPDATE ON booking_groups
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 CREATE TABLE orders (
   id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id        UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  booking_group_id       UUID REFERENCES booking_groups(id) ON DELETE SET NULL,
   customer_user_id       UUID REFERENCES users(id) ON DELETE SET NULL,
   customer_line_user_id  TEXT,
   order_number           TEXT NOT NULL,
@@ -305,6 +327,31 @@ CREATE TRIGGER trg_orders_updated_at
 BEFORE UPDATE ON orders
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+CREATE TABLE payment_transactions (
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id          UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  order_id                 UUID REFERENCES orders(id) ON DELETE SET NULL,
+  provider                 TEXT NOT NULL DEFAULT 'demo',
+  method                   TEXT NOT NULL,
+  external_transaction_id  TEXT,
+  status                   payment_status NOT NULL DEFAULT 'unpaid',
+  amount                   NUMERIC(12,2) NOT NULL DEFAULT 0,
+  currency                 TEXT NOT NULL DEFAULT 'JPY',
+  redirect_url             TEXT,
+  raw_payload              JSONB NOT NULL DEFAULT '{}',
+  paid_at                  TIMESTAMPTZ,
+  refunded_at              TIMESTAMPTZ,
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT payment_transactions_amount_non_negative CHECK (amount >= 0),
+  CONSTRAINT payment_transactions_currency_format CHECK (currency ~ '^[A-Z]{3}$')
+);
+
+CREATE TRIGGER trg_payment_transactions_updated_at
+BEFORE UPDATE ON payment_transactions
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 CREATE TABLE order_items (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id              UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -314,13 +361,37 @@ CREATE TABLE order_items (
   service_time_minutes  INT NOT NULL DEFAULT 30,
   quantity              INT NOT NULL DEFAULT 1,
   subtotal              NUMERIC(12,2) NOT NULL,
+  payment_status        payment_status NOT NULL DEFAULT 'unpaid',
+  prepaid_amount        NUMERIC(12,2) NOT NULL DEFAULT 0,
+  payment_transaction_id UUID REFERENCES payment_transactions(id) ON DELETE SET NULL,
+  requires_prepayment_snapshot BOOLEAN NOT NULL DEFAULT FALSE,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   CONSTRAINT order_items_product_price_non_negative CHECK (product_price >= 0),
   CONSTRAINT order_items_service_time_positive CHECK (service_time_minutes > 0),
   CONSTRAINT order_items_quantity_positive CHECK (quantity > 0),
-  CONSTRAINT order_items_subtotal_non_negative CHECK (subtotal >= 0)
+  CONSTRAINT order_items_subtotal_non_negative CHECK (subtotal >= 0),
+  CONSTRAINT order_items_prepaid_amount_non_negative CHECK (prepaid_amount >= 0)
 );
+
+CREATE TABLE inventory_reservations (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id  UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  order_id         UUID REFERENCES orders(id) ON DELETE CASCADE,
+  product_id       UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
+  quantity         INT NOT NULL,
+  status           TEXT NOT NULL DEFAULT 'reserved',
+  expires_at       TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT inventory_reservations_quantity_positive CHECK (quantity > 0),
+  CONSTRAINT inventory_reservations_status_valid CHECK (status IN ('reserved', 'consumed', 'released', 'expired'))
+);
+
+CREATE TRIGGER trg_inventory_reservations_updated_at
+BEFORE UPDATE ON inventory_reservations
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE queue_entries (
   id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -355,6 +426,81 @@ CREATE TABLE queue_entries (
 CREATE TRIGGER trg_queue_entries_updated_at
 BEFORE UPDATE ON queue_entries
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE customer_locations (
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id          UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  queue_entry_id           UUID REFERENCES queue_entries(id) ON DELETE SET NULL,
+  customer_user_id         UUID REFERENCES users(id) ON DELETE SET NULL,
+  customer_line_user_id    TEXT,
+  local_device_key         TEXT,
+  latitude                 NUMERIC(9,6) NOT NULL,
+  longitude                NUMERIC(9,6) NOT NULL,
+  accuracy_meters          INT,
+  distance_to_org_meters   INT,
+  captured_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT customer_locations_latitude_range CHECK (latitude BETWEEN -90 AND 90),
+  CONSTRAINT customer_locations_longitude_range CHECK (longitude BETWEEN -180 AND 180),
+  CONSTRAINT customer_locations_accuracy_non_negative CHECK (accuracy_meters IS NULL OR accuracy_meters >= 0),
+  CONSTRAINT customer_locations_distance_non_negative CHECK (distance_to_org_meters IS NULL OR distance_to_org_meters >= 0)
+);
+
+CREATE TABLE location_alerts (
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id          UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  queue_entry_id           UUID REFERENCES queue_entries(id) ON DELETE CASCADE,
+  customer_location_id     UUID REFERENCES customer_locations(id) ON DELETE SET NULL,
+  alert_type               TEXT NOT NULL DEFAULT 'far_before_turn',
+  status                   TEXT NOT NULL DEFAULT 'pending',
+  distance_to_org_meters   INT,
+  threshold_meters         INT NOT NULL DEFAULT 1000,
+  due_at                   TIMESTAMPTZ,
+  sent_at                  TIMESTAMPTZ,
+  raw_payload              JSONB NOT NULL DEFAULT '{}',
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT location_alerts_status_valid CHECK (status IN ('pending', 'sent', 'skipped', 'failed'))
+);
+
+CREATE TRIGGER trg_location_alerts_updated_at
+BEFORE UPDATE ON location_alerts
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE wait_time_forecasts (
+  id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id            UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  queue_id                   UUID REFERENCES queues(id) ON DELETE CASCADE,
+  forecasted_wait_seconds    INT NOT NULL,
+  queue_depth                INT NOT NULL DEFAULT 0,
+  active_staff_count         INT,
+  confidence                 NUMERIC(5,4) NOT NULL DEFAULT 0.5000,
+  model_version              TEXT NOT NULL DEFAULT 'heuristic-v1',
+  features                   JSONB NOT NULL DEFAULT '{}',
+  generated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT wait_time_forecasts_wait_non_negative CHECK (forecasted_wait_seconds >= 0),
+  CONSTRAINT wait_time_forecasts_queue_depth_non_negative CHECK (queue_depth >= 0),
+  CONSTRAINT wait_time_forecasts_confidence_range CHECK (confidence BETWEEN 0 AND 1)
+);
+
+CREATE TABLE staffing_recommendations (
+  id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id            UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  day_of_week                INT NOT NULL,
+  hour_of_day                INT NOT NULL,
+  recommended_staff_count    INT NOT NULL,
+  confidence                 NUMERIC(5,4) NOT NULL DEFAULT 0.5000,
+  model_version              TEXT NOT NULL DEFAULT 'heuristic-v1',
+  features                   JSONB NOT NULL DEFAULT '{}',
+  generated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT staffing_recommendations_day_range CHECK (day_of_week BETWEEN 0 AND 6),
+  CONSTRAINT staffing_recommendations_hour_range CHECK (hour_of_day BETWEEN 0 AND 23),
+  CONSTRAINT staffing_recommendations_staff_positive CHECK (recommended_staff_count > 0),
+  CONSTRAINT staffing_recommendations_confidence_range CHECK (confidence BETWEEN 0 AND 1)
+);
 
 -- -----------------------------------------------------------------------------
 -- 5. Support / automation tables
@@ -459,15 +605,26 @@ CREATE INDEX idx_queues_org_active ON queues(organization_id, status) WHERE is_a
 
 CREATE INDEX idx_orders_org_created ON orders(organization_id, created_at DESC);
 CREATE INDEX idx_orders_org_status_created ON orders(organization_id, status, created_at DESC);
+CREATE INDEX idx_orders_booking_group ON orders(booking_group_id) WHERE booking_group_id IS NOT NULL;
 CREATE INDEX idx_orders_customer_user_id ON orders(customer_user_id) WHERE customer_user_id IS NOT NULL;
 CREATE INDEX idx_orders_customer_line_user_id ON orders(customer_line_user_id) WHERE customer_line_user_id IS NOT NULL;
 CREATE INDEX idx_orders_completed_revenue ON orders(organization_id, created_at DESC)
   WHERE status = 'completed' AND payment_status = 'paid';
 
+CREATE INDEX idx_payment_transactions_org_created ON payment_transactions(organization_id, created_at DESC);
+CREATE INDEX idx_payment_transactions_order ON payment_transactions(order_id) WHERE order_id IS NOT NULL;
+CREATE INDEX idx_payment_transactions_external ON payment_transactions(provider, external_transaction_id)
+  WHERE external_transaction_id IS NOT NULL;
+
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX idx_order_items_product_id ON order_items(product_id);
 CREATE INDEX idx_order_items_order_covering ON order_items(order_id)
   INCLUDE (product_name, quantity, subtotal, service_time_minutes);
+CREATE INDEX idx_order_items_payment_status ON order_items(order_id, payment_status);
+
+CREATE INDEX idx_inventory_reservations_product_active ON inventory_reservations(product_id, status)
+  WHERE status = 'reserved';
+CREATE INDEX idx_inventory_reservations_order ON inventory_reservations(order_id) WHERE order_id IS NOT NULL;
 
 CREATE INDEX idx_qe_queue_status_ticket ON queue_entries(queue_id, status, priority DESC, ticket_number ASC);
 CREATE INDEX idx_qe_queue_waiting ON queue_entries(queue_id, priority DESC, ticket_number ASC)
@@ -481,6 +638,14 @@ CREATE INDEX idx_qe_line_user_active ON queue_entries(line_user_id, created_at D
 CREATE INDEX idx_qe_order_id ON queue_entries(order_id) WHERE order_id IS NOT NULL;
 CREATE INDEX idx_qe_called_timeout ON queue_entries(queue_id, called_at)
   WHERE status = 'called';
+
+CREATE INDEX idx_booking_groups_org_updated ON booking_groups(organization_id, updated_at DESC);
+CREATE INDEX idx_customer_locations_entry ON customer_locations(queue_entry_id) WHERE queue_entry_id IS NOT NULL;
+CREATE INDEX idx_customer_locations_org_captured ON customer_locations(organization_id, captured_at DESC);
+CREATE INDEX idx_location_alerts_pending ON location_alerts(organization_id, due_at)
+  WHERE status = 'pending';
+CREATE INDEX idx_wait_time_forecasts_org_generated ON wait_time_forecasts(organization_id, generated_at DESC);
+CREATE INDEX idx_staffing_recommendations_org_slot ON staffing_recommendations(organization_id, day_of_week, hour_of_day);
 
 CREATE INDEX idx_notif_pending ON notifications(created_at)
   WHERE status = 'pending';

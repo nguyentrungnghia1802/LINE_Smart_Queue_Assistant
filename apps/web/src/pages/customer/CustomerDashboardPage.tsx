@@ -25,25 +25,25 @@ type Ticket = {
 };
 
 function formatDuration(seconds: number) {
-  if (seconds <= 0) return 'Đến lượt';
+  if (seconds <= 0) return '順番です';
   const m = Math.ceil(seconds / 60);
-  return `${m} phút`;
+  return `${m} 分`;
 }
 
 function statusLabel(s: string) {
   switch (s) {
     case 'waiting':
-      return 'Đang chờ';
+      return '待機中';
     case 'called':
-      return 'Đang gọi';
+      return '呼び出し中';
     case 'serving':
-      return 'Đang phục vụ';
+      return '対応中';
     case 'served':
-      return 'Đã phục vụ';
+      return '対応済み';
     case 'cancelled':
-      return 'Đã huỷ';
+      return 'キャンセル済み';
     case 'no_show':
-      return 'Vắng mặt';
+      return '不在';
     default:
       return s;
   }
@@ -78,7 +78,7 @@ export function CustomerDashboardPage() {
         setError('');
       } catch {
         if (!mounted) return;
-        setError('Không thể tải danh sách hàng đợi của bạn.');
+        setError('キュー一覧を読み込めませんでした。');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -108,8 +108,8 @@ export function CustomerDashboardPage() {
           // no-op
         }
         if (window.Notification && Notification.permission === 'granted') {
-          new Notification(`Sắp đến lượt: ${t.entry.ticket_code}`, {
-            body: `Trạng thái: ${statusLabel(t.entry.status)} - Nhấn để xem chi tiết`,
+          new Notification(`まもなく順番です: ${t.entry.ticket_code}`, {
+            body: `ステータス: ${statusLabel(t.entry.status)} - タップして詳細を確認`,
           });
         }
       }
@@ -124,12 +124,12 @@ export function CustomerDashboardPage() {
     }
   }, []);
 
-  if (loading) return <div className="p-6 text-gray-500">Đang tải dashboard customer...</div>;
+  if (loading) return <div className="p-6 text-gray-500">顧客ダッシュボードを読み込み中...</div>;
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Customer</h1>
+        <h1 className="text-2xl font-bold text-gray-900">顧客ダッシュボード</h1>
         <AccountMenu compact />
       </div>
 
@@ -137,7 +137,7 @@ export function CustomerDashboardPage() {
 
       {tickets.length === 0 ? (
         <div className="p-6 rounded-xl border border-gray-200 bg-white text-gray-500">
-          Bạn chưa có hàng đợi nào đang hoạt động.
+          現在有効な受付はありません。
         </div>
       ) : (
         <div className="space-y-3">
@@ -152,19 +152,18 @@ export function CustomerDashboardPage() {
                 <div>
                   <div className="text-lg font-semibold text-gray-900">{t.entry.ticket_code}</div>
                   <div className="text-sm text-gray-500">
-                    Trạng thái: <span className="font-medium">{statusLabel(t.entry.status)}</span>
+                    ステータス: <span className="font-medium">{statusLabel(t.entry.status)}</span>
                   </div>
                   <div className="text-sm text-gray-500">
-                    Còn {t.aheadCount} người phía trước · ETA{' '}
-                    {formatDuration(t.estimatedWaitSeconds)}
+                    前に{t.aheadCount}人 · ETA {formatDuration(t.estimatedWaitSeconds)}
                   </div>
                   {t.order && (
-                    <div className="text-xs text-gray-400 mt-1">Đơn: {t.order.order_number}</div>
+                    <div className="text-xs text-gray-400 mt-1">注文: {t.order.order_number}</div>
                   )}
                 </div>
                 {(t.entry.status === 'called' || t.aheadCount <= 1) && (
                   <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-                    Sắp đến lượt
+                    まもなく順番です
                   </span>
                 )}
               </div>

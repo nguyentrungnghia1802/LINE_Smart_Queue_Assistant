@@ -18,7 +18,7 @@ export function ErrorState({
   title = 'Something went wrong',
   message,
   onRetry,
-  retryLabel = 'Retry',
+  retryLabel = '再試行',
 }: ErrorStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-6 text-center">

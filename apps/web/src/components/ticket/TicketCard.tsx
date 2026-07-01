@@ -25,7 +25,7 @@ export function TicketCard({ ticket, onClick }: Readonly<TicketCardProps>) {
       className={`w-full text-left bg-white rounded-(--radius-card) border shadow-sm hover:shadow-md transition-shadow p-5 ${
         isCalled ? 'border-amber-300 ring-2 ring-amber-200' : 'border-gray-200'
       }`}
-      aria-label={`Ticket ${entry.ticket_code}, status: ${statusKey}`}
+      aria-label={`受付番号 ${entry.ticket_code}、ステータス: ${statusKey}`}
     >
       <div className="flex items-start justify-between gap-3">
         {/* Ticket number */}
@@ -37,7 +37,7 @@ export function TicketCard({ ticket, onClick }: Readonly<TicketCardProps>) {
           >
             {entry.ticket_code}
           </p>
-          <p className="text-xs text-gray-400 mt-1">Queue ticket</p>
+          <p className="text-xs text-gray-400 mt-1">受付番号</p>
         </div>
 
         <StatusBadge status={statusKey} />
@@ -47,10 +47,10 @@ export function TicketCard({ ticket, onClick }: Readonly<TicketCardProps>) {
       {statusKey === 'waiting' && (
         <div className="mt-4 flex items-center gap-4 text-sm text-gray-600">
           <span>
-            <span className="font-medium text-gray-900">{aheadCount}</span> ahead
+            前に<span className="font-medium text-gray-900">{aheadCount}</span>名
           </span>
           <span>
-            ~<span className="font-medium text-gray-900">{waitMin}</span> min
+            約<span className="font-medium text-gray-900">{waitMin}</span>分
           </span>
         </div>
       )}
@@ -58,7 +58,7 @@ export function TicketCard({ ticket, onClick }: Readonly<TicketCardProps>) {
       {/* Called prompt */}
       {isCalled && (
         <p className="mt-3 text-xs font-semibold text-amber-700">
-          Tap to see details — please head to the counter
+          詳細を確認してカウンターへお越しください
         </p>
       )}
     </button>
