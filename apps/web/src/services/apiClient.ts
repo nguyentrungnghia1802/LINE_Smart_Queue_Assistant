@@ -25,10 +25,14 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<ApiResponse<never>>) => {
+  (error: AxiosError<ApiResponse<never> | ApiErrorResponse>) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token');
       window.location.href = '/login';
+    }
+    const payload = error.response?.data;
+    if (payload && !payload.success) {
+      return Promise.reject(new Error(payload.error.message));
     }
     return Promise.reject(error);
   }

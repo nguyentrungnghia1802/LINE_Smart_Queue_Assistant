@@ -70,7 +70,9 @@ export function CustomerDashboardPage() {
     }
 
     let mounted = true;
+    let pollingPaused = false;
     const fetchTickets = async () => {
+      if (pollingPaused) return;
       try {
         const data = await get<Ticket[]>('/api/v1/queue/me');
         if (!mounted) return;
@@ -78,7 +80,8 @@ export function CustomerDashboardPage() {
         setError('');
       } catch {
         if (!mounted) return;
-        setError('キュー一覧を読み込めませんでした。');
+        pollingPaused = true;
+        setError('APIサーバーに接続できません。バックエンドが起動しているか確認してください。');
       } finally {
         if (mounted) setLoading(false);
       }

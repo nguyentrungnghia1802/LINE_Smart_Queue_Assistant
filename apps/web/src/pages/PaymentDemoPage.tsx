@@ -2,20 +2,17 @@ import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 
 import {
-  type CheckoutSession,
   formatJPY,
   loadCheckoutSession,
   paymentKeyFor,
   savePaidCheckout,
 } from '../utils/checkoutSession';
-
-const PAYMENT_METHODS = [
-  { id: 'credit_card', label: 'クレジットカード', description: 'Visa / Mastercard / JCB' },
-  { id: 'paypay', label: 'PayPay', description: 'アプリ決済へ進む' },
-  { id: 'rakuten_pay', label: '楽天ペイ', description: '楽天IDで支払い' },
-  { id: 'line_pay', label: 'LINE Pay', description: 'LINEアカウントで確認' },
-  { id: 'konbini', label: 'コンビニ払い', description: '受付番号を発行' },
-] as const;
+import {
+  createPaymentIntent,
+  isExternalPaymentConfigured,
+  PAYMENT_METHODS,
+  type PaymentGatewayMethod,
+} from '../utils/paymentGateway';
 
 export function PaymentDemoPage() {
   const { sessionId = '' } = useParams();
@@ -26,6 +23,7 @@ export function PaymentDemoPage() {
   );
   const [method, setMethod] = useState(session?.preferredMethod ?? PAYMENT_METHODS[0].id);
   const [processing, setProcessing] = useState(false);
+  const externalPaymentReady = isExternalPaymentConfigured();
 
   if (!session) return <Navigate to="/" replace />;
 
@@ -45,15 +43,27 @@ export function PaymentDemoPage() {
   function completePayment() {
     if (!session) return;
     setProcessing(true);
+    const intent = createPaymentIntent({
+      session,
+      method: selectedMethod,
+      amount: payableSubtotal,
+      scope: paymentScope,
+      returnUrl: window.location.href,
+    });
+
+    if (intent.redirectUrl) {
+      window.location.assign(intent.redirectUrl);
+      return;
+    }
+
     window.setTimeout(() => {
-      const code = `DEMO-${Date.now().toString(36).toUpperCase()}`;
       const paymentKey = session.paymentKeyBase
         ? paymentKeyFor(session.paymentKeyBase, paymentScope)
         : session.paymentKey;
       savePaidCheckout(paymentKey, {
         paid: true,
         method,
-        code,
+        code: intent.transactionId,
         amount: payableSubtotal,
         scope: paymentScope,
         coveredProductIds,
@@ -71,11 +81,11 @@ export function PaymentDemoPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
-                デモ決済
+                {externalPaymentReady ? 'オンライン決済' : 'デモ決済'}
               </p>
               <h1 className="mt-2 text-2xl font-bold text-gray-950">お支払い</h1>
               <p className="mt-1 text-sm text-gray-500">
-                {session.orgName} の事前支払いをデモ環境で処理します。
+                {session.orgName} の事前支払いを処理します。
               </p>
             </div>
             <Link
@@ -184,7 +194,9 @@ export function PaymentDemoPage() {
             {processing ? '処理中...' : `${selectedMethod.label}で支払う`}
           </button>
           <p className="mt-3 text-xs leading-5 text-gray-500">
-            これはデモ決済です。外部決済会社には接続せず、自動で成功として扱います。
+            {externalPaymentReady
+              ? '外部決済ページへ移動して支払いを完了します。'
+              : '決済会社の契約・APIキーが未設定のため、デモ決済として自動で成功します。'}
           </p>
         </aside>
       </div>
@@ -192,7 +204,7 @@ export function PaymentDemoPage() {
   );
 }
 
-function PaymentFields({ method }: Readonly<{ method: CheckoutSession['preferredMethod'] }>) {
+function PaymentFields({ method }: Readonly<{ method: PaymentGatewayMethod['id'] }>) {
   if (method === 'credit_card') {
     return (
       <div className="mt-5 space-y-3">

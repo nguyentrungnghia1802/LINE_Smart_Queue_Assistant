@@ -5,6 +5,12 @@ interface ImportMetaEnv {
   readonly VITE_API_URL: string;
   readonly VITE_APP_NAME: string;
 
+  // ── Payment ───────────────────────────────────────────────────────────────
+  /** "external" enables provider redirect flow; blank/default keeps demo auto-success. */
+  readonly VITE_PAYMENT_MODE: string;
+  /** Public redirect/create-payment URL from the contracted payment provider or gateway. */
+  readonly VITE_PAYMENT_REDIRECT_BASE_URL: string;
+
   // ── LIFF (real) ────────────────────────────────────────────────────────────
   /** LINE LIFF ID — required in production, ignored when VITE_LIFF_MOCK=true */
   readonly VITE_LIFF_ID: string;

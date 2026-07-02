@@ -57,6 +57,7 @@ export interface OrderItemRow {
   order_id: string;
   product_id: string;
   product_name: string;
+  product_image_url?: string | null;
   product_price: string;
   service_time_minutes: number;
   quantity: number;
@@ -106,6 +107,7 @@ export const ordersRepository = {
                'order_id', oi.order_id,
                'product_id', oi.product_id,
                'product_name', oi.product_name,
+               'product_image_url', p.image_url,
                'product_price', oi.product_price,
                'service_time_minutes', oi.service_time_minutes,
                'quantity', oi.quantity,
@@ -117,6 +119,7 @@ export const ordersRepository = {
          ) AS items_json
        FROM orders o
        LEFT JOIN order_items oi ON oi.order_id = o.id
+       LEFT JOIN products p ON p.id = oi.product_id
        LEFT JOIN queue_entries qe ON qe.order_id = o.id
        WHERE o.organization_id = $1 ${statusClause}
        GROUP BY o.id, qe.id, qe.ticket_code, qe.status
@@ -137,6 +140,7 @@ export const ordersRepository = {
                'order_id', oi.order_id,
                'product_id', oi.product_id,
                'product_name', oi.product_name,
+               'product_image_url', p.image_url,
                'product_price', oi.product_price,
                'service_time_minutes', oi.service_time_minutes,
                'quantity', oi.quantity,
@@ -148,6 +152,7 @@ export const ordersRepository = {
          ) AS items_json
        FROM orders o
        LEFT JOIN order_items oi ON oi.order_id = o.id
+       LEFT JOIN products p ON p.id = oi.product_id
        LEFT JOIN queue_entries qe ON qe.order_id = o.id
        WHERE o.id = $1
        GROUP BY o.id, qe.id`,
@@ -174,6 +179,7 @@ export const ordersRepository = {
                'order_id', oi.order_id,
                'product_id', oi.product_id,
                'product_name', oi.product_name,
+               'product_image_url', p.image_url,
                'product_price', oi.product_price,
                'service_time_minutes', oi.service_time_minutes,
                'quantity', oi.quantity,
@@ -186,6 +192,7 @@ export const ordersRepository = {
        FROM orders o
        JOIN queue_entries qe ON qe.order_id = o.id
        LEFT JOIN order_items oi ON oi.order_id = o.id
+       LEFT JOIN products p ON p.id = oi.product_id
        WHERE qe.id = $1
        GROUP BY o.id, qe.id
        LIMIT 1`,
