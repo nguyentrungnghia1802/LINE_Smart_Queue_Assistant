@@ -23,6 +23,8 @@ export function NavUserMenu({ compact = false }: Readonly<NavUserMenuProps>) {
   }
 
   const displayName = user?.displayName ?? user?.email ?? 'アカウント';
+  const initial = displayName.trim().slice(0, 1).toUpperCase() || 'A';
+  const roleLabel = user?.role ?? 'guest';
 
   return (
     <div className="flex items-center gap-2">
@@ -34,38 +36,54 @@ export function NavUserMenu({ compact = false }: Readonly<NavUserMenuProps>) {
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+          className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
           aria-haspopup="menu"
           aria-expanded={open}
         >
-          {!compact && <span className="hidden sm:inline max-w-40 truncate">{displayName}</span>}
-          <span aria-hidden="true">▾</span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-950 text-xs font-bold text-white">
+            {initial}
+          </span>
+          {!compact && (
+            <span className="hidden max-w-36 truncate text-sm font-semibold text-gray-800 sm:inline">
+              {displayName}
+            </span>
+          )}
+          <span
+            aria-hidden="true"
+            className={`h-2 w-2 rotate-45 border-b-2 border-r-2 border-gray-400 transition-transform ${
+              open ? 'translate-y-0.5 rotate-[225deg]' : '-translate-y-0.5'
+            }`}
+          />
         </button>
 
         {open && (
           <div
             role="menu"
-            className="absolute right-0 top-full z-20 mt-2 w-56 rounded-lg border border-gray-200 bg-white p-2 shadow-lg"
+            className="absolute right-0 top-full z-20 mt-3 w-60 overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-xl shadow-gray-900/10"
           >
-            <div className="px-3 py-2">
-              <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
-              <p className="mt-0.5 text-xs text-gray-500 truncate">
-                {user?.email ?? 'メール未設定'}
-              </p>
-              <p className="mt-1 text-xs text-gray-400">{user?.role ?? 'ゲスト'}</p>
+            <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-3 py-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-950 text-sm font-bold text-white">
+                {initial}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-gray-950">{displayName}</p>
+                <p className="mt-1 inline-flex rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                  {roleLabel}
+                </p>
+              </div>
             </div>
-            <div className="my-1 border-t border-gray-100" />
+            <div className="my-2 border-t border-gray-100" />
             <button
               type="button"
               onClick={handleOpenAccount}
-              className="w-full rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
             >
               情報を見る
             </button>
             <button
               type="button"
               onClick={handleLogout}
-              className="w-full rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-red-600 hover:bg-red-50"
             >
               ログアウト
             </button>

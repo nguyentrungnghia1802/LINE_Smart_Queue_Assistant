@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import { get, post } from '../../services/apiClient';
 
@@ -182,6 +182,13 @@ export function PublicTicketPage() {
           </div>
         )}
 
+        <Link
+          to="/customer"
+          className="block w-full rounded-xl bg-[#06C755] px-4 py-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-[#05b54c] focus:outline-none focus:ring-4 focus:ring-[#06C755]/20"
+        >
+          ホームへ戻る
+        </Link>
+
         {/* Cancel button */}
         {canCancel && (
           <button
@@ -191,7 +198,7 @@ export function PublicTicketPage() {
               }
             }}
             disabled={cancelMutation.isPending}
-            className="w-full py-2.5 bg-white border border-red-300 text-red-600 text-sm font-medium rounded-xl hover:bg-red-50 disabled:opacity-50 transition-colors"
+            className="w-full rounded-xl border border-red-200 bg-white/40 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50/60 disabled:opacity-50"
           >
             {cancelMutation.isPending ? 'キャンセル中...' : '注文と受付番号をキャンセル'}
           </button>

@@ -150,6 +150,23 @@ export function CustomerJoinPage() {
     paidFullCheckout?.paid === true && paidFullCheckout.cartSignature === currentCartSignature;
   const canBook = !needsPrepayment || isRequiredPaid || isFullyPaid;
 
+  function maxSelectable(product: Product): number {
+    return product.stock_quantity === null ? 99 : Math.max(0, product.stock_quantity);
+  }
+
+  function stockViolation(items: CartItem[] = cartItems): string | null {
+    if (!data) return null;
+    for (const item of items) {
+      const product = data.products.find((p) => p.id === item.productId);
+      if (!product || product.stock_quantity === null) continue;
+      if (product.stock_quantity <= 0) return `${product.name}は在庫切れです。`;
+      if (item.quantity > product.stock_quantity) {
+        return `${product.name}は在庫${product.stock_quantity}点まで選択できます。`;
+      }
+    }
+    return null;
+  }
+
   useEffect(() => {
     if (hydratedDraftKeyRef.current === draftKey) return;
     hydratedDraftKeyRef.current = draftKey;
@@ -183,16 +200,45 @@ export function CustomerJoinPage() {
     setPaidFullCheckout(fullPaymentKey ? loadPaidCheckout(fullPaymentKey) : null);
   }, [currentCartSignature, requiredPaymentKey, fullPaymentKey]);
 
-  function setQty(productId: string, delta: number) {
+  useEffect(() => {
+    if (!data) return;
     setCart((prev) => {
-      const current = prev[productId] ?? 0;
-      const next = Math.max(0, current + delta);
-      return { ...prev, [productId]: next };
+      let changed = false;
+      const next = { ...prev };
+      for (const product of data.products) {
+        const current = next[product.id] ?? 0;
+        const max = product.stock_quantity === null ? 99 : Math.max(0, product.stock_quantity);
+        if (current > max) {
+          next[product.id] = max;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
     });
+  }, [data]);
+
+  function setQty(product: Product, delta: number) {
+    setCart((prev) => {
+      const current = prev[product.id] ?? 0;
+      const next = Math.max(0, Math.min(maxSelectable(product), current + delta));
+      return { ...prev, [product.id]: next };
+    });
+  }
+
+  function setQtyAbsolute(product: Product, quantity: number) {
+    setCart((prev) => ({
+      ...prev,
+      [product.id]: Math.max(0, Math.min(maxSelectable(product), quantity)),
+    }));
   }
 
   function startPayment() {
     if (!data || checkoutItems.length === 0 || !currentCartSignature) return;
+    const stockError = stockViolation();
+    if (stockError) {
+      setError(stockError);
+      return;
+    }
     if (requiredPrepaymentItems.length === 0) return;
     const sessionId = createCheckoutId();
     saveCheckoutSession({
@@ -241,6 +287,11 @@ export function CustomerJoinPage() {
     }
     if (!canBook) {
       setError('事前支払いが必要な商品があります。対象商品のお支払いを完了してください。');
+      return;
+    }
+    const stockError = stockViolation();
+    if (stockError) {
+      setError(stockError);
       return;
     }
     const paidCheckout = isFullyPaid
@@ -305,8 +356,8 @@ export function CustomerJoinPage() {
       setPaidRequiredCheckout(null);
       setPaidFullCheckout(null);
       navigate(`/ticket/${result.queueEntry.id}`);
-    } catch {
-      setError('注文に失敗しました。もう一度お試しください。');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '注文に失敗しました。もう一度お試しください。');
     } finally {
       setSubmitting(false);
     }
@@ -398,8 +449,9 @@ export function CustomerJoinPage() {
                   key={product.id}
                   product={product}
                   quantity={cart[product.id] ?? 0}
-                  onDecrease={() => setQty(product.id, -1)}
-                  onIncrease={() => setQty(product.id, 1)}
+                  onDecrease={() => setQty(product, -1)}
+                  onIncrease={() => setQty(product, 1)}
+                  onQuantityChange={(quantity) => setQtyAbsolute(product, quantity)}
                 />
               ))}
             </div>
@@ -565,28 +617,45 @@ function ProductCard({
   quantity,
   onDecrease,
   onIncrease,
+  onQuantityChange,
 }: Readonly<{
   product: Product;
   quantity: number;
   onDecrease: () => void;
   onIncrease: () => void;
+  onQuantityChange: (quantity: number) => void;
 }>) {
   const outOfStock = product.stock_quantity !== null && product.stock_quantity <= 0;
+  const maxQuantity = product.stock_quantity === null ? 99 : Math.max(0, product.stock_quantity);
+  const atMax = quantity >= maxQuantity;
 
   return (
-    <article className="group rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]">
+    <article
+      className={`group relative rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)] transition ${
+        outOfStock ? 'opacity-70' : 'hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]'
+      }`}
+    >
       <div className="flex gap-4">
-        {product.image_url ? (
-          <img
-            src={product.image_url}
-            alt={product.name}
-            className="h-24 w-24 shrink-0 rounded-xl object-cover"
-          />
-        ) : (
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-lg font-bold text-gray-500">
-            {product.name.slice(0, 1)}
-          </div>
-        )}
+        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+          {product.image_url ? (
+            <img
+              src={product.image_url}
+              alt={product.name}
+              className={`h-full w-full object-cover ${outOfStock ? 'grayscale' : ''}`}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-lg font-bold text-gray-500">
+              {product.name.slice(0, 1)}
+            </div>
+          )}
+          {outOfStock && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+              <span className="rounded-full bg-gray-950 px-2.5 py-1 text-xs font-bold text-white">
+                在庫なし
+              </span>
+            </div>
+          )}
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <h3 className="line-clamp-2 font-bold text-gray-950">{product.name}</h3>
@@ -613,7 +682,7 @@ function ProductCard({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4 flex items-center justify-between gap-3">
         <p className="text-xs text-gray-500">
           {outOfStock
             ? '在庫なし'
@@ -625,17 +694,26 @@ function ProductCard({
           <button
             type="button"
             onClick={onDecrease}
-            disabled={quantity === 0}
+            disabled={quantity === 0 || outOfStock}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-30"
             aria-label={`${product.name} を減らす`}
           >
             -
           </button>
-          <span className="w-8 text-center text-sm font-bold text-gray-950">{quantity}</span>
+          <input
+            type="number"
+            min={0}
+            max={maxQuantity}
+            value={quantity}
+            disabled={outOfStock}
+            onChange={(event) => onQuantityChange(Number(event.target.value))}
+            className="h-9 w-14 rounded-full border border-gray-200 bg-white text-center text-sm font-bold text-gray-950 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:bg-gray-100 disabled:text-gray-400"
+            aria-label={`${product.name} の数量`}
+          />
           <button
             type="button"
             onClick={onIncrease}
-            disabled={outOfStock}
+            disabled={outOfStock || atMax}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-lg font-bold text-white hover:bg-brand-700 disabled:opacity-40"
             aria-label={`${product.name} を追加`}
           >
