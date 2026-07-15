@@ -9,7 +9,7 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 ### P0: Production correctness and security
 
 1. Rotate any previously exposed LINE/JWT/provider credential and enable secret scanning.
-2. Implement server-created payment intents, signed webhooks, durable idempotency, refund, and reconciliation for the selected Japan PSP.
+2. Select and integrate a real Japan PSP adapter, including merchant secrets, refund execution, settlement reconciliation, and provider operations.
 3. Complete inventory lifecycle: reserve, consume, release on cancellation, expire, and reconcile exactly once.
 4. Add operational visibility and manual handling for failed notification outbox rows.
 5. Enforce strict queue capacity and order number uniqueness under concurrency.
@@ -110,13 +110,13 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 ## ADR-006: Demo-first payment behind a provider boundary
 
-**Status:** Accepted for demo, not production
+**Status:** Superseded by Phase 6 foundation
 
 **Context:** User flows must be demonstrable without paid provider accounts.
 
-**Decision:** Keep demo auto-success and a redirect adapter boundary. Production success must move to server-created intents and verified webhooks.
+**Decision:** Keep demo auto-success only behind server-created intents and signed demo completion. Browser storage may preserve transaction context, but order creation accepts only verified transaction IDs. Real PSPs will implement the same adapter interface and signed webhook/reconciliation flow.
 
-**Consequences:** UI/order schema can evolve now; current browser demo payload must never be mistaken for settlement proof.
+**Consequences:** Demo remains usable without paid accounts, while browser-supplied amount/status/covered IDs are no longer settlement proof.
 
 ## ADR-007: Stable generated organization QR token
 

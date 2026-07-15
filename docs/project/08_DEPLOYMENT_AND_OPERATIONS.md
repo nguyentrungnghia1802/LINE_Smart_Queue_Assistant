@@ -24,7 +24,7 @@ Backend-only secrets:
 - `LINE_CHANNEL_ID`
 - `LINE_LIFF_ID`
 - `LINE_RICH_MENU_IMAGE_PATH` or an equivalent deployment-mounted Rich Menu PNG/JPEG asset path
-- future PSP API/webhook keys
+- future PSP API/webhook keys and current demo payment webhook secret
 
 `LINE_CHANNEL_ACCESS_TOKEN` authorizes outbound Messaging API calls and Rich Menu management. `LINE_CHANNEL_SECRET` verifies inbound webhook signatures and must come from the same Messaging API channel as the token. `LINE_CHANNEL_ID` is the separate LINE Login channel ID used for LIFF ID-token verification. `LINE_LIFF_ID` is the public LIFF app ID used by the backend to generate ticket deeplinks in LINE messages and Rich Menu LIFF routes.
 
@@ -34,7 +34,7 @@ Browser-visible configuration:
 - `VITE_APP_NAME`
 - `VITE_LIFF_ID`
 - `VITE_LIFF_DEFAULT_BOOKING_PATH`
-- payment mode/redirect base URL (identifiers/URLs only, never keys)
+- payment mode/redirect base URL and webhook timing limits (identifiers/URLs only, never keys)
 
 Rotate any credential that has appeared in Git history, logs, screenshots, tickets, or examples.
 

@@ -176,24 +176,27 @@ Important `POST /orders` request fields:
     "longitude": 139.7671,
     "accuracyMeters": 20
   },
-  "payment": {
-    "status": "paid",
-    "provider": "demo",
-    "method": "credit_card",
-    "code": "DEMO-ABC",
-    "amount": 1000,
-    "currency": "JPY",
-    "scope": "required_items",
-    "coveredProductIds": ["uuid"]
-  }
+  "payment": { "transactionId": "server-created-payment-uuid" }
 }
 ```
 
-The server ignores browser price authority: it reloads product prices and calculates subtotal/covered amount. For real payment, the accepted payment object must be built from verified server-side provider state rather than direct browser assertions.
+The server ignores browser price, status, method code, and covered-product authority. Required prepayment is satisfied only by a `payment.transactionId` that points to a paid, same-tenant, unused `payment_transactions` row whose server-computed metadata matches the submitted cart.
 
 For authenticated `POST /orders`, the controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified linked `line_user_id` on the new queue entry. Guest orders keep both recipient fields empty unless a separately verified identity flow is used.
 
 In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has completed and the authenticated LINE-derived JWT is present. The request body must still never include `lineUserId`.
+
+### Payments
+
+| Method | Path                                        | Access                      | Purpose                                        |
+| ------ | ------------------------------------------- | --------------------------- | ---------------------------------------------- |
+| POST   | `/api/v1/payments/intents`                  | Public, limited, idempotent | Create server-side payment intent/transaction  |
+| POST   | `/api/v1/payments/demo/complete`            | Public, limited             | Complete demo payment with server-issued token |
+| GET    | `/api/v1/payments/:transactionId/return`    | Public                      | Read verified payment return status            |
+| POST   | `/api/v1/payments/:transactionId/reconcile` | Manager/admin               | Reconcile linked order/items from transaction  |
+| POST   | `/api/v1/payments/webhooks/:provider`       | Signed provider webhook     | Idempotent provider callback processing        |
+
+Payment intent creation accepts `orgSlug`, selected `items`, `scope`, `provider`, `method`, `currency`, optional `returnUrl`, and optional `cartSignature`. The API reloads products and computes amount/coverage. Demo mode returns a `demoToken`; the browser must send it to `/payments/demo/complete`, and the server verifies it before marking the transaction paid. Future PSPs must update the same transaction state machine through signed webhooks or server-side verification.
 
 ### Users and staff management
 
@@ -230,7 +233,7 @@ In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has compl
 
 - Global `/api` limiter applies before versioned routes.
 - Public reads/writes, strict auth/LINE paths, and authenticated actions use narrower limiters.
-- Order creation, direct queue join, and order payment patch use idempotency middleware.
+- Order creation, payment intent creation, direct queue join, and order payment patch use idempotency middleware.
 - Clients should send a stable idempotency key for retries; consult middleware behavior/tests before changing header/storage semantics.
 - List pagination/filter fields are endpoint-specific validators; do not invent a global query contract without updating all consumers.
 
@@ -239,4 +242,4 @@ In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has compl
 - Backward-compatible additions stay in `/api/v1`.
 - Breaking request/response/state semantics require migration strategy and potentially `/api/v2`.
 - Update routes, validators, service behavior, frontend clients/types, tests, Swagger, and this document together.
-- Add production payment and location endpoints only after auth, signature/idempotency, privacy, and audit contracts are defined.
+- Add real PSP adapters only after provider-specific auth, signature/idempotency, privacy, refund, and audit contracts are defined.

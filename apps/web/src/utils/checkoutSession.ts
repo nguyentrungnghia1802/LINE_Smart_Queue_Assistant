@@ -10,6 +10,7 @@ export interface CheckoutItem {
 
 export interface CheckoutSession {
   id: string;
+  orgSlug: string;
   orgName: string;
   returnPath: string;
   cartSignature: string;
@@ -27,6 +28,7 @@ export interface CheckoutSession {
 
 export interface PaidCheckout {
   paid: true;
+  transactionId: string;
   method: string;
   code: string;
   amount: number;

@@ -75,14 +75,23 @@ export interface PaymentTransactionRow {
   order_id: string | null;
   provider: string;
   method: string;
+  payment_intent_id?: string | null;
   external_transaction_id: string | null;
   status: string;
   amount: string;
   currency: string;
   redirect_url: string | null;
+  checkout_url?: string | null;
+  return_url?: string | null;
+  metadata?: Record<string, unknown>;
   raw_payload: Record<string, unknown>;
+  authorized_at?: Date | null;
   paid_at: Date | null;
+  failed_at?: Date | null;
+  cancelled_at?: Date | null;
   refunded_at: Date | null;
+  last_verified_at?: Date | null;
+  last_error?: string | null;
   created_at: Date;
   updated_at: Date;
 }
