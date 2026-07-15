@@ -10,6 +10,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 4. `000004_booking_location_and_forecasts.js`
 5. `000005_durable_line_notification_outbox.js`
 6. `000006_payment_production_foundation.js`
+7. `000007_operational_correctness.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 

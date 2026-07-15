@@ -13,6 +13,7 @@ export interface QueueEntryRow {
   ticket_number: number;
   /** Human-readable ticket code, e.g. "A003". */
   ticket_code: string;
+  business_date?: string;
   status: string;
   priority: number;
   position_snapshot: number | null;
@@ -33,6 +34,7 @@ export interface CreateEntryParams {
   queueId: string;
   ticketNumber: number;
   ticketCode: string;
+  businessDate: string;
   userId?: string;
   orderId?: string;
   lineUserId?: string;
@@ -82,8 +84,8 @@ export class QueueEntriesRepository extends BaseRepository {
   async create(params: CreateEntryParams, client?: PoolClient): Promise<QueueEntryRow> {
     const sql = `
       INSERT INTO queue_entries
-        (queue_id, user_id, order_id, line_user_id, ticket_number, ticket_code, priority)
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
+        (queue_id, user_id, order_id, line_user_id, ticket_number, ticket_code, business_date, priority)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
       RETURNING *
     `;
     const args = [
@@ -93,6 +95,7 @@ export class QueueEntriesRepository extends BaseRepository {
       params.lineUserId ?? null,
       params.ticketNumber,
       params.ticketCode,
+      params.businessDate,
       params.priority ?? 0,
     ];
     const rows = client

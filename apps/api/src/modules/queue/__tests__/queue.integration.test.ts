@@ -69,6 +69,9 @@ jest.mock('../../../db/client', () => ({
 const mockFindQueueById = queuesRepository.findById as jest.MockedFunction<
   typeof queuesRepository.findById
 >;
+const mockLockQueueById = queuesRepository.lockById as jest.MockedFunction<
+  typeof queuesRepository.lockById
+>;
 const mockCountWaiting = queuesRepository.countWaiting as jest.MockedFunction<
   typeof queuesRepository.countWaiting
 >;
@@ -190,6 +193,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockFindActiveByUser.mockResolvedValue(null);
   mockFindActiveByLineUser.mockResolvedValue(null);
+  mockLockQueueById.mockResolvedValue(openQueue);
+  mockCountWaiting.mockResolvedValue(0);
   mockFindUserById.mockResolvedValue({
     id: USER_ID,
     display_name: 'Queue Customer',
@@ -222,7 +227,7 @@ describe('POST /api/v1/queue/join', () => {
   describe('happy path', () => {
     it('returns 201 with ticket data when a new ticket is created', async () => {
       mockFindQueueById.mockResolvedValue(openQueue);
-      mockIncrementCounter.mockResolvedValue(6);
+      mockIncrementCounter.mockResolvedValue({ ticketNumber: 6, businessDate: '2026-07-16' });
       mockCreateEntry.mockResolvedValue(waitingEntry);
       mockGetWaitingPosition.mockResolvedValue(2);
       mockTx('2');
@@ -275,7 +280,7 @@ describe('POST /api/v1/queue/join', () => {
 
     it('ignores lineUserId in anonymous request body', async () => {
       mockFindQueueById.mockResolvedValue(openQueue);
-      mockIncrementCounter.mockResolvedValue(7);
+      mockIncrementCounter.mockResolvedValue({ ticketNumber: 7, businessDate: '2026-07-16' });
       mockCreateEntry.mockResolvedValue({ ...waitingEntry, user_id: null, ticket_code: 'A007' });
       mockGetWaitingPosition.mockResolvedValue(0);
       mockTx('0');
@@ -303,7 +308,7 @@ describe('POST /api/v1/queue/join', () => {
     it('includes estimatedWaitSeconds derived from ETA service', async () => {
       const queueWith90sAvg: QueueRow = { ...openQueue, avg_service_seconds: 90 };
       mockFindQueueById.mockResolvedValue(queueWith90sAvg);
-      mockIncrementCounter.mockResolvedValue(8);
+      mockIncrementCounter.mockResolvedValue({ ticketNumber: 8, businessDate: '2026-07-16' });
       mockCreateEntry.mockResolvedValue(waitingEntry);
       mockGetWaitingPosition.mockResolvedValue(5); // 5 people ahead
       mockTx('5');
@@ -332,7 +337,9 @@ describe('POST /api/v1/queue/join', () => {
     it('returns 409 when queue is at full capacity', async () => {
       const fullQueue: QueueRow = { ...openQueue, max_capacity: 5 };
       mockFindQueueById.mockResolvedValue(fullQueue);
+      mockLockQueueById.mockResolvedValue(fullQueue);
       mockCountWaiting.mockResolvedValue(5); // at capacity
+      mockTx();
 
       const res = await request(app).post('/api/v1/queue/join').send({ queueId: QUEUE_ID });
 
