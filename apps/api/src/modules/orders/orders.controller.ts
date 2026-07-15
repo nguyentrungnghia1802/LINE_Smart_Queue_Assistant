@@ -26,6 +26,11 @@ export const getOrder = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, order);
 });
 
+export const getOrderReceipt = asyncHandler(async (req: Request, res: Response) => {
+  const order = await ordersService.getReceipt(req.params.id, requireOrgId(req));
+  sendSuccess(res, order);
+});
+
 export const getOrderStats = asyncHandler(async (req: Request, res: Response) => {
   const orgId = requireOrgId(req);
   const stats = await ordersService.getStats(orgId);
@@ -53,7 +58,9 @@ export const patchOrderPayment = asyncHandler(async (req: Request, res: Response
   const order = await ordersService.updatePayment(
     req.params.id,
     orgId,
-    req.body as UpdateOrderPaymentDto
+    req.body as UpdateOrderPaymentDto,
+    req.user?.id ?? '',
+    req.header('Idempotency-Key') ?? `manual-payment:${req.params.id}:${Date.now()}`
   );
   sendSuccess(res, order);
 });

@@ -63,6 +63,8 @@ export class DemoPaymentProvider implements ExternalPaymentProvider {
       transactionId?: string;
       providerIntentId?: string;
       status?: string;
+      occurredAt?: string;
+      refundedAmount?: number;
     };
 
     try {
@@ -87,12 +89,16 @@ export class DemoPaymentProvider implements ExternalPaymentProvider {
       transactionId: payload.transactionId,
       providerIntentId: payload.providerIntentId,
       status: payload.status as ParsedWebhookEvent['status'],
+      occurredAt: payload.occurredAt ? new Date(payload.occurredAt) : undefined,
+      refundedAmount: payload.refundedAmount,
       rawPayload: {
         eventId: payload.eventId,
         eventType: payload.eventType ?? `demo.payment.${payload.status}`,
         transactionId: payload.transactionId,
         providerIntentId: payload.providerIntentId,
         status: payload.status,
+        occurredAt: payload.occurredAt,
+        refundedAmount: payload.refundedAmount,
       },
     };
   }

@@ -14,6 +14,7 @@ export interface OrderRow {
   status: string;
   subtotal: string;
   payment_status: string;
+  refunded_amount?: string;
   payment_code: string | null;
   notes: string | null;
   created_at: Date;
@@ -64,6 +65,7 @@ export interface OrderItemRow {
   subtotal: string;
   payment_status?: string;
   prepaid_amount?: string;
+  refunded_amount?: string;
   payment_transaction_id?: string | null;
   requires_prepayment_snapshot?: boolean;
   created_at: Date;
@@ -90,6 +92,8 @@ export interface PaymentTransactionRow {
   failed_at?: Date | null;
   cancelled_at?: Date | null;
   refunded_at: Date | null;
+  refunded_amount?: string;
+  last_provider_event_at?: Date | null;
   last_verified_at?: Date | null;
   last_error?: string | null;
   created_at: Date;

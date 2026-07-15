@@ -21,7 +21,7 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 1. Add LINE consent/preferences, richer post-follow experience, production Rich Menu asset/E2E verification, and organization channel configuration strategy.
 2. Implement the location-alert worker with queue timing, travel-time provider boundary, consent, retention, and deletion controls.
 3. Build booking-group retrieval and staff/customer views while keeping each order/ticket independent.
-4. Reconcile manual order payment with item/transaction records and restrict receipt printing to valid states.
+4. Connect the implemented audited reconciliation/refund boundary to a real PSP and settlement process.
 5. Persist wait forecasts and build a measured heuristic baseline from service history.
 6. Aggregate demand/service history and expose staffing recommendations by weekday/hour with confidence/explanation.
 7. Complete Swagger/OpenAPI coverage and API contract tests.
@@ -204,7 +204,7 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 - Is one LINE Official Account shared by the platform, or configured per organization?
 - What legally approved location consent, retention period, and deletion UX apply?
 - How should grouped repeat bookings appear in staff workload and customer history?
-- What queue/order status combination permits receipt printing and stock consumption?
+- Receipt printing requires a completed, fully paid order; stock consumption occurs when service is completed.
 - What SLOs define acceptable booking latency, notification delay, and availability?
 - Should platform admin metrics include staff/user counts only, and which aggregate tenant health fields are allowed?
 

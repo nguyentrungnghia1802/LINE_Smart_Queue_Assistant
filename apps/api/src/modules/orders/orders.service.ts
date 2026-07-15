@@ -13,6 +13,7 @@ import { etaService } from '../eta/eta.service';
 import { inventoryService } from '../inventory/inventory.service';
 import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
+import { paymentsService } from '../payments/payments.service';
 
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
 
@@ -364,13 +365,34 @@ export const ordersService = {
     return updated;
   },
 
-  async updatePayment(id: string, orgId: string, dto: UpdateOrderPaymentDto) {
+  async updatePayment(
+    id: string,
+    orgId: string,
+    dto: UpdateOrderPaymentDto,
+    actorId: string,
+    idempotencyKey: string
+  ) {
     const order = await ordersRepository.findById(id);
     if (!order) throw AppError.notFound('Order not found');
     if (order.organization_id !== orgId) throw AppError.forbidden();
-    const updated = await ordersRepository.updatePayment(id, dto.paymentStatus);
-    if (!updated) throw AppError.notFound('Order not found');
-    return updated;
+    await paymentsService.manualReconcileOrder({
+      orderId: id,
+      organizationId: orgId,
+      actorId,
+      status: dto.paymentStatus,
+      amount: dto.amount,
+      reason: dto.reason,
+      idempotencyKey,
+    });
+    return this.getById(id, orgId);
+  },
+
+  async getReceipt(id: string, orgId: string) {
+    const order = await this.getById(id, orgId);
+    if (order.status !== 'completed' || order.payment_status !== 'paid') {
+      throw AppError.conflict('Receipt is available only for completed and fully paid orders');
+    }
+    return order;
   },
 
   /**

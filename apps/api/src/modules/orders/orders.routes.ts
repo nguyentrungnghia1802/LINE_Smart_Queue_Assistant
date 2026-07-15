@@ -15,6 +15,7 @@ import {
   cancelOrder,
   createOrder,
   getOrder,
+  getOrderReceipt,
   getOrderStats,
   listOrders,
   patchOrderPayment,
@@ -52,6 +53,12 @@ ordersRouter.get(
   requireAuth,
   requireRole(UserRole.MANAGER, UserRole.ADMIN),
   getOrderStats
+);
+ordersRouter.get(
+  '/:id/receipt',
+  requireAuth,
+  requireRole(UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN),
+  getOrderReceipt
 );
 ordersRouter.get(
   '/:id',

@@ -114,6 +114,46 @@ export const paymentTransactionsRepository = {
     return rows[0] ?? null;
   },
 
+  async findByIdForUpdate(id: string, client: PoolClient): Promise<PaymentTransactionRow | null> {
+    const { rows } = await client.query<PaymentTransactionRow>(
+      `SELECT * FROM payment_transactions WHERE id = $1 FOR UPDATE`,
+      [id]
+    );
+    return rows[0] ?? null;
+  },
+
+  async findLatestByOrder(
+    orderId: string,
+    client: PoolClient
+  ): Promise<PaymentTransactionRow | null> {
+    const { rows } = await client.query<PaymentTransactionRow>(
+      `SELECT * FROM payment_transactions
+       WHERE order_id = $1
+       ORDER BY created_at DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [orderId]
+    );
+    return rows[0] ?? null;
+  },
+
+  async createManual(
+    data: { organizationId: string; orderId: string; amount: number; method: string },
+    client: PoolClient
+  ): Promise<PaymentTransactionRow> {
+    const { rows } = await client.query<PaymentTransactionRow>(
+      `INSERT INTO payment_transactions
+         (organization_id, order_id, provider, method, status, amount, currency,
+          paid_at, last_verified_at, metadata, raw_payload)
+       VALUES ($1,$2,'manual',$3,'paid',$4,'JPY',NOW(),NOW(),
+         jsonb_build_object('scope','all_items'),
+         jsonb_build_object('source','staff_manual'))
+       RETURNING *`,
+      [data.organizationId, data.orderId, data.method, data.amount]
+    );
+    return rows[0];
+  },
+
   async updateStatus(
     id: string,
     data: {
@@ -121,6 +161,8 @@ export const paymentTransactionsRepository = {
       providerIntentId?: string;
       rawPayload?: Record<string, unknown>;
       lastError?: string | null;
+      refundedAmount?: number;
+      providerEventAt?: Date;
     },
     client?: PoolClient
   ): Promise<PaymentTransactionRow | null> {
@@ -132,6 +174,8 @@ export const paymentTransactionsRepository = {
            external_transaction_id = COALESCE($3, external_transaction_id),
            raw_payload = raw_payload || $4::jsonb,
            last_error = $5,
+           refunded_amount = COALESCE($6, refunded_amount),
+           last_provider_event_at = COALESCE($7, last_provider_event_at),
            last_verified_at = NOW(),
            authorized_at = CASE WHEN $2 = 'authorized' THEN COALESCE(authorized_at, NOW()) ELSE authorized_at END,
            paid_at = CASE WHEN $2 = 'paid' THEN COALESCE(paid_at, NOW()) ELSE paid_at END,
@@ -146,6 +190,8 @@ export const paymentTransactionsRepository = {
         data.providerIntentId ?? null,
         JSON.stringify(data.rawPayload ?? {}),
         data.lastError ?? null,
+        data.refundedAmount ?? null,
+        data.providerEventAt ?? null,
       ]
     );
     return rows[0] ?? null;
@@ -204,5 +250,46 @@ export const paymentTransactionsRepository = {
        WHERE provider = $1 AND event_id = $2`,
       [provider, eventId, status, errorMessage ?? null]
     );
+  },
+
+  async recordReconciliation(
+    data: {
+      organizationId: string;
+      transactionId?: string | null;
+      orderId?: string | null;
+      actorId?: string;
+      source: 'webhook' | 'manual' | 'reconciliation' | 'demo';
+      operationType: string;
+      fromStatus?: string | null;
+      toStatus?: string | null;
+      amount?: number;
+      idempotencyKey: string;
+      reason?: string;
+      metadata?: Record<string, unknown>;
+    },
+    client: PoolClient
+  ): Promise<boolean> {
+    const result = await client.query(
+      `INSERT INTO payment_reconciliation_operations
+         (organization_id, payment_transaction_id, order_id, actor_id, source,
+          operation_type, from_status, to_status, amount, idempotency_key, reason, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       ON CONFLICT (idempotency_key) DO NOTHING`,
+      [
+        data.organizationId,
+        data.transactionId ?? null,
+        data.orderId ?? null,
+        data.actorId ?? null,
+        data.source,
+        data.operationType,
+        data.fromStatus ?? null,
+        data.toStatus ?? null,
+        data.amount ?? 0,
+        data.idempotencyKey,
+        data.reason ?? null,
+        JSON.stringify(data.metadata ?? {}),
+      ]
+    );
+    return (result.rowCount ?? 0) > 0;
   },
 };

@@ -73,7 +73,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Location alert execution: no scheduler consumes `location_alerts`; no retention/deletion workflow is implemented.
 - Forecasting and staffing analysis: schema exists, but no data pipeline or user-facing API populates it.
 - Inventory lifecycle is implemented; production load testing and operator reconciliation UI remain pending.
-- Payment consistency: manual staff payment updates are still separate from provider refund/settlement lifecycle.
+- Payment reconciliation keeps transaction, order, and item summaries aligned with audited manual operations, replay-safe webhook transitions, partial/full refund amounts, and guarded receipt access. Real PSP refund execution remains pending.
 - Full OpenAPI coverage and contract tests; the current Swagger source covers only part of the API.
 - Browser end-to-end tests and production-scale concurrency tests.
 - Multi-instance coordination for non-notification scheduler ownership and strict queue-capacity enforcement.

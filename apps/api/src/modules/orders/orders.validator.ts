@@ -32,7 +32,9 @@ export const UpdateOrderStatusSchema = z.object({
 });
 
 export const UpdateOrderPaymentSchema = z.object({
-  paymentStatus: z.enum(['unpaid', 'paid']),
+  paymentStatus: z.enum(['paid', 'refunded']),
+  amount: z.number().positive().optional(),
+  reason: z.string().min(1).max(500).optional(),
 });
 
 export type CreateOrderDto = z.infer<typeof CreateOrderSchema>;
