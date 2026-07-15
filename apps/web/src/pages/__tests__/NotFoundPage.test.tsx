@@ -14,13 +14,13 @@ describe('NotFoundPage', () => {
     expect(screen.getByText('404')).toBeInTheDocument();
   });
 
-  it('renders "Page not found" heading', () => {
+  it('renders Japanese not found heading', () => {
     render(
       <MemoryRouter>
         <NotFoundPage />
       </MemoryRouter>
     );
-    expect(screen.getByRole('heading', { name: /page not found/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ページが見つかりません' })).toBeInTheDocument();
   });
 
   it('renders a link to home', () => {
@@ -29,7 +29,7 @@ describe('NotFoundPage', () => {
         <NotFoundPage />
       </MemoryRouter>
     );
-    const link = screen.getByRole('link', { name: /go home/i });
+    const link = screen.getByRole('link', { name: 'ホームへ戻る' });
     expect(link).toHaveAttribute('href', '/');
   });
 });

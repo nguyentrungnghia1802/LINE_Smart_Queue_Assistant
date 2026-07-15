@@ -27,6 +27,16 @@ export interface EtaInput {
    */
   avgServiceSeconds: number;
   /**
+   * Optional total workload in minutes for all tickets ahead (sum of
+   * order_items.service_time_minutes × quantity). When present, this is
+   * the primary source for ETA calculation. When absent or 0, falls back
+   * to aheadCount × avgServiceSeconds.
+   *
+   * This enables workload-aware ETA for heterogeneous services (e.g., haircut
+   * 30 min vs hair dyeing 120 min).
+   */
+  totalWorkloadMinutes?: number;
+  /**
    * Current timestamp used to compute `expectedCallAt`.
    * Defaults to `new Date()`. Inject a fixed value in tests for determinism.
    */

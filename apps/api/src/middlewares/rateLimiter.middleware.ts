@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 import { AppError } from '../utils/AppError';
 
@@ -17,7 +17,8 @@ export const apiRateLimiter = rateLimit({
   keyGenerator: (req) => {
     const forwarded = req.headers['x-forwarded-for'];
     const ip = Array.isArray(forwarded) ? forwarded[0] : (forwarded ?? req.ip ?? 'unknown');
-    return typeof ip === 'string' ? ip : 'unknown';
+    const resolvedIp = typeof ip === 'string' ? ip : 'unknown';
+    return ipKeyGenerator(resolvedIp);
   },
 });
 
@@ -33,4 +34,35 @@ export const strictRateLimiter = rateLimit({
   handler: (_req, _res, next) => {
     next(AppError.tooManyRequests());
   },
+});
+
+export const publicReadRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(AppError.tooManyRequests());
+  },
+});
+
+export const publicWriteRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 15,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(AppError.tooManyRequests());
+  },
+});
+
+export const authenticatedActionRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: (_req, _res, next) => {
+    next(AppError.tooManyRequests());
+  },
+  keyGenerator: (req) => req.user?.id ?? ipKeyGenerator(req.ip ?? 'unknown'),
 });

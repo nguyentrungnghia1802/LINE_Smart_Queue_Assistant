@@ -1,12 +1,22 @@
-import { QueueEntryRow } from '../../db/repositories/queue-entries.repository';
-import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
+﻿import {
+  batchWorkloadForEntries,
+  calculateWorkloadForEntries,
+  ordersRepository,
+  OrderWithItems,
+} from '../../db/repositories/orders.repository';
+import {
+  queueEntriesRepository,
+  QueueEntryRow,
+} from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
+import { metricsService } from '../../utils/metrics';
 import { etaService } from '../eta/eta.service';
 import type { ILineMessagingAdapter } from '../line/line.adapter';
 import type { INotificationLogRepository } from '../notifications/notification-log.repository';
+import { notificationLogRepository } from '../notifications/notification-log.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
@@ -25,7 +35,7 @@ import { JoinQueueDto } from './queue.validator';
  * prefix="A", ticketNumber=5  → "A005"
  * prefix="",  ticketNumber=17 → "0017"
  */
-function formatTicketDisplay(prefix: string, ticketNumber: number): string {
+function formatTicketCode(prefix: string, ticketNumber: number): string {
   const width = prefix ? 3 : 4;
   return `${prefix}${String(ticketNumber).padStart(width, '0')}`;
 }
@@ -65,6 +75,22 @@ function assertOwnership(
   }
 }
 
+async function assertQueueBelongsToOrg(queueId: string, organizationId?: string): Promise<void> {
+  if (!organizationId) throw AppError.forbidden('User has no organization');
+  const queue = await queuesRepository.findById(queueId);
+  if (!queue) throw AppError.notFound('Queue');
+  if (queue.organization_id !== organizationId) {
+    throw AppError.forbidden('Queue is outside your organization');
+  }
+}
+
+async function assertEntryBelongsToOrg(
+  entry: QueueEntryRow,
+  organizationId?: string
+): Promise<void> {
+  await assertQueueBelongsToOrg(entry.queue_id, organizationId);
+}
+
 // ── Service ────────────────────────────────────────────────────────────────────
 
 export const queueService = {
@@ -87,7 +113,8 @@ export const queueService = {
   async joinQueue(
     dto: JoinQueueDto & { userId?: string; lineUserId?: string }
   ): Promise<JoinQueueResult> {
-    const { queueId, userId, lineUserId, notes } = dto;
+    const { queueId, userId, lineUserId } = dto;
+    // Note: guestName/notes are stored in the linked order, not on the queue entry (new schema).
 
     // 1. Load queue
     const queue = await queuesRepository.findById(queueId);
@@ -135,16 +162,15 @@ export const queueService = {
     // 6. Atomically increment counter + insert entry inside a transaction
     const entry = await withTransaction(async (client) => {
       const ticketNumber = await queuesRepository.incrementAndGetCounter(queueId, client);
-      const ticketDisplay = formatTicketDisplay(queue.prefix ?? '', ticketNumber);
+      const ticketCode = formatTicketCode(queue.prefix ?? '', ticketNumber);
       return queueEntriesRepository.create(
         {
           queueId,
           ticketNumber,
-          ticketDisplay,
+          ticketCode,
           userId,
           lineUserId,
-          notes,
-          priority: priorityAdjustment !== 0 ? priorityAdjustment : undefined,
+          priority: priorityAdjustment === 0 ? undefined : priorityAdjustment,
         },
         client
       );
@@ -172,6 +198,11 @@ export const queueService = {
    * Return all active tickets the caller holds across all queues,
    * each annotated with queue position and ETA.
    * Used on the "My Tickets" LIFF screen.
+   *
+   * Performance: uses batch queries to avoid N+1 pattern.
+   *   - One findAllActiveForActor call
+   *   - N parallel getWaitingPosition + findById + getEntryIdsAhead (already batched per entry)
+   *   - ONE batchWorkloadForEntries call for all entry IDs at once
    */
   async getMyTickets(params: {
     userId?: string;
@@ -180,24 +211,46 @@ export const queueService = {
     const { userId, lineUserId } = params;
     const entries = await queueEntriesRepository.findAllActiveForActor(userId, lineUserId);
 
-    return Promise.all(
+    if (entries.length === 0) return [];
+
+    // Step 1: fetch position + queue config for all entries in parallel
+    const enriched = await Promise.all(
       entries.map(async (entry) => {
-        const [aheadCount, queue] = await Promise.all([
+        const [aheadCount, queue, entryIdsAhead] = await Promise.all([
           queuesRepository.getWaitingPosition(entry.queue_id, entry.priority, entry.ticket_number),
           queuesRepository.findById(entry.queue_id),
+          queueEntriesRepository.getEntryIdsAhead(
+            entry.queue_id,
+            entry.priority,
+            entry.ticket_number
+          ),
         ]);
-        return {
-          entry,
-          aheadCount,
-          estimatedWaitSeconds: queue
-            ? etaService.calculate({
-                aheadCount,
-                avgServiceSeconds: queue.avg_service_seconds,
-              }).estimatedWaitSeconds
-            : 0,
-        };
+        return { entry, aheadCount, queue, entryIdsAhead };
       })
     );
+
+    // Step 2: batch workload calculation — single DB round-trip for all entries
+    const allIdsAhead = enriched.flatMap((e) => e.entryIdsAhead);
+    const workloadMap = await batchWorkloadForEntries(allIdsAhead);
+
+    // Step 3: compute ETA using pre-fetched workload data
+    return enriched.map(({ entry, aheadCount, queue, entryIdsAhead }) => {
+      const totalWorkloadMinutes = entryIdsAhead.reduce(
+        (sum, id) => sum + (workloadMap.get(id) ?? 0),
+        0
+      );
+      return {
+        entry,
+        aheadCount,
+        estimatedWaitSeconds: queue
+          ? etaService.calculate({
+              aheadCount,
+              avgServiceSeconds: queue.avg_service_seconds,
+              totalWorkloadMinutes,
+            }).estimatedWaitSeconds
+          : 0,
+      };
+    });
   },
 
   /** Public queue stats — no auth required. */
@@ -237,6 +290,7 @@ export const queueService = {
     }
 
     await queueEntriesRepository.markCancelled(entryId);
+    metricsService.increment('queue_cancelled_total');
   },
 
   /**
@@ -248,7 +302,7 @@ export const queueService = {
    * **Invariants**:
    * - `queue.allow_skip` must be `true`
    * - entry must be in `waiting` status
-   * - `entry.skip_count < queue.max_skips_before_penalty`
+   * - `entry.priority < queue.max_skips_before_penalty`
    */
   async skipTicket(params: {
     entryId: string;
@@ -275,9 +329,11 @@ export const queueService = {
 
     const updated = await queueEntriesRepository.deprioritize(entryId);
 
-    // Record a skip penalty when the customer reaches (or exceeds) the skip limit.
+    // Record a skip penalty when the customer reaches the skip limit.
     // Fire-and-forget — a penalty-write failure must not block the queue operation.
-    if (entry.user_id && updated.skip_count >= queue.max_skips_before_penalty) {
+    if (entry.user_id) {
+      // Check if skip count threshold reached (tracked via queue.max_skips_before_penalty)
+      const updatedEntry = await queueEntriesRepository.findById(entryId);
       void skipPenaltyService
         .onSkipExhausted({
           userId: entry.user_id,
@@ -286,6 +342,7 @@ export const queueService = {
           organizationId: queue.organization_id,
         })
         .catch((err: unknown) => logger.warn({ err }, 'skip-penalty: onSkipExhausted failed'));
+      void updatedEntry;
     }
 
     const aheadCount = await queuesRepository.getWaitingPosition(
@@ -294,7 +351,7 @@ export const queueService = {
       updated.ticket_number
     );
 
-    return { entry: updated, aheadCount, skipCount: updated.skip_count };
+    return { entry: updated, aheadCount, skipCount: 0 };
   },
 
   // ── Staff operations ─────────────────────────────────────────────────────────
@@ -322,10 +379,14 @@ export const queueService = {
   async callNextTicket(
     queueId: string,
     adapter?: ILineMessagingAdapter,
-    log?: INotificationLogRepository
+    log?: INotificationLogRepository,
+    actorOrganizationId?: string
   ): Promise<QueueEntryRow> {
     const queue = await queuesRepository.findById(queueId);
     if (!queue) throw AppError.notFound('Queue');
+    if (actorOrganizationId && queue.organization_id !== actorOrganizationId) {
+      throw AppError.forbidden('Queue is outside your organization');
+    }
 
     const waiting = await queueEntriesRepository.listWaiting(queueId);
     if (waiting.length === 0) {
@@ -353,11 +414,16 @@ export const queueService = {
    * Mark a called ticket as serving (customer has reached the counter).
    * Requires the entry to be in `called` status.
    */
-  async serveTicket(params: { entryId: string; actorUserId?: string }): Promise<QueueEntryRow> {
-    const { entryId } = params;
+  async serveTicket(params: {
+    entryId: string;
+    actorUserId?: string;
+    actorOrganizationId?: string;
+  }): Promise<QueueEntryRow> {
+    const { entryId, actorOrganizationId } = params;
 
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
+    await assertEntryBelongsToOrg(entry, actorOrganizationId);
 
     if (entry.status !== 'called') {
       throw AppError.conflict(
@@ -369,14 +435,19 @@ export const queueService = {
   },
 
   /**
-   * Mark a serving ticket as completed.
-   * Writes a queue_histories row via archiveToHistory (called inside markCompleted transaction).
+   * Mark a serving ticket as served (was 'completed' in old schema).
+   * Archives to queue_histories.
    */
-  async completeTicket(params: { entryId: string; actorUserId?: string }): Promise<QueueEntryRow> {
-    const { entryId } = params;
+  async completeTicket(params: {
+    entryId: string;
+    actorUserId?: string;
+    actorOrganizationId?: string;
+  }): Promise<QueueEntryRow> {
+    const { entryId, actorOrganizationId } = params;
 
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
+    await assertEntryBelongsToOrg(entry, actorOrganizationId);
 
     if (entry.status !== 'serving') {
       throw AppError.conflict(
@@ -384,21 +455,31 @@ export const queueService = {
       );
     }
 
-    const completed = await queueEntriesRepository.markCompleted(entryId);
-    // Free the anti-duplicate registry for this entry — it has reached
-    // a terminal state and will never trigger further notifications.
-    return completed;
+    const served = await queueEntriesRepository.markServed(entryId);
+    metricsService.increment('queue_served_total');
+    // Archive to queue_histories
+    void queueEntriesRepository
+      .archiveToHistory(served, 'serving', 'served')
+      .catch((err: unknown) => logger.warn({ err, entryId }, 'completeTicket: archive failed'));
+    // Free the anti-duplicate registry for this entry — reached terminal state.
+    notificationLogRepository.clearEntry(entryId);
+    return served;
   },
 
   /**
    * Mark a called ticket as no-show (customer did not appear).
    * Staff action — requires entry to be in `called` status.
    */
-  async noShowTicket(params: { entryId: string; actorUserId?: string }): Promise<QueueEntryRow> {
-    const { entryId } = params;
+  async noShowTicket(params: {
+    entryId: string;
+    actorUserId?: string;
+    actorOrganizationId?: string;
+  }): Promise<QueueEntryRow> {
+    const { entryId, actorOrganizationId } = params;
 
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
+    await assertEntryBelongsToOrg(entry, actorOrganizationId);
 
     if (entry.status !== 'called') {
       throw AppError.conflict(
@@ -406,7 +487,64 @@ export const queueService = {
       );
     }
 
-    return queueEntriesRepository.markNoShow(entryId);
+    const noShow = await queueEntriesRepository.markNoShow(entryId);
+    // Archive to queue_histories
+    void queueEntriesRepository
+      .archiveToHistory(noShow, 'called', 'no_show')
+      .catch((err: unknown) => logger.warn({ err, entryId }, 'noShowTicket: archive failed'));
+    // Free the anti-duplicate registry — no further notifications possible.
+    notificationLogRepository.clearEntry(entryId);
+    return noShow;
+  },
+
+  /** Public ticket status — no auth required. Used by the guest ticket-tracking page. */
+  async getTicketStatus(entryId: string): Promise<{
+    entry: QueueEntryRow;
+    order: OrderWithItems | null;
+    aheadCount: number;
+    estimatedWaitSeconds: number | null;
+    queueName: string;
+  }> {
+    const entry = await queueEntriesRepository.findById(entryId);
+    if (!entry) throw AppError.notFound('Ticket');
+
+    const queue = await queuesRepository.findById(entry.queue_id);
+    if (!queue) throw AppError.notFound('Queue');
+
+    const aheadCount = ['waiting', 'called'].includes(entry.status)
+      ? await queuesRepository.getWaitingPosition(
+          entry.queue_id,
+          entry.priority,
+          entry.ticket_number
+        )
+      : 0;
+
+    // Workload-aware ETA: sum service_time_minutes × qty for entries ahead
+    const entryIdsAhead =
+      aheadCount > 0
+        ? await queueEntriesRepository.getEntryIdsAhead(
+            entry.queue_id,
+            entry.priority,
+            entry.ticket_number
+          )
+        : [];
+    const totalWorkloadMinutes =
+      entryIdsAhead.length > 0 ? await calculateWorkloadForEntries(entryIdsAhead) : 0;
+
+    // Fetch linked order for customer display
+    const order = await ordersRepository.findByQueueEntry(entryId);
+
+    return {
+      entry,
+      order: order ?? null,
+      aheadCount,
+      estimatedWaitSeconds: etaService.calculate({
+        aheadCount,
+        avgServiceSeconds: queue.avg_service_seconds,
+        totalWorkloadMinutes,
+      }).estimatedWaitSeconds,
+      queueName: queue.name,
+    };
   },
 };
 

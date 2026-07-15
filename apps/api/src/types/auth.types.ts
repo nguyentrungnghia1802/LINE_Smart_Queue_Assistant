@@ -8,10 +8,14 @@ import { UserRole } from '@line-queue/shared';
 export interface AuthUser {
   /** Internal UUID from the users table. */
   id: string;
-  /** LINE userId — stable platform identifier for this user. */
-  lineUserId: string;
+  /** LINE userId — present for LINE-authenticated users, absent for email/password logins. */
+  lineUserId?: string;
   /** User's role — drives access-control decisions in requireRole middleware. */
   role: UserRole;
   /** Org the user belongs to — may be absent for standalone customers. */
   organizationId?: string;
+  /** Display name for UI. */
+  displayName?: string;
+  /** Email for UI. */
+  email?: string;
 }

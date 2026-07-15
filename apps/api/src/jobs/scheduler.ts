@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Background Job Scheduler
  *
  * ── Responsibility ────────────────────────────────────────────────────────────
@@ -8,7 +8,7 @@
  * ── Job inventory ─────────────────────────────────────────────────────────────
  *
  * etaUpdater  (30 s)
- *   Recalculates `estimated_call_at` for waiting entries in every open queue.
+ *   Recalculates `estimated_wait_seconds` for waiting entries in every open queue.
  *   Keeps the LIFF countdown displays accurate.
  *
  * etaWarning  (30 s)
@@ -66,6 +66,7 @@ const COUNTER_RESET_CHECK_INTERVAL_MS = 60 * 60_000; // 1 h
 let lastResetUtcDay = -1;
 
 const runner = new JobRunner();
+let running = false;
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,11 @@ export const scheduler = {
    * warm-up window before the first DB queries run.
    */
   start(): void {
+    if (running) {
+      logger.warn('scheduler: start called while already running');
+      return;
+    }
+
     logger.info('scheduler: starting');
 
     runner
@@ -110,6 +116,7 @@ export const scheduler = {
       });
 
     logger.info({ jobs: runner.count }, 'scheduler: started');
+    running = true;
   },
 
   /**
@@ -121,7 +128,15 @@ export const scheduler = {
   stop(): void {
     logger.info('scheduler: stopping');
     runner.stop();
+    running = false;
     logger.info('scheduler: stopped');
+  },
+
+  status(): { running: boolean; registeredJobs: number } {
+    return {
+      running,
+      registeredJobs: runner.count,
+    };
   },
 
   /**

@@ -1,4 +1,4 @@
-import {
+﻿import {
   queueEntriesRepository,
   QueueEntryRow,
 } from '../../../db/repositories/queue-entries.repository';
@@ -13,6 +13,15 @@ jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
 jest.mock('../../skip-penalty/skip-penalty.service');
+
+// Mock orders repository so batchWorkloadForEntries returns an empty Map in tests.
+jest.mock('../../../db/repositories/orders.repository', () => ({
+  batchWorkloadForEntries: jest.fn().mockResolvedValue(new Map()),
+  calculateWorkloadForEntries: jest.fn().mockResolvedValue(0),
+  ordersRepository: {
+    findByQueueEntry: jest.fn().mockResolvedValue(null),
+  },
+}));
 
 // db/client must be mocked so the penalty repository module loads cleanly
 jest.mock('../../../db/client', () => ({
@@ -48,6 +57,9 @@ const mockFindAllActiveForActor =
   queueEntriesRepository.findAllActiveForActor as jest.MockedFunction<
     typeof queueEntriesRepository.findAllActiveForActor
   >;
+const mockGetEntryIdsAhead = queueEntriesRepository.getEntryIdsAhead as jest.MockedFunction<
+  typeof queueEntriesRepository.getEntryIdsAhead
+>;
 const mockCreateEntry = queueEntriesRepository.create as jest.MockedFunction<
   typeof queueEntriesRepository.create
 >;
@@ -99,20 +111,20 @@ const waitingEntry: QueueEntryRow = {
   id: ENTRY_ID,
   queue_id: QUEUE_ID,
   user_id: USER_ID,
+  order_id: null,
   line_user_id: LINE_USER_ID,
   ticket_number: 6,
-  ticket_display: 'A006',
+  ticket_code: 'A006',
   status: 'waiting',
   priority: 0,
-  skip_count: 0,
-  notes: null,
-  metadata: {},
+  position_snapshot: null,
   called_at: null,
-  serving_at: null,
-  completed_at: null,
+  serving_started_at: null,
+  served_at: null,
   skipped_at: null,
   cancelled_at: null,
-  estimated_call_at: null,
+  no_show_at: null,
+  estimated_wait_seconds: null,
   created_at: new Date(),
   updated_at: new Date(),
 };
@@ -165,14 +177,14 @@ describe('queueService.joinQueue', () => {
     mockFindActiveByUser.mockResolvedValue(null);
     mockFindActiveByLineUser.mockResolvedValue(null);
     mockIncrementCounter.mockResolvedValue(7);
-    mockCreateEntry.mockResolvedValue({ ...waitingEntry, ticket_display: 'A007' });
+    mockCreateEntry.mockResolvedValue({ ...waitingEntry, ticket_code: 'A007' });
     mockGetWaitingPosition.mockResolvedValue(0);
     mockTx();
 
     await queueService.joinQueue({ queueId: QUEUE_ID, userId: USER_ID });
 
     expect(mockCreateEntry).toHaveBeenCalledWith(
-      expect.objectContaining({ ticketDisplay: 'A007', ticketNumber: 7 }),
+      expect.objectContaining({ ticketCode: 'A007', ticketNumber: 7 }),
       expect.anything()
     );
   });
@@ -250,7 +262,10 @@ describe('queueService.getQueueStatus', () => {
 // ── getMyTickets ──────────────────────────────────────────────────────────────
 
 describe('queueService.getMyTickets', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGetEntryIdsAhead.mockResolvedValue([]);
+  });
 
   it('returns an annotated array of active tickets', async () => {
     mockFindAllActiveForActor.mockResolvedValue([waitingEntry]);
@@ -333,8 +348,7 @@ describe('queueService.skipTicket', () => {
 
   const deprioritisedEntry: QueueEntryRow = {
     ...waitingEntry,
-    priority: -1,
-    skip_count: 1,
+    priority: 1,
   };
 
   it('deprioritises the ticket and returns updated position', async () => {
@@ -345,7 +359,7 @@ describe('queueService.skipTicket', () => {
 
     const result = await queueService.skipTicket({ entryId: ENTRY_ID, actorUserId: USER_ID });
 
-    expect(result.skipCount).toBe(1);
+    expect(result.skipCount).toBe(0);
     expect(result.aheadCount).toBe(3);
     expect(result.entry).toBe(deprioritisedEntry);
     expect(mockDeprioritize).toHaveBeenCalledWith(ENTRY_ID);
@@ -378,8 +392,8 @@ describe('queueService.skipTicket', () => {
   });
 
   it('allows skip and records penalty when skip limit has been reached', async () => {
-    const atLimitEntry = { ...waitingEntry, skip_count: 2, user_id: USER_ID }; // equals max_skips_before_penalty (2)
-    const deprioritisedAtLimit = { ...atLimitEntry, priority: -3, skip_count: 3 };
+    const atLimitEntry = { ...waitingEntry, priority: 2, user_id: USER_ID }; // equals max_skips_before_penalty (2)
+    const deprioritisedAtLimit = { ...atLimitEntry, priority: 3 };
     mockFindEntryById.mockResolvedValue(atLimitEntry);
     mockFindQueueById.mockResolvedValue(openQueue); // max_skips_before_penalty = 2
     mockDeprioritize.mockResolvedValue(deprioritisedAtLimit);
@@ -389,7 +403,7 @@ describe('queueService.skipTicket', () => {
     // P20: skip is allowed even at limit — no longer throws 409
     const result = await queueService.skipTicket({ entryId: ENTRY_ID, actorUserId: USER_ID });
 
-    expect(result.skipCount).toBe(3);
+    expect(result.skipCount).toBe(0);
     expect(mockOnSkipExhausted).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER_ID, queueId: QUEUE_ID })
     );

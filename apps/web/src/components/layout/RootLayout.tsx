@@ -1,31 +1,34 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, NavLink, Outlet } from 'react-router-dom';
+
+import { UserRole } from '@line-queue/shared';
 
 import { useAuthStore } from '../../store/authStore';
 
+import { AccountMenu } from './AccountMenu';
+
 const NAV_LINKS = [
-  { to: '/', label: 'Dashboard', end: true },
-  { to: '/queues', label: 'Queues' },
+  { to: '/app', label: 'ダッシュボード', end: true },
+  { to: '/app/queues', label: 'キュー' },
 ];
 
 export function RootLayout() {
-  const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
-
-  function handleLogout() {
-    logout();
-    navigate('/login');
-  }
+  const { user } = useAuthStore();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col bg-[var(--app-bg)]">
       {/* ── Top nav ── */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-bold text-lg text-brand-600">
-            <span className="text-2xl">🟢</span>
-            LINE Queue
+      <header className="sticky top-0 z-20 border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center gap-3 text-lg font-bold text-gray-950">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-sm text-white">
+              LQ
+            </span>
+            <span>LINE Queue</span>
           </Link>
 
+          {/* Desktop nav */}
           <nav className="hidden sm:flex items-center gap-1">
             {NAV_LINKS.map(({ to, label, end }) => (
               <NavLink
@@ -35,7 +38,7 @@ export function RootLayout() {
                 className={({ isActive }) =>
                   `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-brand-50 text-brand-700'
+                      ? 'bg-gray-950 text-white'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`
                 }
@@ -43,24 +46,78 @@ export function RootLayout() {
                 {label}
               </NavLink>
             ))}
+            {user?.role === UserRole.ADMIN && (
+              <NavLink
+                to="/admin"
+                className={({ isActive }) =>
+                  `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-gray-950 text-white'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  }`
+                }
+              >
+                管理者
+              </NavLink>
+            )}
           </nav>
 
           <div className="flex items-center gap-3">
-            {user && (
-              <span className="text-sm text-gray-600 hidden sm:block">{user.displayName}</span>
-            )}
+            <div className="hidden sm:block">
+              <AccountMenu />
+            </div>
+
+            {/* Mobile hamburger */}
             <button
-              onClick={handleLogout}
-              className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+              className="rounded-md p-2 text-gray-600 hover:bg-gray-100 sm:hidden"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="メニューを切り替え"
             >
-              Sign out
+              {menuOpen ? '✕' : '☰'}
             </button>
           </div>
         </div>
+
+        {/* Mobile dropdown */}
+        {menuOpen && (
+          <div className="space-y-1 border-t border-gray-100 bg-white px-4 py-3 sm:hidden">
+            {NAV_LINKS.map(({ to, label, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                onClick={() => setMenuOpen(false)}
+                className={({ isActive }) =>
+                  `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive ? 'bg-gray-950 text-white' : 'text-gray-700 hover:bg-gray-100'
+                  }`
+                }
+              >
+                {label}
+              </NavLink>
+            ))}
+            {user?.role === UserRole.ADMIN && (
+              <NavLink
+                to="/admin"
+                onClick={() => setMenuOpen(false)}
+                className={({ isActive }) =>
+                  `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive ? 'bg-gray-950 text-white' : 'text-gray-700 hover:bg-gray-100'
+                  }`
+                }
+              >
+                管理者
+              </NavLink>
+            )}
+            <div className="mt-2 border-t border-gray-100 pt-2">
+              <AccountMenu compact />
+            </div>
+          </div>
+        )}
       </header>
 
       {/* ── Page content ── */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <Outlet />
       </main>
     </div>

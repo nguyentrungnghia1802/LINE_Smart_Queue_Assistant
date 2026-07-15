@@ -23,7 +23,7 @@ export default defineConfig({
     proxy: {
       // Proxy /api/* to the Express backend during development
       '/api': {
-        target: process.env.VITE_API_URL ?? 'http://localhost:4000',
+        target: process.env.VITE_API_URL ?? 'http://127.0.0.1:4000',
         changeOrigin: true,
       },
     },
@@ -34,10 +34,11 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          query: ['@tanstack/react-query'],
+        manualChunks(id) {
+          if (id.includes('react-router-dom')) return 'router';
+          if (id.includes('@tanstack/react-query')) return 'query';
+          if (id.includes('node_modules')) return 'vendor';
+          return undefined;
         },
       },
     },

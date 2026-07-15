@@ -14,8 +14,8 @@ export function HistoryPage() {
     <div className="max-w-md mx-auto">
       <EmptyState
         icon="📜"
-        title="No history yet"
-        message="Completed and cancelled tickets will appear here."
+        title="履歴はまだありません"
+        message="完了またはキャンセル済みの受付がここに表示されます。"
       />
     </div>
   );

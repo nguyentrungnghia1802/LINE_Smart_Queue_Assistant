@@ -76,26 +76,40 @@ export const etaService = {
   /**
    * Calculate ETA for a single ticket position.
    *
-   * **Formula (MVP)**:
-   * ```
-   * estimatedWaitSeconds = aheadCount × effectiveAvgServiceSeconds
-   * ```
-   * where `effectiveAvgServiceSeconds` is `avgServiceSeconds` when > 0,
-   * or `config.defaultAvgServiceSeconds` (fallback) otherwise.
+   * **Formula (Hybrid Strategy)**:
+   * 1. If `totalWorkloadMinutes` is present and > 0:
+   *    `estimatedWaitSeconds = totalWorkloadMinutes × 60`
+   * 2. Otherwise, fallback to:
+   *    `estimatedWaitSeconds = aheadCount × effectiveAvgServiceSeconds`
+   *    where `effectiveAvgServiceSeconds` is `avgServiceSeconds` when > 0,
+   *    or `config.defaultAvgServiceSeconds` (fallback) otherwise.
+   *
+   * This enables workload-aware ETA when order_items data is available,
+   * and gracefully falls back to average-based calculation otherwise.
    *
    * @param input  - Position data and service-time measurement for this ticket
    * @param config - Tunable thresholds; defaults to `DEFAULT_ETA_CONFIG`
    * @returns      - A fully populated `EtaResult`
    */
   calculate(input: EtaInput, config: EtaConfig = DEFAULT_ETA_CONFIG): EtaResult {
-    const { aheadCount, avgServiceSeconds, now = new Date() } = input;
+    const { aheadCount, avgServiceSeconds, totalWorkloadMinutes, now = new Date() } = input;
 
-    const isFallback = avgServiceSeconds <= 0;
-    const effectiveAvgServiceSeconds = isFallback
-      ? config.defaultAvgServiceSeconds
-      : avgServiceSeconds;
+    let estimatedWaitSeconds: number;
+    let isFallback: boolean;
 
-    const estimatedWaitSeconds = aheadCount * effectiveAvgServiceSeconds;
+    // Primary: Use workload-based calculation if available
+    if (totalWorkloadMinutes && totalWorkloadMinutes > 0) {
+      estimatedWaitSeconds = totalWorkloadMinutes * 60;
+      isFallback = false;
+    } else {
+      // Fallback: Use average-based calculation
+      isFallback = avgServiceSeconds <= 0;
+      const effectiveAvgServiceSeconds = isFallback
+        ? config.defaultAvgServiceSeconds
+        : avgServiceSeconds;
+      estimatedWaitSeconds = aheadCount * effectiveAvgServiceSeconds;
+    }
+
     const estimatedWaitMinutes = Math.ceil(estimatedWaitSeconds / 60);
     const expectedCallAt = new Date(now.getTime() + estimatedWaitSeconds * 1_000);
     const confidence = deriveConfidence(aheadCount, isFallback, config);

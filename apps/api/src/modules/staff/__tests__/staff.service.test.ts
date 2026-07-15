@@ -1,13 +1,16 @@
-/**
+﻿/**
  * Unit tests for staffService.
  *
  * Strategy: mock repositories + queueService (data layer) while keeping the
  * service logic intact.
  */
 
+import type { AuditLogRow } from '../../../db/repositories/audit-log.repository';
 import { auditLogRepository } from '../../../db/repositories/audit-log.repository';
-import { QueueEntryRow } from '../../../db/repositories/queue-entries.repository';
-import { queueEntriesRepository } from '../../../db/repositories/queue-entries.repository';
+import {
+  queueEntriesRepository,
+  QueueEntryRow,
+} from '../../../db/repositories/queue-entries.repository';
 import { QueueRow, queuesRepository } from '../../../db/repositories/queues.repository';
 import { queueService } from '../../queue/queue.service';
 import { staffService } from '../staff.service';
@@ -95,22 +98,36 @@ const baseEntry: QueueEntryRow = {
   id: ENTRY_ID,
   queue_id: QUEUE_ID,
   user_id: ACTOR_ID,
+  order_id: null,
   line_user_id: null,
   ticket_number: 1,
-  ticket_display: 'A001',
+  ticket_code: 'A001',
   status: 'waiting',
-  skip_count: 0,
   priority: 0,
-  notes: null,
-  metadata: {},
+  position_snapshot: null,
   called_at: null,
-  serving_at: null,
-  completed_at: null,
+  serving_started_at: null,
+  served_at: null,
   skipped_at: null,
   cancelled_at: null,
-  estimated_call_at: null,
+  no_show_at: null,
+  estimated_wait_seconds: null,
   created_at: new Date(),
   updated_at: new Date(),
+};
+
+const auditLogRow: AuditLogRow = {
+  id: 'audit-001',
+  actor_id: ACTOR_ID,
+  actor_type: 'staff',
+  action: 'staff.action',
+  resource_type: 'queue_entry',
+  resource_id: ENTRY_ID,
+  organization_id: baseQueue.organization_id,
+  changes: null,
+  ip_address: null,
+  user_agent: null,
+  created_at: new Date(),
 };
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
@@ -118,7 +135,8 @@ const baseEntry: QueueEntryRow = {
 beforeEach(() => {
   jest.clearAllMocks();
   // Audit log should succeed silently by default
-  mockAuditCreate.mockResolvedValue({} as never);
+  mockAuditCreate.mockResolvedValue(auditLogRow);
+  mockFindQueueById.mockResolvedValue(baseQueue);
 });
 
 // ── getQueueOverview ───────────────────────────────────────────────────────────
@@ -173,7 +191,7 @@ describe('staffService.callNext', () => {
     const result = await staffService.callNext(QUEUE_ID, ACTOR_ID);
 
     expect(result.status).toBe('called');
-    expect(mockCallNextTicket).toHaveBeenCalledWith(QUEUE_ID);
+    expect(mockCallNextTicket).toHaveBeenCalledWith(QUEUE_ID, undefined, undefined, undefined);
   });
 
   it('propagates errors from callNextTicket', async () => {

@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+﻿import { Request, Response } from 'express';
 
 import { asyncHandler } from '../../utils/asyncHandler';
 import { logger } from '../../utils/logger';
@@ -27,19 +27,20 @@ function reqLog(req: Request) {
  * active ticket (idempotent retry).
  */
 export const joinQueue = asyncHandler(async (req: Request, res: Response) => {
-  const dto = req.body as JoinQueueDto;
-  const result = await queueService.joinQueue({
+  const dto: JoinQueueDto = req.body;
+  const joinRequest: Parameters<typeof queueService.joinQueue>[0] = {
     ...dto,
     userId: req.user?.id,
     // Prefer the lineUserId from the JWT; fall back to the body value for
     // anonymous LIFF users who have a LINE UID but no backend session yet.
     lineUserId: req.user?.lineUserId ?? dto.lineUserId,
-  });
+  };
+  const result = await queueService.joinQueue(joinRequest);
 
   reqLog(req).info(
     {
       queueId: dto.queueId,
-      ticket: result.entry.ticket_display,
+      ticket: result.entry.ticket_code,
       aheadCount: result.aheadCount,
       isExisting: result.isExisting,
     },
@@ -130,9 +131,14 @@ export const getQueueStatus = asyncHandler(async (req: Request, res: Response) =
  */
 export const callNextTicket = asyncHandler(async (req: Request, res: Response) => {
   const { queueId } = req.params as unknown as QueueIdParam;
-  const entry = await queueService.callNextTicket(queueId);
+  const entry = await queueService.callNextTicket(
+    queueId,
+    undefined,
+    undefined,
+    req.user?.organizationId
+  );
 
-  reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_display }, 'queue.callNext');
+  reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_code }, 'queue.callNext');
 
   sendSuccess(res, { entry });
 });
@@ -142,9 +148,13 @@ export const callNextTicket = asyncHandler(async (req: Request, res: Response) =
 /** Mark a called ticket as serving (customer reached the counter). */
 export const serveTicket = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
-  const entry = await queueService.serveTicket({ entryId, actorUserId: req.user?.id });
+  const entry = await queueService.serveTicket({
+    entryId,
+    actorUserId: req.user?.id,
+    actorOrganizationId: req.user?.organizationId,
+  });
 
-  reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.serve');
+  reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'queue.serve');
 
   sendSuccess(res, { entry });
 });
@@ -154,9 +164,13 @@ export const serveTicket = asyncHandler(async (req: Request, res: Response) => {
 /** Mark a serving ticket as completed and archive to history. */
 export const completeTicket = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
-  const entry = await queueService.completeTicket({ entryId, actorUserId: req.user?.id });
+  const entry = await queueService.completeTicket({
+    entryId,
+    actorUserId: req.user?.id,
+    actorOrganizationId: req.user?.organizationId,
+  });
 
-  reqLog(req).info({ entryId, ticket: entry.ticket_display }, 'queue.complete');
+  reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'queue.complete');
 
   sendSuccess(res, { entry });
 });
@@ -180,4 +194,13 @@ export const getMyPenalties = asyncHandler(async (req: Request, res: Response): 
   reqLog(req).debug({ penaltyCount: penalties.length }, 'queue.myPenalties');
 
   sendSuccess(res, penalties);
+});
+
+// ── GET /api/v1/queue/entry/:entryId ─────────────────────────────────────────
+
+/** Public ticket status by entry ID — no auth required. Used by guest tracking page. */
+export const getTicketStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { entryId } = req.params as unknown as EntryIdParam;
+  const result = await queueService.getTicketStatus(entryId);
+  sendSuccess(res, result);
 });

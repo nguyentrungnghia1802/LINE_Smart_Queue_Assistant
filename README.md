@@ -322,17 +322,46 @@ Copy `.env.example` → `.env`. The file is split into sections with inline comm
 
 ## API Documentation
 
-| Guide                                  | Description                                                                                                     |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| [Queue MVP API](docs/queue-mvp-api.md) | `POST /join`, `GET /me`, `GET /:queueId/status`, `GET /current` — curl examples, response shapes, ETA semantics |
+| Guide                                  | Description                                                |
+| -------------------------------------- | ---------------------------------------------------------- |
+| [API Reference](docs/API.md)           | Full endpoint reference with request/response examples     |
+| [Architecture](docs/ARCHITECTURE.md)   | System design, data flow, role flow, LINE integration role |
+| [Queue MVP API](docs/queue-mvp-api.md) | Original MVP API design doc                                |
 
 Interactive Swagger UI is available at `http://localhost:4000/api/docs` when the API is running.
 
 ---
 
+## Demo Accounts
+
+> After running `npm run db:seed --workspace=apps/api`:
+
+| Role              | Email                | Password  | Notes                                         |
+| ----------------- | -------------------- | --------- | --------------------------------------------- |
+| Manager           | alice@queue-lab.test | Demo@1234 | Analytics, products, queue settings           |
+| Staff             | bob@queue-lab.test   | Demo@1234 | Queue board, call next, serve                 |
+| Organization slug | `the-queue-lab`      | —         | Public QR: `/qr/demo_the_queue_lab_token_001` |
+
+See [docs/DEMO.md](docs/DEMO.md) for the full demo walkthrough.
+
+---
+
+## Release
+
+| Document                                              | Description                                              |
+| ----------------------------------------------------- | -------------------------------------------------------- |
+| [RELEASE.md](docs/RELEASE.md)                         | RC-1 features, known limitations, verification checklist |
+| [ROADMAP_V2.md](docs/ROADMAP_V2.md)                   | Planned V2 improvements                                  |
+| [DEMO.md](docs/DEMO.md)                               | Step-by-step demo script                                 |
+| [load-testing.md](docs/load-testing.md)               | k6 load test scenarios                                   |
+| [backup-and-recovery.md](docs/backup-and-recovery.md) | PostgreSQL backup procedures                             |
+| [deployment.md](docs/deployment.md)                   | Production deployment guide                              |
+
+---
+
 ## Contributing
 
-1. Create a feature branch from `main`
+1. Create a feature branch from `chore/dev`
 2. Run `npm run lint && npm run typecheck && npm run test` before opening a PR
 3. Ensure `npm run format:check` passes (CI enforced)
 

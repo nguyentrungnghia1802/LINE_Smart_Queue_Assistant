@@ -172,7 +172,7 @@ describe('POST /api/v1/line/webhook — follow event', () => {
     ];
     expect(token).toBe('mock-reply-token');
     expect(messages[0].type).toBe('text');
-    expect(messages[0].text).toContain('Welcome');
+    expect(messages[0].text).toContain('ようこそ');
   });
 });
 

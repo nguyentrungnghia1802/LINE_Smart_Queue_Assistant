@@ -49,10 +49,38 @@ export enum PenaltyReason {
 // User domain
 // ─────────────────────────────────────────────────────
 
+/** Values match the `user_role` PostgreSQL ENUM (lowercase). */
 export enum UserRole {
-  ADMIN = 'ADMIN',
-  STAFF = 'STAFF',
-  CUSTOMER = 'CUSTOMER',
+  ADMIN = 'admin',
+  MANAGER = 'manager',
+  STAFF = 'staff',
+  CUSTOMER = 'customer',
+}
+
+// ─────────────────────────────────────────────────────
+// Order domain
+// ─────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────
+// Product domain
+// ─────────────────────────────────────────────────────
+
+/** Distinguishes tangible goods from services in the product catalog. */
+export enum ProductType {
+  PRODUCT = 'product',
+  SERVICE = 'service',
+}
+
+export enum OrderStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled',
+}
+
+export enum PaymentStatus {
+  UNPAID = 'unpaid',
+  PAID = 'paid',
 }
 
 // ─────────────────────────────────────────────────────

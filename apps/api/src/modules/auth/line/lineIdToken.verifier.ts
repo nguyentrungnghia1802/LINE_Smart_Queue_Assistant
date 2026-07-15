@@ -46,12 +46,12 @@ export async function verifyLineIdToken(idToken: string): Promise<LineVerifiedPr
       body: body.toString(),
     });
   } catch {
-    throw AppError.serviceUnavailable('Could not reach LINE verification service');
+    throw AppError.serviceUnavailable('LINE認証サービスに接続できませんでした');
   }
 
   // LINE returns 400 with { error, error_description } when the token is invalid
   if (!res.ok) {
-    throw AppError.unauthorized('LINE id_token verification failed');
+    throw AppError.unauthorized('LINE id_tokenの検証に失敗しました');
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

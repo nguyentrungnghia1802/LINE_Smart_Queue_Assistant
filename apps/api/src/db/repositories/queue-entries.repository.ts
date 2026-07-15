@@ -8,20 +8,21 @@ export interface QueueEntryRow {
   id: string;
   queue_id: string;
   user_id: string | null;
+  order_id: string | null;
   line_user_id: string | null;
   ticket_number: number;
-  ticket_display: string;
+  /** Human-readable ticket code, e.g. "A003". */
+  ticket_code: string;
   status: string;
-  skip_count: number;
   priority: number;
-  notes: string | null;
-  metadata: Record<string, unknown>;
+  position_snapshot: number | null;
+  estimated_wait_seconds: number | null;
   called_at: Date | null;
-  serving_at: Date | null;
-  completed_at: Date | null;
+  serving_started_at: Date | null;
+  served_at: Date | null;
   skipped_at: Date | null;
   cancelled_at: Date | null;
-  estimated_call_at: Date | null;
+  no_show_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -31,12 +32,11 @@ export interface QueueEntryRow {
 export interface CreateEntryParams {
   queueId: string;
   ticketNumber: number;
-  ticketDisplay: string;
+  ticketCode: string;
   userId?: string;
+  orderId?: string;
   lineUserId?: string;
   priority?: number;
-  notes?: string;
-  metadata?: Record<string, unknown>;
 }
 
 // ── Repository ─────────────────────────────────────────────────────────────────
@@ -46,38 +46,24 @@ export class QueueEntriesRepository extends BaseRepository {
     return this.queryOne<QueueEntryRow>('SELECT * FROM queue_entries WHERE id = $1', [id]);
   }
 
-  /**
-   * Find the active ticket for a LINE user in a specific queue.
-   * Hits idx_qe_line_user_active — used on each webhook message.
-   */
   async findActiveByLineUser(lineUserId: string, queueId: string): Promise<QueueEntryRow | null> {
     return this.queryOne<QueueEntryRow>(
       `SELECT * FROM queue_entries
-       WHERE line_user_id = $1
-         AND queue_id = $2
+       WHERE line_user_id = $1 AND queue_id = $2
          AND status IN ('waiting', 'called', 'serving')`,
       [lineUserId, queueId]
     );
   }
 
-  /**
-   * Find active ticket for a registered user in any queue of an org.
-   * Used to enforce one-ticket-per-queue rule.
-   */
   async findActiveByUser(userId: string, queueId: string): Promise<QueueEntryRow | null> {
     return this.queryOne<QueueEntryRow>(
       `SELECT * FROM queue_entries
-       WHERE user_id = $1
-         AND queue_id = $2
+       WHERE user_id = $1 AND queue_id = $2
          AND status IN ('waiting', 'called', 'serving')`,
       [userId, queueId]
     );
   }
 
-  /**
-   * All waiting entries for a queue, ordered for serving (priority DESC, FIFO).
-   * Staff queue board uses this to show the live list.
-   */
   async listWaiting(queueId: string): Promise<QueueEntryRow[]> {
     return this.query<QueueEntryRow>(
       `SELECT * FROM queue_entries
@@ -87,23 +73,21 @@ export class QueueEntriesRepository extends BaseRepository {
     );
   }
 
-  /** Insert a new entry. Use inside withTransaction together with incrementAndGetCounter. */
   async create(params: CreateEntryParams, client?: PoolClient): Promise<QueueEntryRow> {
     const sql = `
       INSERT INTO queue_entries
-        (queue_id, user_id, line_user_id, ticket_number, ticket_display, priority, notes, metadata)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        (queue_id, user_id, order_id, line_user_id, ticket_number, ticket_code, priority)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
       RETURNING *
     `;
     const args = [
       params.queueId,
       params.userId ?? null,
+      params.orderId ?? null,
       params.lineUserId ?? null,
       params.ticketNumber,
-      params.ticketDisplay,
+      params.ticketCode,
       params.priority ?? 0,
-      params.notes ?? null,
-      JSON.stringify(params.metadata ?? {}),
     ];
     const rows = client
       ? await this.queryTx<QueueEntryRow>(client, sql, args)
@@ -111,139 +95,107 @@ export class QueueEntriesRepository extends BaseRepository {
     return this.firstOrThrow(rows, 'queueEntries.create');
   }
 
-  /** Transition entry to 'called' and record called_at timestamp. */
+  async linkOrder(id: string, orderId: string, client?: PoolClient): Promise<QueueEntryRow> {
+    const sql = `UPDATE queue_entries SET order_id = $2 WHERE id = $1 RETURNING *`;
+    const rows = client
+      ? await this.queryTx<QueueEntryRow>(client, sql, [id, orderId])
+      : await this.query<QueueEntryRow>(sql, [id, orderId]);
+    return this.firstOrThrow(rows, 'queueEntries.linkOrder');
+  }
+
   async markCalled(id: string, client?: PoolClient): Promise<QueueEntryRow> {
-    const sql = `
-      UPDATE queue_entries
-      SET status = 'called', called_at = NOW()
-      WHERE id = $1 AND status = 'waiting'
-      RETURNING *
-    `;
+    const sql = `UPDATE queue_entries SET status = 'called', called_at = NOW()
+      WHERE id = $1 AND status = 'waiting' RETURNING *`;
     const rows = client
       ? await this.queryTx<QueueEntryRow>(client, sql, [id])
       : await this.query<QueueEntryRow>(sql, [id]);
     return this.firstOrThrow(rows, 'queueEntries.markCalled');
   }
 
-  /** Transition entry to 'serving' and record serving_at. */
   async markServing(id: string, client?: PoolClient): Promise<QueueEntryRow> {
-    const sql = `
-      UPDATE queue_entries
-      SET status = 'serving', serving_at = NOW()
-      WHERE id = $1 AND status = 'called'
-      RETURNING *
-    `;
+    const sql = `UPDATE queue_entries SET status = 'serving', serving_started_at = NOW()
+      WHERE id = $1 AND status = 'called' RETURNING *`;
     const rows = client
       ? await this.queryTx<QueueEntryRow>(client, sql, [id])
       : await this.query<QueueEntryRow>(sql, [id]);
     return this.firstOrThrow(rows, 'queueEntries.markServing');
   }
 
-  /** Transition to 'completed' and write queue_histories row within same transaction. */
-  async markCompleted(id: string, client?: PoolClient): Promise<QueueEntryRow> {
-    const sql = `
-      UPDATE queue_entries
-      SET status = 'completed', completed_at = NOW()
-      WHERE id = $1 AND status = 'serving'
-      RETURNING *
-    `;
+  /** Status 'served' (was 'completed' in old schema). */
+  async markServed(id: string, client?: PoolClient): Promise<QueueEntryRow> {
+    const sql = `UPDATE queue_entries SET status = 'served', served_at = NOW()
+      WHERE id = $1 AND status = 'serving' RETURNING *`;
     const rows = client
       ? await this.queryTx<QueueEntryRow>(client, sql, [id])
       : await this.query<QueueEntryRow>(sql, [id]);
-    return this.firstOrThrow(rows, 'queueEntries.markCompleted');
+    return this.firstOrThrow(rows, 'queueEntries.markServed');
   }
 
-  /** Transition to 'skipped' and increment skip_count. */
   async markSkipped(id: string, client?: PoolClient): Promise<QueueEntryRow> {
-    const sql = `
-      UPDATE queue_entries
-      SET status = 'skipped', skipped_at = NOW(), skip_count = skip_count + 1
-      WHERE id = $1 AND status = 'called'
-      RETURNING *
-    `;
+    const sql = `UPDATE queue_entries SET status = 'skipped', skipped_at = NOW()
+      WHERE id = $1 AND status = 'called' RETURNING *`;
     const rows = client
       ? await this.queryTx<QueueEntryRow>(client, sql, [id])
       : await this.query<QueueEntryRow>(sql, [id]);
     return this.firstOrThrow(rows, 'queueEntries.markSkipped');
   }
 
-  /** Transition to 'cancelled' (customer self-service or staff action). */
   async markCancelled(id: string, client?: PoolClient): Promise<QueueEntryRow> {
-    const sql = `
-      UPDATE queue_entries
-      SET status = 'cancelled', cancelled_at = NOW()
-      WHERE id = $1 AND status IN ('waiting', 'called')
-      RETURNING *
-    `;
+    const sql = `UPDATE queue_entries SET status = 'cancelled', cancelled_at = NOW()
+      WHERE id = $1 AND status IN ('waiting', 'called') RETURNING *`;
     const rows = client
       ? await this.queryTx<QueueEntryRow>(client, sql, [id])
       : await this.query<QueueEntryRow>(sql, [id]);
     return this.firstOrThrow(rows, 'queueEntries.markCancelled');
   }
 
-  /**
-   * Find the most recent entry for a queue filtered by status.
-   * Used by the staff board to display the currently called/serving entry.
-   */
-  async findByQueueAndStatus(queueId: string, status: string): Promise<QueueEntryRow | null> {
-    return this.queryOne<QueueEntryRow>(
-      `SELECT * FROM queue_entries
-       WHERE queue_id = $1 AND status = $2
-       ORDER BY updated_at DESC
-       LIMIT 1`,
-      [queueId, status]
-    );
-  }
-
-  /**
-   * Transition a called entry to 'no_show'.
-   * Staff action when a called customer does not present within the allowed window.
-   */
   async markNoShow(id: string, client?: PoolClient): Promise<QueueEntryRow> {
-    const sql = `
-      UPDATE queue_entries
-      SET status = 'no_show', cancelled_at = NOW()
-      WHERE id = $1 AND status = 'called'
-      RETURNING *
-    `;
+    const sql = `UPDATE queue_entries SET status = 'no_show', no_show_at = NOW()
+      WHERE id = $1 AND status = 'called' RETURNING *`;
     const rows = client
       ? await this.queryTx<QueueEntryRow>(client, sql, [id])
       : await this.query<QueueEntryRow>(sql, [id]);
     return this.firstOrThrow(rows, 'queueEntries.markNoShow');
   }
 
-  /**
-   * Customer self-service skip: decrement priority by 1 and increment skip_count.
-   *
-   * The entry stays in 'waiting' status but is pushed behind higher-priority
-   * (or same-priority/earlier-ticket) entries.
-   * Business rules (skip limit, queue.allow_skip) are enforced by the service layer.
-   */
+  async findByQueueAndStatus(queueId: string, status: string): Promise<QueueEntryRow | null> {
+    return this.queryOne<QueueEntryRow>(
+      `SELECT * FROM queue_entries WHERE queue_id = $1 AND status = $2
+       ORDER BY updated_at DESC LIMIT 1`,
+      [queueId, status]
+    );
+  }
+
+  /** Decrement priority by 1 (customer self-service skip). */
   async deprioritize(id: string, client?: PoolClient): Promise<QueueEntryRow> {
-    const sql = `
-      UPDATE queue_entries
-      SET priority = priority - 1,
-          skip_count = skip_count + 1
-      WHERE id = $1 AND status = 'waiting'
-      RETURNING *
-    `;
+    const sql = `UPDATE queue_entries SET priority = GREATEST(0, priority - 1)
+      WHERE id = $1 AND status = 'waiting' RETURNING *`;
     const rows = client
       ? await this.queryTx<QueueEntryRow>(client, sql, [id])
       : await this.query<QueueEntryRow>(sql, [id]);
     return this.firstOrThrow(rows, 'queueEntries.deprioritize');
   }
 
-  /**
-   * All active tickets (waiting | called | serving) for a given actor across queues.
-   * Used to populate the "My Tickets" LIFF screen.
-   */
+  async getEntryIdsAhead(
+    queueId: string,
+    priority: number,
+    ticketNumber: number
+  ): Promise<string[]> {
+    const rows = await this.query<{ id: string }>(
+      `SELECT id FROM queue_entries
+       WHERE queue_id = $1 AND status IN ('waiting', 'called', 'serving')
+         AND (priority > $2 OR (priority = $2 AND ticket_number < $3))
+       ORDER BY priority DESC, ticket_number ASC`,
+      [queueId, priority, ticketNumber]
+    );
+    return rows.map((r) => r.id);
+  }
+
   async findAllActiveForActor(userId?: string, lineUserId?: string): Promise<QueueEntryRow[]> {
     if (!userId && !lineUserId) return [];
-
     const conditions: string[] = ["status IN ('waiting', 'called', 'serving')"];
     const params: unknown[] = [];
     let idx = 1;
-
     if (userId && lineUserId) {
       conditions.push(`(user_id = $${idx++} OR line_user_id = $${idx++})`);
       params.push(userId, lineUserId);
@@ -254,7 +206,6 @@ export class QueueEntriesRepository extends BaseRepository {
       conditions.push(`line_user_id = $${idx++}`);
       params.push(lineUserId);
     }
-
     return this.query<QueueEntryRow>(
       `SELECT * FROM queue_entries WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`,
       params
@@ -262,64 +213,59 @@ export class QueueEntriesRepository extends BaseRepository {
   }
 
   /**
-   * Bulk update estimated_call_at for all waiting entries in a queue.
-   * Called by the ETA background worker.
-   *
-   * Each row's ETA = NOW() + (position * avgServiceSeconds) seconds.
-   * Uses a window function to compute row number within the queue.
+   * Bulk-update estimated_wait_seconds for all waiting entries in a queue.
    */
   async bulkUpdateEta(queueId: string, avgServiceSeconds: number): Promise<void> {
     await this.query(
-      `UPDATE queue_entries AS qe
-       SET estimated_call_at = NOW() + (
-         (ROW_NUMBER() OVER (
-           PARTITION BY qe.queue_id
-           ORDER BY qe.priority DESC, qe.ticket_number ASC
-         ) - 1) * $2
-       ) * INTERVAL '1 second'
-       FROM (
-         SELECT id FROM queue_entries
-         WHERE queue_id = $1 AND status = 'waiting'
-       ) AS waiting
-       WHERE qe.id = waiting.id`,
+      `WITH ranked AS (
+         SELECT id, (ROW_NUMBER() OVER (ORDER BY priority DESC, ticket_number ASC) - 1) AS pos
+         FROM queue_entries WHERE queue_id = $1 AND status = 'waiting'
+       )
+       UPDATE queue_entries
+       SET estimated_wait_seconds = (ranked.pos * $2)::int
+       FROM ranked WHERE queue_entries.id = ranked.id`,
       [queueId, avgServiceSeconds]
     );
   }
 
-  async archiveToHistory(entry: QueueEntryRow, client?: PoolClient): Promise<void> {
-    const waitedSeconds =
-      entry.serving_at && entry.created_at
-        ? Math.round((entry.serving_at.getTime() - entry.created_at.getTime()) / 1000)
+  /**
+   * Archive a terminal entry to queue_histories.
+   */
+  async archiveToHistory(
+    entry: QueueEntryRow,
+    fromStatus: string,
+    toStatus: string,
+    reason?: string,
+    client?: PoolClient
+  ): Promise<void> {
+    const waitSeconds =
+      entry.serving_started_at && entry.created_at
+        ? Math.round((entry.serving_started_at.getTime() - entry.created_at.getTime()) / 1000)
         : null;
-
-    const servedSeconds =
-      entry.completed_at && entry.serving_at
-        ? Math.round((entry.completed_at.getTime() - entry.serving_at.getTime()) / 1000)
+    const serviceSeconds =
+      entry.served_at && entry.serving_started_at
+        ? Math.round((entry.served_at.getTime() - entry.serving_started_at.getTime()) / 1000)
         : null;
-
     const sql = `
       INSERT INTO queue_histories
         (queue_entry_id, queue_id, organization_id, user_id, line_user_id,
-         ticket_number, ticket_display, final_status, skip_count,
-         waited_seconds, served_seconds, metadata, created_at)
-      SELECT
-        $1, q.id,  q.organization_id, $3, $4,
-        $5, $6, $7, $8,
-        $9, $10, $11, $12
-      FROM queues q WHERE q.id = $2
-    `;
+         ticket_number, ticket_code, from_status, to_status, reason,
+         wait_seconds, service_seconds, metadata, created_at)
+      SELECT $1, q.id, q.organization_id, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+      FROM queues q WHERE q.id = $2`;
     const args = [
       entry.id,
       entry.queue_id,
       entry.user_id,
       entry.line_user_id,
       entry.ticket_number,
-      entry.ticket_display,
-      entry.status,
-      entry.skip_count,
-      waitedSeconds,
-      servedSeconds,
-      JSON.stringify(entry.metadata),
+      entry.ticket_code,
+      fromStatus,
+      toStatus,
+      reason ?? null,
+      waitSeconds,
+      serviceSeconds,
+      '{}',
       entry.created_at,
     ];
     if (client) {
@@ -329,56 +275,22 @@ export class QueueEntriesRepository extends BaseRepository {
     }
   }
 
-  /**
-   * Find waiting entries in open queues whose queue-position is within
-   * `threshold` places from the front (exclusive of position 0, which is
-   * handled by the "called" notification).
-   *
-   * Uses a window function so only one DB round-trip is needed regardless
-   * of the number of active queues.  Only includes entries with a
-   * `line_user_id` — those without cannot receive a LINE push.
-   *
-   * `ahead_count` = number of entries ahead of this one within the queue
-   * (0-indexed, so position 1 has ahead_count = 1).
-   *
-   * Range: `1 ≤ ahead_count ≤ threshold`
-   */
   async findNearThresholdWaiting(
     threshold: number
   ): Promise<Array<QueueEntryRow & { ahead_count: number }>> {
     return this.query<QueueEntryRow & { ahead_count: number }>(
       `WITH ranked AS (
          SELECT e.*,
-           (ROW_NUMBER() OVER (
-             PARTITION BY e.queue_id
-             ORDER BY e.priority DESC, e.ticket_number ASC
-           ) - 1)::int AS ahead_count
+           (ROW_NUMBER() OVER (PARTITION BY e.queue_id ORDER BY e.priority DESC, e.ticket_number ASC) - 1)::int AS ahead_count
          FROM queue_entries e
          JOIN queues q ON q.id = e.queue_id
-         WHERE e.status = 'waiting'
-           AND q.status = 'open'
-           AND q.is_active = TRUE
-           AND e.line_user_id IS NOT NULL
+         WHERE e.status = 'waiting' AND q.status = 'open' AND q.is_active = TRUE AND e.line_user_id IS NOT NULL
        )
-       SELECT * FROM ranked
-       WHERE ahead_count BETWEEN 1 AND $1`,
+       SELECT * FROM ranked WHERE ahead_count BETWEEN 1 AND $1`,
       [threshold]
     );
   }
 
-  /**
-   * Find entries that have been called but whose "called" notification may
-   * not have been delivered (e.g., LINE API was unavailable).
-   *
-   * Only returns entries where:
-   *   - `status = 'called'`
-   *   - `called_at` is within the last `maxAgeMinutes` (stale entries excluded)
-   *   - `called_at` is at least `minAgeSeconds` ago (allows initial delivery)
-   *   - `line_user_id IS NOT NULL`
-   *
-   * The anti-duplicate registry (`notificationLogRepository`) is checked by
-   * the caller — this query intentionally returns all candidates.
-   */
   async findRecentlyCalled(maxAgeMinutes: number, minAgeSeconds: number): Promise<QueueEntryRow[]> {
     return this.query<QueueEntryRow>(
       `SELECT * FROM queue_entries

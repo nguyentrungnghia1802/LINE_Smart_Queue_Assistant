@@ -38,6 +38,12 @@ export interface LiffAdapter {
   getAccessToken(): string | null;
 
   /**
+   * Get the current LIFF OIDC ID token.
+   * This is sent to the backend for LINE account authentication.
+   */
+  getIDToken(): string | null;
+
+  /**
    * Redirect the user to the LINE login screen.
    * No-op in mock mode.
    */

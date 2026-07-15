@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Queue Notification Service
  *
  * ── Responsibility ───────────────────────────────────────────────────────────
@@ -26,6 +26,7 @@
 
 import type { QueueEntryRow } from '../../db/repositories/queue-entries.repository';
 import { logger } from '../../utils/logger';
+import { metricsService } from '../../utils/metrics';
 import type { ILineMessagingAdapter } from '../line/line.adapter';
 import { lineMessagingAdapter } from '../line/line.messaging';
 
@@ -72,17 +73,19 @@ export const queueNotificationService = {
         {
           type: 'text',
           text:
-            `🔔 Ticket ${entry.ticket_display} — It's your turn!\n\n` +
-            'Please proceed to the counter now. Thank you for your patience! 🙏',
+            `🔔 受付番号 ${entry.ticket_code} の順番です\n\n` +
+            'カウンターまでお越しください。お待ちいただきありがとうございます。',
         },
       ]);
       log.markSent(entry.id, 'called');
+      metricsService.increment('notifications_sent_total');
       logger.info(
         { entryId: entry.id, lineUserId: entry.line_user_id },
         'Called notification sent'
       );
     } catch (err) {
       // A notification failure must never roll back the queue state transition.
+      metricsService.increment('notifications_failed_total');
       logger.error({ err, entryId: entry.id }, 'Failed to send called notification');
     }
   },
@@ -111,20 +114,22 @@ export const queueNotificationService = {
       return;
     }
 
-    const who = aheadCount === 1 ? '1 person is' : `${aheadCount} people are`;
+    const who = aheadCount === 1 ? '前に1名' : `前に${aheadCount}名`;
 
     try {
       await adapter.pushMessage(entry.line_user_id, [
         {
           type: 'text',
           text:
-            `⏰ Ticket ${entry.ticket_display} — Almost your turn!\n\n` +
-            `${who} ahead of you. Please make your way to the counter.`,
+            `⏰ 受付番号 ${entry.ticket_code} の順番が近づいています\n\n` +
+            `${who}お待ちです。カウンター付近でお待ちください。`,
         },
       ]);
       log.markSent(entry.id, 'eta_warning');
+      metricsService.increment('notifications_sent_total');
       logger.info({ entryId: entry.id, aheadCount }, 'ETA warning notification sent');
     } catch (err) {
+      metricsService.increment('notifications_failed_total');
       logger.error({ err, entryId: entry.id }, 'Failed to send ETA warning');
     }
   },
@@ -150,12 +155,14 @@ export const queueNotificationService = {
       await adapter.pushMessage(entry.line_user_id, [
         {
           type: 'text',
-          text: `✅ Ticket ${entry.ticket_display} has been cancelled. Thank you!`,
+          text: `✅ 受付番号 ${entry.ticket_code} をキャンセルしました。`,
         },
       ]);
       log.markSent(entry.id, 'cancelled');
+      metricsService.increment('notifications_sent_total');
       logger.info({ entryId: entry.id }, 'Cancelled notification sent');
     } catch (err) {
+      metricsService.increment('notifications_failed_total');
       logger.error({ err, entryId: entry.id }, 'Failed to send cancelled notification');
     }
   },
