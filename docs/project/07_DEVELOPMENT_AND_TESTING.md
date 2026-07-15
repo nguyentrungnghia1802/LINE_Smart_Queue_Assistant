@@ -14,7 +14,7 @@ npm install
 cp .env.example .env
 ```
 
-Required production-like values include database credentials, a strong JWT secret, CORS/web origin, LINE Login channel ID, LINE Messaging channel secret/access token, and LIFF ID. `VITE_*` variables are compiled into browser code and must never contain secrets.
+Required production-like values include database credentials, a strong JWT secret, CORS/web origin, LINE Login channel ID, LINE Messaging channel secret/access token, frontend LIFF ID, and backend `LINE_LIFF_ID` for notification deep links. `VITE_*` variables are compiled into browser code and must never contain secrets.
 
 For ordinary UI/backend work without LINE credentials:
 
@@ -155,10 +155,11 @@ Critical regression scenarios:
 3. Run `npm run line:verify` and confirm the expected Official Account name/basic ID without exposing the token.
 4. Expose the local API through HTTPS for LINE webhook testing and set `/api/v1/line/webhook` as the webhook URL.
 5. Add/follow the LINE Official Account as required for push eligibility.
-6. Open the customer flow inside LIFF and verify `/api/v1/auth/line` links a real `line_user_id`.
-7. Create a booking, call the ticket from staff, and observe the Japanese message in LINE chat.
-8. Optionally send a direct test with `npm run line:verify -- --send-to <LINE_USER_ID>`.
-9. Check API logs/metrics and ensure `notificationDisabled` remains `false` for normal notifications.
+6. Open `https://liff.line.me/{LIFF_ID}?liff.state=%2Fliff%2Fqr%2F{publicQrToken}` and verify `/api/v1/auth/line` links a real `line_user_id`.
+7. Select products/services, complete demo prepayment if required, create a booking, and confirm the app redirects to `/liff/tickets/:entryId`.
+8. Call the ticket from staff and observe the Japanese message in LINE chat. The message should include a link that opens the LIFF ticket detail.
+9. Optionally send a direct test with `npm run line:verify -- --send-to <LINE_USER_ID>`.
+10. Check API logs/metrics and ensure `notificationDisabled` remains `false` for normal notifications.
 
 Phone sound/banner ultimately follows the customer's LINE and OS notification settings; the server cannot override a muted device/chat.
 

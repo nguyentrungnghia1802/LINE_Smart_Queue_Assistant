@@ -68,6 +68,7 @@ apps/web/src/
 |   \-- liff/                LINE LIFF customer flow
 |-- services/                API clients and LIFF real/mock adapters
 |-- store/                   Zustand authentication state
+|-- contexts/                Runtime providers such as LIFF initialization state
 |-- types/                   Frontend-only contracts
 |-- utils/                   Checkout storage, payment boundary, logo compression
 |-- router.tsx               Route map
@@ -76,6 +77,8 @@ apps/web/src/
 ```
 
 Pages orchestrate data and interactions. Reusable visual patterns belong in components, server calls in services/hooks, and non-React transformations in utils. Browser storage is for drafts and convenience, never authorization/payment truth.
+
+LIFF child pages should consume `LiffRuntimeContext` from `LiffLayout` instead of calling `useLiff()` directly. The layout initializes LIFF once and shares profile/auth status with booking, ticket, and home routes.
 
 ## 4. Shared packages
 

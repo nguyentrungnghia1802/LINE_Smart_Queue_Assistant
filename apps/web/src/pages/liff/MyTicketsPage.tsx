@@ -5,6 +5,7 @@ import { CalledBanner } from '../../components/ui/CalledBanner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { TicketCardSkeleton } from '../../components/ui/Skeleton';
+import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
 import { useMyTickets } from '../../hooks/useQueueEntry';
 
 /**
@@ -18,7 +19,26 @@ import { useMyTickets } from '../../hooks/useQueueEntry';
  */
 export function MyTicketsPage() {
   const navigate = useNavigate();
-  const { data: tickets, isLoading, isError, refetch } = useMyTickets();
+  const { authStatus } = useLiffRuntime();
+  const canLoadLineTickets = authStatus === 'authenticated';
+  const {
+    data: tickets,
+    isLoading,
+    isError,
+    refetch,
+  } = useMyTickets({
+    enabled: canLoadLineTickets,
+  });
+
+  if (!canLoadLineTickets) {
+    return (
+      <EmptyState
+        icon="🎫"
+        title={authStatus === 'error' ? 'LINE認証が必要です' : 'LINE認証中です'}
+        message="受付番号を確認するにはLINE認証を完了してください。"
+      />
+    );
+  }
 
   // ── Loading skeleton ─────────────────────────────────────────────────────
   if (isLoading) {

@@ -24,6 +24,7 @@
  * silently dropped after the first successful delivery.
  */
 
+import { config } from '../../config';
 import type { QueueEntryRow } from '../../db/repositories/queue-entries.repository';
 import { logger } from '../../utils/logger';
 import type { ILineMessagingAdapter } from '../line/line.adapter';
@@ -31,6 +32,7 @@ import { lineMessagingAdapter } from '../line/line.messaging';
 
 import { lineNotificationService } from './line-notification.service';
 import {
+  buildTicketDeepLink,
   etaWarningMessage,
   ticketCalledMessage,
   ticketCancelledMessage,
@@ -50,6 +52,13 @@ import { notificationLogRepository } from './notification-log.repository';
  * Exported so tests can reference the same value without magic numbers.
  */
 export const ETA_WARNING_THRESHOLD = 2;
+
+function ticketLink(entryId: string): string {
+  return buildTicketDeepLink(entryId, {
+    liffId: config.line.liffId,
+    webOrigin: config.web.origin,
+  });
+}
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
@@ -78,7 +87,7 @@ export const queueNotificationService = {
 
     const sent = await lineNotificationService.pushText(
       entry.line_user_id,
-      ticketCalledMessage(entry.ticket_code),
+      ticketCalledMessage(entry.ticket_code, { ticketUrl: ticketLink(entry.id) }),
       { entryId: entry.id, eventType: 'called' },
       adapter
     );
@@ -113,7 +122,7 @@ export const queueNotificationService = {
 
     const sent = await lineNotificationService.pushText(
       entry.line_user_id,
-      etaWarningMessage(entry.ticket_code, aheadCount),
+      etaWarningMessage(entry.ticket_code, aheadCount, { ticketUrl: ticketLink(entry.id) }),
       { entryId: entry.id, eventType: 'eta_warning' },
       adapter
     );
@@ -136,7 +145,7 @@ export const queueNotificationService = {
 
     const sent = await lineNotificationService.pushText(
       entry.line_user_id,
-      ticketServingMessage(entry.ticket_code),
+      ticketServingMessage(entry.ticket_code, { ticketUrl: ticketLink(entry.id) }),
       { entryId: entry.id, eventType: 'serving' },
       adapter
     );
@@ -159,7 +168,7 @@ export const queueNotificationService = {
 
     const sent = await lineNotificationService.pushText(
       entry.line_user_id,
-      ticketCompletedMessage(entry.ticket_code),
+      ticketCompletedMessage(entry.ticket_code, { ticketUrl: ticketLink(entry.id) }),
       { entryId: entry.id, eventType: 'completed' },
       adapter
     );
@@ -182,7 +191,7 @@ export const queueNotificationService = {
 
     const sent = await lineNotificationService.pushText(
       entry.line_user_id,
-      ticketNoShowMessage(entry.ticket_code),
+      ticketNoShowMessage(entry.ticket_code, { ticketUrl: ticketLink(entry.id) }),
       { entryId: entry.id, eventType: 'no_show' },
       adapter
     );
@@ -210,7 +219,7 @@ export const queueNotificationService = {
 
     const sent = await lineNotificationService.pushText(
       entry.line_user_id,
-      ticketCancelledMessage(entry.ticket_code),
+      ticketCancelledMessage(entry.ticket_code, { ticketUrl: ticketLink(entry.id) }),
       { entryId: entry.id, eventType: 'cancelled' },
       adapter
     );

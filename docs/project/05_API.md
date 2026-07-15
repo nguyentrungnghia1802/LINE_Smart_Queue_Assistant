@@ -133,6 +133,8 @@ Static `/current` and `/me` routes must remain before parameter routes.
 
 `POST /queue/join` accepts `queueId`, optional `guestName`, and optional `notes`. It does not accept a browser-supplied `lineUserId`; the controller passes only `req.user.lineUserId` after JWT and active `line_accounts` verification.
 
+The current customer LIFF UI treats `/queue/join` as a legacy/direct queue path. The product/service booking flow uses `POST /orders` after LIFF ID-token login has produced the system JWT.
+
 ### Staff operations
 
 All paths require staff/manager/admin and organization ownership.
@@ -190,6 +192,8 @@ Important `POST /orders` request fields:
 The server ignores browser price authority: it reloads product prices and calculates subtotal/covered amount. For real payment, the accepted payment object must be built from verified server-side provider state rather than direct browser assertions.
 
 For authenticated `POST /orders`, the controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified linked `line_user_id` on the new queue entry. Guest orders keep both recipient fields empty unless a separately verified identity flow is used.
+
+In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has completed and the authenticated LINE-derived JWT is present. The request body must still never include `lineUserId`.
 
 ### Users and staff management
 

@@ -5,7 +5,8 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { TicketHeroSkeleton } from '../../components/ui/Skeleton';
 import { StatusBadge } from '../../components/ui/StatusBadge';
-import { useMyTickets } from '../../hooks/useQueueEntry';
+import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
+import { useMyTickets, useTicketStatus } from '../../hooks/useQueueEntry';
 
 /**
  * Live status page for a single ticket.
@@ -19,8 +20,24 @@ import { useMyTickets } from '../../hooks/useQueueEntry';
 export function TicketStatusPage() {
   const { entryId = '' } = useParams<{ entryId: string }>();
   const navigate = useNavigate();
+  const { authStatus } = useLiffRuntime();
 
-  const { data: tickets, isLoading, isError, refetch } = useMyTickets();
+  const {
+    data: tickets,
+    isLoading: isMyTicketsLoading,
+    isError: isMyTicketsError,
+    refetch: refetchMyTickets,
+  } = useMyTickets({ enabled: authStatus === 'authenticated' });
+  const {
+    data: ticketStatus,
+    isLoading: isTicketStatusLoading,
+    isError: isTicketStatusError,
+    refetch: refetchTicketStatus,
+  } = useTicketStatus(entryId);
+
+  const ticketData = tickets?.find((t) => t.entry.id === entryId) ?? ticketStatus;
+  const isLoading = !ticketData && (isMyTicketsLoading || isTicketStatusLoading);
+  const isError = !ticketData && isMyTicketsError && isTicketStatusError;
 
   // ── Loading skeleton ─────────────────────────────────────────────────────
   if (isLoading) {
@@ -42,10 +59,16 @@ export function TicketStatusPage() {
   }
 
   if (isError) {
-    return <ErrorState message="受付状況を読み込めませんでした。" onRetry={() => void refetch()} />;
+    return (
+      <ErrorState
+        message="受付状況を読み込めませんでした。"
+        onRetry={() => {
+          void refetchMyTickets();
+          void refetchTicketStatus();
+        }}
+      />
+    );
   }
-
-  const ticketData = tickets?.find((t) => t.entry.id === entryId);
 
   if (!ticketData) {
     return (
@@ -60,7 +83,7 @@ export function TicketStatusPage() {
 
   const { entry, aheadCount, estimatedWaitSeconds } = ticketData;
   const statusKey = entry.status as unknown as string;
-  const waitMin = Math.ceil(estimatedWaitSeconds / 60);
+  const waitMin = Math.ceil((estimatedWaitSeconds ?? 0) / 60);
   const isCalled = statusKey === 'called';
   const isWaiting = statusKey === 'waiting';
 

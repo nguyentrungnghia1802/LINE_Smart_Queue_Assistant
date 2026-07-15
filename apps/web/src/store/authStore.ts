@@ -43,9 +43,11 @@ export const useAuthStore = create<AuthState>()(
       },
 
       loginWithLine: async (idToken: string) => {
-        const { token, user } = await post<{ token: string; user: AuthUser }>('/api/v1/auth/line', {
-          idToken,
-        });
+        const { token, user } = await post<{ token: string; user: AuthUser }>(
+          '/api/v1/auth/line',
+          { idToken },
+          { headers: { 'X-Skip-Auth-Redirect': 'true' } }
+        );
         localStorage.setItem('auth_token', token);
         set({ user, token, isAuthenticated: true });
       },

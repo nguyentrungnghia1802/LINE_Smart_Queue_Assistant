@@ -9,7 +9,7 @@ import { AdminOrganizationDetailPage } from './pages/admin/AdminOrganizationDeta
 import { AdminOrganizationRegisterPage } from './pages/admin/AdminOrganizationRegisterPage';
 import { AdminOrganizationsPage } from './pages/admin/AdminOrganizationsPage';
 import { CustomerDashboardPage } from './pages/customer/CustomerDashboardPage';
-import { CustomerJoinPage } from './pages/customer/CustomerJoinPage';
+import { CustomerJoinPage, LiffCustomerJoinPage } from './pages/customer/CustomerJoinPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { HistoryPage } from './pages/liff/HistoryPage';
 import { HomePage } from './pages/liff/HomePage';
@@ -104,6 +104,9 @@ export const router = createBrowserRouter([
       { index: true, element: <LiffInitPage /> },
       { path: 'home', element: <HomePage /> },
       { path: 'join/:queueId', element: <QueueJoinPage /> },
+      { path: 'q/:orgSlug', element: <LiffCustomerJoinPage /> },
+      { path: 'qr/:token', element: <LiffCustomerJoinPage /> },
+      { path: 'checkout/demo/:sessionId', element: <PaymentDemoPage /> },
       { path: 'tickets', element: <MyTicketsPage /> },
       { path: 'tickets/:entryId', element: <TicketStatusPage /> },
       { path: 'history', element: <HistoryPage /> },

@@ -31,8 +31,10 @@ export function ManagerQRPage() {
       ? `${window.location.origin}/qr/${orgData.publicQrToken}`
       : `${window.location.origin}/join/demo`);
 
-  // LIFF URL: https://liff.line.me/{LIFF_ID} (with optional deep-link state)
-  const liffUrl = LIFF_ID ? `https://liff.line.me/${LIFF_ID}` : null;
+  const liffTarget = orgData?.publicQrToken ? `/liff/qr/${orgData.publicQrToken}` : '/liff/home';
+  const liffUrl = LIFF_ID
+    ? `https://liff.line.me/${LIFF_ID}?liff.state=${encodeURIComponent(liffTarget)}`
+    : null;
 
   function handleCopy() {
     void navigator.clipboard.writeText(joinUrl ?? '');

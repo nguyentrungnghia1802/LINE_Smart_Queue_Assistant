@@ -5,6 +5,7 @@ import type {
   JoinQueueResult,
   QueueStatusResult,
   TicketPositionResult,
+  TicketStatusResult,
 } from '../types';
 
 import { get, post } from './apiClient';
@@ -27,6 +28,12 @@ export const queueEntryApi = {
    * Anonymous callers (no auth token) receive an empty array.
    */
   myTickets: () => get<TicketPositionResult[]>(`${BASE}/me`),
+
+  /**
+   * Get live status for one ticket by queue entry ID.
+   * Public endpoint; LIFF deep links use it after LINE auth has initialized.
+   */
+  getEntry: (entryId: string) => get<TicketStatusResult>(`${BASE}/entry/${entryId}`),
 
   /**
    * Get live status of a specific queue by path param.

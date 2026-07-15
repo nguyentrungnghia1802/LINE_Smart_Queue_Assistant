@@ -21,9 +21,11 @@ Backend-only secrets:
 - `JWT_SECRET`
 - `LINE_CHANNEL_SECRET`
 - `LINE_CHANNEL_ACCESS_TOKEN`
+- `LINE_CHANNEL_ID`
+- `LINE_LIFF_ID`
 - future PSP API/webhook keys
 
-`LINE_CHANNEL_ACCESS_TOKEN` authorizes outbound Messaging API calls. `LINE_CHANNEL_SECRET` verifies inbound webhook signatures and must come from the same Messaging API channel as the token. `LINE_CHANNEL_ID` is the separate LINE Login channel ID used for LIFF ID-token verification.
+`LINE_CHANNEL_ACCESS_TOKEN` authorizes outbound Messaging API calls. `LINE_CHANNEL_SECRET` verifies inbound webhook signatures and must come from the same Messaging API channel as the token. `LINE_CHANNEL_ID` is the separate LINE Login channel ID used for LIFF ID-token verification. `LINE_LIFF_ID` is the public LIFF app ID used by the backend to generate ticket deeplinks in LINE messages.
 
 Browser-visible configuration:
 

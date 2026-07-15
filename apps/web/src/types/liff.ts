@@ -8,6 +8,7 @@
  */
 
 export type LiffInitStatus = 'idle' | 'loading' | 'ready' | 'error';
+export type LiffAuthStatus = 'idle' | 'authenticating' | 'authenticated' | 'guest' | 'error';
 
 export interface LiffProfile {
   userId: string;
@@ -18,6 +19,7 @@ export interface LiffProfile {
 
 export interface LiffContext {
   initStatus: LiffInitStatus;
+  authStatus: LiffAuthStatus;
   isInitialized: boolean;
   isLoggedIn: boolean;
   /** true when running inside the LINE in-app browser */
@@ -33,6 +35,7 @@ export interface LiffContext {
    */
   idToken: string | null;
   error: Error | null;
+  authError: Error | null;
   login: () => void;
   logout: () => void;
 }

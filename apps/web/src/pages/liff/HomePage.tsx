@@ -4,7 +4,7 @@ import { CalledBanner } from '../../components/ui/CalledBanner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { ProfileSkeleton, TicketCardSkeleton } from '../../components/ui/Skeleton';
-import { useLiff } from '../../hooks/useLiff';
+import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
 import { useMyTickets } from '../../hooks/useQueueEntry';
 
 // ── Step data — defined outside component to avoid re-creation ───────────────
@@ -25,8 +25,16 @@ const STEPS = [
  */
 export function HomePage() {
   const navigate = useNavigate();
-  const { profile, isLoggedIn, isInitialized, login } = useLiff();
-  const { data: tickets, isLoading, isError, refetch } = useMyTickets();
+  const { profile, isLoggedIn, isInitialized, login, authStatus } = useLiffRuntime();
+  const canLoadLineTickets = authStatus === 'authenticated';
+  const {
+    data: tickets,
+    isLoading,
+    isError,
+    refetch,
+  } = useMyTickets({
+    enabled: canLoadLineTickets,
+  });
 
   const calledTickets =
     tickets?.filter((t) => (t.entry.status as unknown as string) === 'called') ?? [];
@@ -54,6 +62,8 @@ export function HomePage() {
         isLoading={isLoading}
         isError={isError}
         activeCount={activeCount}
+        isAuthReady={canLoadLineTickets}
+        authStatus={authStatus}
         onRetry={() => void refetch()}
         onViewAll={() => navigate('/liff/tickets')}
       />
@@ -128,6 +138,8 @@ interface ActiveTicketsSectionProps {
   isLoading: boolean;
   isError: boolean;
   activeCount: number;
+  isAuthReady: boolean;
+  authStatus: string;
   onRetry: () => void;
   onViewAll: () => void;
 }
@@ -136,10 +148,21 @@ function ActiveTicketsSection({
   isLoading,
   isError,
   activeCount,
+  isAuthReady,
+  authStatus,
   onRetry,
   onViewAll,
 }: Readonly<ActiveTicketsSectionProps>) {
   function renderContent() {
+    if (!isAuthReady) {
+      return (
+        <EmptyState
+          icon="🎫"
+          title={authStatus === 'error' ? 'LINE認証が必要です' : 'LINE認証中です'}
+          message="受付番号をLINEアカウントに紐づけるため、認証完了後に表示します。"
+        />
+      );
+    }
     if (isLoading) {
       return <TicketCardSkeleton />;
     }

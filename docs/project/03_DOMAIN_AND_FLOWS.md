@@ -96,13 +96,14 @@ Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently
 
 ## 3. Customer entry and identity flow
 
-1. Customer scans `/qr/:token` or opens `/q/:orgSlug`.
-2. Web fetches public organization, queue, and active product data.
-3. Customer may continue as guest; LIFF login is optional for basic public booking.
-4. For LINE notification eligibility, LIFF obtains an ID token and `/auth/line` links a LINE account.
+1. Primary customer entry is the LIFF route, usually `/liff/qr/:token` from `https://liff.line.me/{LIFF_ID}?liff.state=...`.
+2. LIFF initializes, automatically starts LINE Login in real mode when needed, obtains an ID token, calls `/auth/line`, and stores the system JWT.
+3. Web fetches public organization, queue, and active product data after the route context is known.
+4. Customer selects products/services, optionally completes demo checkout for required prepayment, and creates the booking within the same LIFF flow.
 5. The backend uses server-verified identity, not browser profile data or public request body fields, to attach the LINE recipient.
+6. On success, LIFF navigates to `/liff/tickets/:entryId` and shows ticket code, status, people ahead, and ETA.
 
-Guest trade-off: the order/ticket works, but LINE push is unavailable unless the ticket resolves to a linked `line_user_id`. For LINE-authenticated requests, `currentUserMiddleware` validates the JWT LINE claim against the active `line_accounts` row. The order and queue controllers pass both internal user ID and verified LINE user ID to their services, which store both on the queue entry inside the write transaction.
+Public `/qr/:token`, `/q/:orgSlug`, `/ticket/:entryId`, and public demo checkout remain fallback/browser-compatible routes. Guest trade-off: the order/ticket works, but LINE push is unavailable unless the ticket resolves to a linked `line_user_id`. For LINE-authenticated requests, `currentUserMiddleware` validates the JWT LINE claim against the active `line_accounts` row. The order and queue controllers pass both internal user ID and verified LINE user ID to their services, which store both on the queue entry inside the write transaction.
 
 ## 4. Booking without required prepayment
 
@@ -111,7 +112,7 @@ Guest trade-off: the order/ticket works, but LINE push is unavailable unless the
 3. Customer may optionally choose checkout for all items or place the reservation unpaid.
 4. `POST /orders` reloads organization, active queue, products, prices, ownership, and stock.
 5. In one transaction the API increments the ticket counter, creates optional booking group, queue entry with any verified LINE recipient, order, items, stock reservations, payment row if supplied, and location/alert if supplied.
-6. On success the UI stores a local booking record and navigates to `/ticket/:entryId`.
+6. On success the UI stores a local booking record and navigates to `/liff/tickets/:entryId` in LIFF or `/ticket/:entryId` in the public fallback.
 7. Any transaction error rolls back all database writes.
 
 ## 5. Booking with required prepayment
@@ -161,7 +162,7 @@ QueueNotificationService -- missing LINE ID --> skip
           +-- already sent in memory --> suppress
           |
           v
-lineNotificationService + Japanese templates
+lineNotificationService + Japanese templates + LIFF ticket deep link
           |
           v
 ILineMessagingAdapter
@@ -173,6 +174,8 @@ ILineMessagingAdapter
 ```
 
 Current deduplication is process-local. Restarting or adding replicas can cause repeat sends. The database `notifications` table is not yet the authoritative queue-push outbox.
+
+Notification ticket links prefer `LINE_LIFF_ID` and generate `https://liff.line.me/{LINE_LIFF_ID}?liff.state=/liff/tickets/:entryId`. When the LIFF ID is not configured, the backend falls back to `WEB_ORIGIN` plus `/liff/tickets/:entryId`.
 
 ## 9. Location warning flow
 

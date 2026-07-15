@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Spinner } from '../../components/ui/Spinner';
-import { useLiff } from '../../hooks/useLiff';
+import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
+import { normalizeLiffState } from '../../utils/liffState';
 
 /**
  * LIFF landing page — resolves context and redirects immediately.
@@ -16,13 +17,14 @@ import { useLiff } from '../../hooks/useLiff';
  * initStatus is always 'ready'.
  */
 export function LiffInitPage() {
-  const { isLoggedIn } = useLiff();
+  const { isLoggedIn } = useLiffRuntime();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Redirect to my tickets as the default LIFF entry point.
-    // Future: read liff.state / query params to redirect to a specific queue.
-    navigate('/liff/home', { replace: true });
+    const params = new URLSearchParams(window.location.search);
+    const liffState = params.get('liff.state') ?? params.get('state');
+    const target = normalizeLiffState(liffState);
+    navigate(target ?? '/liff/home', { replace: true });
   }, [navigate, isLoggedIn]);
 
   return (

@@ -1,4 +1,4 @@
-export type { LiffContext, LiffInitStatus, LiffProfile } from './liff';
+export type { LiffAuthStatus, LiffContext, LiffInitStatus, LiffProfile } from './liff';
 export type {
   JoinQueueInput,
   JoinQueueResult,
@@ -6,4 +6,5 @@ export type {
   QueueEntryDisplay,
   QueueStatusResult,
   TicketPositionResult,
+  TicketStatusResult,
 } from './queue-entry';
