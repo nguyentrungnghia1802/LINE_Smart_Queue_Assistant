@@ -3,6 +3,7 @@ import type { PoolClient } from 'pg';
 import { pool } from '../../db/client';
 import { ordersRepository } from '../../db/repositories/orders.repository';
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
+import { paymentTransactionsRepository } from '../../db/repositories/payment-transactions.repository';
 import { productsRepository } from '../../db/repositories/products.repository';
 import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
@@ -41,6 +42,14 @@ function nullableNumber(value: string | number | null | undefined): number | nul
   if (value === null || value === undefined) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function transactionMetadata(transaction: { metadata?: Record<string, unknown> | null }) {
+  return (transaction.metadata ?? {}) as {
+    scope?: 'required_items' | 'all_items';
+    coveredProductIds?: string[];
+    items?: Array<{ productId: string; quantity: number; subtotal: number }>;
+  };
 }
 
 async function getWaitingPositionInTransaction(
@@ -102,7 +111,26 @@ export const ordersService = {
     );
 
     const subtotal = productRows.reduce((sum, { price, quantity }) => sum + price * quantity, 0);
-    const coveredProductIds = new Set(dto.payment?.coveredProductIds ?? []);
+    const paymentTransaction = dto.payment?.transactionId
+      ? await paymentTransactionsRepository.findById(dto.payment.transactionId)
+      : null;
+    if (dto.payment?.transactionId && !paymentTransaction) {
+      throw AppError.badRequest('Verified payment transaction was not found');
+    }
+    if (paymentTransaction) {
+      if (paymentTransaction.organization_id !== org.id) {
+        throw AppError.badRequest('Payment transaction does not belong to this organization');
+      }
+      if (paymentTransaction.order_id) {
+        throw AppError.conflict('Payment transaction has already been used');
+      }
+      if (paymentTransaction.status !== 'paid') {
+        throw AppError.badRequest('Payment transaction has not been verified as paid');
+      }
+    }
+
+    const paymentMetadata = paymentTransaction ? transactionMetadata(paymentTransaction) : null;
+    const coveredProductIds = new Set(paymentMetadata?.coveredProductIds ?? []);
     const requiredProductIds = productRows
       .filter(({ product }) => product.requires_prepayment)
       .map(({ product }) => product.id);
@@ -115,7 +143,24 @@ export const ordersService = {
     const paidSubtotal = productRows.reduce((sum, { product, price, quantity }) => {
       return coveredProductIds.has(product.id) ? sum + price * quantity : sum;
     }, 0);
-    const isFullyPaid = dto.payment?.scope === 'all_items' && paidSubtotal >= subtotal;
+    if (paymentMetadata) {
+      for (const { product, quantity, price } of productRows) {
+        if (!coveredProductIds.has(product.id)) continue;
+        const metadataItem = paymentMetadata.items?.find((item) => item.productId === product.id);
+        if (
+          !metadataItem ||
+          metadataItem.quantity !== quantity ||
+          metadataItem.subtotal !== price * quantity
+        ) {
+          throw AppError.badRequest('Payment transaction does not match the selected cart');
+        }
+      }
+    }
+    if (paymentTransaction && Number(paymentTransaction.amount) < paidSubtotal) {
+      throw AppError.badRequest('Payment transaction amount does not cover selected items');
+    }
+
+    const isFullyPaid = paymentMetadata?.scope === 'all_items' && paidSubtotal >= subtotal;
     const orderPaymentStatus = isFullyPaid ? 'paid' : 'unpaid';
 
     // Create queue entry + order + items in a transaction
@@ -172,34 +217,18 @@ export const ordersService = {
           subtotal,
           bookingGroupId: dto.bookingGroupId,
           paymentStatus: orderPaymentStatus,
-          paymentCode: dto.payment?.code ?? dto.paymentCode,
+          paymentCode:
+            paymentTransaction?.external_transaction_id ??
+            paymentTransaction?.payment_intent_id ??
+            undefined,
           notes: dto.notes,
         },
         client
       );
 
-      let paymentTransactionId: string | null = null;
-      if (dto.payment && paidSubtotal > 0) {
-        const paymentTransaction = await ordersRepository.createPaymentTransaction(
-          {
-            organizationId: org.id,
-            orderId: order.id,
-            provider: dto.payment.provider,
-            method: dto.payment.method,
-            externalTransactionId: dto.payment.code,
-            status: 'paid',
-            amount: paidSubtotal,
-            currency: dto.payment.currency,
-            rawPayload: {
-              ...dto.payment.rawPayload,
-              scope: dto.payment.scope,
-              coveredProductIds: dto.payment.coveredProductIds,
-              clientAmount: dto.payment.amount,
-            },
-          },
-          client
-        );
-        paymentTransactionId = paymentTransaction.id;
+      const paymentTransactionId = paymentTransaction?.id ?? null;
+      if (paymentTransactionId) {
+        await paymentTransactionsRepository.attachToOrder(paymentTransactionId, order.id, client);
       }
 
       const linkedEntry = await queueEntriesRepository.linkOrder(entry.id, order.id, client);

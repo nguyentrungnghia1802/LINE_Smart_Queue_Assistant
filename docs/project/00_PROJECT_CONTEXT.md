@@ -35,7 +35,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 | Catalog and QR booking    | Implemented                                         | Products/services, stock display, quantity selection, organization slug/token entry, and LIFF-first customer booking                                                                                                                                                                                             |
 | Queue and staff operation | Implemented                                         | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                                                                                                                                                                                                                |
 | Orders and inventory      | Implemented with gaps                               | Atomic creation and finite stock decrement; cancellation does not yet restore stock                                                                                                                                                                                                                              |
-| Payment                   | Demo/adapter-ready                                  | Demo auto-success and transaction records exist; no real provider webhook verification                                                                                                                                                                                                                           |
+| Payment                   | Phase 6 foundation implemented                      | Server-created payment intents, demo provider, signed demo completion, provider abstraction, payment state machine, webhook idempotency log, and reconciliation exist; no real PSP account is connected yet                                                                                                      |
 | LINE                      | Phase 5 code implemented; real-device setup pending | LIFF login verifies ID tokens, LIFF booking stores linked LINE recipients, webhook events are signature-checked, lifecycle push uses durable PostgreSQL outbox delivery with Flex Messages, text fallback and ticket deeplinks, and Rich Menu sync/LIFF Home navigation exist; LINE Console/E2E is still pending |
 | Location alerts           | Data path only                                      | Location and pending alerts can be stored; no job sends those alerts                                                                                                                                                                                                                                             |
 | ETA                       | Heuristic implemented                               | Position/workload calculation and 30-second updater; forecast history is not populated                                                                                                                                                                                                                           |
@@ -53,7 +53,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Queue CRUD, opening state, capacity configuration, ticket prefix/counter, skip/no-show controls, and ETA configuration.
 - Atomic order, queue-entry, order-item, payment-transaction, inventory-reservation, and optional location writes.
 - Per-item payment status and full-order payment status for required-only or all-item checkout.
-- Demo payment gateway boundary with Japanese payment methods and external redirect placeholder.
+- Server-side payment intent boundary with demo provider, Japanese payment method UI, webhook callback, return status, and reconciliation hooks.
 - Staff order details, item images, manual payment/status controls, queue actions, and receipt printing.
 - LINE push for booking-created, approaching, called, serving, cancelled, completed, and no-show ticket events on queue entries that contain a verified linked LINE user ID.
 - Centralized Japanese LINE Flex Message templates with text fallback for ticket lifecycle notifications.
@@ -68,12 +68,12 @@ The project is a working local/demo modular monolith, not yet a production-compl
 
 ## 6. Incomplete features
 
-- Real PSP integration: signed provider requests, hosted checkout, callback verification, webhook processing, refund, reconciliation, and secrets.
+- Real PSP integration: signed provider requests, hosted checkout, provider-specific callback verification, refund execution, and encrypted merchant secrets.
 - LINE production controls: notification preferences, production Rich Menu asset/E2E verification, advanced notification replay/dead-letter operations UI, delivery reporting dashboard, and multi-organization channel configuration.
 - Location alert execution: no scheduler consumes `location_alerts`; no retention/deletion workflow is implemented.
 - Forecasting and staffing analysis: schema exists, but no data pipeline or user-facing API populates it.
 - Inventory lifecycle: cancellation and expiry do not release reservations or restore `stock_quantity`.
-- Payment consistency: manual order payment updates do not yet reconcile item-level payment and transaction status.
+- Payment consistency: manual staff payment updates are still separate from provider refund/settlement lifecycle.
 - Full OpenAPI coverage and contract tests; the current Swagger source covers only part of the API.
 - Browser end-to-end tests and production-scale concurrency tests.
 - Multi-instance coordination for non-notification scheduler ownership and strict queue-capacity enforcement.
