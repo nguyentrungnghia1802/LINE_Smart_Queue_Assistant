@@ -89,13 +89,13 @@ The platform role does not replace tenant membership. Staff and manager operatio
 
 ### LINE and notifications
 
-| ID          | Requirement                                                       | Status                                                                                         |
-| ----------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| FR-LINE-001 | Messaging API sends a LINE chat message when the turn approaches  | Partial; sender works when `line_user_id` exists, but order-created tickets do not populate it |
-| FR-LINE-002 | Messaging API sends a LINE chat message when the ticket is called | Partial for the same recipient-propagation gap                                                 |
-| FR-LINE-003 | Queue state remains successful even if LINE delivery fails        | Implemented                                                                                    |
-| FR-LINE-004 | Delivery is durable and deduplicated across restarts/replicas     | Planned                                                                                        |
-| FR-LINE-005 | Follow/consent/preferences and opt-out are persisted              | Planned                                                                                        |
+| ID          | Requirement                                                       | Status                                                                              |
+| ----------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| FR-LINE-001 | Messaging API sends a LINE chat message when the turn approaches  | Implemented for authenticated LINE-linked tickets; durable delivery remains planned |
+| FR-LINE-002 | Messaging API sends a LINE chat message when the ticket is called | Implemented for authenticated LINE-linked tickets; durable delivery remains planned |
+| FR-LINE-003 | Queue state remains successful even if LINE delivery fails        | Implemented                                                                         |
+| FR-LINE-004 | Delivery is durable and deduplicated across restarts/replicas     | Planned                                                                             |
+| FR-LINE-005 | Follow/consent/preferences and opt-out are persisted              | Planned                                                                             |
 
 ### Location, prediction, and analytics
 

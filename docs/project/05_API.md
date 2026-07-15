@@ -189,7 +189,7 @@ Important `POST /orders` request fields:
 
 The server ignores browser price authority: it reloads product prices and calculates subtotal/covered amount. For real payment, the accepted payment object must be built from verified server-side provider state rather than direct browser assertions.
 
-Current LINE gap: authenticated `POST /orders` passes `req.user.id` to the order service, but the order-created queue entry does not currently receive `req.user.lineUserId`. Fix this propagation before treating the QR/order flow as LINE-notification complete.
+For authenticated `POST /orders`, the controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified `line_user_id` on the new queue entry. Guest orders keep both recipient fields empty unless a separately verified identity flow is used.
 
 ### Users and staff management
 

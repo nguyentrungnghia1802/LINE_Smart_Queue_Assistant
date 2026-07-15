@@ -8,31 +8,31 @@ For every task, read:
 
 1. `README.md`
 2. `AGENTS.md`
-3. `docs/00_PROJECT_CONTEXT.md`
+3. `docs/project/00_PROJECT_CONTEXT.md`
 4. The relevant source files and tests
 
 Add the following documents according to task type:
 
-| Task                      | Required context                                                                                  |
-| ------------------------- | ------------------------------------------------------------------------------------------------- |
-| Product behavior          | `docs/01_PRODUCT_REQUIREMENTS.md`, `docs/03_DOMAIN_AND_FLOWS.md`                                  |
-| Architecture              | `docs/02_SYSTEM_ARCHITECTURE.md`, `docs/06_CODEBASE_GUIDE.md`, `docs/09_ROADMAP_AND_DECISIONS.md` |
-| Database                  | `docs/04_DATABASE.md`, all migrations, repositories, integration tests                            |
-| API                       | `docs/05_API.md`, routes, validators, controllers, services, frontend clients                     |
-| Local development/testing | `docs/07_DEVELOPMENT_AND_TESTING.md`                                                              |
-| Deployment/operations     | `docs/08_DEPLOYMENT_AND_OPERATIONS.md`, Compose/Docker/CI files, `.env.example`                   |
+| Task                      | Required context                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Product behavior          | `docs/project/01_PRODUCT_REQUIREMENTS.md`, `docs/project/03_DOMAIN_AND_FLOWS.md`                                          |
+| Architecture              | `docs/project/02_SYSTEM_ARCHITECTURE.md`, `docs/project/06_CODEBASE_GUIDE.md`, `docs/project/09_ROADMAP_AND_DECISIONS.md` |
+| Database                  | `docs/project/04_DATABASE.md`, all migrations, repositories, integration tests                                            |
+| API                       | `docs/project/05_API.md`, routes, validators, controllers, services, frontend clients                                     |
+| Local development/testing | `docs/project/07_DEVELOPMENT_AND_TESTING.md`                                                                              |
+| Deployment/operations     | `docs/project/08_DEPLOYMENT_AND_OPERATIONS.md`, Compose/Docker/CI files, `.env.example`                                   |
 
 Do not read `docs/archive` unless the task requires historical investigation.
 
 ## Sources of truth
 
-- Product intent and business rules: `docs/01_PRODUCT_REQUIREMENTS.md`
-- Domain states and end-to-end flows: `docs/03_DOMAIN_AND_FLOWS.md`
-- Runtime architecture: source code plus `docs/02_SYSTEM_ARCHITECTURE.md`
-- Database: `db/migrations/node-pg-migrate`; `docs/04_DATABASE.md` is the human-readable map
-- API: Express routes and Zod validators; `docs/05_API.md` is the human-readable index
+- Product intent and business rules: `docs/project/01_PRODUCT_REQUIREMENTS.md`
+- Domain states and end-to-end flows: `docs/project/03_DOMAIN_AND_FLOWS.md`
+- Runtime architecture: source code plus `docs/project/02_SYSTEM_ARCHITECTURE.md`
+- Database: `db/migrations/node-pg-migrate`; `docs/project/04_DATABASE.md` is the human-readable map
+- API: Express routes and Zod validators; `docs/project/05_API.md` is the human-readable index
 - Runtime configuration: `.env.example`, `apps/api/src/config`, Vite config, Docker Compose
-- Current limitations and accepted decisions: `docs/09_ROADMAP_AND_DECISIONS.md`
+- Current limitations and accepted decisions: `docs/project/09_ROADMAP_AND_DECISIONS.md`
 
 If code and canonical documentation disagree, verify behavior in code/tests, report the conflict, and update both sides in the same change.
 
@@ -72,7 +72,7 @@ If code and canonical documentation disagree, verify behavior in code/tests, rep
 - Keep the `/api/v1` prefix unless a deliberate versioning decision is recorded.
 - Use the standard success/error envelopes from `apps/api/src/utils/response.ts`.
 - Apply authentication, role checks, tenant ownership checks, validation, rate limiting, and idempotency as appropriate.
-- Update backend tests, frontend API clients/types, Swagger source, and `docs/05_API.md` together.
+- Update backend tests, frontend API clients/types, Swagger source, and `docs/project/05_API.md` together.
 - Do not expose stack traces, secrets, provider payloads, or cross-organization records.
 
 ## Security

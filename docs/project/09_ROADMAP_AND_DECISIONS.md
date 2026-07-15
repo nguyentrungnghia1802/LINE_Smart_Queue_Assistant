@@ -11,7 +11,7 @@ Last reviewed: 2026-07-15. This file records current priorities and accepted arc
 1. Rotate any previously exposed LINE/JWT/provider credential and enable secret scanning.
 2. Implement server-created payment intents, signed webhooks, durable idempotency, refund, and reconciliation for the selected Japan PSP.
 3. Complete inventory lifecycle: reserve, consume, release on cancellation, expire, and reconcile exactly once.
-4. Propagate only the server-verified linked LINE user ID into order-created tickets; remove trust in public body `lineUserId`.
+4. Remove trust in the direct public queue-join body `lineUserId` and require verified LINE identity.
 5. Replace in-memory notification deduplication with a PostgreSQL outbox/delivery log, retry schedule, and dead-letter visibility.
 6. Enforce strict queue capacity and order number uniqueness under concurrency.
 7. Add all automated tests and clean migration smoke tests to CI.
@@ -40,22 +40,21 @@ Last reviewed: 2026-07-15. This file records current priorities and accepted arc
 
 ## 2. Technical debt and risks
 
-| ID     | Issue                                                          | Impact                                      | Planned control                                        |
-| ------ | -------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------ |
-| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places | Incorrect assumptions/contracts             | Align shared types and add serialization tests         |
-| TD-002 | Notification sent registry is process-local                    | Duplicate/missed sends after restart/scale  | DB outbox + unique event key                           |
-| TD-003 | Cancellation does not restore stock                            | Inventory leakage                           | Transactional release service and tests                |
-| TD-004 | Manual payment patch updates summary only                      | Order/item/transaction mismatch             | Reconciliation state machine                           |
-| TD-005 | Queue capacity check is optimistic                             | Over-capacity under race                    | Lock queue/capacity row in transaction                 |
-| TD-006 | Order number derived from count                                | Collision under concurrency                 | Per-org sequence/counter plus unique constraint        |
-| TD-007 | Forecast/staffing tables have no producers                     | Feature can be overstated                   | Label schema-only until pipeline/API/UI exist          |
-| TD-008 | Location alerts are inserted but never sent                    | False product expectation                   | Worker, consent, delivery status, tests                |
-| TD-009 | Swagger is partial                                             | Client/agent contract drift                 | Complete generated OpenAPI and CI diff                 |
-| TD-010 | CI does not run tests/migrations                               | Regressions can merge                       | Add test DB and required checks                        |
-| TD-011 | Metrics reset per process and `/metrics` is public in app      | Weak operations/security                    | Scrape/protect endpoint and expand metrics             |
-| TD-012 | Daily counter uses UTC                                         | Wrong local business day                    | Organization timezone-aware reset                      |
-| TD-013 | Order-created tickets omit linked `line_user_id`               | Main QR/order customers cannot receive push | Resolve linked account in transaction and add E2E test |
-| TD-014 | Public queue join accepts body `lineUserId`                    | Unverified recipient assertion              | Require verified LINE token/account identity           |
+| ID     | Issue                                                          | Impact                                     | Planned control                                 |
+| ------ | -------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------- |
+| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places | Incorrect assumptions/contracts            | Align shared types and add serialization tests  |
+| TD-002 | Notification sent registry is process-local                    | Duplicate/missed sends after restart/scale | DB outbox + unique event key                    |
+| TD-003 | Cancellation does not restore stock                            | Inventory leakage                          | Transactional release service and tests         |
+| TD-004 | Manual payment patch updates summary only                      | Order/item/transaction mismatch            | Reconciliation state machine                    |
+| TD-005 | Queue capacity check is optimistic                             | Over-capacity under race                   | Lock queue/capacity row in transaction          |
+| TD-006 | Order number derived from count                                | Collision under concurrency                | Per-org sequence/counter plus unique constraint |
+| TD-007 | Forecast/staffing tables have no producers                     | Feature can be overstated                  | Label schema-only until pipeline/API/UI exist   |
+| TD-008 | Location alerts are inserted but never sent                    | False product expectation                  | Worker, consent, delivery status, tests         |
+| TD-009 | Swagger is partial                                             | Client/agent contract drift                | Complete generated OpenAPI and CI diff          |
+| TD-010 | CI does not run tests/migrations                               | Regressions can merge                      | Add test DB and required checks                 |
+| TD-011 | Metrics reset per process and `/metrics` is public in app      | Weak operations/security                   | Scrape/protect endpoint and expand metrics      |
+| TD-012 | Daily counter uses UTC                                         | Wrong local business day                   | Organization timezone-aware reset               |
+| TD-014 | Public queue join accepts body `lineUserId`                    | Unverified recipient assertion             | Require verified LINE token/account identity    |
 
 ## 3. Decision record format
 

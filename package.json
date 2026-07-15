@@ -40,7 +40,8 @@
     "db:reset": "node scripts/migrate.mjs reset",
     "db:seed": "npm run db:seed -w apps/api",
     "db:seed:demo": "psql $DATABASE_URL -f db/seed_demo.sql",
-    "db:seed:reset": "npm run db:seed:reset -w apps/api"
+    "db:seed:reset": "npm run db:seed:reset -w apps/api",
+    "line:verify": "npm run line:verify -w apps/api"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",

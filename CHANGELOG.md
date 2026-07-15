@@ -1,8 +1,14 @@
 # Changelog
 
-All notable project changes should be recorded here. This file tracks delivered behavior; future work belongs in `docs/09_ROADMAP_AND_DECISIONS.md`.
+All notable project changes should be recorded here. This file tracks delivered behavior; future work belongs in `docs/project/09_ROADMAP_AND_DECISIONS.md`.
 
 ## Unreleased
+
+### LINE Messaging
+
+- Added a safe token verification and optional direct test-message command.
+- Propagated the server-verified LINE user ID into queue entries created by authenticated orders.
+- Documented the separate LINE Login, Messaging API push, and webhook credential roles.
 
 ### Documentation
 

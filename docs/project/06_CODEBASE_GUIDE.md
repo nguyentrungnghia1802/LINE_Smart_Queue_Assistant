@@ -103,7 +103,7 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 5. Add the controller and route with auth/role/rate middleware.
 6. Add unit/integration/route tests.
 7. Update frontend client/types if consumed by web.
-8. Update Swagger fragments and `docs/05_API.md`.
+8. Update Swagger fragments and `docs/project/05_API.md`.
 
 ## 7. Adding a database capability
 
@@ -112,7 +112,7 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 3. Update reset schema and seed only when needed.
 4. Add repository mapping and transactional service behavior.
 5. Update shared/frontend types only after confirming wire representation.
-6. Add database/service tests and update `docs/04_DATABASE.md`.
+6. Add database/service tests and update `docs/project/04_DATABASE.md`.
 
 ## 8. Adding a frontend page or workflow
 

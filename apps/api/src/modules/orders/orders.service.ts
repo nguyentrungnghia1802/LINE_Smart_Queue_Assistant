@@ -9,6 +9,11 @@ import { productCatalogCache } from '../../utils/cache';
 
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
 
+interface OrderActorIdentity {
+  userId: string;
+  lineUserId?: string;
+}
+
 function formatOrderNumber(prefix: string, count: number): string {
   return `${prefix}${String(count).padStart(3, '0')}`;
 }
@@ -53,7 +58,8 @@ export const ordersService = {
     return ordersRepository.getStats(orgId);
   },
 
-  async create(dto: CreateOrderDto, actorUserId?: string) {
+  async create(dto: CreateOrderDto, actor?: OrderActorIdentity) {
+    const actorUserId = actor?.userId;
     const org = await organizationsRepository.findBySlug(dto.orgSlug);
     if (!org) throw AppError.notFound('Organization not found');
 
@@ -120,6 +126,7 @@ export const ordersService = {
           ticketNumber,
           ticketCode,
           userId: actorUserId,
+          lineUserId: actor?.lineUserId,
         },
         client
       );
