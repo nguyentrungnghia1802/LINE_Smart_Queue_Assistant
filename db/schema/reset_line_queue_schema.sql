@@ -100,6 +100,7 @@ CREATE TYPE notification_type AS ENUM (
   'queue_called',
   'queue_skipped',
   'queue_cancelled',
+  'queue_serving',
   'queue_served',
   'queue_no_show',
   'payment_required',
@@ -507,22 +508,32 @@ CREATE TABLE staffing_recommendations (
 -- -----------------------------------------------------------------------------
 CREATE TABLE notifications (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id  UUID REFERENCES organizations(id) ON DELETE SET NULL,
   queue_entry_id   UUID REFERENCES queue_entries(id) ON DELETE SET NULL,
   user_id           UUID REFERENCES users(id) ON DELETE CASCADE,
   line_user_id      TEXT,
   type              notification_type NOT NULL,
+  event_key         TEXT NOT NULL,
+  event_type        TEXT NOT NULL,
   channel           notification_channel NOT NULL DEFAULT 'line_push',
   status            notification_status NOT NULL DEFAULT 'pending',
   payload           JSONB NOT NULL DEFAULT '{}',
   retry_count       INT NOT NULL DEFAULT 0,
+  attempt_count     INT NOT NULL DEFAULT 0,
+  max_attempts      INT NOT NULL DEFAULT 5,
   next_retry_at     TIMESTAMPTZ,
+  processing_started_at TIMESTAMPTZ,
   error_message     TEXT,
+  last_error        TEXT,
   sent_at           TIMESTAMPTZ,
   delivered_at      TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   CONSTRAINT notifications_retry_count_non_negative CHECK (retry_count >= 0),
+  CONSTRAINT notifications_attempt_count_non_negative CHECK (attempt_count >= 0),
+  CONSTRAINT notifications_max_attempts_positive CHECK (max_attempts > 0),
+  CONSTRAINT notifications_event_key_unique UNIQUE (event_key),
   CONSTRAINT notifications_has_recipient CHECK (user_id IS NOT NULL OR line_user_id IS NOT NULL)
 );
 
@@ -651,6 +662,12 @@ CREATE INDEX idx_notif_pending ON notifications(created_at)
   WHERE status = 'pending';
 CREATE INDEX idx_notif_processing ON notifications(created_at)
   WHERE status = 'processing';
+CREATE INDEX idx_notif_org_recent ON notifications(organization_id, created_at DESC)
+  WHERE organization_id IS NOT NULL;
+CREATE INDEX idx_notif_due_line_outbox ON notifications(next_retry_at, created_at)
+  WHERE channel = 'line_push' AND status = 'pending';
+CREATE INDEX idx_notif_entry_event ON notifications(queue_entry_id, event_type)
+  WHERE queue_entry_id IS NOT NULL;
 CREATE INDEX idx_notif_retry_due ON notifications(next_retry_at)
   WHERE status = 'failed' AND next_retry_at IS NOT NULL;
 CREATE INDEX idx_notif_entry_type ON notifications(queue_entry_id, type, created_at DESC)

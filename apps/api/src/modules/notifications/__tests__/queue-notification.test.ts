@@ -1,29 +1,22 @@
-﻿/**
+/**
  * Unit tests for queue-notification.service.ts
  *
- * Strategy:
- * - No HTTP, no real DB — fully in-memory.
- * - MockLineAdapter is injected directly (no jest.mock needed).
- * - notificationLogRepository._resetForTests() wipes state in beforeEach.
+ * Phase 5 behaviour: this service only writes durable outbox records. It must
+ * not call LINE directly; delivery is handled by notificationDelivery.job.ts
+ * after the business transaction commits.
  */
 
-import type { QueueEntryRow } from '../../../db/repositories/queue-entries.repository';
-import type {
-  ILineMessagingAdapter,
-  LineMessage,
-  LineMessageOptions,
-} from '../../line/line.adapter';
-import { MockLineAdapter } from '../../line/line.mock.adapter';
-import { notificationLogRepository } from '../notification-log.repository';
-import { ETA_WARNING_THRESHOLD, queueNotificationService } from '../queue-notification.service';
+import type { PoolClient } from 'pg';
 
-// ── Test fixture ───────────────────────────────────────────────────────────────
+import type { QueueEntryRow } from '../../../db/repositories/queue-entries.repository';
+import type { NotificationOutboxRepository } from '../notification-outbox.repository';
+import { ETA_WARNING_THRESHOLD, queueNotificationService } from '../queue-notification.service';
 
 function makeEntry(override: Partial<QueueEntryRow> = {}): QueueEntryRow {
   return {
     id: 'entry-001',
     queue_id: 'queue-001',
-    user_id: null,
+    user_id: 'user-001',
     order_id: null,
     line_user_id: 'U_test_001',
     ticket_number: 5,
@@ -44,269 +37,165 @@ function makeEntry(override: Partial<QueueEntryRow> = {}): QueueEntryRow {
   };
 }
 
-// ── Setup ──────────────────────────────────────────────────────────────────────
-
-beforeEach(() => {
-  notificationLogRepository._resetForTests();
-});
-
-class FailingLineAdapter implements ILineMessagingAdapter {
-  async pushMessage(
-    _to: string,
-    _messages: LineMessage[],
-    _options?: LineMessageOptions
-  ): Promise<void> {
-    throw new Error('LINE unavailable');
-  }
-
-  async replyMessage(
-    _replyToken: string,
-    _messages: LineMessage[],
-    _options?: LineMessageOptions
-  ): Promise<void> {
-    throw new Error('LINE unavailable');
-  }
+function makeRepository() {
+  return {
+    enqueue: jest.fn().mockResolvedValue({ id: 'notification-001' }),
+    cancelPendingForEntry: jest.fn().mockResolvedValue(undefined),
+  } as unknown as jest.Mocked<NotificationOutboxRepository>;
 }
 
-function messagePayload(message: LineMessage): string {
-  return JSON.stringify(message);
-}
+const client = { query: jest.fn() } as unknown as PoolClient;
 
-// ── notifyBookingCreated ─────────────────────────────────────────────────────
+describe('queueNotificationService durable outbox', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-describe('notifyBookingCreated', () => {
-  it('sends a booking-created Flex Message with current position data', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ status: 'waiting' });
+  it('enqueues booking-created with a stable event key and ticket payload', async () => {
+    const repository = makeRepository();
+    const entry = makeEntry();
 
     await queueNotificationService.notifyBookingCreated(
       entry,
-      { aheadCount: 2, estimatedWaitSeconds: 600 },
-      adapter,
-      notificationLogRepository
+      { organizationId: 'org-001', aheadCount: 2, estimatedWaitSeconds: 600 },
+      repository,
+      client
     );
 
-    expect(adapter.pushCalls).toHaveLength(1);
-    expect(adapter.pushCalls[0].messages[0].type).toBe('flex');
-    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('受付が完了しました');
-    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('A005');
-    expect(notificationLogRepository.hasBeenSent(entry.id, 'booking_created')).toBe(true);
+    expect(repository.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-001',
+        queueEntryId: 'entry-001',
+        userId: 'user-001',
+        lineUserId: 'U_test_001',
+        eventType: 'booking_created',
+        eventKey: 'queue_entry:entry-001:booking_created',
+        payload: {
+          ticketCode: 'A005',
+          aheadCount: 2,
+          estimatedWaitSeconds: 600,
+        },
+      }),
+      client
+    );
   });
 
-  it('does not mark booking-created as sent when Flex and text fallback fail', async () => {
-    const adapter = new FailingLineAdapter();
-    const entry = makeEntry({ status: 'waiting' });
+  it('does not enqueue when the entry has no LINE user ID', async () => {
+    const repository = makeRepository();
+    await queueNotificationService.notifyTicketCalled(
+      makeEntry({ line_user_id: null }),
+      { organizationId: 'org-001' },
+      repository,
+      client
+    );
 
-    await queueNotificationService.notifyBookingCreated(
+    expect(repository.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('delegates duplicate protection to the unique outbox event key', async () => {
+    const repository = makeRepository();
+    const entry = makeEntry({ status: 'called' });
+
+    await queueNotificationService.notifyTicketCalled(
       entry,
-      {},
-      adapter,
-      notificationLogRepository
+      { organizationId: 'org-001' },
+      repository,
+      client
+    );
+    await queueNotificationService.notifyTicketCalled(
+      entry,
+      { organizationId: 'org-001' },
+      repository,
+      client
     );
 
-    expect(notificationLogRepository.hasBeenSent(entry.id, 'booking_created')).toBe(false);
-  });
-});
-
-// ── notifyTicketCalled ─────────────────────────────────────────────────────────
-
-describe('notifyTicketCalled', () => {
-  it('sends a push message to the ticket holder', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ status: 'called' });
-
-    await queueNotificationService.notifyTicketCalled(entry, adapter, notificationLogRepository);
-
-    expect(adapter.pushCalls).toHaveLength(1);
-    expect(adapter.pushCalls[0].to).toBe('U_test_001');
-    expect(adapter.pushCalls[0].messages[0].type).toBe('flex');
-    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('A005');
-    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('順番になりました');
+    expect(repository.enqueue).toHaveBeenCalledTimes(2);
+    expect(repository.enqueue).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ eventKey: 'queue_entry:entry-001:called' }),
+      client
+    );
+    expect(repository.enqueue).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ eventKey: 'queue_entry:entry-001:called' }),
+      client
+    );
   });
 
-  it('does nothing when line_user_id is null', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ line_user_id: null });
-
-    await queueNotificationService.notifyTicketCalled(entry, adapter, notificationLogRepository);
-
-    expect(adapter.pushCalls).toHaveLength(0);
-  });
-
-  it('only sends once even when called twice (anti-duplicate)', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ status: 'called' });
-
-    await queueNotificationService.notifyTicketCalled(entry, adapter, notificationLogRepository);
-    await queueNotificationService.notifyTicketCalled(entry, adapter, notificationLogRepository);
-
-    expect(adapter.pushCalls).toHaveLength(1);
-  });
-
-  it('marks the event as sent in the notification log', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ status: 'called' });
-
-    await queueNotificationService.notifyTicketCalled(entry, adapter, notificationLogRepository);
-
-    expect(notificationLogRepository.hasBeenSent(entry.id, 'called')).toBe(true);
-  });
-
-  it('does not mark the event as sent when LINE delivery fails', async () => {
-    const adapter = new FailingLineAdapter();
-    const entry = makeEntry({ status: 'called' });
-
-    await queueNotificationService.notifyTicketCalled(entry, adapter, notificationLogRepository);
-
-    expect(notificationLogRepository.hasBeenSent(entry.id, 'called')).toBe(false);
-  });
-});
-
-// ── notifyEtaWarning ───────────────────────────────────────────────────────────
-
-describe('notifyEtaWarning', () => {
-  it('sends a warning when aheadCount is within threshold', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ status: 'waiting' });
-
-    await queueNotificationService.notifyEtaWarning(entry, 1, adapter, notificationLogRepository);
-
-    expect(adapter.pushCalls).toHaveLength(1);
-    expect(adapter.pushCalls[0].messages[0].type).toBe('flex');
-    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('まもなく順番です');
-    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('前の人数');
-  });
-
-  it('sends a warning at the exact threshold boundary', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry();
-
+  it('skips ETA warning when ahead count is above threshold', async () => {
+    const repository = makeRepository();
     await queueNotificationService.notifyEtaWarning(
-      entry,
-      ETA_WARNING_THRESHOLD,
-      adapter,
-      notificationLogRepository
-    );
-
-    expect(adapter.pushCalls).toHaveLength(1);
-  });
-
-  it('does NOT send when aheadCount is above threshold', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry();
-
-    await queueNotificationService.notifyEtaWarning(
-      entry,
+      makeEntry(),
       ETA_WARNING_THRESHOLD + 1,
-      adapter,
-      notificationLogRepository
+      { organizationId: 'org-001' },
+      repository,
+      client
     );
 
-    expect(adapter.pushCalls).toHaveLength(0);
+    expect(repository.enqueue).not.toHaveBeenCalled();
   });
 
-  it('only sends once even when triggered multiple times (anti-duplicate)', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry();
+  it('enqueues ETA warning at the exact threshold boundary', async () => {
+    const repository = makeRepository();
+    await queueNotificationService.notifyEtaWarning(
+      makeEntry(),
+      ETA_WARNING_THRESHOLD,
+      { organizationId: 'org-001' },
+      repository,
+      client
+    );
 
-    await queueNotificationService.notifyEtaWarning(entry, 1, adapter, notificationLogRepository);
-    await queueNotificationService.notifyEtaWarning(entry, 1, adapter, notificationLogRepository);
-
-    expect(adapter.pushCalls).toHaveLength(1);
+    expect(repository.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'eta_warning',
+        eventKey: 'queue_entry:entry-001:eta_warning',
+        payload: expect.objectContaining({ aheadCount: ETA_WARNING_THRESHOLD }),
+      }),
+      client
+    );
   });
 
-  it('does nothing when line_user_id is null', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ line_user_id: null });
+  it.each([
+    ['notifyTicketCalled', 'called'],
+    ['notifyTicketServing', 'serving'],
+    ['notifyTicketCompleted', 'completed'],
+    ['notifyTicketNoShow', 'no_show'],
+    ['notifyTicketCancelled', 'cancelled'],
+  ] as const)('enqueues %s as %s', async (methodName, eventType) => {
+    const repository = makeRepository();
+    await queueNotificationService[methodName](
+      makeEntry(),
+      { organizationId: 'org-001' },
+      repository,
+      client
+    );
 
-    await queueNotificationService.notifyEtaWarning(entry, 1, adapter, notificationLogRepository);
-
-    expect(adapter.pushCalls).toHaveLength(0);
-  });
-});
-
-// ── Other queue lifecycle notifications ───────────────────────────────────────
-
-describe('queue lifecycle status notifications', () => {
-  it('sends a serving message', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ status: 'serving' });
-
-    await queueNotificationService.notifyTicketServing(entry, adapter, notificationLogRepository);
-
-    expect(adapter.pushCalls).toHaveLength(1);
-    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('対応を開始');
-    expect(notificationLogRepository.hasBeenSent(entry.id, 'serving')).toBe(true);
-  });
-
-  it('sends a completed message', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ status: 'served', served_at: new Date() });
-
-    await queueNotificationService.notifyTicketCompleted(entry, adapter, notificationLogRepository);
-
-    expect(adapter.pushCalls).toHaveLength(1);
-    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('完了');
-    expect(notificationLogRepository.hasBeenSent(entry.id, 'completed')).toBe(true);
+    expect(repository.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType,
+        eventKey: `queue_entry:entry-001:${eventType}`,
+      }),
+      client
+    );
   });
 
-  it('sends a no-show message', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ status: 'no_show', no_show_at: new Date() });
+  it('cancels pending notifications before enqueueing a terminal event', async () => {
+    const repository = makeRepository();
+    await queueNotificationService.notifyTicketCancelled(
+      makeEntry({ status: 'cancelled' }),
+      { organizationId: 'org-001' },
+      repository,
+      client
+    );
 
-    await queueNotificationService.notifyTicketNoShow(entry, adapter, notificationLogRepository);
-
-    expect(adapter.pushCalls).toHaveLength(1);
-    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('不在');
-    expect(notificationLogRepository.hasBeenSent(entry.id, 'no_show')).toBe(true);
-  });
-});
-
-// ── notifyTicketCancelled ──────────────────────────────────────────────────────
-
-describe('notifyTicketCancelled', () => {
-  it('sends a cancellation message to the ticket holder', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ status: 'cancelled', cancelled_at: new Date() });
-
-    await queueNotificationService.notifyTicketCancelled(entry, adapter, notificationLogRepository);
-
-    expect(adapter.pushCalls).toHaveLength(1);
-    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('A005');
-    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('キャンセル');
-  });
-
-  it('only sends once even when called twice (anti-duplicate)', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ status: 'cancelled', cancelled_at: new Date() });
-
-    await queueNotificationService.notifyTicketCancelled(entry, adapter, notificationLogRepository);
-    await queueNotificationService.notifyTicketCancelled(entry, adapter, notificationLogRepository);
-
-    expect(adapter.pushCalls).toHaveLength(1);
-  });
-
-  it('clears all notification log entries for the entry (terminal state cleanup)', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ status: 'cancelled', cancelled_at: new Date() });
-
-    // Simulate a prior sent notification for this entry
-    notificationLogRepository.markSent(entry.id, 'eta_warning');
-
-    await queueNotificationService.notifyTicketCancelled(entry, adapter, notificationLogRepository);
-
-    // After cancellation, the 'cancelled' event is recorded
-    expect(notificationLogRepository.hasBeenSent(entry.id, 'cancelled')).toBe(true);
-    // The pre-existing eta_warning is still recorded (no clearEntry call)
-    expect(notificationLogRepository.hasBeenSent(entry.id, 'eta_warning')).toBe(true);
-  });
-
-  it('does nothing when line_user_id is null', async () => {
-    const adapter = new MockLineAdapter();
-    const entry = makeEntry({ line_user_id: null });
-
-    await queueNotificationService.notifyTicketCancelled(entry, adapter, notificationLogRepository);
-
-    expect(adapter.pushCalls).toHaveLength(0);
+    expect(repository.cancelPendingForEntry).toHaveBeenCalledWith(
+      'entry-001',
+      'queue_entry:entry-001:cancelled',
+      client
+    );
+    expect(repository.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: 'cancelled' }),
+      client
+    );
   });
 });

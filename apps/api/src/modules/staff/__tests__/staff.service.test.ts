@@ -12,6 +12,8 @@ import {
   QueueEntryRow,
 } from '../../../db/repositories/queue-entries.repository';
 import { QueueRow, queuesRepository } from '../../../db/repositories/queues.repository';
+import { withTransaction } from '../../../db/transaction';
+import { queueNotificationService } from '../../notifications/queue-notification.service';
 import { queueService } from '../../queue/queue.service';
 import { staffService } from '../staff.service';
 
@@ -20,6 +22,12 @@ import { staffService } from '../staff.service';
 jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/repositories/audit-log.repository');
+jest.mock('../../../db/transaction');
+jest.mock('../../notifications/queue-notification.service', () => ({
+  queueNotificationService: {
+    notifyTicketCancelled: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 jest.mock('../../queue/queue.service');
 
 // db/client must be mocked so repository module loads cleanly
@@ -48,6 +56,11 @@ const mockFindByQueueAndStatus = queueEntriesRepository.findByQueueAndStatus as 
 const mockMarkCancelled = queueEntriesRepository.markCancelled as jest.MockedFunction<
   typeof queueEntriesRepository.markCancelled
 >;
+const mockWithTransaction = withTransaction as jest.MockedFunction<typeof withTransaction>;
+const mockNotifyTicketCancelled =
+  queueNotificationService.notifyTicketCancelled as jest.MockedFunction<
+    typeof queueNotificationService.notifyTicketCancelled
+  >;
 const mockAuditCreate = auditLogRepository.create as jest.MockedFunction<
   typeof auditLogRepository.create
 >;
@@ -137,6 +150,8 @@ beforeEach(() => {
   // Audit log should succeed silently by default
   mockAuditCreate.mockResolvedValue(auditLogRow);
   mockFindQueueById.mockResolvedValue(baseQueue);
+  mockWithTransaction.mockImplementation(async (fn) => fn({} as never));
+  mockNotifyTicketCancelled.mockResolvedValue(undefined);
 });
 
 // ── getQueueOverview ───────────────────────────────────────────────────────────
@@ -264,7 +279,13 @@ describe('staffService.cancelEntry', () => {
     const result = await staffService.cancelEntry(ENTRY_ID, ACTOR_ID);
 
     expect(result.status).toBe('cancelled');
-    expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID);
+    expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID, expect.anything());
+    expect(mockNotifyTicketCancelled).toHaveBeenCalledWith(
+      cancelled,
+      { organizationId: baseQueue.organization_id },
+      expect.anything(),
+      expect.anything()
+    );
   });
 
   it('cancels a called entry', async () => {

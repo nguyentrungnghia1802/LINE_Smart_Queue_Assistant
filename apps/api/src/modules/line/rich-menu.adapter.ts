@@ -78,11 +78,7 @@ export class LineRichMenuSdkAdapter implements ILineRichMenuAdapter {
     });
 
     if (!res.ok) {
-      const detail = await res.text().catch(() => '(unreadable)');
-      logger.error(
-        { statusCode: res.status, path: pathName, detail },
-        'LINE Rich Menu API request failed'
-      );
+      logger.error({ statusCode: res.status, path: pathName }, 'LINE Rich Menu API request failed');
       throw new Error(`LINE Rich Menu API returned ${res.status} for ${pathName}`);
     }
 

@@ -11,7 +11,7 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 1. Rotate any previously exposed LINE/JWT/provider credential and enable secret scanning.
 2. Implement server-created payment intents, signed webhooks, durable idempotency, refund, and reconciliation for the selected Japan PSP.
 3. Complete inventory lifecycle: reserve, consume, release on cancellation, expire, and reconcile exactly once.
-4. Replace in-memory notification deduplication with a PostgreSQL outbox/delivery log, retry schedule, and dead-letter visibility.
+4. Add operational visibility and manual handling for failed notification outbox rows.
 5. Enforce strict queue capacity and order number uniqueness under concurrency.
 6. Add all automated tests and clean migration smoke tests to CI.
 7. Correct Japan production configuration: timezone, JPY seed/demo data, addresses, legal/payment copy.
@@ -42,7 +42,7 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 | ID     | Issue                                                          | Impact                                     | Planned control                                 |
 | ------ | -------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------- |
 | TD-001 | Shared TypeScript enum values differ from PostgreSQL in places | Incorrect assumptions/contracts            | Align shared types and add serialization tests  |
-| TD-002 | Notification sent registry is process-local                    | Duplicate/missed sends after restart/scale | DB outbox + unique event key                    |
+| TD-002 | Notification failed-row operations are not exposed             | Harder support/replay after delivery limit | Admin/operator view and audited replay controls |
 | TD-003 | Cancellation does not restore stock                            | Inventory leakage                          | Transactional release service and tests         |
 | TD-004 | Manual payment patch updates summary only                      | Order/item/transaction mismatch            | Reconciliation state machine                    |
 | TD-005 | Queue capacity check is optimistic                             | Over-capacity under race                   | Lock queue/capacity row in transaction          |
@@ -176,7 +176,7 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 **Decision:** Build ticket notification copy, Flex payloads, text fallback, and LIFF deeplinks in the notification templates/service layer. Queue/order services trigger notification intents only after successful state changes and never call the LINE SDK directly.
 
-**Consequences:** Customer-visible LINE content remains centralized and Japanese. A Flex send failure retries as text; final delivery failure is logged/metriced and never rolls back queue/order state. Durable outbox and distributed retry remain future work.
+**Consequences:** Customer-visible LINE content remains centralized and Japanese. A Flex send failure retries as text; final delivery failure is logged/metriced and never rolls back queue/order state.
 
 ## ADR-013: Rich Menu sync is explicit and idempotent
 
@@ -187,6 +187,16 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 **Decision:** Keep Rich Menu definition, image loading, LINE transport, and synchronization service/script separate. Operators run `npm run line:rich-menu:sync` when configuring or replacing the Official Account menu. The sync command reuses the managed menu name, deletes uncontrolled duplicates, supports `--replace`, and falls back to a mock adapter for local/test mode.
 
 **Consequences:** Runtime API startup stays side-effect free. Rich Menu changes require an explicit operations step and real-device LINE verification. Durable organization-specific menu variants remain a future decision.
+
+## ADR-014: LINE notifications use a durable PostgreSQL outbox
+
+**Status:** Accepted
+
+**Context:** Process-local deduplication and retry are unsafe across API restarts, repeated scans, and multiple workers.
+
+**Decision:** Queue/order services enqueue LINE notification intents into the `notifications` table inside the same database transaction as the business state change. Each lifecycle event uses a unique event key. A scheduled worker claims due rows with PostgreSQL row locking, sends through `LineNotificationService` and the messaging adapter, then marks rows `sent`, schedules exponential retry, or leaves them `failed` after the configured attempt limit.
+
+**Consequences:** Queue/order transactions do not call LINE and are not rolled back by provider failures. Notification delivery survives API restarts and duplicate scans. The remaining production work is operator visibility, audited replay/cancel controls, and broader scheduler ownership decisions for non-notification jobs.
 
 ## 4. Open product decisions
 

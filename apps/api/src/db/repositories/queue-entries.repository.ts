@@ -42,8 +42,12 @@ export interface CreateEntryParams {
 // ── Repository ─────────────────────────────────────────────────────────────────
 
 export class QueueEntriesRepository extends BaseRepository {
-  async findById(id: string): Promise<QueueEntryRow | null> {
-    return this.queryOne<QueueEntryRow>('SELECT * FROM queue_entries WHERE id = $1', [id]);
+  async findById(id: string, client?: PoolClient): Promise<QueueEntryRow | null> {
+    const sql = 'SELECT * FROM queue_entries WHERE id = $1';
+    const rows = client
+      ? await this.queryTx<QueueEntryRow>(client, sql, [id])
+      : await this.query<QueueEntryRow>(sql, [id]);
+    return rows[0] ?? null;
   }
 
   async findActiveByLineUser(lineUserId: string, queueId: string): Promise<QueueEntryRow | null> {
@@ -64,13 +68,15 @@ export class QueueEntriesRepository extends BaseRepository {
     );
   }
 
-  async listWaiting(queueId: string): Promise<QueueEntryRow[]> {
-    return this.query<QueueEntryRow>(
-      `SELECT * FROM queue_entries
-       WHERE queue_id = $1 AND status = 'waiting'
-       ORDER BY priority DESC, ticket_number ASC`,
-      [queueId]
-    );
+  async listWaiting(queueId: string, client?: PoolClient): Promise<QueueEntryRow[]> {
+    const sql = `
+      SELECT * FROM queue_entries
+      WHERE queue_id = $1 AND status = 'waiting'
+      ORDER BY priority DESC, ticket_number ASC
+    `;
+    return client
+      ? this.queryTx<QueueEntryRow>(client, sql, [queueId])
+      : this.query<QueueEntryRow>(sql, [queueId]);
   }
 
   async create(params: CreateEntryParams, client?: PoolClient): Promise<QueueEntryRow> {

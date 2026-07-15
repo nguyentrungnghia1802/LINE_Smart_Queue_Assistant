@@ -431,8 +431,9 @@ export const ordersRepository = {
     return rows[0];
   },
 
-  async updateStatus(id: string, status: string): Promise<OrderRow | null> {
-    const { rows } = await pool.query<OrderRow>(
+  async updateStatus(id: string, status: string, client?: PoolClient): Promise<OrderRow | null> {
+    const executor = client ?? pool;
+    const { rows } = await executor.query<OrderRow>(
       `UPDATE orders SET status = $1 WHERE id = $2 RETURNING *`,
       [status, id]
     );

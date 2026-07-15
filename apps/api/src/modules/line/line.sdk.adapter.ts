@@ -59,9 +59,7 @@ export class LineSdkAdapter implements ILineMessagingAdapter {
     });
 
     if (!res.ok) {
-      // Read the body for diagnostics but never log the auth token.
-      const detail = await res.text().catch(() => '(unreadable)');
-      logger.error({ statusCode: res.status, path, detail }, 'LINE Messaging API request failed');
+      logger.error({ statusCode: res.status, path }, 'LINE Messaging API request failed');
       throw new Error(`LINE API returned ${res.status} for ${path}`);
     }
   }

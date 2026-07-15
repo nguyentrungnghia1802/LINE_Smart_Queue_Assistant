@@ -1,3 +1,5 @@
+import type { PoolClient } from 'pg';
+
 import { pool } from '../../db/client';
 import { ordersRepository } from '../../db/repositories/orders.repository';
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
@@ -7,6 +9,7 @@ import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
 import { productCatalogCache } from '../../utils/cache';
 import { etaService } from '../eta/eta.service';
+import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
@@ -38,6 +41,21 @@ function nullableNumber(value: string | number | null | undefined): number | nul
   if (value === null || value === undefined) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function getWaitingPositionInTransaction(
+  client: PoolClient,
+  entry: { queue_id: string; priority: number; ticket_number: number }
+): Promise<number> {
+  const { rows } = await client.query<{ pos: string }>(
+    `SELECT COUNT(*) AS pos
+     FROM queue_entries
+     WHERE queue_id = $1
+       AND status = 'waiting'
+       AND (priority > $2 OR (priority = $2 AND ticket_number < $3))`,
+    [entry.queue_id, entry.priority, entry.ticket_number]
+  );
+  return Number(rows[0]?.pos ?? 0);
 }
 
 export const ordersService = {
@@ -280,27 +298,24 @@ export const ordersService = {
         }
       }
 
+      const aheadCount = await getWaitingPositionInTransaction(client, linkedEntry);
+      await queueNotificationService.notifyBookingCreated(
+        linkedEntry,
+        {
+          organizationId: org.id,
+          aheadCount,
+          estimatedWaitSeconds: etaService.calculate({
+            aheadCount,
+            avgServiceSeconds: queue.avg_service_seconds,
+          }).estimatedWaitSeconds,
+        },
+        notificationOutboxRepository,
+        client
+      );
+
       await client.query('COMMIT');
       productCatalogCache.invalidate(`org:${org.id}`);
       productCatalogCache.invalidate(`slug:${org.slug}`);
-      void (async () => {
-        try {
-          const aheadCount = await queuesRepository.getWaitingPosition(
-            queue.id,
-            linkedEntry.priority,
-            linkedEntry.ticket_number
-          );
-          await queueNotificationService.notifyBookingCreated(linkedEntry, {
-            aheadCount,
-            estimatedWaitSeconds: etaService.calculate({
-              aheadCount,
-              avgServiceSeconds: queue.avg_service_seconds,
-            }).estimatedWaitSeconds,
-          });
-        } catch {
-          await queueNotificationService.notifyBookingCreated(linkedEntry);
-        }
-      })();
       return { order: linkedOrder, entry: linkedEntry };
     } catch (err) {
       await client.query('ROLLBACK');
@@ -356,19 +371,35 @@ export const ordersService = {
       throw AppError.conflict(`Order cannot be cancelled from status '${order.status}'`);
     }
 
-    // Cancel order
-    const updated = await ordersRepository.updateStatus(orderId, 'cancelled');
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const updated = await ordersRepository.updateStatus(orderId, 'cancelled', client);
+      if (!updated) throw AppError.notFound('Order not found');
 
-    // Also cancel the linked queue entry if present
-    if (order.queue_entry_id) {
-      try {
-        const cancelledEntry = await queueEntriesRepository.markCancelled(order.queue_entry_id);
-        void queueNotificationService.notifyTicketCancelled(cancelledEntry);
-      } catch {
-        // Entry may already be cancelled or in a non-cancellable state — not fatal
+      if (order.queue_entry_id) {
+        const linkedEntry = await queueEntriesRepository.findById(order.queue_entry_id, client);
+        if (linkedEntry && ['waiting', 'called'].includes(linkedEntry.status)) {
+          const cancelledEntry = await queueEntriesRepository.markCancelled(
+            order.queue_entry_id,
+            client
+          );
+          await queueNotificationService.notifyTicketCancelled(
+            cancelledEntry,
+            { organizationId: order.organization_id },
+            notificationOutboxRepository,
+            client
+          );
+        }
       }
-    }
 
-    return updated;
+      await client.query('COMMIT');
+      return updated;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 };

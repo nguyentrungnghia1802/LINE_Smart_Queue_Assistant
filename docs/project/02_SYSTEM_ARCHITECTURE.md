@@ -13,12 +13,13 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
                                  |
                          REST /api/v1 + JWT
                                  |
-                          Express API process
+                         Express API process
                     +------------+-------------+
                     |            |             |
                PostgreSQL   Scheduled jobs   LINE APIs
-                                  |          Login/OIDC +
-                                  +------> Messaging push
+                    ^             |          Login/OIDC +
+                    |             +------> Messaging push
+                    +------ durable notification outbox
 ```
 
 ## 2. Containers and runtime boundaries
@@ -112,7 +113,8 @@ Authenticated order and direct queue creation copy only `req.user.lineUserId`, w
 
 - Browser-to-API communication is JSON REST over `/api/v1`.
 - API-to-PostgreSQL uses parameterized `pg` queries and explicit transactions for multi-row writes.
-- API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`; queue lifecycle copy, Flex Message payloads, text fallbacks, and ticket deep links are centralized in `line-notification.templates.ts` and sent through `lineNotificationService`.
+- Queue/order services never call LINE directly. They enqueue durable notification intents in PostgreSQL through `QueueNotificationService` and `NotificationOutboxRepository` inside the same business transaction as the queue/order state change.
+- API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`; queue lifecycle copy, Flex Message payloads, text fallbacks, and ticket deep links are centralized in `line-notification.templates.ts` and sent by the notification delivery worker through `lineNotificationService`.
 - Rich Menu management is separate from runtime startup. `rich-menu.definition.ts` owns the Japanese menu actions and LIFF routes, `rich-menu.adapter.ts` owns LINE transport, `rich-menu.sync.service.ts` owns idempotent create/reuse/replace behavior, and `npm run line:rich-menu:sync` performs the explicit synchronization. Uploading Rich Menu images uses LINE's data API host, while create/list/default/delete use the Messaging API host.
 - Demo payment is currently browser-orchestrated and recorded by the order creation API; real payment must originate/verify on the server.
 
@@ -120,14 +122,15 @@ Authenticated order and direct queue creation copy only `req.user.lineUserId`, w
 
 The API scheduler uses overlap-protected `setInterval` jobs:
 
-| Job               | Interval     | Current behavior                                                  |
-| ----------------- | ------------ | ----------------------------------------------------------------- |
-| ETA updater       | 30 seconds   | Recomputes wait estimates for waiting entries in open queues      |
-| ETA warning scan  | 30 seconds   | Sends approaching-turn LINE messages to eligible linked customers |
-| Called retry scan | 60 seconds   | Rechecks recently called entries for notification delivery        |
-| Counter reset     | Hourly check | Resets daily counters once during UTC midnight hour               |
+| Job                   | Interval     | Current behavior                                                                |
+| --------------------- | ------------ | ------------------------------------------------------------------------------- |
+| ETA updater           | 30 seconds   | Recomputes wait estimates for waiting entries in open queues                    |
+| ETA warning scan      | 30 seconds   | Enqueues approaching-turn LINE notification intents for eligible linked tickets |
+| Called retry scan     | 60 seconds   | Enqueues called-reminder intents using the same durable event-key deduplication |
+| Notification delivery | 15 seconds   | Claims due LINE outbox rows, sends them, and records sent/retry/failed outcomes |
+| Counter reset         | Hourly check | Resets daily counters once during UTC midnight hour                             |
 
-There is no distributed scheduler lock. Horizontal API replicas would duplicate job ownership unless jobs move to a coordinated worker or use PostgreSQL advisory locks.
+Notification delivery uses PostgreSQL row locking with `FOR UPDATE SKIP LOCKED` to avoid two workers sending the same claimed message. Other scheduled jobs still have no distributed scheduler lock; horizontal API replicas may duplicate scans, but notification event keys keep duplicate lifecycle notifications from becoming duplicate sends.
 
 ## 9. Payment architecture
 
@@ -156,7 +159,6 @@ The browser return URL is a user experience signal, not proof of payment.
 
 The current design is appropriate for a single API instance and modest queue volume. Before horizontal scale:
 
-- persist notification idempotency/retry state;
 - coordinate scheduled jobs;
 - enforce queue capacity and order numbering under lock/sequence;
 - add provider webhook idempotency and reconciliation;

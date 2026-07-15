@@ -35,6 +35,20 @@ export const config = {
     richMenuImagePath: process.env.LINE_RICH_MENU_IMAGE_PATH ?? '',
   },
 
+  notifications: {
+    deliveryBatchSize: Number.parseInt(process.env.LINE_NOTIFICATION_BATCH_SIZE ?? '20', 10),
+    workerIntervalMs: Number.parseInt(
+      process.env.LINE_NOTIFICATION_WORKER_INTERVAL_MS ?? '15000',
+      10
+    ),
+    maxAttempts: Number.parseInt(process.env.LINE_NOTIFICATION_MAX_ATTEMPTS ?? '5', 10),
+    retryBaseSeconds: Number.parseInt(process.env.LINE_NOTIFICATION_RETRY_BASE_SECONDS ?? '30', 10),
+    processingTimeoutSeconds: Number.parseInt(
+      process.env.LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS ?? '300',
+      10
+    ),
+  },
+
   cors: {
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
   },

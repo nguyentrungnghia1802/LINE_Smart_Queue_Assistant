@@ -1,4 +1,6 @@
-﻿import {
+﻿import type { PoolClient } from 'pg';
+
+import {
   batchWorkloadForEntries,
   calculateWorkloadForEntries,
   ordersRepository,
@@ -14,9 +16,7 @@ import { AppError } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
 import { etaService } from '../eta/eta.service';
-import type { ILineMessagingAdapter } from '../line/line.adapter';
-import type { INotificationLogRepository } from '../notifications/notification-log.repository';
-import { notificationLogRepository } from '../notifications/notification-log.repository';
+import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
@@ -75,20 +75,33 @@ function assertOwnership(
   }
 }
 
-async function assertQueueBelongsToOrg(queueId: string, organizationId?: string): Promise<void> {
+async function assertQueueBelongsToOrg(queueId: string, organizationId?: string) {
   if (!organizationId) throw AppError.forbidden('User has no organization');
   const queue = await queuesRepository.findById(queueId);
   if (!queue) throw AppError.notFound('Queue');
   if (queue.organization_id !== organizationId) {
     throw AppError.forbidden('Queue is outside your organization');
   }
+  return queue;
 }
 
-async function assertEntryBelongsToOrg(
-  entry: QueueEntryRow,
-  organizationId?: string
-): Promise<void> {
-  await assertQueueBelongsToOrg(entry.queue_id, organizationId);
+async function assertEntryBelongsToOrg(entry: QueueEntryRow, organizationId?: string) {
+  return assertQueueBelongsToOrg(entry.queue_id, organizationId);
+}
+
+async function getWaitingPositionInTransaction(
+  client: PoolClient,
+  entry: Pick<QueueEntryRow, 'queue_id' | 'priority' | 'ticket_number'>
+): Promise<number> {
+  const { rows } = await client.query<{ pos: string }>(
+    `SELECT COUNT(*) AS pos
+     FROM queue_entries
+     WHERE queue_id = $1
+       AND status = 'waiting'
+       AND (priority > $2 OR (priority = $2 AND ticket_number < $3))`,
+    [entry.queue_id, entry.priority, entry.ticket_number]
+  );
+  return Number(rows[0]?.pos ?? 0);
 }
 
 // ── Service ────────────────────────────────────────────────────────────────────
@@ -159,11 +172,11 @@ export const queueService = {
           .catch(() => 0)
       : 0;
 
-    // 6. Atomically increment counter + insert entry inside a transaction
-    const entry = await withTransaction(async (client) => {
+    // 6. Atomically increment counter + insert entry + outbox inside a transaction
+    const created = await withTransaction(async (client) => {
       const ticketNumber = await queuesRepository.incrementAndGetCounter(queueId, client);
       const ticketCode = formatTicketCode(queue.prefix ?? '', ticketNumber);
-      return queueEntriesRepository.create(
+      const entry = await queueEntriesRepository.create(
         {
           queueId,
           ticketNumber,
@@ -174,28 +187,29 @@ export const queueService = {
         },
         client
       );
-    });
 
-    // 7. Position info (post-transaction read — acceptable eventual consistency)
-    const aheadCount = await queuesRepository.getWaitingPosition(
-      queueId,
-      entry.priority,
-      entry.ticket_number
-    );
-    const estimatedWaitSeconds = etaService.calculate({
-      aheadCount,
-      avgServiceSeconds: queue.avg_service_seconds,
-    }).estimatedWaitSeconds;
-
-    void queueNotificationService.notifyBookingCreated(entry, {
-      aheadCount,
-      estimatedWaitSeconds,
+      const aheadCount = await getWaitingPositionInTransaction(client, entry);
+      const estimatedWaitSeconds = etaService.calculate({
+        aheadCount,
+        avgServiceSeconds: queue.avg_service_seconds,
+      }).estimatedWaitSeconds;
+      await queueNotificationService.notifyBookingCreated(
+        entry,
+        {
+          organizationId: queue.organization_id,
+          aheadCount,
+          estimatedWaitSeconds,
+        },
+        notificationOutboxRepository,
+        client
+      );
+      return { entry, aheadCount, estimatedWaitSeconds };
     });
 
     return {
-      entry,
-      aheadCount,
-      estimatedWaitSeconds,
+      entry: created.entry,
+      aheadCount: created.aheadCount,
+      estimatedWaitSeconds: created.estimatedWaitSeconds,
       isExisting: false,
     };
   },
@@ -295,9 +309,19 @@ export const queueService = {
       throw AppError.conflict(`Ticket cannot be cancelled from status '${entry.status}'`);
     }
 
-    const cancelled = await queueEntriesRepository.markCancelled(entryId);
+    const queue = await queuesRepository.findById(entry.queue_id);
+    if (!queue) throw AppError.notFound('Queue');
+
+    await withTransaction(async (client) => {
+      const cancelled = await queueEntriesRepository.markCancelled(entryId, client);
+      await queueNotificationService.notifyTicketCancelled(
+        cancelled,
+        { organizationId: queue.organization_id },
+        notificationOutboxRepository,
+        client
+      );
+    });
     metricsService.increment('queue_cancelled_total');
-    void queueNotificationService.notifyTicketCancelled(cancelled);
   },
 
   /**
@@ -370,23 +394,16 @@ export const queueService = {
    * Concurrent calls are safe: the first UPDATE wins; subsequent callers for the
    * same entry get a 409 from markCalled's RETURNING guard.
    *
-   * **Notifications** (fire-and-forget):
-   * 1. Push "your turn" to the called ticket holder.
-   * 2. Push "almost your turn" ETA warning to the entry now at position 2
-   *    (if they have a LINE account and haven't been warned yet).
+   * **Notifications** are enqueued in the same transaction as the state
+   * transition. The delivery worker sends LINE messages after commit.
    *
-   * Both notification calls are non-blocking — a notification failure never
-   * rolls back the queue state transition.
-   *
-   * @param adapter  Injectable LINE adapter — defaults to production singleton.
-   *                 Pass a MockLineAdapter in tests.
-   * @param log      Injectable notification log — defaults to in-memory registry.
-   *                 Pass a fresh mock registry in tests.
+   * @param adapter  Legacy test parameter, no longer used.
+   * @param log      Legacy test parameter, no longer used.
    */
   async callNextTicket(
     queueId: string,
-    adapter?: ILineMessagingAdapter,
-    log?: INotificationLogRepository,
+    _adapter?: unknown,
+    _log?: unknown,
     actorOrganizationId?: string
   ): Promise<QueueEntryRow> {
     const queue = await queuesRepository.findById(queueId);
@@ -395,26 +412,41 @@ export const queueService = {
       throw AppError.forbidden('Queue is outside your organization');
     }
 
-    const waiting = await queueEntriesRepository.listWaiting(queueId);
-    if (waiting.length === 0) {
-      throw AppError.conflict('No waiting entries in this queue');
-    }
+    return withTransaction(async (client) => {
+      const waiting = await queueEntriesRepository.listWaiting(queueId, client);
+      if (waiting.length === 0) {
+        throw AppError.conflict('No waiting entries in this queue');
+      }
 
-    const [next, nextUp] = waiting;
+      const [next, nextUp] = waiting;
 
-    // Atomic status transition — throws if entry was concurrently moved.
-    const called = await queueEntriesRepository.markCalled(next.id);
+      // Atomic status transition — throws if entry was concurrently moved.
+      const called = await queueEntriesRepository.markCalled(next.id, client);
 
-    // Fire-and-forget: failures are logged but must not block the response
-    // or raise to the caller.
-    void queueNotificationService.notifyTicketCalled(called, adapter, log);
+      await queueNotificationService.notifyTicketCalled(
+        { ...called, estimated_wait_seconds: 0 },
+        {
+          organizationId: queue.organization_id,
+          aheadCount: 0,
+          estimatedWaitSeconds: 0,
+        },
+        notificationOutboxRepository,
+        client
+      );
 
-    // Warn the entry now at position 1 (was position 2 before calling `next`).
-    if (nextUp) {
-      void queueNotificationService.notifyEtaWarning(nextUp, 1, adapter, log);
-    }
+      // Warn the entry now at position 1 (was position 2 before calling `next`).
+      if (nextUp) {
+        await queueNotificationService.notifyEtaWarning(
+          nextUp,
+          1,
+          { organizationId: queue.organization_id },
+          notificationOutboxRepository,
+          client
+        );
+      }
 
-    return called;
+      return called;
+    });
   },
 
   /**
@@ -430,7 +462,7 @@ export const queueService = {
 
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
-    await assertEntryBelongsToOrg(entry, actorOrganizationId);
+    const queue = await assertEntryBelongsToOrg(entry, actorOrganizationId);
 
     if (entry.status !== 'called') {
       throw AppError.conflict(
@@ -438,9 +470,16 @@ export const queueService = {
       );
     }
 
-    const serving = await queueEntriesRepository.markServing(entryId);
-    void queueNotificationService.notifyTicketServing(serving);
-    return serving;
+    return withTransaction(async (client) => {
+      const serving = await queueEntriesRepository.markServing(entryId, client);
+      await queueNotificationService.notifyTicketServing(
+        serving,
+        { organizationId: queue.organization_id },
+        notificationOutboxRepository,
+        client
+      );
+      return serving;
+    });
   },
 
   /**
@@ -456,7 +495,7 @@ export const queueService = {
 
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
-    await assertEntryBelongsToOrg(entry, actorOrganizationId);
+    const queue = await assertEntryBelongsToOrg(entry, actorOrganizationId);
 
     if (entry.status !== 'serving') {
       throw AppError.conflict(
@@ -464,15 +503,24 @@ export const queueService = {
       );
     }
 
-    const served = await queueEntriesRepository.markServed(entryId);
+    const served = await withTransaction(async (client) => {
+      const updated = await queueEntriesRepository.markServed(entryId, client);
+      await queueNotificationService.notifyTicketCompleted(
+        updated,
+        { organizationId: queue.organization_id },
+        notificationOutboxRepository,
+        client
+      );
+      await queueEntriesRepository.archiveToHistory(
+        updated,
+        'serving',
+        'served',
+        undefined,
+        client
+      );
+      return updated;
+    });
     metricsService.increment('queue_served_total');
-    void queueNotificationService.notifyTicketCompleted(served);
-    // Archive to queue_histories
-    void queueEntriesRepository
-      .archiveToHistory(served, 'serving', 'served')
-      .catch((err: unknown) => logger.warn({ err, entryId }, 'completeTicket: archive failed'));
-    // Free the anti-duplicate registry for this entry — reached terminal state.
-    notificationLogRepository.clearEntry(entryId);
     return served;
   },
 
@@ -489,7 +537,7 @@ export const queueService = {
 
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
-    await assertEntryBelongsToOrg(entry, actorOrganizationId);
+    const queue = await assertEntryBelongsToOrg(entry, actorOrganizationId);
 
     if (entry.status !== 'called') {
       throw AppError.conflict(
@@ -497,15 +545,17 @@ export const queueService = {
       );
     }
 
-    const noShow = await queueEntriesRepository.markNoShow(entryId);
-    void queueNotificationService.notifyTicketNoShow(noShow);
-    // Archive to queue_histories
-    void queueEntriesRepository
-      .archiveToHistory(noShow, 'called', 'no_show')
-      .catch((err: unknown) => logger.warn({ err, entryId }, 'noShowTicket: archive failed'));
-    // Free the anti-duplicate registry — no further notifications possible.
-    notificationLogRepository.clearEntry(entryId);
-    return noShow;
+    return withTransaction(async (client) => {
+      const noShow = await queueEntriesRepository.markNoShow(entryId, client);
+      await queueNotificationService.notifyTicketNoShow(
+        noShow,
+        { organizationId: queue.organization_id },
+        notificationOutboxRepository,
+        client
+      );
+      await queueEntriesRepository.archiveToHistory(noShow, 'called', 'no_show', undefined, client);
+      return noShow;
+    });
   },
 
   /** Public ticket status — no auth required. Used by the guest ticket-tracking page. */
