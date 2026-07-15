@@ -5,9 +5,11 @@ import {
   QueueEntryRow,
 } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
+import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
+import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { queueService } from '../queue/queue.service';
 
@@ -178,9 +180,17 @@ export const staffService = {
       );
     }
 
-    const cancelled = await queueEntriesRepository.markCancelled(entryId);
+    const cancelled = await withTransaction(async (client) => {
+      const updated = await queueEntriesRepository.markCancelled(entryId, client);
+      await queueNotificationService.notifyTicketCancelled(
+        updated,
+        { organizationId: queue.organization_id },
+        notificationOutboxRepository,
+        client
+      );
+      return updated;
+    });
     metricsService.increment('queue_cancelled_total');
-    void queueNotificationService.notifyTicketCancelled(cancelled);
     auditStaff(actorUserId, 'staff_cancel', 'queue_entry', cancelled.id, {
       ticket: cancelled.ticket_code,
       previousStatus: entry.status,

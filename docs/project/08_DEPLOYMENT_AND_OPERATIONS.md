@@ -80,11 +80,13 @@ Use expand/backfill/contract deployment for schema changes that cannot be comple
 | Pino HTTP logs  | Structured requests/errors with request ID                                  |
 | Audit logs      | Administrative/resource changes in PostgreSQL                               |
 
-Current metrics are process-local and reset on restart. Production should scrape frequently and add latency histograms, DB pool saturation, queue depth, job duration/failure, notification/payment states, stock conflicts, and webhook lag.
+Current metrics are process-local and reset on restart. Notification delivery counters include sent, retry-scheduled, and failed outbox outcomes, while the durable row state remains in PostgreSQL. Production should scrape frequently and add latency histograms, DB pool saturation, queue depth, job duration/failure, notification/payment states, stock conflicts, and webhook lag.
 
 ## 6. Scheduled jobs operations
 
-Jobs run inside each API process. At one replica this is simple. At multiple replicas, every replica starts the scheduler and can duplicate work. Before scaling horizontally, use one of:
+Jobs run inside each API process. At one replica this is simple. Notification delivery itself claims due rows with PostgreSQL row locks, so two workers should not send the same claimed row. Stale `processing` rows are reclaimable after `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS` to survive worker crashes. Other scans can still run on every replica; unique notification event keys protect LINE lifecycle messages from duplicate enqueue, but the platform should still move to an explicit single worker or coordinated scheduler before horizontal production scale.
+
+Before scaling horizontally, use one of:
 
 - dedicated worker process;
 - PostgreSQL advisory locks/leader election;
@@ -144,7 +146,7 @@ Remove instance from readiness, inspect credentials/network/storage/connections,
 
 ### LINE messages missing
 
-Check linked `line_user_id`, Official Account relationship, access token, channel pairing, `/health`, API logs/metrics, recipient block status, and device notification settings. Remember current deduplication/retry state is in memory.
+Check linked `line_user_id`, Official Account relationship, access token, channel pairing, `/health`, API logs/metrics, recipient block status, and device notification settings. Inspect the `notifications` outbox rows for the ticket: `pending` means waiting for the worker, `processing` means claimed, `sent` means delivery succeeded, and `failed` means retry limit was reached. Errors are sanitized; do not paste access tokens into tickets/logs.
 
 ### Rich Menu missing or outdated
 
@@ -152,7 +154,7 @@ Check the intended Official Account, `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_LIFF_ID`
 
 ### Duplicate LINE messages
 
-Check API replica count/restarts and scanner overlap. Current process-local deduplication is insufficient; temporarily run one scheduler owner and prioritize durable notification idempotency.
+Check whether event keys differ for the same domain event, whether old rows were manually replayed, and whether multiple external LINE channels are configured against the same recipient. The Phase 5 outbox prevents duplicate sends for the same `notifications.event_key`, but distinct event keys intentionally send separate lifecycle messages.
 
 ### Payment mismatch
 
@@ -179,7 +181,7 @@ The GitHub Actions workflow currently installs dependencies, builds shared code,
 - Real secrets rotated and managed outside Git.
 - HTTPS, secure domain/CORS, rate/edge protection, and restricted metrics/docs.
 - Managed PostgreSQL backups and restore drill.
-- Durable notification outbox/retry/idempotency.
+- Durable notification outbox/retry/idempotency and operational visibility for failed rows.
 - Real Rich Menu image asset synced and verified on a physical LINE client.
 - Verified payment intent/webhook/refund/reconciliation.
 - Stock release/consume lifecycle and concurrency tests.

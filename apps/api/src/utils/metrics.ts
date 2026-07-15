@@ -5,7 +5,10 @@ type CounterName =
   | 'queue_served_total'
   | 'queue_cancelled_total'
   | 'notifications_sent_total'
-  | 'notifications_failed_total';
+  | 'notifications_failed_total'
+  | 'notifications_outbox_sent_total'
+  | 'notifications_outbox_failed_total'
+  | 'notifications_outbox_retry_scheduled_total';
 
 const counters: Record<CounterName, number> = {
   requests_total: 0,
@@ -15,6 +18,9 @@ const counters: Record<CounterName, number> = {
   queue_cancelled_total: 0,
   notifications_sent_total: 0,
   notifications_failed_total: 0,
+  notifications_outbox_sent_total: 0,
+  notifications_outbox_failed_total: 0,
+  notifications_outbox_retry_scheduled_total: 0,
 };
 
 export const metricsService = {

@@ -16,6 +16,8 @@ cp .env.example .env
 
 Required production-like values include database credentials, a strong JWT secret, CORS/web origin, LINE Login channel ID, LINE Messaging channel secret/access token, frontend LIFF ID, backend `LINE_LIFF_ID` for notification/Rich Menu deep links, and `LINE_RICH_MENU_IMAGE_PATH` for real Rich Menu sync. `VITE_*` variables are compiled into browser code and must never contain secrets.
 
+LINE notification delivery is durable by default. Local defaults are usually enough, but the worker can be tuned with `LINE_NOTIFICATION_BATCH_SIZE`, `LINE_NOTIFICATION_WORKER_INTERVAL_MS`, `LINE_NOTIFICATION_MAX_ATTEMPTS`, `LINE_NOTIFICATION_RETRY_BASE_SECONDS`, and `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS`.
+
 For ordinary UI/backend work without LINE credentials:
 
 ```dotenv
@@ -75,6 +77,8 @@ The web API client/proxy expects the API on port `4000`. Start the API and datab
 ## 5. Database commands
 
 ```bash
+npm run db:migrate:status -w apps/api
+npm run db:migrate -w apps/api
 npm run db:migrate:status
 npm run db:migrate
 npm run db:seed
@@ -82,7 +86,8 @@ npm run db:seed:reset
 npm run db:reset
 ```
 
-- Root migrations use `scripts/migrate.mjs` and the canonical migration directory.
+- Canonical schema migrations use `node-pg-migrate` through the `apps/api` workspace and read `db/migrations/node-pg-migrate`.
+- Root `db:migrate:*` commands currently use the legacy SQL runner in `scripts/migrate.mjs`; keep them in validation until the runners are unified, but they only read `db/migrations/*.sql`.
 - `db:seed:reset` truncates/reseeds demo data.
 - `db:reset` rebuilds local/dev schema and destroys data.
 - Root migration rollback/redo commands are intentionally unavailable to prevent mixed runner state.
@@ -159,7 +164,7 @@ Critical regression scenarios:
 - Finite stock race/rollback and unlimited stock behavior.
 - Cross-organization access attempts for every staff/manager command.
 - Ticket transition races and duplicate call-next requests.
-- LINE token absent, success, failure, duplicate scan, and process restart semantics.
+- LINE token absent, success, failure, duplicate scan, durable outbox retry, and process restart semantics.
 - LINE Flex Message payload, text fallback, deeplink URL, and no-rollback behavior for queue/order notifications.
 - LIFF Home authentication, active-ticket/no-ticket states, Rich Menu route resolution, and Rich Menu sync idempotency/mock behavior.
 - Organization registration transaction and duplicate email/slug.
@@ -174,10 +179,10 @@ Critical regression scenarios:
 5. Add/follow the LINE Official Account as required for push eligibility.
 6. Open `https://liff.line.me/{LIFF_ID}?liff.state=%2Fliff%2Fqr%2F{publicQrToken}` and verify `/api/v1/auth/line` links a real `line_user_id`.
 7. Select products/services, complete demo prepayment if required, create a booking, and confirm the app redirects to `/liff/tickets/:entryId`.
-8. Call the ticket from staff and observe the Japanese Flex Message in LINE chat. The card should include ticket code, status, people ahead, ETA, next action, and a button that opens the LIFF ticket detail. Text fallback is expected only when Flex delivery fails.
+8. Call the ticket from staff and observe the Japanese Flex Message in LINE chat after the notification worker claims the outbox row. The card should include ticket code, status, people ahead, ETA, next action, and a button that opens the LIFF ticket detail. Text fallback is expected only when Flex delivery fails.
 9. Configure `LINE_RICH_MENU_IMAGE_PATH`, run `npm run line:rich-menu:sync`, and confirm the Official Account Rich Menu opens LIFF Home, booking, current ticket, and usage guide routes.
 10. Optionally send a direct test with `npm run line:verify -- --send-to <LINE_USER_ID>`.
-11. Check API logs/metrics and ensure `notificationDisabled` remains `false` for normal notifications.
+11. Check API logs/metrics and the `notifications` table. Successful rows should move to `sent`; retryable failures return to `pending` with a future `next_retry_at`; exhausted rows remain `failed`. Ensure `notificationDisabled` remains `false` for normal notifications.
 
 Phone sound/banner ultimately follows the customer's LINE and OS notification settings; the server cannot override a muted device/chat.
 

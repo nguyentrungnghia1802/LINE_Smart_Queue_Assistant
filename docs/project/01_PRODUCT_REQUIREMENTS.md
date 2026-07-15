@@ -162,7 +162,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 ## 6. Non-functional requirements
 
 - Security: OWASP-aligned headers, validation, rate limiting, secret separation, webhook signatures, least privilege.
-- Reliability: transactional writes, idempotency on retried public writes/payment updates, durable retry before production.
+- Reliability: transactional writes, idempotency on retried public writes/payment updates, durable LINE retry, and production operator visibility for failed deliveries.
 - Performance: indexed tenant/queue/status paths; avoid N+1 catalog/order reads; define load SLOs before launch.
 - Accessibility: semantic controls, keyboard operation, visible focus, sufficient contrast, reduced-motion support.
 - Privacy: minimize LINE/location/payment payloads and define retention/deletion/audit rules.

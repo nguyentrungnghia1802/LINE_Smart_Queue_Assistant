@@ -12,12 +12,15 @@
  *   Keeps the LIFF countdown displays accurate.
  *
  * etaWarning  (30 s)
- *   Scans waiting entries within the ETA threshold and pushes LINE "almost
- *   your turn" messages.  Anti-duplicate via notificationLogRepository.
+ *   Scans waiting entries within the ETA threshold and enqueues durable LINE
+ *   "almost your turn" notifications.
  *
  * calledRenotify  (60 s)
- *   Re-attempts "your number is called" pushes for entries where the initial
- *   delivery (fired synchronously by callNextTicket) may have failed.
+ *   Backfills durable "your number is called" notifications for called entries
+ *   if a prior enqueue was missed. Delivery retry is owned by the outbox worker.
+ *
+ * notificationDelivery (configurable, default 15 s)
+ *   Claims due LINE notification outbox records and sends them after commit.
  *
  * counterReset  (checked hourly, fires once per UTC calendar day at 00:xx)
  *   Resets daily_ticket_counter for all active queues.  Runs at most once
@@ -34,11 +37,13 @@
  *     unchanged.
  */
 
+import { config } from '../config';
 import { logger } from '../utils/logger';
 
 import { runCounterReset } from './counterReset.job';
 import { runEtaUpdater } from './etaUpdater.job';
 import { JobRunner } from './jobRunner';
+import { runNotificationDelivery } from './notificationDelivery.job';
 import { scanCalledRenotify, scanEtaWarnings } from './notificationScan.job';
 
 // ── Interval constants ────────────────────────────────────────────────────────
@@ -103,6 +108,11 @@ export const scheduler = {
         run: scanCalledRenotify,
       })
       .schedule({
+        name: 'notificationDelivery',
+        intervalMs: config.notifications.workerIntervalMs,
+        run: runNotificationDelivery,
+      })
+      .schedule({
         name: 'counterReset',
         intervalMs: COUNTER_RESET_CHECK_INTERVAL_MS,
         run: async () => {
@@ -150,6 +160,6 @@ export const scheduler = {
    * they modify DB rows and are not safe to trigger ad-hoc in tests.
    */
   async runOnce(): Promise<void> {
-    await Promise.allSettled([scanEtaWarnings(), scanCalledRenotify()]);
+    await Promise.allSettled([scanEtaWarnings(), scanCalledRenotify(), runNotificationDelivery()]);
   },
 };

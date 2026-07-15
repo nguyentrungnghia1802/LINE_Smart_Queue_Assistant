@@ -21,25 +21,25 @@ Organization
 
 ### Entity responsibilities
 
-| Entity                                  | Responsibility                                                                    |
-| --------------------------------------- | --------------------------------------------------------------------------------- |
-| Organization                            | Tenant identity, public routes/token, branding, location, timezone, settings      |
-| User                                    | Platform identity and global role                                                 |
-| OrganizationMember                      | Active manager/staff role within one tenant                                       |
-| LineAccount                             | Verified LINE user link for login/profile/push targeting                          |
-| Product                                 | Product/service price, duration, image, prepayment rule, finite/unlimited stock   |
-| Queue                                   | Operational line, ticket counter, capacity, timing and policy settings            |
-| QueueEntry                              | Customer ticket and queue state machine                                           |
-| BookingGroup                            | Association of separate repeat bookings from one identity/device                  |
-| Order                                   | Reservation commercial header, customer contact, total, status, payment summary   |
-| OrderItem                               | Immutable commercial/service snapshot and per-item payment state                  |
-| PaymentTransaction                      | Provider attempt/status/payload/audit record                                      |
-| InventoryReservation                    | Finite-stock allocation lifecycle                                                 |
-| CustomerLocation                        | Consent-based location snapshot and distance calculation                          |
-| LocationAlert                           | Pending/sent/skipped/failed proximity notification intent                         |
-| Notification                            | Durable general notification schema; queue push service does not fully use it yet |
-| QueueHistory/AuditLog                   | Domain and administrative traceability                                            |
-| WaitTimeForecast/StaffingRecommendation | Model output history; runtime producer not implemented                            |
+| Entity                                  | Responsibility                                                                  |
+| --------------------------------------- | ------------------------------------------------------------------------------- |
+| Organization                            | Tenant identity, public routes/token, branding, location, timezone, settings    |
+| User                                    | Platform identity and global role                                               |
+| OrganizationMember                      | Active manager/staff role within one tenant                                     |
+| LineAccount                             | Verified LINE user link for login/profile/push targeting                        |
+| Product                                 | Product/service price, duration, image, prepayment rule, finite/unlimited stock |
+| Queue                                   | Operational line, ticket counter, capacity, timing and policy settings          |
+| QueueEntry                              | Customer ticket and queue state machine                                         |
+| BookingGroup                            | Association of separate repeat bookings from one identity/device                |
+| Order                                   | Reservation commercial header, customer contact, total, status, payment summary |
+| OrderItem                               | Immutable commercial/service snapshot and per-item payment state                |
+| PaymentTransaction                      | Provider attempt/status/payload/audit record                                    |
+| InventoryReservation                    | Finite-stock allocation lifecycle                                               |
+| CustomerLocation                        | Consent-based location snapshot and distance calculation                        |
+| LocationAlert                           | Pending/sent/skipped/failed proximity notification intent                       |
+| Notification                            | Durable LINE notification outbox and delivery log for queue lifecycle messages  |
+| QueueHistory/AuditLog                   | Domain and administrative traceability                                          |
+| WaitTimeForecast/StaffingRecommendation | Model output history; runtime producer not implemented                          |
 
 ## 2. State machines
 
@@ -145,22 +145,28 @@ Current limitation: no dedicated group retrieval/management API is exposed, so t
 1. Staff authenticates and the API resolves active organization membership.
 2. `/staff/my-queue` returns the organization queue board and selected order details.
 3. Calling next atomically selects/transitions the next eligible waiting entry.
-4. After commit, the notification service attempts a Japanese LINE called Flex Message with text fallback.
-5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful state change attempts a Japanese LINE push when the ticket has a verified recipient.
+4. The queue transition and LINE notification outbox row are written in the same database transaction; a worker sends the Japanese LINE message after commit.
+5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful state change enqueues a LINE push intent when the ticket has a verified recipient.
 6. Staff updates order/payment status manually as needed.
 7. Receipt printing is available after the applicable payment success state.
 
-Notification failure is non-transactional and cannot reverse a queue transition.
+Notification delivery failure is non-transactional and cannot reverse a queue transition. Failed delivery is retried through the durable outbox until the configured attempt limit is reached.
 
 ## 8. LINE notification flow
 
 ```text
-Queue transition / 30s scan
+Queue/order transition / 30s scan
           |
           v
 QueueNotificationService -- missing LINE ID --> skip
           |
-          +-- already sent in memory --> suppress
+          +-- duplicate event key --> reuse existing outbox row
+          |
+          v
+PostgreSQL notifications outbox row (pending)
+          |
+          v
+Notification delivery worker -- claim due row with FOR UPDATE SKIP LOCKED
           |
           v
 lineNotificationService + Japanese Flex template + text fallback + LIFF ticket deep link
@@ -170,12 +176,12 @@ ILineMessagingAdapter
     | token absent/test -> MockLineAdapter
     | token present     -> LINE /v2/bot/message/push
           |
-       Flex success: mark in-memory sent + metric
+       Flex success: mark sent + metric
        Flex failure: try Japanese text fallback
-       final failure: log + metric; queue/order state stays committed
+       final failure: schedule exponential retry or mark failed
 ```
 
-Current deduplication is process-local. Restarting or adding replicas can cause repeat sends. The database `notifications` table is not yet the authoritative queue-push outbox.
+The `notifications.event_key` unique constraint makes enqueue idempotent for lifecycle events such as `queue_entry:{entryId}:called`. Workers claim due rows with PostgreSQL row locks, increment `attempt_count`, and update the row to `sent`, `pending` with a later `next_retry_at`, or `failed`. If a process restarts while a row is `processing`, a later worker can reclaim it after the configured processing timeout. Delivery errors are sanitized before storage/logging and never include channel tokens or sensitive provider payloads.
 
 Notification ticket links prefer `LINE_LIFF_ID` and generate `https://liff.line.me/{LINE_LIFF_ID}?liff.state=/liff/tickets/:entryId`. When the LIFF ID is not configured, the backend falls back to `WEB_ORIGIN` plus `/liff/tickets/:entryId`.
 

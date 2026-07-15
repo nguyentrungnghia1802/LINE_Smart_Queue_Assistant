@@ -11,6 +11,7 @@
 import { ordersRepository } from '../../../db/repositories/orders.repository';
 import type { QueueEntryRow } from '../../../db/repositories/queue-entries.repository';
 import { queueEntriesRepository } from '../../../db/repositories/queue-entries.repository';
+import { queueNotificationService } from '../../notifications/queue-notification.service';
 import { ordersService } from '../orders.service';
 
 jest.mock('../../../db/repositories/orders.repository');
@@ -18,6 +19,25 @@ jest.mock('../../../db/repositories/organizations.repository');
 jest.mock('../../../db/repositories/products.repository');
 jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
+jest.mock('../../notifications/queue-notification.service', () => ({
+  queueNotificationService: {
+    notifyTicketCancelled: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+jest.mock('../../../db/client', () => {
+  const client = {
+    query: jest.fn().mockResolvedValue({ rows: [] }),
+    release: jest.fn(),
+  };
+  return {
+    pool: { connect: jest.fn().mockResolvedValue(client), query: jest.fn() },
+    closePool: jest.fn().mockResolvedValue(undefined),
+    query: jest.fn().mockResolvedValue([]),
+    queryOne: jest.fn().mockResolvedValue(null),
+    queryWithClient: jest.fn(async (_client, _sql, _params) => []),
+    __client: client,
+  };
+});
 
 const mockFindById = ordersRepository.findById as jest.MockedFunction<
   typeof ordersRepository.findById
@@ -28,6 +48,13 @@ const mockUpdateStatus = ordersRepository.updateStatus as jest.MockedFunction<
 const mockMarkCancelled = queueEntriesRepository.markCancelled as jest.MockedFunction<
   typeof queueEntriesRepository.markCancelled
 >;
+const mockFindEntryById = queueEntriesRepository.findById as jest.MockedFunction<
+  typeof queueEntriesRepository.findById
+>;
+const mockNotifyTicketCancelled =
+  queueNotificationService.notifyTicketCancelled as jest.MockedFunction<
+    typeof queueNotificationService.notifyTicketCancelled
+  >;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -90,8 +117,10 @@ describe('ordersService.cancelByOrderId', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFindEntryById.mockResolvedValue({ ...cancelledEntry, status: 'waiting' });
     mockMarkCancelled.mockResolvedValue(cancelledEntry);
     mockUpdateStatus.mockResolvedValue({ ...makeOrder(), status: 'cancelled' });
+    mockNotifyTicketCancelled.mockResolvedValue(undefined);
   });
 
   it('throws 404 when order not found', async () => {
@@ -139,8 +168,8 @@ describe('ordersService.cancelByOrderId', () => {
 
     await ordersService.cancelByOrderId(ORDER_ID, operatorActor);
 
-    expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled');
-    expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID);
+    expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled', expect.anything());
+    expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID, expect.anything());
   });
 
   it('cancels authenticated order when actorUserId matches', async () => {
@@ -148,17 +177,18 @@ describe('ordersService.cancelByOrderId', () => {
 
     await ordersService.cancelByOrderId(ORDER_ID, USER_ID);
 
-    expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled');
-    expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID);
+    expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled', expect.anything());
+    expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID, expect.anything());
   });
 
-  it('does not throw when queue entry cancel fails (non-fatal)', async () => {
+  it('does not cancel queue entry when it is already non-cancellable', async () => {
     mockFindById.mockResolvedValue(makeOrder());
-    mockMarkCancelled.mockRejectedValue(new Error('Entry already cancelled'));
+    mockFindEntryById.mockResolvedValue({ ...cancelledEntry, status: 'served' });
 
-    // Should NOT throw — entry cancel failure is non-fatal
     await expect(ordersService.cancelByOrderId(ORDER_ID, operatorActor)).resolves.not.toThrow();
-    expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled');
+    expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled', expect.anything());
+    expect(mockMarkCancelled).not.toHaveBeenCalled();
+    expect(mockNotifyTicketCancelled).not.toHaveBeenCalled();
   });
 
   it('handles order with no queue_entry_id gracefully', async () => {
@@ -166,7 +196,7 @@ describe('ordersService.cancelByOrderId', () => {
 
     await ordersService.cancelByOrderId(ORDER_ID, operatorActor);
 
-    expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled');
+    expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled', expect.anything());
     expect(mockMarkCancelled).not.toHaveBeenCalled();
   });
 });

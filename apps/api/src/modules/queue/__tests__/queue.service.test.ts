@@ -4,6 +4,7 @@
 } from '../../../db/repositories/queue-entries.repository';
 import { QueueRow, queuesRepository } from '../../../db/repositories/queues.repository';
 import { withTransaction } from '../../../db/transaction';
+import { queueNotificationService } from '../../notifications/queue-notification.service';
 import { skipPenaltyService } from '../../skip-penalty/skip-penalty.service';
 import { queueService } from '../queue.service';
 
@@ -12,6 +13,17 @@ import { queueService } from '../queue.service';
 jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
+jest.mock('../../notifications/queue-notification.service', () => ({
+  queueNotificationService: {
+    notifyBookingCreated: jest.fn().mockResolvedValue(undefined),
+    notifyTicketCancelled: jest.fn().mockResolvedValue(undefined),
+    notifyTicketCalled: jest.fn().mockResolvedValue(undefined),
+    notifyEtaWarning: jest.fn().mockResolvedValue(undefined),
+    notifyTicketServing: jest.fn().mockResolvedValue(undefined),
+    notifyTicketCompleted: jest.fn().mockResolvedValue(undefined),
+    notifyTicketNoShow: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 jest.mock('../../skip-penalty/skip-penalty.service');
 
 // Mock orders repository so batchWorkloadForEntries returns an empty Map in tests.
@@ -70,6 +82,9 @@ const mockDeprioritize = queueEntriesRepository.deprioritize as jest.MockedFunct
   typeof queueEntriesRepository.deprioritize
 >;
 const mockWithTransaction = withTransaction as jest.MockedFunction<typeof withTransaction>;
+const mockQueueNotificationService = queueNotificationService as jest.Mocked<
+  typeof queueNotificationService
+>;
 const mockCalcPriority = skipPenaltyService.calculatePriorityAdjustment as jest.MockedFunction<
   typeof skipPenaltyService.calculatePriorityAdjustment
 >;
@@ -133,7 +148,11 @@ const waitingEntry: QueueEntryRow = {
 
 /** Make withTransaction execute the callback with a dummy PoolClient. */
 function mockTx() {
-  mockWithTransaction.mockImplementation(async (fn) => fn({} as never));
+  mockWithTransaction.mockImplementation(async (fn) =>
+    fn({
+      query: jest.fn().mockResolvedValue({ rows: [{ pos: '2' }] }),
+    } as never)
+  );
 }
 
 // ── Global setup ──────────────────────────────────────────────────────────────
@@ -170,6 +189,12 @@ describe('queueService.joinQueue', () => {
     expect(result.entry).toBe(waitingEntry);
     expect(result.aheadCount).toBe(2);
     expect(result.estimatedWaitSeconds).toBe(2 * openQueue.avg_service_seconds);
+    expect(mockQueueNotificationService.notifyBookingCreated).toHaveBeenCalledWith(
+      waitingEntry,
+      expect.objectContaining({ organizationId: openQueue.organization_id }),
+      expect.anything(),
+      expect.anything()
+    );
   });
 
   it('formats the ticket display using the queue prefix', async () => {
@@ -296,20 +321,24 @@ describe('queueService.cancelTicket', () => {
 
   it('cancels a waiting ticket the actor owns', async () => {
     mockFindEntryById.mockResolvedValue(waitingEntry);
+    mockFindQueueById.mockResolvedValue(openQueue);
     mockMarkCancelled.mockResolvedValue({ ...waitingEntry, status: 'cancelled' });
+    mockTx();
 
     await queueService.cancelTicket({ entryId: ENTRY_ID, actorUserId: USER_ID });
 
-    expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID);
+    expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID, expect.anything());
   });
 
   it('allows cancellation by matching lineUserId', async () => {
     mockFindEntryById.mockResolvedValue(waitingEntry);
+    mockFindQueueById.mockResolvedValue(openQueue);
     mockMarkCancelled.mockResolvedValue({ ...waitingEntry, status: 'cancelled' });
+    mockTx();
 
     await queueService.cancelTicket({ entryId: ENTRY_ID, actorLineUserId: LINE_USER_ID });
 
-    expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID);
+    expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID, expect.anything());
   });
 
   it('throws 404 when the ticket does not exist', async () => {

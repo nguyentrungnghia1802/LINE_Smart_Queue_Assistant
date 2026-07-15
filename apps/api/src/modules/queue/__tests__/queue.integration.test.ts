@@ -27,6 +27,7 @@ import { QueueRow, queuesRepository } from '../../../db/repositories/queues.repo
 import { usersRepository } from '../../../db/repositories/users.repository';
 import { withTransaction } from '../../../db/transaction';
 import { signToken } from '../../../utils/jwt';
+import { queueNotificationService } from '../../notifications/queue-notification.service';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,11 @@ jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
 jest.mock('../../../db/repositories/users.repository');
 jest.mock('../../../db/repositories/organizations.repository');
+jest.mock('../../notifications/queue-notification.service', () => ({
+  queueNotificationService: {
+    notifyBookingCreated: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 
 // Mock batchWorkloadForEntries so getMyTickets doesn't need a real DB.
 jest.mock('../../../db/repositories/orders.repository', () => ({
@@ -98,6 +104,10 @@ const mockFindLineAccount = usersRepository.findLineAccount as jest.MockedFuncti
 const mockFindMembershipByUserId =
   organizationsRepository.findMembershipByUserId as jest.MockedFunction<
     typeof organizationsRepository.findMembershipByUserId
+  >;
+const mockNotifyBookingCreated =
+  queueNotificationService.notifyBookingCreated as jest.MockedFunction<
+    typeof queueNotificationService.notifyBookingCreated
   >;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -171,7 +181,8 @@ function authToken(overrides: Partial<{ id: string; lineUserId: string; role: Us
 }
 
 /** Make withTransaction execute the callback synchronously with a dummy client. */
-function mockTx() {
+function mockTx(position = '2') {
+  (mockPoolClient.query as jest.Mock).mockResolvedValue({ rows: [{ pos: position }] });
   mockWithTransaction.mockImplementation(async (fn) => fn(mockPoolClient));
 }
 
@@ -202,6 +213,7 @@ beforeEach(() => {
   });
   mockFindMembershipByUserId.mockResolvedValue(null);
   mockGetEntryIdsAhead.mockResolvedValue([]);
+  mockNotifyBookingCreated.mockResolvedValue(undefined);
 });
 
 // ── POST /api/v1/queue/join ───────────────────────────────────────────────────
@@ -213,7 +225,7 @@ describe('POST /api/v1/queue/join', () => {
       mockIncrementCounter.mockResolvedValue(6);
       mockCreateEntry.mockResolvedValue(waitingEntry);
       mockGetWaitingPosition.mockResolvedValue(2);
-      mockTx();
+      mockTx('2');
 
       const res = await request(app)
         .post('/api/v1/queue/join')
@@ -266,7 +278,7 @@ describe('POST /api/v1/queue/join', () => {
       mockIncrementCounter.mockResolvedValue(7);
       mockCreateEntry.mockResolvedValue({ ...waitingEntry, user_id: null, ticket_code: 'A007' });
       mockGetWaitingPosition.mockResolvedValue(0);
-      mockTx();
+      mockTx('0');
 
       // No Authorization header — anonymous LIFF user
       const res = await request(app).post('/api/v1/queue/join').send({
@@ -294,7 +306,7 @@ describe('POST /api/v1/queue/join', () => {
       mockIncrementCounter.mockResolvedValue(8);
       mockCreateEntry.mockResolvedValue(waitingEntry);
       mockGetWaitingPosition.mockResolvedValue(5); // 5 people ahead
-      mockTx();
+      mockTx('5');
 
       const res = await request(app)
         .post('/api/v1/queue/join')
