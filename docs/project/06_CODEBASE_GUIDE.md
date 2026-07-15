@@ -141,5 +141,5 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 - `apps/api/src/app.ts`: middleware ordering affects signatures, auth, limits, and errors.
 - `apps/api/src/routes/v1.routes.ts` and `apps/web/src/router.tsx`: route ordering/coverage.
 - `apps/api/src/modules/orders/orders.service.ts`: coupled payment/stock/order/ticket transaction.
-- `apps/api/src/modules/notifications/**`: delivery semantics and current process-local deduplication.
+- `apps/api/src/modules/notifications/**`: LINE notification templates, delivery semantics, and current process-local deduplication.
 - `docs/archive/**`: historical; do not update as current truth.

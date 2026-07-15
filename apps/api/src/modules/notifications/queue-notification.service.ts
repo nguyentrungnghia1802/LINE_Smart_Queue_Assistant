@@ -26,10 +26,18 @@
 
 import type { QueueEntryRow } from '../../db/repositories/queue-entries.repository';
 import { logger } from '../../utils/logger';
-import { metricsService } from '../../utils/metrics';
 import type { ILineMessagingAdapter } from '../line/line.adapter';
 import { lineMessagingAdapter } from '../line/line.messaging';
 
+import { lineNotificationService } from './line-notification.service';
+import {
+  etaWarningMessage,
+  ticketCalledMessage,
+  ticketCancelledMessage,
+  ticketCompletedMessage,
+  ticketNoShowMessage,
+  ticketServingMessage,
+} from './line-notification.templates';
 import type { INotificationLogRepository } from './notification-log.repository';
 import { notificationLogRepository } from './notification-log.repository';
 
@@ -68,25 +76,14 @@ export const queueNotificationService = {
       return;
     }
 
-    try {
-      await adapter.pushMessage(entry.line_user_id, [
-        {
-          type: 'text',
-          text:
-            `🔔 受付番号 ${entry.ticket_code} の順番です\n\n` +
-            'カウンターまでお越しください。お待ちいただきありがとうございます。',
-        },
-      ]);
+    const sent = await lineNotificationService.pushText(
+      entry.line_user_id,
+      ticketCalledMessage(entry.ticket_code),
+      { entryId: entry.id, eventType: 'called' },
+      adapter
+    );
+    if (sent) {
       log.markSent(entry.id, 'called');
-      metricsService.increment('notifications_sent_total');
-      logger.info(
-        { entryId: entry.id, lineUserId: entry.line_user_id },
-        'Called notification sent'
-      );
-    } catch (err) {
-      // A notification failure must never roll back the queue state transition.
-      metricsService.increment('notifications_failed_total');
-      logger.error({ err, entryId: entry.id }, 'Failed to send called notification');
     }
   },
 
@@ -114,23 +111,83 @@ export const queueNotificationService = {
       return;
     }
 
-    const who = aheadCount === 1 ? '前に1名' : `前に${aheadCount}名`;
-
-    try {
-      await adapter.pushMessage(entry.line_user_id, [
-        {
-          type: 'text',
-          text:
-            `⏰ 受付番号 ${entry.ticket_code} の順番が近づいています\n\n` +
-            `${who}お待ちです。カウンター付近でお待ちください。`,
-        },
-      ]);
+    const sent = await lineNotificationService.pushText(
+      entry.line_user_id,
+      etaWarningMessage(entry.ticket_code, aheadCount),
+      { entryId: entry.id, eventType: 'eta_warning' },
+      adapter
+    );
+    if (sent) {
       log.markSent(entry.id, 'eta_warning');
-      metricsService.increment('notifications_sent_total');
-      logger.info({ entryId: entry.id, aheadCount }, 'ETA warning notification sent');
-    } catch (err) {
-      metricsService.increment('notifications_failed_total');
-      logger.error({ err, entryId: entry.id }, 'Failed to send ETA warning');
+    }
+  },
+
+  async notifyTicketServing(
+    entry: QueueEntryRow,
+    adapter: ILineMessagingAdapter = lineMessagingAdapter,
+    log: INotificationLogRepository = notificationLogRepository
+  ): Promise<void> {
+    if (!entry.line_user_id) return;
+
+    if (log.hasBeenSent(entry.id, 'serving')) {
+      logger.debug({ entryId: entry.id }, 'Duplicate serving notification suppressed');
+      return;
+    }
+
+    const sent = await lineNotificationService.pushText(
+      entry.line_user_id,
+      ticketServingMessage(entry.ticket_code),
+      { entryId: entry.id, eventType: 'serving' },
+      adapter
+    );
+    if (sent) {
+      log.markSent(entry.id, 'serving');
+    }
+  },
+
+  async notifyTicketCompleted(
+    entry: QueueEntryRow,
+    adapter: ILineMessagingAdapter = lineMessagingAdapter,
+    log: INotificationLogRepository = notificationLogRepository
+  ): Promise<void> {
+    if (!entry.line_user_id) return;
+
+    if (log.hasBeenSent(entry.id, 'completed')) {
+      logger.debug({ entryId: entry.id }, 'Duplicate completed notification suppressed');
+      return;
+    }
+
+    const sent = await lineNotificationService.pushText(
+      entry.line_user_id,
+      ticketCompletedMessage(entry.ticket_code),
+      { entryId: entry.id, eventType: 'completed' },
+      adapter
+    );
+    if (sent) {
+      log.markSent(entry.id, 'completed');
+    }
+  },
+
+  async notifyTicketNoShow(
+    entry: QueueEntryRow,
+    adapter: ILineMessagingAdapter = lineMessagingAdapter,
+    log: INotificationLogRepository = notificationLogRepository
+  ): Promise<void> {
+    if (!entry.line_user_id) return;
+
+    if (log.hasBeenSent(entry.id, 'no_show')) {
+      logger.debug({ entryId: entry.id }, 'Duplicate no-show notification suppressed');
+      return;
+    }
+
+    const sent = await lineNotificationService.pushText(
+      entry.line_user_id,
+      ticketNoShowMessage(entry.ticket_code),
+      { entryId: entry.id, eventType: 'no_show' },
+      adapter
+    );
+    if (sent) {
+      log.markSent(entry.id, 'no_show');
     }
   },
 
@@ -151,19 +208,14 @@ export const queueNotificationService = {
       return;
     }
 
-    try {
-      await adapter.pushMessage(entry.line_user_id, [
-        {
-          type: 'text',
-          text: `✅ 受付番号 ${entry.ticket_code} をキャンセルしました。`,
-        },
-      ]);
+    const sent = await lineNotificationService.pushText(
+      entry.line_user_id,
+      ticketCancelledMessage(entry.ticket_code),
+      { entryId: entry.id, eventType: 'cancelled' },
+      adapter
+    );
+    if (sent) {
       log.markSent(entry.id, 'cancelled');
-      metricsService.increment('notifications_sent_total');
-      logger.info({ entryId: entry.id }, 'Cancelled notification sent');
-    } catch (err) {
-      metricsService.increment('notifications_failed_total');
-      logger.error({ err, entryId: entry.id }, 'Failed to send cancelled notification');
     }
   },
 };

@@ -39,6 +39,9 @@ const app = createApp();
 const mockFindUserById = usersRepository.findById as jest.MockedFunction<
   typeof usersRepository.findById
 >;
+const mockFindLineAccount = usersRepository.findLineAccount as jest.MockedFunction<
+  typeof usersRepository.findLineAccount
+>;
 const mockFindMembershipByUserId =
   organizationsRepository.findMembershipByUserId as jest.MockedFunction<
     typeof organizationsRepository.findMembershipByUserId
@@ -66,6 +69,17 @@ beforeEach(() => {
     is_active: true,
     created_at: new Date(),
     updated_at: new Date(),
+  });
+  mockFindLineAccount.mockResolvedValue({
+    id: 'line-account-id',
+    user_id: '123e4567-e89b-12d3-a456-426614174999',
+    line_user_id: 'Uf0000000000000000000000000000099',
+    display_name: 'Route Test User',
+    picture_url: null,
+    status_message: null,
+    is_linked: true,
+    linked_at: new Date(),
+    last_synced_at: new Date(),
   });
   mockFindMembershipByUserId.mockResolvedValue(null);
 });

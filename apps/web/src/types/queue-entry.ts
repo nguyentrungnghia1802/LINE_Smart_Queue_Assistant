@@ -74,6 +74,5 @@ export interface QueueStatusResult {
 
 export interface JoinQueueInput {
   queueId: string;
-  lineUserId?: string;
   notes?: string;
 }

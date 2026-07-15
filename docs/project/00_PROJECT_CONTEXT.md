@@ -29,18 +29,18 @@ Physical queues make customers wait near a counter with little visibility. Busin
 
 The project is a working local/demo modular monolith, not yet a production-complete payment or notification platform.
 
-| Area                      | Status                                    | Meaning                                                                                                              |
-| ------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Organization/admin        | Implemented                               | Admin list, detail, registration, manager assignment, update, soft deactivation                                      |
-| Catalog and QR booking    | Implemented                               | Products/services, stock display, quantity selection, organization slug/token entry                                  |
-| Queue and staff operation | Implemented                               | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                    |
-| Orders and inventory      | Implemented with gaps                     | Atomic creation and finite stock decrement; cancellation does not yet restore stock                                  |
-| Payment                   | Demo/adapter-ready                        | Demo auto-success and transaction records exist; no real provider webhook verification                               |
-| LINE                      | Functional baseline with reliability gaps | Authenticated bookings retain verified LINE recipients and use the real push adapter; durable delivery is incomplete |
-| Location alerts           | Data path only                            | Location and pending alerts can be stored; no job sends those alerts                                                 |
-| ETA                       | Heuristic implemented                     | Position/workload calculation and 30-second updater; forecast history is not populated                               |
-| Staffing recommendation   | Schema only                               | Table exists; no analyzer, API, scheduler, or dashboard producer                                                     |
-| Deployment                | Local/Compose ready                       | Docker and health checks exist; production infrastructure and secret management are environment-specific             |
+| Area                      | Status                                    | Meaning                                                                                                                                                                                                         |
+| ------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Organization/admin        | Implemented                               | Admin list, detail, registration, manager assignment, update, soft deactivation                                                                                                                                 |
+| Catalog and QR booking    | Implemented                               | Products/services, stock display, quantity selection, organization slug/token entry                                                                                                                             |
+| Queue and staff operation | Implemented                               | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                                                                                                               |
+| Orders and inventory      | Implemented with gaps                     | Atomic creation and finite stock decrement; cancellation does not yet restore stock                                                                                                                             |
+| Payment                   | Demo/adapter-ready                        | Demo auto-success and transaction records exist; no real provider webhook verification                                                                                                                          |
+| LINE                      | Phase 1 implemented with reliability gaps | LIFF login verifies ID tokens, authenticated queue/order creation stores linked LINE recipients, webhook events are signature-checked, and lifecycle push uses the real adapter; durable delivery is incomplete |
+| Location alerts           | Data path only                            | Location and pending alerts can be stored; no job sends those alerts                                                                                                                                            |
+| ETA                       | Heuristic implemented                     | Position/workload calculation and 30-second updater; forecast history is not populated                                                                                                                          |
+| Staffing recommendation   | Schema only                               | Table exists; no analyzer, API, scheduler, or dashboard producer                                                                                                                                                |
+| Deployment                | Local/Compose ready                       | Docker and health checks exist; production infrastructure and secret management are environment-specific                                                                                                        |
 
 ## 5. Implemented features
 
@@ -55,7 +55,8 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Per-item payment status and full-order payment status for required-only or all-item checkout.
 - Demo payment gateway boundary with Japanese payment methods and external redirect placeholder.
 - Staff order details, item images, manual payment/status controls, queue actions, and receipt printing.
-- LINE push for approaching, called, cancelled, and completed ticket events on queue entries that contain a LINE user ID.
+- LINE push for approaching, called, serving, cancelled, completed, and no-show ticket events on queue entries that contain a verified linked LINE user ID.
+- LINE webhook signature verification and basic follow, unfollow, and message command handling.
 - Scheduled ETA refresh, approaching-turn scan, called-message retry scan, and daily counter reset.
 - Rate limits, request IDs, structured logging, basic Prometheus text metrics, health/readiness endpoints, and audit logs.
 - Database structures for booking groups, location snapshots/alerts, forecast history, and staffing recommendations.
@@ -64,7 +65,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 
 - Real PSP integration: signed provider requests, hosted checkout, callback verification, webhook processing, refund, reconciliation, and secrets.
 - Durable notification delivery: the queue notification deduplication registry is currently in memory and resets with the API process.
-- LINE production controls: follow/opt-in state, preferences, rich menu, durable retries/dead-letter handling, delivery reporting, and multi-organization channel configuration.
+- LINE production controls: notification preferences, rich menu, durable retries/dead-letter handling, delivery reporting, and multi-organization channel configuration.
 - Location alert execution: no scheduler consumes `location_alerts`; no retention/deletion workflow is implemented.
 - Forecasting and staffing analysis: schema exists, but no data pipeline or user-facing API populates it.
 - Inventory lifecycle: cancellation and expiry do not release reservations or restore `stock_quantity`.
@@ -100,8 +101,8 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - The seed organization still uses Vietnamese sample address/currency data even though the product UI targets Japan.
 - Queue capacity is checked optimistically before the join transaction and can be exceeded under concurrent load.
 - Order numbering uses an organization order count and can collide under concurrent creation unless protected by a stronger sequence/constraint strategy.
-- Anonymous public booking cannot receive LINE notifications unless the session is linked to LINE and the queue entry stores `line_user_id`.
-- Direct public queue join currently accepts a body `lineUserId` fallback; production must derive it only from a verified LINE token/account link.
+- Anonymous public booking cannot receive LINE notifications unless the session is linked to LINE and the queue entry stores a verified linked `line_user_id`.
+- LINE follow/unfollow currently toggles link state, but does not yet provide user-facing notification preferences or a full consent management UI.
 - Location data is sensitive personal data and needs explicit consent, retention, and deletion policies before production use.
 - The checked-in `.env.example` previously contained a secret-shaped value; credentials must be rotated if that value was ever real.
 

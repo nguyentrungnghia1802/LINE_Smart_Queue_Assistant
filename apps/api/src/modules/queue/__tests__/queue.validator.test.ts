@@ -24,7 +24,6 @@ describe('JoinQueueSchema', () => {
   it('accepts all optional fields', () => {
     const result = JoinQueueSchema.safeParse({
       queueId: VALID_UUID,
-      lineUserId: 'Udeadbeef1234567890abcdef012345678',
       notes: 'Window seat please',
     });
     expect(result.success).toBe(true);
@@ -68,9 +67,16 @@ describe('JoinQueueSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects empty lineUserId (min 1)', () => {
-    const result = JoinQueueSchema.safeParse({ queueId: VALID_UUID, lineUserId: '' });
-    expect(result.success).toBe(false);
+  it('strips client-supplied lineUserId instead of accepting it as authority', () => {
+    const result = JoinQueueSchema.safeParse({
+      queueId: VALID_UUID,
+      lineUserId: 'Udeadbeef1234567890abcdef012345678',
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).not.toHaveProperty('lineUserId');
+    }
   });
 });
 

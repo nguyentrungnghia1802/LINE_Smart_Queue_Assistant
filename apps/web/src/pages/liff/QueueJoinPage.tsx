@@ -4,7 +4,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { QueueInfoSkeleton } from '../../components/ui/Skeleton';
-import { useLiff } from '../../hooks/useLiff';
 import { useJoinQueue, useQueueStatus } from '../../hooks/useQueueEntry';
 
 /**
@@ -16,12 +15,12 @@ import { useJoinQueue, useQueueStatus } from '../../hooks/useQueueEntry';
  *   1. Fetch live queue status (name, count, ETA)
  *   2. Optional: user enters notes
  *   3. Tap "Join Queue" → POST /api/v1/queue/join
+ *      LINE identity is attached by the backend from the verified JWT only.
  *   4a. New ticket → navigate to /liff/tickets/:entryId
  *   4b. isExisting ticket → same navigation (idempotent)
  */
 export function QueueJoinPage() {
   const { queueId = '' } = useParams<{ queueId: string }>();
-  const { profile } = useLiff();
   const navigate = useNavigate();
   const [notes, setNotes] = useState('');
 
@@ -31,7 +30,6 @@ export function QueueJoinPage() {
   async function handleJoin() {
     const result = await joinMutation.mutateAsync({
       queueId,
-      lineUserId: profile?.userId,
       notes: notes.trim() || undefined,
     });
     navigate(`/liff/tickets/${result.entry.id}`, { replace: true });

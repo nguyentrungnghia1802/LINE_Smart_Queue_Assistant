@@ -6,6 +6,7 @@ import { queueEntriesRepository } from '../../db/repositories/queue-entries.repo
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
 import { productCatalogCache } from '../../utils/cache';
+import { queueNotificationService } from '../notifications/queue-notification.service';
 
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
 
@@ -342,7 +343,8 @@ export const ordersService = {
     // Also cancel the linked queue entry if present
     if (order.queue_entry_id) {
       try {
-        await queueEntriesRepository.markCancelled(order.queue_entry_id);
+        const cancelledEntry = await queueEntriesRepository.markCancelled(order.queue_entry_id);
+        void queueNotificationService.notifyTicketCancelled(cancelledEntry);
       } catch {
         // Entry may already be cancelled or in a non-cancellable state — not fatal
       }

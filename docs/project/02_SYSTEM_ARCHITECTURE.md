@@ -99,17 +99,18 @@ Frontend responsibilities are split into route pages, reusable components/layout
 2. Client posts the ID token to `/api/v1/auth/line`.
 3. API verifies it against the configured LINE Login channel ID.
 4. API finds or creates the customer and links `line_accounts.line_user_id` transactionally.
-5. Queue entries that store that verified LINE user ID can be targeted through Messaging API push.
+5. `currentUserMiddleware` accepts the JWT LINE claim only when the matching `line_accounts` row still belongs to that user and `is_linked = TRUE`.
+6. Queue entries that store that verified linked LINE user ID can be targeted through Messaging API push.
 
 LINE Login does not send messages. Messaging API does not authenticate the web session. A complete setup needs both capabilities under the intended provider and a consistent LINE user relationship.
 
-Authenticated order creation copies `req.user.lineUserId`, which came from the verified LINE ID token and internal JWT, into the new queue entry. Guest orders remain valid without a LINE recipient. Direct public queue join still accepts an unverified body fallback and must be hardened before production.
+Authenticated order and direct queue creation copy only `req.user.lineUserId`, which came from the verified LINE ID token, internal JWT, and active `line_accounts` link, into the new queue entry. Guest orders and anonymous direct queue joins remain valid without a LINE recipient; public request bodies cannot assert `lineUserId`.
 
 ## 7. Synchronous flows
 
 - Browser-to-API communication is JSON REST over `/api/v1`.
 - API-to-PostgreSQL uses parameterized `pg` queries and explicit transactions for multi-row writes.
-- API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`.
+- API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`; queue lifecycle copy is centralized in `line-notification.templates.ts` and sent through `lineNotificationService`.
 - Demo payment is currently browser-orchestrated and recorded by the order creation API; real payment must originate/verify on the server.
 
 ## 8. Background jobs

@@ -14,6 +14,9 @@ jest.mock('../../db/repositories/organizations.repository');
 const mockFindById = usersRepository.findById as jest.MockedFunction<
   typeof usersRepository.findById
 >;
+const mockFindLineAccount = usersRepository.findLineAccount as jest.MockedFunction<
+  typeof usersRepository.findLineAccount
+>;
 const mockFindMembershipByUserId =
   organizationsRepository.findMembershipByUserId as jest.MockedFunction<
     typeof organizationsRepository.findMembershipByUserId
@@ -50,6 +53,17 @@ describe('currentUserMiddleware', () => {
       created_at: new Date(),
       updated_at: new Date(),
     });
+    mockFindLineAccount.mockResolvedValue({
+      id: 'line-account-id',
+      user_id: basePayload.sub,
+      line_user_id: basePayload.lineUserId ?? '',
+      display_name: 'Test User',
+      picture_url: null,
+      status_message: null,
+      is_linked: true,
+      linked_at: new Date(),
+      last_synced_at: new Date(),
+    });
     mockFindMembershipByUserId.mockResolvedValue(null);
   });
 
@@ -85,6 +99,30 @@ describe('currentUserMiddleware', () => {
     expect(req.user?.id).toBe(basePayload.sub);
     expect(req.user?.lineUserId).toBe(basePayload.lineUserId);
     expect(req.user?.role).toBe(UserRole.CUSTOMER);
+  });
+
+  it('drops lineUserId when the linked LINE account has been unlinked', async () => {
+    mockFindLineAccount.mockResolvedValue({
+      id: 'line-account-id',
+      user_id: basePayload.sub,
+      line_user_id: basePayload.lineUserId ?? '',
+      display_name: 'Test User',
+      picture_url: null,
+      status_message: null,
+      is_linked: false,
+      linked_at: new Date(),
+      last_synced_at: new Date(),
+    });
+
+    const token = signToken(basePayload);
+    const req = makeReq(`Bearer ${token}`) as Request;
+    const next = jest.fn() as jest.MockedFunction<NextFunction>;
+
+    await currentUserMiddleware(req, mockRes, next);
+
+    expect(next).toHaveBeenCalledWith();
+    expect(req.user?.id).toBe(basePayload.sub);
+    expect(req.user?.lineUserId).toBeUndefined();
   });
 
   it('populates organizationId from organization_members for staff users', async () => {

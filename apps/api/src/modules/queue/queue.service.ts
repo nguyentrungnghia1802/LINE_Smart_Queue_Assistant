@@ -289,8 +289,9 @@ export const queueService = {
       throw AppError.conflict(`Ticket cannot be cancelled from status '${entry.status}'`);
     }
 
-    await queueEntriesRepository.markCancelled(entryId);
+    const cancelled = await queueEntriesRepository.markCancelled(entryId);
     metricsService.increment('queue_cancelled_total');
+    void queueNotificationService.notifyTicketCancelled(cancelled);
   },
 
   /**
@@ -431,7 +432,9 @@ export const queueService = {
       );
     }
 
-    return queueEntriesRepository.markServing(entryId);
+    const serving = await queueEntriesRepository.markServing(entryId);
+    void queueNotificationService.notifyTicketServing(serving);
+    return serving;
   },
 
   /**
@@ -457,6 +460,7 @@ export const queueService = {
 
     const served = await queueEntriesRepository.markServed(entryId);
     metricsService.increment('queue_served_total');
+    void queueNotificationService.notifyTicketCompleted(served);
     // Archive to queue_histories
     void queueEntriesRepository
       .archiveToHistory(served, 'serving', 'served')
@@ -488,6 +492,7 @@ export const queueService = {
     }
 
     const noShow = await queueEntriesRepository.markNoShow(entryId);
+    void queueNotificationService.notifyTicketNoShow(noShow);
     // Archive to queue_histories
     void queueEntriesRepository
       .archiveToHistory(noShow, 'called', 'no_show')

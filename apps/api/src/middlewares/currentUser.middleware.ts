@@ -46,6 +46,14 @@ export async function currentUserMiddleware(
 
     const membership = await organizationsRepository.findMembershipByUserId(userRow.id);
     const role = userRow.role as UserRole;
+    let verifiedLineUserId = payload.lineUserId;
+
+    if (verifiedLineUserId) {
+      const lineAccount = await usersRepository.findLineAccount(verifiedLineUserId);
+      if (!lineAccount || lineAccount.user_id !== userRow.id || lineAccount.is_linked !== true) {
+        verifiedLineUserId = undefined;
+      }
+    }
 
     if ([UserRole.STAFF, UserRole.MANAGER].includes(role) && !membership) {
       return next(AppError.forbidden('User has no organization membership'));
@@ -53,7 +61,7 @@ export async function currentUserMiddleware(
 
     const user: AuthUser = {
       id: userRow.id,
-      lineUserId: payload.lineUserId,
+      lineUserId: verifiedLineUserId,
       role,
       organizationId: membership?.organization_id,
       displayName: userRow.display_name,

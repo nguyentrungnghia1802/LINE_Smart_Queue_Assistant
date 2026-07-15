@@ -26,6 +26,10 @@ export const handleWebhook = asyncHandler(async (req: Request, res: Response) =>
     throw AppError.unauthorized('Missing X-Line-Signature header');
   }
 
+  if (!config.line.channelSecret) {
+    throw AppError.serviceUnavailable('LINE webhook channel secret is not configured');
+  }
+
   // Use raw bytes captured before JSON parsing (see app.ts verify hook).
   // Fall back to re-serialised body only if rawBody is unexpectedly absent
   // (should not happen in production; guards against misconfiguration).
