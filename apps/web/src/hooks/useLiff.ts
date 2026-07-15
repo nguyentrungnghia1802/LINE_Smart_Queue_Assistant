@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { isLiffMockMode, liffAdapter } from '../services/liff';
+import { useAuthStore } from '../store/authStore';
 import type { LiffContext, LiffInitStatus, LiffProfile } from '../types/liff';
 
 /**
@@ -10,13 +11,14 @@ import type { LiffContext, LiffInitStatus, LiffProfile } from '../types/liff';
 const LIFF_ID = import.meta.env.VITE_LIFF_ID ?? '';
 
 /**
- * Initialises the LIFF SDK (or mock adapter) and exposes profile / auth state.
+ * Initialises the LIFF SDK (or mock adapter), exposes profile / auth state,
+ * and automatically authenticates with the backend after a successful LINE login.
  *
- * Usage:
- *   const { isInitialized, isLoggedIn, profile, login, logout } = useLiff();
- *
- * SDK coupling is handled exclusively by the adapter layer (services/liff/).
- * This hook never imports @line/liff directly.
+ * After LIFF init:
+ *   - If user is logged in via LINE, the hook calls POST /api/v1/auth/line with
+ *     the LIFF access-token to obtain a backend JWT.  This keeps the session
+ *     consistent whether the customer opens the web app or the LINE LIFF app.
+ *   - If the backend call fails the LIFF UI still works (guest mode).
  *
  * Environment variables:
  *   VITE_LIFF_ID        — required for production; ignored when mock mode is on.
@@ -30,7 +32,10 @@ export function useLiff(): LiffContext {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isInClient, setIsInClient] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [idToken, setIdToken] = useState<string | null>(null);
   const [error, setError] = useState<Error | null>(null);
+
+  const { loginWithLine, isAuthenticated } = useAuthStore();
 
   useEffect(() => {
     // In real mode a LIFF ID is mandatory; fail fast with a clear message.
@@ -60,13 +65,26 @@ export function useLiff(): LiffContext {
         setIsLoggedIn(loggedIn);
 
         if (loggedIn) {
-          const [liffProfile, token] = await Promise.all([
+          const [liffProfile, token, oidcToken] = await Promise.all([
             liffAdapter.getProfile(),
             Promise.resolve(liffAdapter.getAccessToken()),
+            Promise.resolve(liffAdapter.getIDToken()),
           ]);
           if (!cancelled) {
             setProfile(liffProfile);
             setAccessToken(token);
+            setIdToken(oidcToken);
+
+            // Auto-authenticate with backend using LINE OIDC ID token.
+            // Only do this if the user isn't already authenticated.
+            if (!isAuthenticated && oidcToken) {
+              try {
+                await loginWithLine(oidcToken);
+              } catch {
+                // Non-fatal: user can still browse as guest.
+                // The backend auth will be attempted again on the next LINE action.
+              }
+            }
           }
         }
 
@@ -84,6 +102,7 @@ export function useLiff(): LiffContext {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = useCallback(() => {
@@ -95,6 +114,7 @@ export function useLiff(): LiffContext {
     setIsLoggedIn(false);
     setProfile(null);
     setAccessToken(null);
+    setIdToken(null);
   }, []);
 
   return {
@@ -104,6 +124,7 @@ export function useLiff(): LiffContext {
     isInClient,
     profile,
     accessToken,
+    idToken,
     error,
     login,
     logout,

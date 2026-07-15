@@ -15,22 +15,21 @@ version: '3.9'
 # Reads: .env  (copy from .env.example)
 
 services:
-
   # ── PostgreSQL (dev) ────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: lq-dev-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB:       ${DB_NAME:-line_queue_dev}
-      POSTGRES_USER:     ${DB_USER:-postgres}
+      POSTGRES_DB: ${DB_NAME:-line_queue_dev}
+      POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - '${DB_PORT:-5432}:5432'
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-line_queue_dev}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-line_queue_dev}']
       interval: 10s
       timeout: 5s
       start_period: 10s
@@ -41,40 +40,46 @@ services:
     build:
       context: .
       dockerfile: docker/api/Dockerfile
-      target: dev               # Uses the dev stage — NOT builder/runner
+      target: dev # Uses the dev stage — NOT builder/runner
     container_name: lq-dev-api
     restart: unless-stopped
     env_file: .env
     environment:
-      NODE_ENV:     development
-      API_PORT:     4000
+      NODE_ENV: development
+      API_PORT: 4000
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-dev_password}@postgres:5432/${DB_NAME:-line_queue_dev}
-      CORS_ORIGIN:  http://localhost:5173
+      CORS_ORIGIN: http://localhost:5173
     volumes:
       # Mount source for live-reload — changes reflect without rebuilding image
       - ./apps/api/src:/app/apps/api/src
       - ./packages/shared/src:/app/packages/shared/src
       - ./packages/config:/app/packages/config
     ports:
-      - "4000:4000"
-      - "9229:9229"             # Node.js inspector — attach via VS Code or Chrome DevTools
+      - '4000:4000'
+      - '9229:9229' # Node.js inspector — attach via VS Code or Chrome DevTools
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:4000/health >/dev/null || exit 1']
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
 
   # ── Web dev (Vite HMR) ──────────────────────────────────────────────────────
   web:
     build:
       context: .
       dockerfile: docker/web/Dockerfile
-      target: dev               # Uses the dev stage — NOT builder/runner
+      target: dev # Uses the dev stage — NOT builder/runner
     container_name: lq-dev-web
     restart: unless-stopped
     env_file: .env
     environment:
-      NODE_ENV:    development
+      NODE_ENV: development
       # Vite dev server reads these at startup (not build-time, unlike production)
-      VITE_API_URL:  http://localhost:4000
+      VITE_API_URL: http://localhost:4000
       VITE_APP_NAME: ${VITE_APP_NAME:-LINE Smart Queue Assistant}
     volumes:
       # Mount source for HMR — Vite detects changes instantly
@@ -83,10 +88,11 @@ services:
       - ./apps/web/vite.config.ts:/app/apps/web/vite.config.ts
       - ./packages/shared/src:/app/packages/shared/src
     ports:
-      - "5173:5173"             # Vite dev server with HMR
+      - '5173:5173' # Vite dev server with HMR
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
-  postgres_dev_data:            # Separate volume — dev data never touches prod
+  postgres_dev_data: # Separate volume — dev data never touches prod
 

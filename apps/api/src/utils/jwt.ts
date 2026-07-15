@@ -15,8 +15,8 @@ import { config } from '../config';
 export interface TokenPayload {
   /** Internal user UUID (maps to users.id) */
   sub: string;
-  /** LINE userId — used for quick identity checks without a DB round-trip */
-  lineUserId: string;
+  /** LINE userId — present for LINE-authenticated users, absent for email/password logins */
+  lineUserId?: string;
   role: UserRole;
   orgId?: string;
 }

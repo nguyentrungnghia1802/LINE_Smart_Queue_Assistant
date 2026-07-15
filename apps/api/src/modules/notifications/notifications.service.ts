@@ -1,4 +1,5 @@
 import { logger } from '../../utils/logger';
+import { metricsService } from '../../utils/metrics';
 import { lineMessagingAdapter } from '../line/line.messaging';
 
 export interface NotificationRecord {
@@ -21,7 +22,6 @@ export interface SendNotificationParams {
 
 export const notificationsService = {
   async listForUser(_userId: string): Promise<NotificationRecord[]> {
-    // TODO: query notifications table once schema is finalised.
     return [];
   },
 
@@ -32,10 +32,8 @@ export const notificationsService = {
    * When only `userId` is provided the push is skipped (lineUserId lookup
    * against the DB is deferred to a future implementation).
    *
-   * Future work:
-   *   • Persist notification record to the notifications table.
-   *   • Resolve lineUserId from userId via usersRepository when absent.
-   *   • Support EMAIL / PUSH channel selection.
+   * Current implementation sends LINE push messages only.
+   * Persistence and alternate delivery channels can be layered on later.
    */
   async send(params: SendNotificationParams): Promise<void> {
     const { lineUserId, type, message } = params;
@@ -43,10 +41,12 @@ export const notificationsService = {
     if (lineUserId) {
       try {
         await lineMessagingAdapter.pushMessage(lineUserId, [{ type: 'text', text: message }]);
+        metricsService.increment('notifications_sent_total');
         logger.debug({ lineUserId, notificationType: type }, 'LINE push message sent');
       } catch (err) {
         // Log and continue — a failed notification must not roll back the
         // business operation that triggered it.
+        metricsService.increment('notifications_failed_total');
         logger.error({ err, lineUserId, notificationType: type }, 'Failed to send LINE push');
       }
     } else {
@@ -55,7 +55,5 @@ export const notificationsService = {
         'No lineUserId — skipping LINE push'
       );
     }
-
-    // TODO: persist notification record to DB once schema is ready.
   },
 };

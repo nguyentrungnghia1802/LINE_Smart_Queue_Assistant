@@ -36,6 +36,10 @@ export class RealLiffAdapter implements LiffAdapter {
     return liff.getAccessToken();
   }
 
+  getIDToken(): string | null {
+    return liff.getIDToken();
+  }
+
   login(): void {
     liff.login();
   }

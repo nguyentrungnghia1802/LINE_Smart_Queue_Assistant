@@ -14,15 +14,16 @@
     "test:watch": "jest --watch --passWithNoTests",
     "test:coverage": "jest --coverage --passWithNoTests",
     "clean": "rimraf dist *.tsbuildinfo",
-    "db:migrate": "node-pg-migrate up --migration-file-language ts --tsconfig tsconfig.migrate.json --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env",
-    "db:migrate:down": "node-pg-migrate down --migration-file-language ts --tsconfig tsconfig.migrate.json --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env",
+    "db:migrate": "node-pg-migrate up --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env",
+    "db:migrate:down": "node-pg-migrate down --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env",
     "db:migrate:redo": "npm run db:migrate:down && npm run db:migrate",
-    "db:migrate:status": "node-pg-migrate status --migration-file-language ts --tsconfig tsconfig.migrate.json --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env",
+    "db:migrate:status": "node-pg-migrate up --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env --dry-run",
     "db:seed": "ts-node --project tsconfig.json ../../db/seeds/index.ts",
     "db:seed:reset": "ts-node --project tsconfig.json ../../db/seeds/index.ts --reset"
   },
   "dependencies": {
     "@line-queue/shared": "*",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
@@ -38,6 +39,7 @@
   },
   "devDependencies": {
     "@line-queue/config": "*",
+    "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jest": "^30.0.0",

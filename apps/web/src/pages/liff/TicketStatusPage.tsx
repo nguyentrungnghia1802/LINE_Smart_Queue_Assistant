@@ -42,7 +42,7 @@ export function TicketStatusPage() {
   }
 
   if (isError) {
-    return <ErrorState message="Could not load ticket status." onRetry={() => void refetch()} />;
+    return <ErrorState message="受付状況を読み込めませんでした。" onRetry={() => void refetch()} />;
   }
 
   const ticketData = tickets?.find((t) => t.entry.id === entryId);
@@ -51,9 +51,9 @@ export function TicketStatusPage() {
     return (
       <EmptyState
         icon="🎫"
-        title="Ticket not found"
-        message="This ticket may have been completed or cancelled."
-        action={{ label: 'Back to my tickets', onClick: () => navigate('/liff/tickets') }}
+        title="受付番号が見つかりません"
+        message="この受付は完了またはキャンセル済みの可能性があります。"
+        action={{ label: '受付番号へ戻る', onClick: () => navigate('/liff/tickets') }}
       />
     );
   }
@@ -72,7 +72,7 @@ export function TicketStatusPage() {
   return (
     <div className="max-w-md mx-auto space-y-4">
       {/* Called banner */}
-      {isCalled && <CalledBanner ticketDisplay={entry.ticket_display} />}
+      {isCalled && <CalledBanner ticketDisplay={entry.ticket_code} />}
 
       {/* ── Hero ticket card ──────────────────────────────────────────────── */}
       <div
@@ -80,29 +80,29 @@ export function TicketStatusPage() {
           isCalled ? 'border-amber-300 ring-2 ring-amber-200' : 'border-gray-200'
         }`}
       >
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Your ticket</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">受付番号</p>
         <p
           className={`text-7xl font-extrabold leading-none ${
             isCalled ? 'text-amber-500' : 'text-gray-900'
           }`}
         >
-          {entry.ticket_display}
+          {entry.ticket_code}
         </p>
         <StatusBadge status={statusKey} size="md" />
-        {entry.notes && <p className="text-xs text-gray-400 pt-1">Note: {entry.notes}</p>}
+        {/* notes field removed from queue_entries in schema v2 */}
       </div>
 
       {/* ── ETA + position stats — only while waiting or called ───────────── */}
       {(isWaiting || isCalled) && (
         <div className="grid grid-cols-2 gap-3">
           <StatCard
-            label="Ahead of you"
-            value={aheadCount === 0 ? "You're next!" : String(aheadCount)}
+            label="前の人数"
+            value={aheadCount === 0 ? '次に呼ばれます' : String(aheadCount)}
             accent={aheadCount === 0}
           />
           <StatCard
-            label="Est. wait"
-            value={aheadCount === 0 ? 'Any moment' : `~${waitMin} min`}
+            label="待ち時間目安"
+            value={aheadCount === 0 ? 'まもなく' : `約${waitMin}分`}
             accent={aheadCount === 0}
           />
         </div>
@@ -113,12 +113,12 @@ export function TicketStatusPage() {
         <div className="bg-white rounded-(--radius-card) border border-gray-200 shadow-sm p-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
-              Now serving (approx.)
+              現在対応中（目安）
             </p>
             <p className="text-2xl font-bold text-gray-900 mt-0.5">
-              {entry.queue_id ? entry.ticket_display.replace(/\d+$/, '') : ''}
+              {entry.queue_id ? entry.ticket_code.replace(/\d+$/, '') : ''}
               {String(approxServingNumber).padStart(
-                entry.ticket_display.replace(/\D/g, '').length,
+                entry.ticket_code.replace(/\D/g, '').length,
                 '0'
               )}
             </p>
@@ -135,7 +135,7 @@ export function TicketStatusPage() {
         onClick={() => navigate('/liff/tickets')}
         className="w-full text-sm text-gray-400 hover:text-gray-600 text-center py-3 transition-colors"
       >
-        ← All my tickets
+        ← すべての受付番号
       </button>
     </div>
   );

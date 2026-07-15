@@ -7,6 +7,7 @@ import { UUIDSchema } from '../shared/shared.validator';
 export const JoinQueueSchema = z.object({
   queueId: UUIDSchema,
   lineUserId: z.string().min(1).max(60).optional(),
+  guestName: z.string().min(1).max(100).optional(),
   notes: z.string().max(500).optional(),
 });
 

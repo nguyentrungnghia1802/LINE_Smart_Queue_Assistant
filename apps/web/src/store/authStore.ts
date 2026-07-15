@@ -1,17 +1,26 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import type { User } from '@line-queue/shared';
+import type { UserRole } from '@line-queue/shared';
 
 import { post } from '../services/apiClient';
 
+export interface AuthUser {
+  id: string;
+  email?: string;
+  displayName?: string;
+  role: UserRole;
+  organizationId?: string;
+}
+
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithLine: (idToken: string) => Promise<void>;
   logout: () => void;
-  setUser: (user: User) => void;
+  setUser: (user: AuthUser) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -22,10 +31,20 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       login: async (email, password) => {
-        // TODO: replace with real auth endpoint once JWT auth middleware is built
-        const { token, user } = await post<{ token: string; user: User }>('/api/v1/auth/login', {
-          email,
-          password,
+        const { token, user } = await post<{ token: string; user: AuthUser }>(
+          '/api/v1/auth/login',
+          {
+            email,
+            password,
+          }
+        );
+        localStorage.setItem('auth_token', token);
+        set({ user, token, isAuthenticated: true });
+      },
+
+      loginWithLine: async (idToken: string) => {
+        const { token, user } = await post<{ token: string; user: AuthUser }>('/api/v1/auth/line', {
+          idToken,
         });
         localStorage.setItem('auth_token', token);
         set({ user, token, isAuthenticated: true });
@@ -36,12 +55,10 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, token: null, isAuthenticated: false });
       },
 
-      setUser: (user) => set({ user }),
+      setUser: (user) => set({ user, isAuthenticated: true }),
     }),
     {
       name: 'auth-storage',
-      // Only persist user identity — never persist raw password/token in localStorage
-      // beyond what is explicitly set above via localStorage.setItem.
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
     }
   )

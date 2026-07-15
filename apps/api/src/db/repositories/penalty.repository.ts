@@ -8,13 +8,10 @@ export interface PenaltyRecordRow {
   organization_id: string | null;
   queue_id: string | null;
   queue_entry_id: string | null;
-  type: 'skip' | 'no_show' | 'abuse';
-  severity: 'warning' | 'minor' | 'major' | 'ban';
-  is_active: boolean;
-  applied_at: Date;
-  expires_at: Date | null;
-  notes: string | null;
-  created_by: string | null;
+  penalty_type: 'no_show' | 'late_arrival' | 'excessive_cancel' | 'manual';
+  points: number;
+  reason: string | null;
+  metadata: Record<string, unknown>;
   created_at: Date;
 }
 
@@ -25,37 +22,32 @@ export interface CreatePenaltyParams {
   organizationId?: string;
   queueId?: string;
   queueEntryId?: string;
-  type: PenaltyRecordRow['type'];
-  severity: PenaltyRecordRow['severity'];
-  expiresAt?: Date | null;
-  notes?: string;
-  createdBy?: string;
+  penaltyType: PenaltyRecordRow['penalty_type'];
+  points?: number;
+  reason?: string;
+  metadata?: Record<string, unknown>;
 }
 
 // ── Repository ─────────────────────────────────────────────────────────────────
 
 class PenaltyRepository extends BaseRepository {
-  /**
-   * Insert a new penalty record.
-   */
   async create(params: CreatePenaltyParams): Promise<PenaltyRecordRow> {
     return this.firstOrThrow(
       await this.query<PenaltyRecordRow>(
         `INSERT INTO penalty_records
            (user_id, organization_id, queue_id, queue_entry_id,
-            type, severity, expires_at, notes, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+            penalty_type, points, reason, metadata)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          RETURNING *`,
         [
           params.userId,
           params.organizationId ?? null,
           params.queueId ?? null,
           params.queueEntryId ?? null,
-          params.type,
-          params.severity,
-          params.expiresAt ?? null,
-          params.notes ?? null,
-          params.createdBy ?? null,
+          params.penaltyType,
+          params.points ?? 1,
+          params.reason ?? null,
+          JSON.stringify(params.metadata ?? {}),
         ]
       ),
       'penalty.create'
@@ -63,15 +55,9 @@ class PenaltyRepository extends BaseRepository {
   }
 
   /**
-   * Active penalties for a user, optionally scoped to an organization.
-   *
-   * An "active" penalty satisfies:
-   *   is_active = TRUE AND (expires_at IS NULL OR expires_at > NOW())
-   *
-   * When organizationId is provided, returns penalties scoped to that org
-   * plus platform-wide penalties (organization_id IS NULL).
-   *
-   * Hits idx_penalty_user_active.
+   * Recent penalties for a user, optionally scoped to an organization.
+   * New schema has no is_active or expires_at — penalties are permanent records.
+   * "Active" means created within the last 24 hours.
    */
   async findActiveByUser(userId: string, organizationId?: string): Promise<PenaltyRecordRow[]> {
     const params: unknown[] = [userId];
@@ -83,21 +69,23 @@ class PenaltyRepository extends BaseRepository {
     return this.query<PenaltyRecordRow>(
       `SELECT * FROM penalty_records
        WHERE user_id = $1
-         AND is_active = TRUE
-         AND (expires_at IS NULL OR expires_at > NOW())
+         AND created_at > NOW() - INTERVAL '24 hours'
          ${orgClause}
-       ORDER BY applied_at DESC`,
+       ORDER BY created_at DESC`,
       params
     );
   }
 
-  /**
-   * Count active penalties for a user in an organization.
-   * Used to decide whether to apply a join-time priority deduction.
-   */
   async countActiveByUser(userId: string, organizationId?: string): Promise<number> {
     const rows = await this.findActiveByUser(userId, organizationId);
     return rows.length;
+  }
+
+  async findByUser(userId: string, limit = 20): Promise<PenaltyRecordRow[]> {
+    return this.query<PenaltyRecordRow>(
+      `SELECT * FROM penalty_records WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2`,
+      [userId, limit]
+    );
   }
 }
 

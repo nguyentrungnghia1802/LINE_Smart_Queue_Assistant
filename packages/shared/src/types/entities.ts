@@ -4,7 +4,10 @@ import type {
   NotificationStatus,
   NotificationType,
   OperationMode,
+  OrderStatus,
+  PaymentStatus,
   PenaltyReason,
+  ProductType,
   QueueStatus,
   TicketStatus,
   UserRole,
@@ -26,8 +29,15 @@ export interface BaseEntity {
 
 export interface Organization extends BaseEntity {
   name: string;
+  slug?: string;
   description?: string;
   lineChannelId?: string;
+  logoUrl?: string;
+  phone?: string;
+  address?: string;
+  paymentInfo?: string;
+  /** Stable token used to generate public QR codes. Not the same as slug. */
+  publicQrToken?: string;
   /** Current operation mode — drives queue-level behaviour across the org */
   operationMode: OperationMode;
 }
@@ -154,4 +164,66 @@ export interface Notification extends BaseEntity {
   failureReason?: string;
   retryCount: number;
   maxRetries: number;
+}
+
+// ─────────────────────────────────────────────────────
+// Product / Service
+// ─────────────────────────────────────────────────────
+
+export interface Product extends BaseEntity {
+  organizationId: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  /** Distinguishes tangible product from service */
+  productType: ProductType;
+  /** Price in VND (or local currency) */
+  price: number;
+  /** Average service time per customer in minutes */
+  serviceTimeMinutes: number;
+  /** Minutes before auto-cancel if customer hasn't been served */
+  maxWaitMinutes?: number;
+  requiresPrepayment: boolean;
+  /** null = unlimited */
+  stockQuantity?: number;
+  isActive: boolean;
+}
+
+// ─────────────────────────────────────────────────────
+// Order
+// ─────────────────────────────────────────────────────
+
+export interface OrderItem {
+  id: string;
+  orderId: string;
+  productId: string;
+  productName: string;
+  productPrice: number;
+  serviceTimeMinutes: number;
+  quantity: number;
+  subtotal: number;
+  createdAt: Date;
+}
+
+export interface Order extends BaseEntity {
+  organizationId: string;
+  queueEntryId?: string;
+  orderNumber: string;
+  customerName?: string;
+  /** Links order to an authenticated user (null for anonymous/guest orders) */
+  customerUserId?: string;
+  /** Customer contact phone for traceability */
+  customerPhone?: string;
+  status: OrderStatus;
+  subtotal: number;
+  paymentStatus: PaymentStatus;
+  paymentCode?: string;
+  notes?: string;
+  items?: OrderItem[];
+}
+
+export interface OrderWithQueue extends Order {
+  ticketDisplay?: string;
+  queuePosition?: number;
+  estimatedWaitMinutes?: number;
 }

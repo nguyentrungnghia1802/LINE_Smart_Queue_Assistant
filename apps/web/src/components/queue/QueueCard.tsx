@@ -26,14 +26,14 @@ export function QueueCard({ queue }: QueueCardProps) {
 
       <div className="flex items-center gap-4 text-xs text-gray-400 mt-auto pt-3 border-t border-gray-100">
         <span>
-          Current:{' '}
+          現在:{' '}
           <span className="font-medium text-gray-700">
             {formatTicketNumber(queue.currentNumber)}
           </span>
         </span>
         {queue.maxCapacity && (
           <span>
-            Cap: <span className="font-medium text-gray-700">{queue.maxCapacity}</span>
+            定員: <span className="font-medium text-gray-700">{queue.maxCapacity}</span>
           </span>
         )}
       </div>

@@ -2,6 +2,27 @@ import pino from 'pino';
 
 import { config } from '../config';
 
+const loggerLevel = (() => {
+  if (config.nodeEnv === 'test') return 'silent';
+  if (config.nodeEnv === 'production') return 'info';
+  return 'debug';
+})();
+
+const loggerTransport = (() => {
+  if (config.nodeEnv === 'production') {
+    return undefined;
+  }
+
+  return pino.transport({
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      translateTime: 'SYS:HH:MM:ss.l',
+      ignore: 'pid,hostname,service',
+    },
+  });
+})();
+
 /**
  * Singleton pino logger.
  *
@@ -13,23 +34,25 @@ import { config } from '../config';
  */
 export const logger = pino(
   {
-    level:
-      config.nodeEnv === 'test' ? 'silent' : config.nodeEnv === 'production' ? 'info' : 'debug',
+    level: loggerLevel,
     base: { service: 'line-queue-api' },
     redact: {
-      paths: ['req.headers.authorization', 'req.headers.cookie', 'res.headers'],
+      paths: [
+        'req.headers.authorization',
+        'req.headers.cookie',
+        'res.headers',
+        'password',
+        '*.password',
+        'token',
+        '*.token',
+        'secret',
+        '*.secret',
+        'channelAccessToken',
+        'channelSecret',
+      ],
       censor: '[REDACTED]',
     },
     timestamp: pino.stdTimeFunctions.isoTime,
   },
-  config.nodeEnv === 'production'
-    ? undefined
-    : pino.transport({
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-          translateTime: 'SYS:HH:MM:ss.l',
-          ignore: 'pid,hostname,service',
-        },
-      })
+  loggerTransport
 );

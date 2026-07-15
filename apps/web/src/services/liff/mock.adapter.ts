@@ -25,6 +25,7 @@ const MOCK_PROFILE: LiffProfile = {
 };
 
 const MOCK_TOKEN = 'mock-liff-access-token';
+const MOCK_ID_TOKEN = 'mock-liff-id-token';
 const INIT_DELAY = Number(import.meta.env.VITE_LIFF_MOCK_INIT_DELAY_MS ?? 400);
 
 export class MockLiffAdapter implements LiffAdapter {
@@ -58,6 +59,10 @@ export class MockLiffAdapter implements LiffAdapter {
 
   getAccessToken(): string | null {
     return this._loggedIn ? MOCK_TOKEN : null;
+  }
+
+  getIDToken(): string | null {
+    return this._loggedIn ? MOCK_ID_TOKEN : null;
   }
 
   login(): void {

@@ -10,6 +10,7 @@ import {
   currentUserMiddleware,
   errorHandler,
   httpLoggerMiddleware,
+  metricsMiddleware,
   notFoundHandler,
   requestIdMiddleware,
 } from './middlewares';
@@ -39,6 +40,9 @@ export function createApp(): Application {
 
   // ── 4. HTTP request logging (pino-http) ──────────────────────────────────────
   app.use(httpLoggerMiddleware);
+
+  // ── 4b. Request/error metrics ───────────────────────────────────────────────
+  app.use(metricsMiddleware);
 
   // ── 5. Body parsing ──────────────────────────────────────────────────────────
   // The `verify` callback captures the raw bytes before JSON parsing.

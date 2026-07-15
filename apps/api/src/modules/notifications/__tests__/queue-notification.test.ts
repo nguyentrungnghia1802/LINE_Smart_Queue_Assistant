@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Unit tests for queue-notification.service.ts
  *
  * Strategy:
@@ -19,20 +19,20 @@ function makeEntry(override: Partial<QueueEntryRow> = {}): QueueEntryRow {
     id: 'entry-001',
     queue_id: 'queue-001',
     user_id: null,
+    order_id: null,
     line_user_id: 'U_test_001',
     ticket_number: 5,
-    ticket_display: 'A005',
+    ticket_code: 'A005',
     status: 'waiting',
-    skip_count: 0,
     priority: 0,
-    notes: null,
-    metadata: {},
+    position_snapshot: null,
     called_at: null,
-    serving_at: null,
-    completed_at: null,
+    serving_started_at: null,
+    served_at: null,
     skipped_at: null,
     cancelled_at: null,
-    estimated_call_at: null,
+    no_show_at: null,
+    estimated_wait_seconds: null,
     created_at: new Date('2024-01-01T10:00:00Z'),
     updated_at: new Date('2024-01-01T10:00:00Z'),
     ...override,
@@ -57,7 +57,7 @@ describe('notifyTicketCalled', () => {
     expect(adapter.pushCalls).toHaveLength(1);
     expect(adapter.pushCalls[0].to).toBe('U_test_001');
     expect(adapter.pushCalls[0].messages[0].text).toContain('A005');
-    expect(adapter.pushCalls[0].messages[0].text).toContain("It's your turn");
+    expect(adapter.pushCalls[0].messages[0].text).toContain('順番です');
   });
 
   it('does nothing when line_user_id is null', async () => {
@@ -99,8 +99,8 @@ describe('notifyEtaWarning', () => {
     await queueNotificationService.notifyEtaWarning(entry, 1, adapter, notificationLogRepository);
 
     expect(adapter.pushCalls).toHaveLength(1);
-    expect(adapter.pushCalls[0].messages[0].text).toContain('Almost your turn');
-    expect(adapter.pushCalls[0].messages[0].text).toContain('1 person is');
+    expect(adapter.pushCalls[0].messages[0].text).toContain('順番が近づいています');
+    expect(adapter.pushCalls[0].messages[0].text).toContain('前に1名');
   });
 
   it('sends a warning at the exact threshold boundary', async () => {
@@ -162,7 +162,7 @@ describe('notifyTicketCancelled', () => {
 
     expect(adapter.pushCalls).toHaveLength(1);
     expect(adapter.pushCalls[0].messages[0].text).toContain('A005');
-    expect(adapter.pushCalls[0].messages[0].text).toContain('cancelled');
+    expect(adapter.pushCalls[0].messages[0].text).toContain('キャンセル');
   });
 
   it('only sends once even when called twice (anti-duplicate)', async () => {

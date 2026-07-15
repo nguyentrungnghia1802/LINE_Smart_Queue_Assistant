@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Integration tests for the 4 MVP queue APIs.
  *
  * Strategy: mock repositories + withTransaction (data layer) while keeping the
@@ -12,16 +12,19 @@
  *   GET    /api/v1/queue/current?queueId=<uuid>
  */
 
+import type { PoolClient } from 'pg';
 import request from 'supertest';
 
 import { UserRole } from '@line-queue/shared';
 
 import { createApp } from '../../../app';
+import { organizationsRepository } from '../../../db/repositories/organizations.repository';
 import {
   queueEntriesRepository,
   QueueEntryRow,
 } from '../../../db/repositories/queue-entries.repository';
 import { QueueRow, queuesRepository } from '../../../db/repositories/queues.repository';
+import { usersRepository } from '../../../db/repositories/users.repository';
 import { withTransaction } from '../../../db/transaction';
 import { signToken } from '../../../utils/jwt';
 
@@ -30,6 +33,18 @@ import { signToken } from '../../../utils/jwt';
 jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
+jest.mock('../../../db/repositories/users.repository');
+jest.mock('../../../db/repositories/organizations.repository');
+
+// Mock batchWorkloadForEntries so getMyTickets doesn't need a real DB.
+jest.mock('../../../db/repositories/orders.repository', () => ({
+  batchWorkloadForEntries: jest.fn().mockResolvedValue(new Map()),
+  calculateWorkloadForEntries: jest.fn().mockResolvedValue(0),
+  ordersRepository: {
+    findByQueueEntry: jest.fn().mockResolvedValue(null),
+    findById: jest.fn().mockResolvedValue(null),
+  },
+}));
 
 // Pool is referenced by withTransaction; mock it so the module loads cleanly.
 jest.mock('../../../db/client', () => ({
@@ -67,10 +82,20 @@ const mockFindAllActiveForActor =
   queueEntriesRepository.findAllActiveForActor as jest.MockedFunction<
     typeof queueEntriesRepository.findAllActiveForActor
   >;
+const mockGetEntryIdsAhead = queueEntriesRepository.getEntryIdsAhead as jest.MockedFunction<
+  typeof queueEntriesRepository.getEntryIdsAhead
+>;
 const mockCreateEntry = queueEntriesRepository.create as jest.MockedFunction<
   typeof queueEntriesRepository.create
 >;
 const mockWithTransaction = withTransaction as jest.MockedFunction<typeof withTransaction>;
+const mockFindUserById = usersRepository.findById as jest.MockedFunction<
+  typeof usersRepository.findById
+>;
+const mockFindMembershipByUserId =
+  organizationsRepository.findMembershipByUserId as jest.MockedFunction<
+    typeof organizationsRepository.findMembershipByUserId
+  >;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -106,20 +131,20 @@ const waitingEntry: QueueEntryRow = {
   id: ENTRY_ID,
   queue_id: QUEUE_ID,
   user_id: USER_ID,
+  order_id: null,
   line_user_id: LINE_USER_ID,
   ticket_number: 6,
-  ticket_display: 'A006',
+  ticket_code: 'A006',
   status: 'waiting',
   priority: 0,
-  skip_count: 0,
-  notes: null,
-  metadata: {},
+  position_snapshot: null,
   called_at: null,
-  serving_at: null,
-  completed_at: null,
+  serving_started_at: null,
+  served_at: null,
   skipped_at: null,
   cancelled_at: null,
-  estimated_call_at: null,
+  no_show_at: null,
+  estimated_wait_seconds: null,
   created_at: new Date('2025-01-15T09:00:00Z'),
   updated_at: new Date('2025-01-15T09:00:00Z'),
 };
@@ -127,6 +152,11 @@ const waitingEntry: QueueEntryRow = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const app = createApp();
+const mockPoolClient = {
+  connect: jest.fn(),
+  query: jest.fn(),
+  release: jest.fn(),
+} as unknown as PoolClient;
 
 /** Issue a test JWT for an authenticated user. */
 function authToken(overrides: Partial<{ id: string; lineUserId: string; role: UserRole }> = {}) {
@@ -139,13 +169,25 @@ function authToken(overrides: Partial<{ id: string; lineUserId: string; role: Us
 
 /** Make withTransaction execute the callback synchronously with a dummy client. */
 function mockTx() {
-  mockWithTransaction.mockImplementation(async (fn) => fn({} as never));
+  mockWithTransaction.mockImplementation(async (fn) => fn(mockPoolClient));
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockFindActiveByUser.mockResolvedValue(null);
   mockFindActiveByLineUser.mockResolvedValue(null);
+  mockFindUserById.mockResolvedValue({
+    id: USER_ID,
+    display_name: 'Queue Customer',
+    email: null,
+    password_hash: null,
+    role: UserRole.CUSTOMER,
+    is_active: true,
+    created_at: new Date(),
+    updated_at: new Date(),
+  });
+  mockFindMembershipByUserId.mockResolvedValue(null);
+  mockGetEntryIdsAhead.mockResolvedValue([]);
 });
 
 // ── POST /api/v1/queue/join ───────────────────────────────────────────────────
@@ -168,13 +210,13 @@ describe('POST /api/v1/queue/join', () => {
       expect(res.body.success).toBe(true);
 
       const data = res.body.data as {
-        entry: { ticket_display: string; status: string };
+        entry: { ticket_code: string; status: string };
         aheadCount: number;
         estimatedWaitSeconds: number;
         isExisting: boolean;
       };
       expect(data.isExisting).toBe(false);
-      expect(data.entry.ticket_display).toBe('A006');
+      expect(data.entry.ticket_code).toBe('A006');
       expect(data.entry.status).toBe('waiting');
       expect(data.aheadCount).toBe(2);
       expect(data.estimatedWaitSeconds).toBe(2 * 120); // 2 ahead × 120 s/ticket
@@ -201,7 +243,7 @@ describe('POST /api/v1/queue/join', () => {
     it('accepts an anonymous request with lineUserId in body', async () => {
       mockFindQueueById.mockResolvedValue(openQueue);
       mockIncrementCounter.mockResolvedValue(7);
-      mockCreateEntry.mockResolvedValue({ ...waitingEntry, user_id: null, ticket_display: 'A007' });
+      mockCreateEntry.mockResolvedValue({ ...waitingEntry, user_id: null, ticket_code: 'A007' });
       mockGetWaitingPosition.mockResolvedValue(0);
       mockTx();
 
@@ -312,11 +354,11 @@ describe('GET /api/v1/queue/me', () => {
       expect(res.body.data).toHaveLength(1);
 
       const ticket = res.body.data[0] as {
-        entry: { ticket_display: string };
+        entry: { ticket_code: string };
         aheadCount: number;
         estimatedWaitSeconds: number;
       };
-      expect(ticket.entry.ticket_display).toBe('A006');
+      expect(ticket.entry.ticket_code).toBe('A006');
       expect(ticket.aheadCount).toBe(3);
       expect(ticket.estimatedWaitSeconds).toBe(3 * 120);
     });
@@ -332,13 +374,11 @@ describe('GET /api/v1/queue/me', () => {
       expect(res.body.data).toEqual([]);
     });
 
-    it('returns 200 for anonymous callers (empty array)', async () => {
-      // No Authorization header; findAllActiveForActor resolves empty
-      mockFindAllActiveForActor.mockResolvedValue([]);
-
+    it('returns 401 for anonymous callers because /me now requires auth', async () => {
       const res = await request(app).get('/api/v1/queue/me');
-      expect(res.status).toBe(200);
-      expect(res.body.data).toEqual([]);
+
+      expect(res.status).toBe(401);
+      expect(res.body.error.code).toBe('UNAUTHORIZED');
     });
 
     it('returns estimatedWaitSeconds = 0 when queue not found (defensive fallback)', async () => {

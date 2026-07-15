@@ -41,7 +41,7 @@ describe('QueueCard', () => {
 
   it('renders the active status badge', () => {
     renderQueueCard();
-    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('稼働中')).toBeInTheDocument();
   });
 
   it('links to the queue detail page', () => {
