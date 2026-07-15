@@ -42,6 +42,7 @@ import { runCounterReset } from './counterReset.job';
 import { runEtaUpdater } from './etaUpdater.job';
 import { runInventoryExpiry } from './inventoryExpiry.job';
 import { JobRunner } from './jobRunner';
+import { runLocationAlerts, runLocationCleanup } from './locationAlert.job';
 import { runNotificationDelivery } from './notificationDelivery.job';
 import { scanCalledRenotify, scanEtaWarnings } from './notificationScan.job';
 import { withAdvisoryJobLock } from './scheduler-lock';
@@ -103,6 +104,16 @@ export const scheduler = {
         name: 'inventoryExpiry',
         intervalMs: config.inventory.expiryWorkerIntervalMs,
         run: async () => void (await withAdvisoryJobLock('inventoryExpiry', runInventoryExpiry)),
+      })
+      .schedule({
+        name: 'locationAlerts',
+        intervalMs: config.location.workerIntervalMs,
+        run: async () => void (await withAdvisoryJobLock('locationAlerts', runLocationAlerts)),
+      })
+      .schedule({
+        name: 'locationCleanup',
+        intervalMs: config.location.cleanupIntervalMs,
+        run: async () => void (await withAdvisoryJobLock('locationCleanup', runLocationCleanup)),
       })
       .schedule({
         name: 'notificationDelivery',

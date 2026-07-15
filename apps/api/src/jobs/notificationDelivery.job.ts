@@ -30,6 +30,7 @@ const EVENT_TYPES = new Set<TicketNotificationEventType>([
   'completed',
   'cancelled',
   'no_show',
+  'location_warning',
 ]);
 
 function asEventType(value: string): TicketNotificationEventType {
@@ -99,6 +100,11 @@ export async function deliverOutboxNotification(
     return;
   }
 
+  if (repository.canDeliver && !(await repository.canDeliver(row))) {
+    await repository.cancel(row.id, 'Notification preference disabled');
+    return;
+  }
+
   try {
     const sent = await lineNotificationService.pushTicketNotification(
       row.line_user_id,
@@ -128,9 +134,8 @@ export async function runNotificationDelivery(
   const now = options.now ?? (() => new Date());
 
   const batch = await repository.claimDue(batchSize);
-  if (batch.length === 0) return;
-
-  logger.debug({ count: batch.length }, 'notificationDelivery: claimed batch');
+  if (batch.length > 0)
+    logger.debug({ count: batch.length }, 'notificationDelivery: claimed batch');
 
   for (const row of batch) {
     try {
@@ -138,5 +143,16 @@ export async function runNotificationDelivery(
     } catch (err) {
       logger.error({ err, notificationId: row.id }, 'notificationDelivery: unexpected row error');
     }
+  }
+
+  if (repository.deliveryMetrics) {
+    const values = await repository.deliveryMetrics();
+    metricsService.setGauge('notifications_outbox_backlog', Number(values.pending));
+    metricsService.setGauge('notifications_outbox_retry_backlog', Number(values.retrying));
+    metricsService.setGauge('notifications_outbox_failed', Number(values.failed));
+    metricsService.setGauge(
+      'notifications_delivery_latency_seconds',
+      Number(values.latency_seconds)
+    );
   }
 }

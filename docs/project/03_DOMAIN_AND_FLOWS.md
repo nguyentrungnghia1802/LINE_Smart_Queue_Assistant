@@ -213,12 +213,14 @@ The Rich Menu definition never points to `/liff/tickets/:entryId` because the en
 
 ## 10. Location warning flow
 
-1. Customer explicitly grants browser geolocation permission.
+1. An authenticated LIFF customer explicitly enables location sharing; anonymous request bodies cannot establish consent or LINE identity.
 2. Booking request carries latitude, longitude, and optional accuracy.
 3. API calculates Haversine distance to organization coordinates.
 4. API stores a `customer_locations` snapshot.
-5. If over the current 1,000-meter threshold, API stores a pending `location_alert`.
-6. Planned worker compares queue timing/distance, sends LINE warning, and records sent/skipped/failed.
+5. If over the current 1,000-meter threshold, API stores a pending idempotent `location_alert` without logging exact coordinates.
+6. A PostgreSQL-locked scheduler checks queue proximity, consent, LINE preferences, and the mock `TravelTimeProvider`, then enqueues a Japanese `location_warning` through the durable notification outbox.
+7. Alerts become sent-to-outbox, skipped, retry-pending, or failed. Snapshot cleanup anonymizes coordinates after `LOCATION_RETENTION_DAYS`; the LIFF settings page can revoke consent and delete data immediately.
+8. Planned worker compares queue timing/distance, sends LINE warning, and records sent/skipped/failed.
 
 Step 6 is not implemented. There is no continuous tracking, and production requires consent/retention controls.
 

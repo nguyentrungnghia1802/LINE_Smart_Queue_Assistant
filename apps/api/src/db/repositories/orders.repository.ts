@@ -30,8 +30,8 @@ export interface CustomerLocationRow {
   queue_entry_id: string | null;
   customer_user_id: string | null;
   local_device_key: string | null;
-  latitude: string;
-  longitude: string;
+  latitude: string | null;
+  longitude: string | null;
   accuracy_meters: number | null;
   distance_to_org_meters: number | null;
   captured_at: Date;
@@ -397,6 +397,8 @@ export const ordersRepository = {
       longitude: number;
       accuracyMeters?: number;
       distanceToOrgMeters?: number | null;
+      consentUserId: string;
+      expiresAt: Date;
     },
     client?: PoolClient
   ): Promise<CustomerLocationRow> {
@@ -405,9 +407,10 @@ export const ordersRepository = {
       `INSERT INTO customer_locations
          (
            organization_id, queue_entry_id, customer_user_id, local_device_key,
-           latitude, longitude, accuracy_meters, distance_to_org_meters
+           latitude, longitude, accuracy_meters, distance_to_org_meters,
+           consent_user_id, expires_at
          )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
       [
         data.organizationId,
@@ -418,6 +421,8 @@ export const ordersRepository = {
         data.longitude,
         data.accuracyMeters ?? null,
         data.distanceToOrgMeters ?? null,
+        data.consentUserId,
+        data.expiresAt,
       ]
     );
     return rows[0];
@@ -440,9 +445,9 @@ export const ordersRepository = {
       `INSERT INTO location_alerts
          (
            organization_id, queue_entry_id, customer_location_id, distance_to_org_meters,
-           threshold_meters, due_at, raw_payload
+           threshold_meters, due_at, raw_payload, event_key
          )
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
        RETURNING *`,
       [
         data.organizationId,
@@ -452,6 +457,7 @@ export const ordersRepository = {
         data.thresholdMeters,
         data.dueAt ?? null,
         JSON.stringify(data.rawPayload ?? {}),
+        `location_alert:${data.queueEntryId}:far_before_turn`,
       ]
     );
     return rows[0];

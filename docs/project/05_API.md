@@ -216,10 +216,16 @@ Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatu
 
 ### LINE and notifications
 
-| Method | Path                    | Access                            | Purpose                                       |
-| ------ | ----------------------- | --------------------------------- | --------------------------------------------- |
-| POST   | `/api/v1/line/webhook`  | LINE signed webhook, strict limit | Verify signature and process supported events |
-| GET    | `/api/v1/notifications` | Authenticated                     | List notifications with validated query       |
+| Method  | Path                                          | Access                            | Purpose                                                           |
+| ------- | --------------------------------------------- | --------------------------------- | ----------------------------------------------------------------- |
+| POST    | `/api/v1/line/webhook`                        | LINE signed webhook, strict limit | Verify signature and process supported events                     |
+| GET     | `/api/v1/notifications`                       | Authenticated                     | List notifications with validated query                           |
+| GET/PUT | `/api/v1/line/preferences`                    | Authenticated linked customer     | Read/update LINE notification consent and event preferences       |
+| GET/PUT | `/api/v1/line/location-consent`               | Authenticated customer            | Read/update location snapshot consent                             |
+| DELETE  | `/api/v1/line/location-data`                  | Authenticated customer            | Revoke consent and anonymize stored snapshots                     |
+| GET     | `/api/v1/notifications/operations`            | Manager/admin                     | Tenant-scoped delivery operations list with masked LINE recipient |
+| POST    | `/api/v1/notifications/operations/:id/retry`  | Manager/admin                     | Audited explicit retry for failed/cancelled delivery              |
+| POST    | `/api/v1/notifications/operations/:id/cancel` | Manager/admin                     | Audited cancellation for unsent delivery                          |
 
 ### Health, docs, and metrics
 
