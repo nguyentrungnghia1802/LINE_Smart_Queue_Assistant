@@ -101,6 +101,19 @@ export interface OrderWithItems extends OrderRow {
 }
 
 export const ordersRepository = {
+  async nextOrderNumber(organizationId: string, client: PoolClient): Promise<number> {
+    const { rows } = await client.query<{ value: string }>(
+      `INSERT INTO organization_counters (organization_id, next_order_number)
+       VALUES ($1, 2)
+       ON CONFLICT (organization_id) DO UPDATE
+       SET next_order_number = organization_counters.next_order_number + 1,
+           updated_at = NOW()
+       RETURNING (next_order_number - 1)::text AS value`,
+      [organizationId]
+    );
+    return Number(rows[0].value);
+  },
+
   async findByOrg(orgId: string, status?: string): Promise<OrderWithItems[]> {
     const statusClause = status ? `AND o.status = $2` : '';
     const params: unknown[] = status ? [orgId, status] : [orgId];

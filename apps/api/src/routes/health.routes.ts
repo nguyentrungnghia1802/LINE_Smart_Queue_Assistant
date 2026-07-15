@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { config } from '../config';
 import { pool } from '../db/client';
 import { scheduler } from '../jobs/scheduler';
+import { schedulerHealth } from '../jobs/scheduler-lock';
 import { metricsService } from '../utils/metrics';
 import { sendError } from '../utils/response';
 
@@ -34,7 +35,10 @@ healthRouter.get('/health', async (_req, res) => {
     uptime: process.uptime(),
     api: 'ok',
     db: dbStatus,
-    scheduler: scheduler.status(),
+    scheduler: {
+      ...scheduler.status(),
+      jobs: dbStatus === 'connected' ? await schedulerHealth().catch(() => []) : [],
+    },
     notificationService: notificationConfigured ? 'configured' : 'not_configured',
   });
 });

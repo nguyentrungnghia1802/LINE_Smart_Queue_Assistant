@@ -10,6 +10,7 @@ import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
 import { productCatalogCache } from '../../utils/cache';
 import { etaService } from '../eta/eta.service';
+import { inventoryService } from '../inventory/inventory.service';
 import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 
@@ -168,8 +169,21 @@ export const ordersService = {
     try {
       await client.query('BEGIN');
 
-      // Increment ticket counter
-      const ticketNumber = await queuesRepository.incrementAndGetCounter(queue.id, client);
+      const lockedQueue = await queuesRepository.lockById(queue.id, client);
+      if (!lockedQueue || lockedQueue.status !== 'open') {
+        throw AppError.conflict('Queue is not accepting entries');
+      }
+      if (lockedQueue.max_capacity !== null) {
+        const activeCount = await queuesRepository.countWaiting(queue.id, client);
+        if (activeCount >= lockedQueue.max_capacity) {
+          throw AppError.conflict('Queue is at full capacity');
+        }
+      }
+
+      const { ticketNumber, businessDate } = await queuesRepository.incrementAndGetCounter(
+        queue.id,
+        client
+      );
       const ticketCode = `${queue.prefix ?? ''}${String(ticketNumber).padStart(3, '0')}`;
 
       if (dto.bookingGroupId) {
@@ -190,21 +204,15 @@ export const ordersService = {
           queueId: queue.id,
           ticketNumber,
           ticketCode,
+          businessDate,
           userId: actorUserId,
           lineUserId: actor?.lineUserId,
         },
         client
       );
 
-      // Count orders for this org to get order number
-      const { rows: countRows } = await client.query<{ count: string }>(
-        `SELECT COUNT(*) FROM orders WHERE organization_id = $1`,
-        [org.id]
-      );
-      const orderNum = formatOrderNumber(
-        queue.prefix ?? 'O',
-        Number.parseInt(countRows[0].count, 10) + 1
-      );
+      const nextOrderNumber = await ordersRepository.nextOrderNumber(org.id, client);
+      const orderNum = formatOrderNumber(queue.prefix ?? 'O', nextOrderNumber);
 
       // Create order (within transaction) — include customer linkage fields
       const order = await ordersRepository.create(
@@ -307,20 +315,13 @@ export const ordersService = {
         );
 
         if (product.stock_quantity !== null) {
-          const { rows } = await client.query<{ id: string }>(
-            `UPDATE products
-             SET stock_quantity = stock_quantity - $1
-             WHERE id = $2 AND stock_quantity >= $1
-             RETURNING id`,
-            [quantity, product.id]
-          );
-          if (!rows[0]) throw AppError.conflict(`Insufficient stock for "${product.name}"`);
-          await ordersRepository.reserveInventory(
+          await inventoryService.reserveFiniteProduct(
             {
               organizationId: org.id,
               orderId: order.id,
               productId: product.id,
               quantity,
+              actorId: actorUserId,
             },
             client
           );
@@ -405,6 +406,7 @@ export const ordersService = {
       await client.query('BEGIN');
       const updated = await ordersRepository.updateStatus(orderId, 'cancelled', client);
       if (!updated) throw AppError.notFound('Order not found');
+      await inventoryService.releaseOrder(orderId, client, 'order_cancelled', resolvedActor.userId);
 
       if (order.queue_entry_id) {
         const linkedEntry = await queueEntriesRepository.findById(order.queue_entry_id, client);

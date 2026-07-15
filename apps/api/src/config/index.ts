@@ -57,6 +57,18 @@ export const config = {
     maxWebhookAgeSeconds: Number.parseInt(process.env.PAYMENT_WEBHOOK_MAX_AGE_SECONDS ?? '300', 10),
   },
 
+  inventory: {
+    reservationTtlMinutes: Number.parseInt(
+      process.env.INVENTORY_RESERVATION_TTL_MINUTES ?? '1440',
+      10
+    ),
+    expiryBatchSize: Number.parseInt(process.env.INVENTORY_EXPIRY_BATCH_SIZE ?? '100', 10),
+    expiryWorkerIntervalMs: Number.parseInt(
+      process.env.INVENTORY_EXPIRY_WORKER_INTERVAL_MS ?? '60000',
+      10
+    ),
+  },
+
   cors: {
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
   },

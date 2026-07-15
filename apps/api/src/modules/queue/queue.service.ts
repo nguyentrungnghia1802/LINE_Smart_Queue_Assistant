@@ -16,6 +16,7 @@ import { AppError } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
 import { etaService } from '../eta/eta.service';
+import { inventoryService } from '../inventory/inventory.service';
 import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
@@ -157,30 +158,36 @@ export const queueService = {
       };
     }
 
-    // 4. Capacity check (optimistic — see JSDoc above)
-    if (queue.max_capacity !== null) {
-      const waitingCount = await queuesRepository.countWaiting(queueId);
-      if (waitingCount >= queue.max_capacity) {
-        throw AppError.conflict('Queue is at full capacity');
-      }
-    }
-
-    // 5. Calculate join-time priority adjustment from active penalties
+    // 4. Calculate join-time priority adjustment from active penalties
     const priorityAdjustment = userId
       ? await skipPenaltyService
           .calculatePriorityAdjustment({ userId, organizationId: queue.organization_id })
           .catch(() => 0)
       : 0;
 
-    // 6. Atomically increment counter + insert entry + outbox inside a transaction
+    // 5. Lock the queue, enforce capacity, increment the counter and insert atomically.
     const created = await withTransaction(async (client) => {
-      const ticketNumber = await queuesRepository.incrementAndGetCounter(queueId, client);
+      const lockedQueue = await queuesRepository.lockById(queueId, client);
+      if (!lockedQueue || lockedQueue.status !== 'open') {
+        throw AppError.conflict('Queue is not accepting entries');
+      }
+      if (lockedQueue.max_capacity !== null) {
+        const activeCount = await queuesRepository.countWaiting(queueId, client);
+        if (activeCount >= lockedQueue.max_capacity) {
+          throw AppError.conflict('Queue is at full capacity');
+        }
+      }
+      const { ticketNumber, businessDate } = await queuesRepository.incrementAndGetCounter(
+        queueId,
+        client
+      );
       const ticketCode = formatTicketCode(queue.prefix ?? '', ticketNumber);
       const entry = await queueEntriesRepository.create(
         {
           queueId,
           ticketNumber,
           ticketCode,
+          businessDate,
           userId,
           lineUserId,
           priority: priorityAdjustment === 0 ? undefined : priorityAdjustment,
@@ -314,6 +321,18 @@ export const queueService = {
 
     await withTransaction(async (client) => {
       const cancelled = await queueEntriesRepository.markCancelled(entryId, client);
+      if (cancelled.order_id) {
+        await inventoryService.releaseOrder(
+          cancelled.order_id,
+          client,
+          'ticket_cancelled',
+          actorUserId
+        );
+        await client.query(
+          `UPDATE orders SET status = 'cancelled' WHERE id = $1 AND status IN ('pending','processing')`,
+          [cancelled.order_id]
+        );
+      }
       await queueNotificationService.notifyTicketCancelled(
         cancelled,
         { organizationId: queue.organization_id },
@@ -413,6 +432,8 @@ export const queueService = {
     }
 
     return withTransaction(async (client) => {
+      const lockedQueue = await queuesRepository.lockById(queueId, client);
+      if (!lockedQueue) throw AppError.notFound('Queue');
       const waiting = await queueEntriesRepository.listWaiting(queueId, client);
       if (waiting.length === 0) {
         throw AppError.conflict('No waiting entries in this queue');
@@ -505,6 +526,13 @@ export const queueService = {
 
     const served = await withTransaction(async (client) => {
       const updated = await queueEntriesRepository.markServed(entryId, client);
+      if (updated.order_id) {
+        await inventoryService.consumeOrder(updated.order_id, client, params.actorUserId);
+        await client.query(
+          `UPDATE orders SET status = 'completed' WHERE id = $1 AND status IN ('pending','processing')`,
+          [updated.order_id]
+        );
+      }
       await queueNotificationService.notifyTicketCompleted(
         updated,
         { organizationId: queue.organization_id },
@@ -547,6 +575,18 @@ export const queueService = {
 
     return withTransaction(async (client) => {
       const noShow = await queueEntriesRepository.markNoShow(entryId, client);
+      if (noShow.order_id) {
+        await inventoryService.releaseOrder(
+          noShow.order_id,
+          client,
+          'customer_no_show',
+          params.actorUserId
+        );
+        await client.query(
+          `UPDATE orders SET status = 'cancelled' WHERE id = $1 AND status IN ('pending','processing')`,
+          [noShow.order_id]
+        );
+      }
       await queueNotificationService.notifyTicketNoShow(
         noShow,
         { organizationId: queue.organization_id },

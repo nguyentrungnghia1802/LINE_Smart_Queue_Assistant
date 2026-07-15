@@ -9,6 +9,7 @@ import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
+import { inventoryService } from '../inventory/inventory.service';
 import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { queueService } from '../queue/queue.service';
@@ -182,6 +183,18 @@ export const staffService = {
 
     const cancelled = await withTransaction(async (client) => {
       const updated = await queueEntriesRepository.markCancelled(entryId, client);
+      if (updated.order_id) {
+        await inventoryService.releaseOrder(
+          updated.order_id,
+          client,
+          'staff_cancelled',
+          actorUserId
+        );
+        await client.query(
+          `UPDATE orders SET status = 'cancelled' WHERE id = $1 AND status IN ('pending','processing')`,
+          [updated.order_id]
+        );
+      }
       await queueNotificationService.notifyTicketCancelled(
         updated,
         { organizationId: queue.organization_id },

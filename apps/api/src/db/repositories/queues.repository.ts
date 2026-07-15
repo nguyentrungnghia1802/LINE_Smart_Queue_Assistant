@@ -17,6 +17,7 @@ export interface QueueRow {
   max_capacity: number | null;
   daily_ticket_counter: number;
   last_counter_reset_at: Date;
+  counter_business_date?: string | null;
   avg_service_seconds: number;
   notify_ahead_positions: number;
   allow_skip: boolean;
@@ -61,6 +62,15 @@ export class QueuesRepository extends BaseRepository {
     );
     if (row) queueConfigCache.set(cacheKey, row, 30_000);
     return row;
+  }
+
+  async lockById(id: string, client: PoolClient): Promise<QueueRow | null> {
+    const rows = await this.queryTx<QueueRow>(
+      client,
+      `SELECT * FROM queues WHERE id = $1 AND is_active = TRUE FOR UPDATE`,
+      [id]
+    );
+    return rows[0] ?? null;
   }
 
   /**
@@ -177,17 +187,38 @@ export class QueuesRepository extends BaseRepository {
    * Pass `client` to run inside an existing transaction (required so the
    * increment and the queue_entries.create are committed atomically).
    */
-  async incrementAndGetCounter(id: string, client?: PoolClient): Promise<number> {
+  async incrementAndGetCounter(
+    id: string,
+    client?: PoolClient
+  ): Promise<{ ticketNumber: number; businessDate: string }> {
     const sql = `
-      UPDATE queues
-      SET daily_ticket_counter = daily_ticket_counter + 1
-      WHERE id = $1
-      RETURNING daily_ticket_counter
+      UPDATE queues q
+      SET daily_ticket_counter = CASE
+            WHEN q.counter_business_date = (NOW() AT TIME ZONE o.timezone)::date
+              THEN q.daily_ticket_counter + 1
+            ELSE 1
+          END,
+          counter_business_date = (NOW() AT TIME ZONE o.timezone)::date,
+          last_counter_reset_at = CASE
+            WHEN q.counter_business_date IS DISTINCT FROM (NOW() AT TIME ZONE o.timezone)::date
+              THEN NOW()
+            ELSE q.last_counter_reset_at
+          END
+      FROM organizations o
+      WHERE q.id = $1 AND o.id = q.organization_id
+      RETURNING q.daily_ticket_counter, q.counter_business_date
     `;
     const rows = client
-      ? await this.queryTx<{ daily_ticket_counter: number }>(client, sql, [id])
-      : await this.query<{ daily_ticket_counter: number }>(sql, [id]);
-    return this.firstOrThrow(rows, 'queues.incrementAndGetCounter').daily_ticket_counter;
+      ? await this.queryTx<{ daily_ticket_counter: number; counter_business_date: string }>(
+          client,
+          sql,
+          [id]
+        )
+      : await this.query<{ daily_ticket_counter: number; counter_business_date: string }>(sql, [
+          id,
+        ]);
+    const row = this.firstOrThrow(rows, 'queues.incrementAndGetCounter');
+    return { ticketNumber: row.daily_ticket_counter, businessDate: row.counter_business_date };
   }
 
   async resetDailyCounter(id: string): Promise<void> {
@@ -221,13 +252,13 @@ export class QueuesRepository extends BaseRepository {
   /**
    * Count all currently waiting entries (capacity check before allowing join).
    */
-  async countWaiting(queueId: string): Promise<number> {
-    const row = await this.queryOne<{ cnt: string }>(
-      `SELECT COUNT(*) AS cnt FROM queue_entries
-       WHERE queue_id = $1 AND status = 'waiting'`,
-      [queueId]
-    );
-    return Number(row?.cnt ?? 0);
+  async countWaiting(queueId: string, client?: PoolClient): Promise<number> {
+    const sql = `SELECT COUNT(*) AS cnt FROM queue_entries
+       WHERE queue_id = $1 AND status IN ('waiting','called','serving')`;
+    const rows = client
+      ? await this.queryTx<{ cnt: string }>(client, sql, [queueId])
+      : await this.query<{ cnt: string }>(sql, [queueId]);
+    return Number(rows[0]?.cnt ?? 0);
   }
 }
 
