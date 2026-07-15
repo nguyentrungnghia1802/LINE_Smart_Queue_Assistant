@@ -9,6 +9,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 3. `000003_payment_transactions_and_inventory.js`
 4. `000004_booking_location_and_forecasts.js`
 5. `000005_durable_line_notification_outbox.js`
+6. `000006_payment_production_foundation.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -22,7 +23,7 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
       |                    | 0..1
       |                    v
       |---* booking_groups 1---* orders 1---* order_items *---1 products
-      |                              |---* payment_transactions
+      |                              |---* payment_transactions 1---* payment_webhook_events
       |                              \---* inventory_reservations
       |---* customer_locations 1---* location_alerts
       |---* notifications
@@ -53,7 +54,8 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 | `booking_groups`         | Group separate repeat bookings        | Tenant/customer/device keys; active/completed/cancelled check            |
 | `orders`                 | Commercial reservation header         | Tenant/order number, optional queue entry/customer/group, totals/status  |
 | `order_items`            | Price/name/duration/payment snapshots | Positive quantity, nonnegative subtotal/prepaid amount                   |
-| `payment_transactions`   | Provider attempt and audit payload    | Tenant/order, amount/currency, provider external-ID index                |
+| `payment_transactions`   | Provider intent/state/reconciliation  | Tenant/order, amount/currency, provider intent/external-ID indexes       |
+| `payment_webhook_events` | Idempotent provider callback log      | Unique provider/event ID; replay-safe status                             |
 | `inventory_reservations` | Finite stock allocation               | Positive quantity; reserved/consumed/released/expired check              |
 | `queue_entries`          | Ticket lifecycle and ETA fields       | Unique queue/ticket number and code; active-user/LINE indexes            |
 
@@ -72,17 +74,17 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 
 ## 4. Enumerated values
 
-| Type                  | Values                                                                      |
-| --------------------- | --------------------------------------------------------------------------- |
-| `user_role`           | `customer`, `staff`, `manager`, `admin`                                     |
-| `org_member_role`     | `manager`, `staff`                                                          |
-| `product_type`        | `product`, `service`                                                        |
-| `queue_status`        | `closed`, `open`, `paused`, `archived`                                      |
-| `queue_type`          | `walk_in`, `appointment`, `priority`, `disaster`                            |
-| `queue_entry_status`  | `waiting`, `called`, `serving`, `served`, `skipped`, `cancelled`, `no_show` |
-| `order_status`        | `pending`, `processing`, `completed`, `cancelled`                           |
-| `payment_status`      | `unpaid`, `paid`, `refunded`, `failed`                                      |
-| `notification_status` | `pending`, `processing`, `sent`, `delivered`, `failed`, `cancelled`         |
+| Type                  | Values                                                                       |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `user_role`           | `customer`, `staff`, `manager`, `admin`                                      |
+| `org_member_role`     | `manager`, `staff`                                                           |
+| `product_type`        | `product`, `service`                                                         |
+| `queue_status`        | `closed`, `open`, `paused`, `archived`                                       |
+| `queue_type`          | `walk_in`, `appointment`, `priority`, `disaster`                             |
+| `queue_entry_status`  | `waiting`, `called`, `serving`, `served`, `skipped`, `cancelled`, `no_show`  |
+| `order_status`        | `pending`, `processing`, `completed`, `cancelled`                            |
+| `payment_status`      | `unpaid`, `pending`, `authorized`, `paid`, `refunded`, `failed`, `cancelled` |
+| `notification_status` | `pending`, `processing`, `sent`, `delivered`, `failed`, `cancelled`          |
 
 `notification_type` includes queue lifecycle values used by the durable outbox, including `queue_serving` added in migration `000005`. PostgreSQL enum additions require deliberate forward/backward compatibility planning; enum values are not removed by down migrations.
 
@@ -92,7 +94,8 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 - Product stock cannot be negative; services cannot carry finite stock.
 - Queue ticket number/code uniqueness is scoped to queue as defined by migrations.
 - Active queue-entry lookup indexes support customer/LINE and queue/status ordering.
-- Payment external transaction lookup is indexed by provider and external ID, but production webhook idempotency should add an appropriate unique constraint when provider rules are finalized.
+- Payment transaction lookup is indexed by provider external ID and provider intent ID.
+- `payment_webhook_events(provider,event_id)` is unique so provider retries are idempotent.
 - Pending notification/location-alert indexes support worker scans.
 - `notifications.event_key` is unique, so the same domain event can be enqueued repeatedly without creating duplicate sends.
 - `idx_notif_due_line_outbox` supports due pending LINE delivery scans, and workers claim rows with `FOR UPDATE SKIP LOCKED`.
@@ -108,7 +111,7 @@ One explicit PostgreSQL transaction creates/updates:
 2. optional booking group;
 3. queue entry;
 4. order and queue-entry link;
-5. optional payment transaction;
+5. optional verified payment transaction link;
 6. optional location and pending alert;
 7. order items;
 8. finite stock decrement and reservation.
@@ -165,7 +168,7 @@ Schema migrations currently live under `db/migrations/node-pg-migrate` and are e
 ## 11. Schema gaps requiring follow-up
 
 - Inventory reservation release/consume/expire behavior is missing.
-- Payment transaction status history/webhook event uniqueness/reconciliation needs production design.
+- Payment transaction status history is still coarse; a full append-only transition history can be added if audit requirements demand it.
 - Business hours/holidays and per-organization payment/LINE provider secrets need structured encrypted configuration.
 - Booking-group retrieval/ownership constraints need an exposed domain service/API.
 - Forecast and staffing tables lack producers and retention policy.

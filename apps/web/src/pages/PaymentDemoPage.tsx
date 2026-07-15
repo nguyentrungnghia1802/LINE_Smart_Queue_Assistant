@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 
+import { post } from '../services/apiClient';
 import {
   formatJPY,
   loadCheckoutSession,
@@ -8,11 +9,32 @@ import {
   savePaidCheckout,
 } from '../utils/checkoutSession';
 import {
-  createPaymentIntent,
   isExternalPaymentConfigured,
   PAYMENT_METHODS,
   type PaymentGatewayMethod,
 } from '../utils/paymentGateway';
+
+interface PaymentIntentResponse {
+  transactionId: string;
+  provider: string;
+  method: string;
+  status: string;
+  amount: number;
+  currency: string;
+  checkoutUrl: string | null;
+  demoToken?: string;
+  coveredProductIds: string[];
+  scope: 'required_items' | 'all_items';
+}
+
+interface PaymentStatusResponse {
+  id: string;
+  status: string;
+  amount: number;
+  currency: string;
+  scope: 'required_items' | 'all_items';
+  coveredProductIds: string[];
+}
 
 export function PaymentDemoPage() {
   const { sessionId = '' } = useParams();
@@ -23,6 +45,7 @@ export function PaymentDemoPage() {
   );
   const [method, setMethod] = useState(session?.preferredMethod ?? PAYMENT_METHODS[0].id);
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState('');
   const externalPaymentReady = isExternalPaymentConfigured();
 
   if (!session) return <Navigate to="/" replace />;
@@ -37,41 +60,65 @@ export function PaymentDemoPage() {
   const payableItems = paymentScope === 'all_items' ? session.items : requiredItems;
   const payableSubtotal = payableItems.reduce((sum, item) => sum + item.subtotal, 0);
   const canChooseScope = requiredItems.length > 0 && session.items.length > requiredItems.length;
-  const coveredProductIds =
-    paymentScope === 'all_items' ? session.items.map((item) => item.productId) : requiredProductIds;
 
-  function completePayment() {
+  async function completePayment() {
     if (!session) return;
     setProcessing(true);
-    const intent = createPaymentIntent({
-      session,
-      method: selectedMethod,
-      amount: payableSubtotal,
-      scope: paymentScope,
-      returnUrl: window.location.href,
-    });
+    setError('');
+    try {
+      const intent = await post<PaymentIntentResponse>('/api/v1/payments/intents', {
+        orgSlug: session.orgSlug,
+        items: session.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+        scope: paymentScope,
+        provider: externalPaymentReady ? selectedMethod.provider : 'demo',
+        method: selectedMethod.externalMethod ?? selectedMethod.id,
+        currency: 'JPY',
+        returnUrl: window.location.href,
+        cartSignature: session.cartSignature,
+      });
 
-    if (intent.redirectUrl) {
-      window.location.assign(intent.redirectUrl);
-      return;
-    }
+      if (intent.checkoutUrl) {
+        window.location.assign(intent.checkoutUrl);
+        return;
+      }
 
-    window.setTimeout(() => {
+      if (!intent.demoToken) {
+        throw new Error('決済を開始できませんでした。');
+      }
+
+      const confirmed = await post<PaymentStatusResponse>('/api/v1/payments/demo/complete', {
+        transactionId: intent.transactionId,
+        demoToken: intent.demoToken,
+      });
+
+      if (confirmed.status !== 'paid') {
+        throw new Error('支払い確認が完了していません。');
+      }
+
       const paymentKey = session.paymentKeyBase
         ? paymentKeyFor(session.paymentKeyBase, paymentScope)
         : session.paymentKey;
       savePaidCheckout(paymentKey, {
         paid: true,
+        transactionId: confirmed.id,
         method,
-        code: intent.transactionId,
-        amount: payableSubtotal,
+        code: confirmed.id,
+        amount: confirmed.amount,
         scope: paymentScope,
-        coveredProductIds,
+        coveredProductIds: confirmed.coveredProductIds,
         cartSignature: session.cartSignature,
         paidAt: new Date().toISOString(),
       });
       navigate(session.returnPath, { replace: true });
-    }, 700);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : '支払いに失敗しました。もう一度お試しください。'
+      );
+      setProcessing(false);
+    }
   }
 
   return (
@@ -193,6 +240,9 @@ export function PaymentDemoPage() {
           >
             {processing ? '処理中...' : `${selectedMethod.label}で支払う`}
           </button>
+          {error && (
+            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          )}
           <p className="mt-3 text-xs leading-5 text-gray-500">
             {externalPaymentReady
               ? '外部決済ページへ移動して支払いを完了します。'

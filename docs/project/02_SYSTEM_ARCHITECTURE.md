@@ -116,7 +116,7 @@ Authenticated order and direct queue creation copy only `req.user.lineUserId`, w
 - Queue/order services never call LINE directly. They enqueue durable notification intents in PostgreSQL through `QueueNotificationService` and `NotificationOutboxRepository` inside the same business transaction as the queue/order state change.
 - API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`; queue lifecycle copy, Flex Message payloads, text fallbacks, and ticket deep links are centralized in `line-notification.templates.ts` and sent by the notification delivery worker through `lineNotificationService`.
 - Rich Menu management is separate from runtime startup. `rich-menu.definition.ts` owns the Japanese menu actions and LIFF routes, `rich-menu.adapter.ts` owns LINE transport, `rich-menu.sync.service.ts` owns idempotent create/reuse/replace behavior, and `npm run line:rich-menu:sync` performs the explicit synchronization. Uploading Rich Menu images uses LINE's data API host, while create/list/default/delete use the Messaging API host.
-- Demo payment is currently browser-orchestrated and recorded by the order creation API; real payment must originate/verify on the server.
+- Payment originates as a server-created intent. Browser return is a UX signal; demo completion and future PSP callbacks are verified server-side before an order can consume the transaction.
 
 ## 8. Background jobs
 
@@ -134,14 +134,14 @@ Notification delivery uses PostgreSQL row locking with `FOR UPDATE SKIP LOCKED` 
 
 ## 9. Payment architecture
 
-`paymentGateway.ts` defines a demo/external redirect boundary and Japan-oriented methods. Current demo checkout returns a synthetic transaction code. Order creation recomputes product totals, validates prepaid coverage, writes `payment_transactions`, and snapshots per-item payment.
+`paymentGateway.ts` defines Japan-oriented method choices for the browser, while `apps/api/src/modules/payments` owns the payment boundary. The API creates `payment_transactions` before checkout, computes payable coverage from server-side product data, and exposes provider adapters through `ExternalPaymentProvider`. `DemoPaymentProvider` returns a server-signed completion token for local/dev auto-success; future Stripe/KOMOJU/PayPay adapters plug into the same intent, return, webhook, and reconciliation flow.
 
 Production target:
 
 ```text
-Browser -> API create payment intent -> PSP hosted checkout
-PSP -> signed webhook -> API transaction state machine
-API -> order/item reconciliation -> Browser return/status query
+Browser -> API create payment intent -> provider checkout/demo page
+Provider/demo -> signed webhook or server-side verification -> API transaction state machine
+API -> reconciliation -> order creation consumes verified transaction -> Browser return/status query
 ```
 
 The browser return URL is a user experience signal, not proof of payment.

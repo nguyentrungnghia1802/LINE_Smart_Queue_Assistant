@@ -64,4 +64,29 @@ describe('CreateOrderSchema — customer linkage fields', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('accepts verified payment transaction reference', () => {
+    const result = CreateOrderSchema.safeParse({
+      ...baseOrder,
+      payment: { transactionId: '22222222-2222-4222-8222-222222222222' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects browser-supplied payment success details', () => {
+    const result = CreateOrderSchema.safeParse({
+      ...baseOrder,
+      payment: {
+        status: 'paid',
+        provider: 'demo',
+        method: 'credit_card',
+        code: 'DEMO-123',
+        amount: 1000,
+        currency: 'JPY',
+        scope: 'required_items',
+        coveredProductIds: ['44444444-4444-4444-8444-444444444441'],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
 });
