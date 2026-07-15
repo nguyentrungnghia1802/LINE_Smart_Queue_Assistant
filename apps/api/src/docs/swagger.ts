@@ -11,6 +11,7 @@
 
 import { config } from '../config';
 
+import { buildCatalogPaths } from './api-endpoint-catalog';
 import { linePaths } from './paths/line.paths';
 import { notificationsPaths } from './paths/notifications.paths';
 import { paymentsPaths } from './paths/payments.paths';
@@ -87,8 +88,7 @@ export const swaggerSpec = {
     version: '1.0.0',
     description:
       'REST API for the LINE Smart Queue Assistant — queue management, ' +
-      'customer ticket operations, and LINE Messaging webhook integration.\n\n' +
-      '**Note**: stub endpoints return `501 Not Implemented` until domain logic is wired up.',
+      'customer ticket operations, payment, media, forecasting, and LINE Messaging integration.',
     contact: {
       name: 'LINE Smart Queue Team',
     },
@@ -111,10 +111,22 @@ export const swaggerSpec = {
     { name: 'notifications', description: 'Notification history' },
     { name: 'line', description: 'LINE Messaging API webhook' },
     { name: 'payments', description: 'Payment intent, webhook, return, and reconciliation' },
+    { name: 'auth', description: 'System and verified LINE authentication' },
+    { name: 'admin', description: 'Platform organization administration' },
+    { name: 'bookings', description: 'Customer booking groups and history' },
+    { name: 'forecasts', description: 'Measured heuristic wait and staffing outputs' },
+    { name: 'location', description: 'Customer location consent and deletion' },
+    { name: 'media', description: 'Validated image storage lifecycle' },
+    { name: 'orders', description: 'Orders, payment summaries, and receipts' },
+    { name: 'organizations', description: 'Public organization and manager settings' },
+    { name: 'products', description: 'Product and service catalog' },
+    { name: 'staff', description: 'Tenant queue operations' },
+    { name: 'users', description: 'Profiles and staff administration' },
     { name: 'health', description: 'Health and liveness probes' },
   ],
 
   paths: {
+    ...buildCatalogPaths(),
     ...queueEntryPaths,
     ...queuesAdminPaths,
     ...notificationsPaths,

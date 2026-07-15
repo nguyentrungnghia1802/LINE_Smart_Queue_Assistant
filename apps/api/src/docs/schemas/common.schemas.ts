@@ -5,6 +5,14 @@
  * Response shapes mirror apps/api/src/utils/response.ts exactly.
  */
 export const commonSchemas = {
+  SuccessResponse: {
+    type: 'object',
+    required: ['success', 'data'],
+    properties: {
+      success: { type: 'boolean', example: true },
+      data: { nullable: true },
+    },
+  },
   // ── Error envelope ───────────────────────────────────────────────────────────
   ErrorResponse: {
     type: 'object',

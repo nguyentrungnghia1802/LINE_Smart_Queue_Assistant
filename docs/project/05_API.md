@@ -5,10 +5,16 @@
 - Runtime endpoint truth: `apps/api/src/routes` and `apps/api/src/modules/**/**.routes.ts`
 - Request validation truth: module `*.validator.ts` files
 - Response helpers: `apps/api/src/utils/response.ts`
-- Interactive partial Swagger: `GET /api/docs` outside production
-- Raw partial Swagger JSON: `GET /api/docs.json` outside production
+- Interactive Swagger: `GET /api/docs` outside production
+- Raw OpenAPI JSON: `GET /api/docs.json` outside production
+- Runtime coverage guard: `npm run openapi:check`
 
-Swagger coverage is not yet complete enough to be the sole contract source.
+The OpenAPI catalog covers every mounted `/api/v1` route and records bearer auth,
+pagination, standard success/error envelopes, path parameters, and the runtime Zod
+validator name. High-value queue, payment, notification, and LINE operations also
+publish detailed component schemas. Express routes and Zod validators remain the
+executable source of truth; the contract test fails when a route is added or removed
+without updating the catalog.
 
 ## 2. Base URLs and authentication
 

@@ -133,6 +133,7 @@ npm run test
 npm run test:coverage
 npm run build
 npm run format:check
+npm run openapi:check
 npm run spell:check
 ```
 

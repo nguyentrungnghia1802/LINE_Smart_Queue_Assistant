@@ -21,6 +21,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\" --ignore-path .gitignore",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\" --ignore-path .gitignore",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "openapi:check": "npm run openapi:check -w apps/api",
     "spell:check": "cspell \"**/*.{ts,tsx,md}\" --no-progress --show-context",
     "clean": "npm run clean --workspaces --if-present",
     "prepare": "npm run build -w packages/shared && husky",
