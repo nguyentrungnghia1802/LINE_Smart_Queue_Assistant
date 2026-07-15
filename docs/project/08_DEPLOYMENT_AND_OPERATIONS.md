@@ -23,15 +23,17 @@ Backend-only secrets:
 - `LINE_CHANNEL_ACCESS_TOKEN`
 - `LINE_CHANNEL_ID`
 - `LINE_LIFF_ID`
+- `LINE_RICH_MENU_IMAGE_PATH` or an equivalent deployment-mounted Rich Menu PNG/JPEG asset path
 - future PSP API/webhook keys
 
-`LINE_CHANNEL_ACCESS_TOKEN` authorizes outbound Messaging API calls. `LINE_CHANNEL_SECRET` verifies inbound webhook signatures and must come from the same Messaging API channel as the token. `LINE_CHANNEL_ID` is the separate LINE Login channel ID used for LIFF ID-token verification. `LINE_LIFF_ID` is the public LIFF app ID used by the backend to generate ticket deeplinks in LINE messages.
+`LINE_CHANNEL_ACCESS_TOKEN` authorizes outbound Messaging API calls and Rich Menu management. `LINE_CHANNEL_SECRET` verifies inbound webhook signatures and must come from the same Messaging API channel as the token. `LINE_CHANNEL_ID` is the separate LINE Login channel ID used for LIFF ID-token verification. `LINE_LIFF_ID` is the public LIFF app ID used by the backend to generate ticket deeplinks in LINE messages and Rich Menu LIFF routes.
 
 Browser-visible configuration:
 
 - `VITE_API_URL`
 - `VITE_APP_NAME`
 - `VITE_LIFF_ID`
+- `VITE_LIFF_DEFAULT_BOOKING_PATH`
 - payment mode/redirect base URL (identifiers/URLs only, never keys)
 
 Rotate any credential that has appeared in Git history, logs, screenshots, tickets, or examples.
@@ -61,9 +63,10 @@ For a real production environment, use managed PostgreSQL/object storage, TLS in
 4. Apply additive migrations with a production-safe role.
 5. Deploy API and verify `/health` plus `/ready`.
 6. Deploy web with correct public environment values.
-7. Smoke test login, public org/QR, booking, staff call, LINE sandbox, and payment mode.
-8. Monitor errors, latency, DB connections, job execution, stock/payment anomalies, and notification failures.
-9. Record release in `CHANGELOG.md`.
+7. Run `npm run line:rich-menu:sync` only after the intended LINE credentials, LIFF ID, web origin, and Rich Menu image are configured.
+8. Smoke test login, public org/QR, LIFF Home/Rich Menu navigation, booking, staff call, LINE sandbox, and payment mode.
+9. Monitor errors, latency, DB connections, job execution, stock/payment anomalies, and notification failures.
+10. Record release in `CHANGELOG.md`.
 
 Use expand/backfill/contract deployment for schema changes that cannot be completed atomically without downtime.
 
@@ -143,6 +146,10 @@ Remove instance from readiness, inspect credentials/network/storage/connections,
 
 Check linked `line_user_id`, Official Account relationship, access token, channel pairing, `/health`, API logs/metrics, recipient block status, and device notification settings. Remember current deduplication/retry state is in memory.
 
+### Rich Menu missing or outdated
+
+Check the intended Official Account, `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_LIFF_ID`, `WEB_ORIGIN`, and `LINE_RICH_MENU_IMAGE_PATH`. Rerun `npm run line:rich-menu:sync`; use `-- --replace` only when intentionally replacing the managed menu. The API process does not create or update Rich Menus on startup.
+
 ### Duplicate LINE messages
 
 Check API replica count/restarts and scanner overlap. Current process-local deduplication is insufficient; temporarily run one scheduler owner and prioritize durable notification idempotency.
@@ -173,6 +180,7 @@ The GitHub Actions workflow currently installs dependencies, builds shared code,
 - HTTPS, secure domain/CORS, rate/edge protection, and restricted metrics/docs.
 - Managed PostgreSQL backups and restore drill.
 - Durable notification outbox/retry/idempotency.
+- Real Rich Menu image asset synced and verified on a physical LINE client.
 - Verified payment intent/webhook/refund/reconciliation.
 - Stock release/consume lifecycle and concurrency tests.
 - Location consent, retention, deletion, and alert worker.

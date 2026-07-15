@@ -41,7 +41,8 @@
     "db:seed": "npm run db:seed -w apps/api",
     "db:seed:demo": "psql $DATABASE_URL -f db/seed_demo.sql",
     "db:seed:reset": "npm run db:seed:reset -w apps/api",
-    "line:verify": "npm run line:verify -w apps/api"
+    "line:verify": "npm run line:verify -w apps/api",
+    "line:rich-menu:sync": "npm run line:rich-menu:sync -w apps/api"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",

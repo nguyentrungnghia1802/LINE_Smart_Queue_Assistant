@@ -102,6 +102,7 @@ Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently
 4. Customer selects products/services, optionally completes demo checkout for required prepayment, and creates the booking within the same LIFF flow.
 5. The backend uses server-verified identity, not browser profile data or public request body fields, to attach the LINE recipient.
 6. On success, LIFF navigates to `/liff/tickets/:entryId` and shows ticket code, status, people ahead, and ETA.
+7. Rich Menu opens `/liff/home` or `/liff/home` with mode/section query parameters. LIFF Home uses the authenticated LINE session to resolve the current active ticket, start booking from the configured default booking path, or show Japanese empty/usage states.
 
 Public `/qr/:token`, `/q/:orgSlug`, `/ticket/:entryId`, and public demo checkout remain fallback/browser-compatible routes. Guest trade-off: the order/ticket works, but LINE push is unavailable unless the ticket resolves to a linked `line_user_id`. For LINE-authenticated requests, `currentUserMiddleware` validates the JWT LINE claim against the active `line_accounts` row. The order and queue controllers pass both internal user ID and verified LINE user ID to their services, which store both on the queue entry inside the write transaction.
 
@@ -180,7 +181,26 @@ Notification ticket links prefer `LINE_LIFF_ID` and generate `https://liff.line.
 
 Ticket lifecycle notifications currently cover booking-created, ETA warning, called, serving, completed, cancelled, and no-show events. Each Flex Message shows the system name, ticket code, current status, people ahead, ETA, next action guidance, and a button that opens the LIFF ticket detail.
 
-## 9. Location warning flow
+## 9. LINE Rich Menu navigation flow
+
+```text
+LINE Rich Menu tap
+          |
+          v
+https://liff.line.me/{LINE_LIFF_ID}?liff.state=/liff/home...
+          |
+          v
+LIFF initializes + exchanges ID token for system JWT
+          |
+          +-- ホーム         -> /liff/home
+          +-- 予約する       -> /liff/home?mode=booking -> configured /liff/qr/{token}
+          +-- 現在の受付     -> /liff/home?mode=ticket  -> active ticket or /liff/tickets
+          +-- 利用案内       -> /liff/home?section=guide
+```
+
+The Rich Menu definition never points to `/liff/tickets/:entryId` because the entry ID is customer-specific and must be resolved at runtime. When `LINE_LIFF_ID` is missing, menu URIs fall back to `WEB_ORIGIN` plus the same `/liff/*` route. Rich Menu creation/upload/default-setting is an operator command, not an API startup side effect.
+
+## 10. Location warning flow
 
 1. Customer explicitly grants browser geolocation permission.
 2. Booking request carries latitude, longitude, and optional accuracy.
@@ -191,13 +211,13 @@ Ticket lifecycle notifications currently cover booking-created, ETA warning, cal
 
 Step 6 is not implemented. There is no continuous tracking, and production requires consent/retention controls.
 
-## 10. ETA and staffing flow
+## 11. ETA and staffing flow
 
 Current ETA uses total service workload when available, otherwise people ahead multiplied by configured average service seconds. Confidence is heuristic. A 30-second job updates waiting entries.
 
 `wait_time_forecasts` and `staffing_recommendations` are target output tables. No current job trains a model, aggregates hourly history, writes these tables, or exposes recommendations. “AI” should therefore be described as planned/heuristic, not a deployed predictive model.
 
-## 11. Failure flows
+## 12. Failure flows
 
 - Authentication failure: return `401`; do not fall back to a privileged role.
 - Tenant mismatch: return `403`; do not reveal whether the foreign resource exists.
@@ -206,5 +226,6 @@ Current ETA uses total service workload when available, otherwise people ahead m
 - Missing prepayment: reject before transaction.
 - Duplicate retry: idempotency middleware should return/reject consistently without duplicate writes.
 - LINE failure: preserve queue transition, log/metric, and retry according to notification workflow.
+- Rich Menu sync failure: log a clear operational error and exit the sync command without affecting the running API.
 - Database unavailable: `/ready` returns `503`; Vite proxy errors indicate the API is not accepting connections.
 - Payment provider uncertainty: keep transaction pending/failed; never infer success from redirect alone.
