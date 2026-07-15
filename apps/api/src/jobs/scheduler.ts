@@ -40,6 +40,7 @@ import { logger } from '../utils/logger';
 
 import { runCounterReset } from './counterReset.job';
 import { runEtaUpdater } from './etaUpdater.job';
+import { runForecasting } from './forecasting.job';
 import { runInventoryExpiry } from './inventoryExpiry.job';
 import { JobRunner } from './jobRunner';
 import { runLocationAlerts, runLocationCleanup } from './locationAlert.job';
@@ -124,6 +125,11 @@ export const scheduler = {
         name: 'counterReset',
         intervalMs: COUNTER_RESET_CHECK_INTERVAL_MS,
         run: async () => void (await withAdvisoryJobLock('counterReset', runCounterReset)),
+      })
+      .schedule({
+        name: 'forecasting',
+        intervalMs: config.forecasts.intervalMs,
+        run: async () => void (await withAdvisoryJobLock('forecasting', runForecasting)),
       });
 
     logger.info({ jobs: runner.count }, 'scheduler: started');

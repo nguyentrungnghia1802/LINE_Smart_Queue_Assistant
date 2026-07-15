@@ -10,6 +10,7 @@ All notable project changes should be recorded here. This file tracks delivered 
 - Added audited payment reconciliation, replay/out-of-order webhook guards, partial/full refund accounting, and receipt eligibility checks.
 - Added tenant-scoped notification operations, LINE preferences, privacy-aware location alerts, and retention cleanup.
 - Added authenticated cross-device booking history, tenant staff related-booking views, Japan address fields, weekly hours, exception days, and Japan-localized seed data.
+- Added measured heuristic wait forecasts and staffing recommendations with hourly aggregates, confidence, explanations, retention, manager APIs, dashboard output, and a PostgreSQL-locked scheduler job.
 
 ### LINE Messaging
 

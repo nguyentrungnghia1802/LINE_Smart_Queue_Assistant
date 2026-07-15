@@ -208,6 +208,8 @@ Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatu
 | GET    | `/api/v1/booking-groups/:id`             | Owner, tenant staff, admin | Independent orders/items/tickets in one related booking group |
 | GET    | `/api/v1/orgs/my-org/business-calendar`  | Manager/admin              | Weekly hours and upcoming holiday/exception dates             |
 | PUT    | `/api/v1/orgs/my-org/business-calendar`  | Manager/admin              | Atomically replace validated tenant calendar and write audit  |
+| GET    | `/api/v1/forecasts/wait`                 | Manager/admin              | Latest per-queue measured wait forecast with confidence       |
+| GET    | `/api/v1/forecasts/staffing`             | Manager/admin              | Latest weekday/hour staffing baseline with explanation        |
 
 Booking-group requests never accept a customer or LINE user ID as authority. Customer scope comes from the verified system JWT; staff scope comes from active tenant membership. Payment, cancellation, receipt, and ticket status remain independent for every order in the response.
 

@@ -14,6 +14,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 8. `000008_payment_reconciliation.js`
 9. `000009_notification_consent_location_privacy.js`
 10. `000010_booking_history_japan_calendar.js`
+11. `000011_forecasting_baseline.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -76,6 +77,7 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 | `customer_location_consents`    | Location consent, revocation and deletion request | One row per authenticated customer                                                          |
 | `wait_time_forecasts`           | Forecast output history                           | Nonnegative wait/depth; confidence 0..1                                                     |
 | `staffing_recommendations`      | Hourly staffing output                            | weekday 0..6, hour 0..23, positive staff, confidence 0..1                                   |
+| `queue_hourly_metrics`          | Retained eight-week demand/service aggregate      | Tenant slot indexes, nonnegative counts/durations, bounded weekday/hour, expiry             |
 | `notifications`                 | Durable LINE outbox and delivery log              | Unique event key, tenant/entry/user/LINE references, pending/processing/retry indexes       |
 | `penalty_records`               | No-show/late/cancel/manual policy record          | User/LINE/tenant lookup indexes                                                             |
 | `queue_histories`               | Queue transition/event history                    | Tenant/queue/entry/actor indexes                                                            |
@@ -177,5 +179,5 @@ Schema migrations live under `db/migrations/node-pg-migrate` and are executed by
 ## 11. Schema gaps requiring follow-up
 
 - Real per-organization payment/LINE provider secrets need a managed encrypted configuration boundary.
-- Forecast and staffing tables lack producers and retention policy.
+- Forecast calibration still needs production history and measured accuracy review before any ML claim.
 - Advanced notification operations UI, manual replay/cancel controls, and long-term notification retention policy are not implemented.

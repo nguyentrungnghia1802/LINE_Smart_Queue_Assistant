@@ -78,6 +78,11 @@ export const config = {
     cleanupIntervalMs: Number.parseInt(process.env.LOCATION_CLEANUP_INTERVAL_MS ?? '3600000', 10),
   },
 
+  forecasts: {
+    retentionDays: Number.parseInt(process.env.FORECAST_RETENTION_DAYS ?? '90', 10),
+    intervalMs: Number.parseInt(process.env.FORECAST_WORKER_INTERVAL_MS ?? '3600000', 10),
+  },
+
   cors: {
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
   },

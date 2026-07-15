@@ -548,7 +548,9 @@ CREATE TABLE wait_time_forecasts (
   confidence                 NUMERIC(5,4) NOT NULL DEFAULT 0.5000,
   model_version              TEXT NOT NULL DEFAULT 'heuristic-v1',
   features                   JSONB NOT NULL DEFAULT '{}',
+  explanation                TEXT,
   generated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at                 TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 days'),
 
   CONSTRAINT wait_time_forecasts_wait_non_negative CHECK (forecasted_wait_seconds >= 0),
   CONSTRAINT wait_time_forecasts_queue_depth_non_negative CHECK (queue_depth >= 0),
@@ -564,12 +566,30 @@ CREATE TABLE staffing_recommendations (
   confidence                 NUMERIC(5,4) NOT NULL DEFAULT 0.5000,
   model_version              TEXT NOT NULL DEFAULT 'heuristic-v1',
   features                   JSONB NOT NULL DEFAULT '{}',
+  explanation                TEXT,
   generated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at                 TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 days'),
 
   CONSTRAINT staffing_recommendations_day_range CHECK (day_of_week BETWEEN 0 AND 6),
   CONSTRAINT staffing_recommendations_hour_range CHECK (hour_of_day BETWEEN 0 AND 23),
   CONSTRAINT staffing_recommendations_staff_positive CHECK (recommended_staff_count > 0),
   CONSTRAINT staffing_recommendations_confidence_range CHECK (confidence BETWEEN 0 AND 1)
+);
+
+CREATE TABLE queue_hourly_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+  hour_of_day INT NOT NULL CHECK (hour_of_day BETWEEN 0 AND 23),
+  sample_start TIMESTAMPTZ NOT NULL,
+  sample_end TIMESTAMPTZ NOT NULL,
+  arrival_count INT NOT NULL DEFAULT 0 CHECK (arrival_count >= 0),
+  completion_count INT NOT NULL DEFAULT 0 CHECK (completion_count >= 0),
+  average_wait_seconds INT CHECK (average_wait_seconds IS NULL OR average_wait_seconds >= 0),
+  average_service_seconds INT CHECK (average_service_seconds IS NULL OR average_service_seconds >= 0),
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 days'),
+  CHECK (sample_start < sample_end)
 );
 
 -- -----------------------------------------------------------------------------
@@ -734,6 +754,12 @@ CREATE INDEX idx_location_alerts_pending ON location_alerts(organization_id, due
   WHERE status = 'pending';
 CREATE INDEX idx_wait_time_forecasts_org_generated ON wait_time_forecasts(organization_id, generated_at DESC);
 CREATE INDEX idx_staffing_recommendations_org_slot ON staffing_recommendations(organization_id, day_of_week, hour_of_day);
+CREATE INDEX idx_queue_hourly_metrics_slot ON queue_hourly_metrics(organization_id, day_of_week, hour_of_day, generated_at DESC);
+CREATE INDEX idx_queue_hourly_metrics_expiry ON queue_hourly_metrics(expires_at);
+CREATE INDEX idx_wait_time_forecasts_queue_latest ON wait_time_forecasts(organization_id, queue_id, generated_at DESC);
+CREATE INDEX idx_wait_time_forecasts_expiry ON wait_time_forecasts(expires_at);
+CREATE INDEX idx_staffing_recommendations_latest ON staffing_recommendations(organization_id, day_of_week, hour_of_day, generated_at DESC);
+CREATE INDEX idx_staffing_recommendations_expiry ON staffing_recommendations(expires_at);
 
 CREATE INDEX idx_notif_pending ON notifications(created_at)
   WHERE status = 'pending';
