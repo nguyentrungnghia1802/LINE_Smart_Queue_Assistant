@@ -102,6 +102,8 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | FR-LINE-007 | LINE notification links open the correct LIFF ticket detail                                   | Implemented                                                                                                                       |
 | FR-LINE-008 | Ticket lifecycle notifications use a common Flex Message with text fallback                   | Implemented                                                                                                                       |
 | FR-LINE-009 | Booking success sends a LINE ticket notification when the entry has a verified LINE recipient | Implemented                                                                                                                       |
+| FR-LINE-010 | LINE Rich Menu opens LIFF Home, booking start, current ticket resolution, and usage guidance  | Implemented in code; LINE Console/E2E sync pending                                                                                |
+| FR-LINE-011 | Rich Menu synchronization is explicit, idempotent, mockable, and never runs on API startup    | Implemented                                                                                                                       |
 
 ### Location, prediction, and analytics
 
@@ -139,6 +141,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | BR-LINE-002    | Login and Messaging API are separate LINE channels/capabilities and must be configured consistently.       |
 | BR-LINE-003    | Public request bodies must not assert a LINE user ID; derive the recipient from a verified LINE account.   |
 | BR-LINE-004    | LIFF booking must wait for the LINE-derived system JWT before creating order/queue records.                |
+| BR-LINE-005    | Rich Menu areas must open LIFF routes that can resolve the current customer context, not fixed ticket IDs. |
 | BR-PRIVACY-001 | Location is optional, consent-based, purpose-limited, and must have a retention/deletion policy.           |
 
 ## 5. Core acceptance criteria
@@ -151,9 +154,10 @@ The platform role does not replace tenant membership. Staff and manager operatio
 6. Staff actions cannot access an entry/order in another organization.
 7. Staff state changes for a LINE-linked customer send Japanese queue messages without reverting queue state on delivery failure.
 8. LINE ticket notifications contain the system name, ticket code, status, people ahead, ETA, next action, and a LIFF ticket button; text fallback remains available.
-9. Admin organization registration creates the organization, manager user, and active membership together.
-10. All primary pages remain usable at mobile and desktop widths and all visible copy is Japanese.
-11. Health/readiness clearly distinguish a live process from a usable database connection.
+9. Rich Menu buttons open `/liff/home`, booking start, current ticket resolution, and usage guidance without hard-coded entry IDs.
+10. Admin organization registration creates the organization, manager user, and active membership together.
+11. All primary pages remain usable at mobile and desktop widths and all visible copy is Japanese.
+12. Health/readiness clearly distinguish a live process from a usable database connection.
 
 ## 6. Non-functional requirements
 

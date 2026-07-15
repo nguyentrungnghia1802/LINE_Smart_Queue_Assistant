@@ -14,7 +14,7 @@ npm install
 cp .env.example .env
 ```
 
-Required production-like values include database credentials, a strong JWT secret, CORS/web origin, LINE Login channel ID, LINE Messaging channel secret/access token, frontend LIFF ID, and backend `LINE_LIFF_ID` for notification deep links. `VITE_*` variables are compiled into browser code and must never contain secrets.
+Required production-like values include database credentials, a strong JWT secret, CORS/web origin, LINE Login channel ID, LINE Messaging channel secret/access token, frontend LIFF ID, backend `LINE_LIFF_ID` for notification/Rich Menu deep links, and `LINE_RICH_MENU_IMAGE_PATH` for real Rich Menu sync. `VITE_*` variables are compiled into browser code and must never contain secrets.
 
 For ordinary UI/backend work without LINE credentials:
 
@@ -25,6 +25,8 @@ VITE_PAYMENT_MODE=demo
 ```
 
 The API uses `MockLineAdapter` in tests or whenever `LINE_CHANNEL_ACCESS_TOKEN` is absent.
+
+For local Rich Menu navigation demos, set `VITE_LIFF_DEFAULT_BOOKING_PATH` to a safe LIFF booking path such as `/liff/qr/demo-queue-lab-2026`.
 
 ## 3. Run with Docker
 
@@ -85,7 +87,20 @@ npm run db:reset
 - `db:reset` rebuilds local/dev schema and destroys data.
 - Root migration rollback/redo commands are intentionally unavailable to prevent mixed runner state.
 
-## 6. Demo baseline
+## 6. LINE Rich Menu sync
+
+Rich Menu synchronization is an explicit operator action and does not run when the API starts:
+
+```bash
+npm run line:rich-menu:sync
+npm run line:rich-menu:sync -- --replace
+```
+
+The command builds the centralized menu for `ホーム`, `予約する`, `現在の受付`, and `利用案内`, reuses an existing menu with the same managed name, removes duplicates, uploads the configured image, and sets it as default. When `LINE_CHANNEL_ACCESS_TOKEN` is missing or `NODE_ENV=test`, the mock adapter is used. Do not commit the token, and do not log it while debugging.
+
+Set `LINE_RICH_MENU_IMAGE_PATH` to a local PNG/JPEG with a production-valid LINE Rich Menu size before syncing against a real Official Account. If the image path is omitted, a generated placeholder is only suitable for mock/dev behavior.
+
+## 7. Demo baseline
 
 After seeding, the main local accounts use password `123456`:
 
@@ -104,7 +119,7 @@ Public demo paths:
 
 Seed organization address/currency content is legacy demo data and is not representative of the final Japan configuration.
 
-## 7. Validation commands
+## 8. Validation commands
 
 ```bash
 npm run lint
@@ -127,7 +142,7 @@ npm run test:ui -w apps/web
 
 At the 2026-07-15 baseline, the repository contains 30 API test files and 4 web test files. Counts are informational and will change.
 
-## 8. Test strategy
+## 9. Test strategy
 
 | Layer                          | Tool                                         | Focus                                                                                  |
 | ------------------------------ | -------------------------------------------- | -------------------------------------------------------------------------------------- |
@@ -146,10 +161,11 @@ Critical regression scenarios:
 - Ticket transition races and duplicate call-next requests.
 - LINE token absent, success, failure, duplicate scan, and process restart semantics.
 - LINE Flex Message payload, text fallback, deeplink URL, and no-rollback behavior for queue/order notifications.
+- LIFF Home authentication, active-ticket/no-ticket states, Rich Menu route resolution, and Rich Menu sync idempotency/mock behavior.
 - Organization registration transaction and duplicate email/slug.
 - Mobile staff rail/detail layout and public QR/ticket pages.
 
-## 9. Manual LINE verification
+## 10. Manual LINE verification
 
 1. Configure LINE Login/LIFF and Messaging API under the intended provider.
 2. Put secrets only in local `.env`; use the Messaging channel access token/secret and Login channel ID/LIFF ID correctly.
@@ -159,12 +175,13 @@ Critical regression scenarios:
 6. Open `https://liff.line.me/{LIFF_ID}?liff.state=%2Fliff%2Fqr%2F{publicQrToken}` and verify `/api/v1/auth/line` links a real `line_user_id`.
 7. Select products/services, complete demo prepayment if required, create a booking, and confirm the app redirects to `/liff/tickets/:entryId`.
 8. Call the ticket from staff and observe the Japanese Flex Message in LINE chat. The card should include ticket code, status, people ahead, ETA, next action, and a button that opens the LIFF ticket detail. Text fallback is expected only when Flex delivery fails.
-9. Optionally send a direct test with `npm run line:verify -- --send-to <LINE_USER_ID>`.
-10. Check API logs/metrics and ensure `notificationDisabled` remains `false` for normal notifications.
+9. Configure `LINE_RICH_MENU_IMAGE_PATH`, run `npm run line:rich-menu:sync`, and confirm the Official Account Rich Menu opens LIFF Home, booking, current ticket, and usage guide routes.
+10. Optionally send a direct test with `npm run line:verify -- --send-to <LINE_USER_ID>`.
+11. Check API logs/metrics and ensure `notificationDisabled` remains `false` for normal notifications.
 
 Phone sound/banner ultimately follows the customer's LINE and OS notification settings; the server cannot override a muted device/chat.
 
-## 10. Common errors
+## 11. Common errors
 
 ### Vite proxy `ECONNREFUSED`
 
@@ -190,10 +207,22 @@ Verify `DATABASE_URL`, Docker database name/password, host (`localhost` natively
 
 The API intentionally uses a mock when `LINE_CHANNEL_ACCESS_TOKEN` is empty or `NODE_ENV=test`. Read startup logs and `/health.notificationService`.
 
+### Rich Menu sync uses mock mode
+
+Cause: `LINE_CHANNEL_ACCESS_TOKEN` is empty or the command is running under `NODE_ENV=test`.
+
+Check the environment file loaded by the API workspace. The sync command should print a summary, not the token.
+
+### Rich Menu image upload fails
+
+Cause: `LINE_RICH_MENU_IMAGE_PATH` is missing, unreadable, wrong content type, or not a LINE-valid Rich Menu image size.
+
+Use a PNG/JPEG asset prepared for Rich Menu and rerun `npm run line:rich-menu:sync -- --replace` only when intentionally replacing the managed menu.
+
 ### Payment always succeeds
 
 Expected when `VITE_PAYMENT_MODE=demo` or no external redirect base is configured. This is not a production payment proof.
 
-## 11. Definition of done
+## 12. Definition of done
 
 Before handoff, run relevant tests plus lint, typecheck, build, and formatting. Verify migrations for schema work and manually exercise the changed role/viewport flow. Document any check that could not run and update affected canonical docs.

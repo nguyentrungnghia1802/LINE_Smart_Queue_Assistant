@@ -4,6 +4,7 @@ interface ImportMetaEnv {
   // ── App ────────────────────────────────────────────────────────────────────
   readonly VITE_API_URL: string;
   readonly VITE_APP_NAME: string;
+  readonly VITE_LIFF_DEFAULT_BOOKING_PATH: string;
 
   // ── Payment ───────────────────────────────────────────────────────────────
   /** "external" enables provider redirect flow; blank/default keeps demo auto-success. */

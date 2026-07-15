@@ -80,6 +80,8 @@ Pages orchestrate data and interactions. Reusable visual patterns belong in comp
 
 LIFF child pages should consume `LiffRuntimeContext` from `LiffLayout` instead of calling `useLiff()` directly. The layout initializes LIFF once and shares profile/auth status with booking, ticket, and home routes.
 
+`/liff/home` is the customer entry point for LINE Rich Menu. It should keep ticket resolution and booking navigation in the LIFF flow and must not hard-code queue entry IDs.
+
 ## 4. Shared packages
 
 `@line-queue/shared` is consumed by API and web. It may contain serializable types, constants, and pure helpers only. It must not import Express, React, browser-only APIs, database clients, or secrets.
@@ -136,6 +138,7 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 - Keep commercial/stock writes inside one transaction when partial state would be invalid.
 - Invalidate caches only after commit.
 - Keep customer-facing LINE copy, Flex payloads, text fallback, and ticket deeplink construction inside `line-notification.templates.ts` and `lineNotificationService`; business services must not call the LINE SDK or adapter directly.
+- Keep Rich Menu definition, image loading, LINE transport, and sync orchestration separated in `apps/api/src/modules/line/rich-menu.*`. Do not create or replace Rich Menus during API startup; use the explicit script command.
 
 ## 10. Files requiring extra care
 
@@ -146,4 +149,5 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 - `apps/api/src/routes/v1.routes.ts` and `apps/web/src/router.tsx`: route ordering/coverage.
 - `apps/api/src/modules/orders/orders.service.ts`: coupled payment/stock/order/ticket transaction.
 - `apps/api/src/modules/notifications/**`: LINE notification templates, delivery semantics, and current process-local deduplication.
+- `apps/api/src/modules/line/rich-menu.*` and `apps/api/src/scripts/sync-line-rich-menu.ts`: external LINE Rich Menu configuration; never log channel access tokens.
 - `docs/archive/**`: historical; do not update as current truth.

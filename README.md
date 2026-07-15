@@ -74,6 +74,12 @@ After configuring the Messaging API token in the ignored `.env`, verify that it 
 npm run line:verify
 ```
 
+Rich Menu setup is explicit and idempotent. After setting `LINE_LIFF_ID`, `WEB_ORIGIN`, `LINE_CHANNEL_ACCESS_TOKEN`, and `LINE_RICH_MENU_IMAGE_PATH`, sync the managed menu with:
+
+```bash
+npm run line:rich-menu:sync
+```
+
 The webhook additionally requires the Messaging API channel secret and a public HTTPS URL. A token alone is sufficient for outbound push calls, but not for validating inbound follow/message events.
 
 See [System Architecture](docs/project/02_SYSTEM_ARCHITECTURE.md) and [Domain and Flows](docs/project/03_DOMAIN_AND_FLOWS.md).

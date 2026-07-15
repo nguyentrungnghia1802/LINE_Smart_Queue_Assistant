@@ -31,6 +31,8 @@ export const config = {
     channelId: process.env.LINE_CHANNEL_ID ?? '',
     /** LIFF app ID used to generate customer deep links in LINE push messages. */
     liffId: process.env.LINE_LIFF_ID ?? process.env.VITE_LIFF_ID ?? '',
+    /** Local PNG/JPEG image used by the explicit Rich Menu sync command. */
+    richMenuImagePath: process.env.LINE_RICH_MENU_IMAGE_PATH ?? '',
   },
 
   cors: {

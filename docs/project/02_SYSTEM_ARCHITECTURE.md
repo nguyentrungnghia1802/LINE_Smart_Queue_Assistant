@@ -68,7 +68,7 @@ Routes and controllers must not contain domain policy. Repositories must not kno
 `apps/web/src/router.tsx` defines one SPA with these route domains:
 
 - Public customer fallback: `/q/:orgSlug`, `/qr/:token`, `/ticket/:entryId`, `/checkout/demo/:sessionId`
-- LINE-first customer: `/liff/q/:orgSlug`, `/liff/qr/:token`, `/liff/checkout/demo/:sessionId`, `/liff/tickets/:entryId`
+- LINE-first customer: `/liff/home`, `/liff/q/:orgSlug`, `/liff/qr/:token`, `/liff/checkout/demo/:sessionId`, `/liff/tickets`, `/liff/tickets/:entryId`
 - Staff: `/staff`, `/staff/products`
 - Manager: `/manager/*`
 - Platform admin: `/admin/*`
@@ -102,6 +102,7 @@ Frontend responsibilities are split into route pages, reusable components/layout
 5. `currentUserMiddleware` accepts the JWT LINE claim only when the matching `line_accounts` row still belongs to that user and `is_linked = TRUE`.
 6. LIFF booking, demo payment return, order creation, and ticket display run in the same `/liff/*` flow. Order and direct queue creation in LIFF are blocked until the system JWT has been issued from the LINE ID token.
 7. Queue entries that store that verified linked LINE user ID can be targeted through Messaging API push.
+8. Rich Menu entry points open safe `/liff/*` routes. `/liff/home?mode=ticket` resolves the current active ticket for the authenticated LINE user instead of depending on a fixed entry ID.
 
 LINE Login does not send messages. Messaging API does not authenticate the web session. A complete setup needs both capabilities under the intended provider and a consistent LINE user relationship.
 
@@ -112,6 +113,7 @@ Authenticated order and direct queue creation copy only `req.user.lineUserId`, w
 - Browser-to-API communication is JSON REST over `/api/v1`.
 - API-to-PostgreSQL uses parameterized `pg` queries and explicit transactions for multi-row writes.
 - API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`; queue lifecycle copy, Flex Message payloads, text fallbacks, and ticket deep links are centralized in `line-notification.templates.ts` and sent through `lineNotificationService`.
+- Rich Menu management is separate from runtime startup. `rich-menu.definition.ts` owns the Japanese menu actions and LIFF routes, `rich-menu.adapter.ts` owns LINE transport, `rich-menu.sync.service.ts` owns idempotent create/reuse/replace behavior, and `npm run line:rich-menu:sync` performs the explicit synchronization. Uploading Rich Menu images uses LINE's data API host, while create/list/default/delete use the Messaging API host.
 - Demo payment is currently browser-orchestrated and recorded by the order creation API; real payment must originate/verify on the server.
 
 ## 8. Background jobs

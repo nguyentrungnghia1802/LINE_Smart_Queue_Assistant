@@ -2,7 +2,7 @@
 
 # Roadmap and Decisions
 
-Last reviewed: 2026-07-15. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
+Last reviewed: 2026-07-16. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
 
 ## 1. Prioritized roadmap
 
@@ -18,7 +18,7 @@ Last reviewed: 2026-07-15. This file records current priorities and accepted arc
 
 ### P1: Complete requested product capabilities
 
-1. Add LINE consent/preferences, Official Account follow-state handling, rich messages/menu, and organization channel configuration strategy.
+1. Add LINE consent/preferences, richer post-follow experience, production Rich Menu asset/E2E verification, and organization channel configuration strategy.
 2. Implement the location-alert worker with queue timing, travel-time provider boundary, consent, retention, and deletion controls.
 3. Build booking-group retrieval and staff/customer views while keeping each order/ticket independent.
 4. Reconcile manual order payment with item/transaction records and restrict receipt printing to valid states.
@@ -177,6 +177,16 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 **Decision:** Build ticket notification copy, Flex payloads, text fallback, and LIFF deeplinks in the notification templates/service layer. Queue/order services trigger notification intents only after successful state changes and never call the LINE SDK directly.
 
 **Consequences:** Customer-visible LINE content remains centralized and Japanese. A Flex send failure retries as text; final delivery failure is logged/metriced and never rolls back queue/order state. Durable outbox and distributed retry remain future work.
+
+## ADR-013: Rich Menu sync is explicit and idempotent
+
+**Status:** Accepted
+
+**Context:** LINE Rich Menu setup is external account configuration. Creating menus during API startup would make deployments harder to reason about and could duplicate menus when processes restart or scale.
+
+**Decision:** Keep Rich Menu definition, image loading, LINE transport, and synchronization service/script separate. Operators run `npm run line:rich-menu:sync` when configuring or replacing the Official Account menu. The sync command reuses the managed menu name, deletes uncontrolled duplicates, supports `--replace`, and falls back to a mock adapter for local/test mode.
+
+**Consequences:** Runtime API startup stays side-effect free. Rich Menu changes require an explicit operations step and real-device LINE verification. Durable organization-specific menu variants remain a future decision.
 
 ## 4. Open product decisions
 
