@@ -38,6 +38,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 | Payment                   | Phase 6 foundation implemented                      | Server-created payment intents, demo provider, signed demo completion, provider abstraction, payment state machine, webhook idempotency log, and reconciliation exist; no real PSP account is connected yet                                                                                                      |
 | LINE                      | Phase 5 code implemented; real-device setup pending | LIFF login verifies ID tokens, LIFF booking stores linked LINE recipients, webhook events are signature-checked, lifecycle push uses durable PostgreSQL outbox delivery with Flex Messages, text fallback and ticket deeplinks, and Rich Menu sync/LIFF Home navigation exist; LINE Console/E2E is still pending |
 | Location alerts           | Privacy-aware mock-provider flow implemented        | Explicit verified-user consent, one-time snapshot, distance alert worker, durable LINE enqueue, retry state, configurable retention and deletion exist; no paid travel-time provider is connected                                                                                                                |
+| Booking history           | Implemented                                         | Authenticated server-side group history is paginated across devices; customers and tenant staff can inspect independent orders/tickets without merging payment, cancellation, or receipt state                                                                                                                   |
 | ETA                       | Heuristic implemented                               | Position/workload calculation and 30-second updater; forecast history is not populated                                                                                                                                                                                                                           |
 | Staffing recommendation   | Schema only                                         | Table exists; no analyzer, API, scheduler, or dashboard producer                                                                                                                                                                                                                                                 |
 | Deployment                | Local/Compose ready                                 | Docker and health checks exist; production infrastructure and secret management are environment-specific                                                                                                                                                                                                         |
@@ -65,6 +66,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Scheduled ETA refresh, approaching-turn scan, called-message retry scan, durable notification delivery, and daily counter reset.
 - Rate limits, request IDs, structured logging, basic Prometheus text metrics, health/readiness endpoints, and audit logs.
 - Database structures for booking groups, location snapshots/alerts, forecast history, and staffing recommendations.
+- Japan-oriented organization addresses, `Asia/Tokyo` defaults, normalized weekly hours, and exception-day configuration.
 
 ## 6. Incomplete features
 
@@ -76,7 +78,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Payment reconciliation keeps transaction, order, and item summaries aligned with audited manual operations, replay-safe webhook transitions, partial/full refund amounts, and guarded receipt access. Real PSP refund execution remains pending.
 - Full OpenAPI coverage and contract tests; the current Swagger source covers only part of the API.
 - Browser end-to-end tests and production-scale concurrency tests.
-- Multi-instance coordination for non-notification scheduler ownership and strict queue-capacity enforcement.
+- Production stress testing for the implemented scheduler ownership, queue-capacity, call-next, and counter locks.
 - Production media storage; logos are currently saved as URLs or compressed data URLs.
 
 ## 7. Out of scope for the current baseline
@@ -102,7 +104,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 ## 9. Known problems and risks
 
 - `packages/shared` contains legacy enum/value descriptions that do not fully match PostgreSQL values; DB migrations and runtime mappers currently take precedence.
-- The seed organization still uses Vietnamese sample address/currency data even though the product UI targets Japan.
+- Demo organization, catalog, queue names, address, timezone, and currency are localized for Japan; native-language and legal-copy review remains required.
 - Queue capacity, call-next, daily ticket numbering, and organization order numbering use transactional row locks/counters; production stress testing remains pending.
 - Anonymous public booking cannot receive LINE notifications unless the session is linked to LINE and the queue entry stores a verified linked `line_user_id`; production customer entry should therefore use the LIFF-first flow.
 - One Messaging API channel is still shared by the deployment; multi-organization LINE channels are not implemented.

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState } from 'react';
 
-import { get, patch } from '../../services/apiClient';
+import { get, patch, put } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
 
 interface OrgInfo {
@@ -12,6 +12,11 @@ interface OrgInfo {
   logoUrl: string | null;
   phone: string | null;
   address: string | null;
+  postalCode: string | null;
+  prefecture: string | null;
+  city: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
   latitude: string | null;
   longitude: string | null;
   paymentInfo: string | null;
@@ -28,6 +33,24 @@ interface OrgInfo {
   };
 }
 
+interface BusinessCalendar {
+  weeklyHours: Array<{
+    weekday: number;
+    isClosed: boolean;
+    opensAt: string | null;
+    closesAt: string | null;
+  }>;
+  exceptionDays: Array<{
+    date: string;
+    isClosed: boolean;
+    opensAt: string | null;
+    closesAt: string | null;
+    reason: string | null;
+  }>;
+}
+
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+
 export function ManagerSettingsPage() {
   const { user, setUser } = useAuthStore();
   const queryClient = useQueryClient();
@@ -37,13 +60,15 @@ export function ManagerSettingsPage() {
     name: '',
     logoUrl: '',
     address: '',
+    postalCode: '',
+    prefecture: '',
+    city: '',
+    addressLine1: '',
+    addressLine2: '',
     latitude: '',
     longitude: '',
     phone: '',
     paymentInfo: '',
-    businessOpen: '09:00',
-    businessClose: '18:00',
-    holidays: '',
     paymentProvider: 'demo',
     merchantId: '',
     demoMode: true,
@@ -54,10 +79,15 @@ export function ManagerSettingsPage() {
   const [saved, setSaved] = useState(false);
   const [orgSaved, setOrgSaved] = useState(false);
   const [error, setError] = useState('');
+  const [calendar, setCalendar] = useState<BusinessCalendar | null>(null);
 
   const { data: org } = useQuery<OrgInfo>({
     queryKey: ['manager-my-org'],
     queryFn: () => get<OrgInfo>('/api/v1/orgs/my-org'),
+  });
+  const { data: savedCalendar } = useQuery<BusinessCalendar>({
+    queryKey: ['manager-business-calendar'],
+    queryFn: () => get<BusinessCalendar>('/api/v1/orgs/my-org/business-calendar'),
   });
 
   useEffect(() => {
@@ -71,13 +101,15 @@ export function ManagerSettingsPage() {
       name: org.name,
       logoUrl: org.logoUrl ?? '',
       address: org.address ?? '',
+      postalCode: org.postalCode ?? '',
+      prefecture: org.prefecture ?? '',
+      city: org.city ?? '',
+      addressLine1: org.addressLine1 ?? '',
+      addressLine2: org.addressLine2 ?? '',
       latitude: org.latitude ?? '',
       longitude: org.longitude ?? '',
       phone: org.phone ?? '',
       paymentInfo: org.paymentInfo ?? '',
-      businessOpen: org.settings?.businessHours?.open ?? '09:00',
-      businessClose: org.settings?.businessHours?.close ?? '18:00',
-      holidays: org.settings?.businessHours?.holidays ?? '',
       paymentProvider: org.settings?.paymentProvider?.provider ?? 'demo',
       merchantId: org.settings?.paymentProvider?.merchantId ?? '',
       demoMode: org.settings?.paymentProvider?.demoMode ?? true,
@@ -86,6 +118,10 @@ export function ManagerSettingsPage() {
       notifyBeforeTurns: org.settings?.notificationPreferences?.notifyBeforeTurns ?? 3,
     });
   }, [org]);
+
+  useEffect(() => {
+    if (savedCalendar) setCalendar(savedCalendar);
+  }, [savedCalendar]);
 
   const mutation = useMutation({
     mutationFn: (dto: { displayName: string }) =>
@@ -101,16 +137,27 @@ export function ManagerSettingsPage() {
   });
 
   const orgMutation = useMutation({
-    mutationFn: (dto: {
+    mutationFn: async (dto: {
       name: string;
       logoUrl?: string | null;
       address?: string | null;
+      postalCode?: string | null;
+      prefecture?: string | null;
+      city?: string | null;
+      addressLine1?: string | null;
+      addressLine2?: string | null;
       latitude?: number | null;
       longitude?: number | null;
       phone?: string | null;
       paymentInfo?: string | null;
       settings?: Record<string, unknown>;
-    }) => patch<OrgInfo>('/api/v1/orgs/my-org', dto),
+    }) => {
+      const updated = await patch<OrgInfo>('/api/v1/orgs/my-org', dto);
+      if (calendar) {
+        await put<BusinessCalendar>('/api/v1/orgs/my-org/business-calendar', calendar);
+      }
+      return updated;
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['manager-my-org'] });
       setOrgSaved(true);
@@ -132,16 +179,16 @@ export function ManagerSettingsPage() {
       name: orgForm.name,
       logoUrl: orgForm.logoUrl.trim() || null,
       address: orgForm.address.trim() || null,
+      postalCode: orgForm.postalCode.trim() || null,
+      prefecture: orgForm.prefecture.trim() || null,
+      city: orgForm.city.trim() || null,
+      addressLine1: orgForm.addressLine1.trim() || null,
+      addressLine2: orgForm.addressLine2.trim() || null,
       latitude: orgForm.latitude.trim() ? Number(orgForm.latitude) : null,
       longitude: orgForm.longitude.trim() ? Number(orgForm.longitude) : null,
       phone: orgForm.phone.trim() || null,
       paymentInfo: orgForm.paymentInfo.trim() || null,
       settings: {
-        businessHours: {
-          open: orgForm.businessOpen,
-          close: orgForm.businessClose,
-          holidays: orgForm.holidays.trim(),
-        },
         paymentProvider: {
           provider: orgForm.paymentProvider.trim() || 'demo',
           merchantId: orgForm.merchantId.trim(),
@@ -225,7 +272,7 @@ export function ManagerSettingsPage() {
             type="url"
           />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">電話番号</label>
             <input
@@ -235,13 +282,50 @@ export function ManagerSettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">住所</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">郵便番号</label>
             <input
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
-              value={orgForm.address}
-              onChange={(e) => setOrgForm((f) => ({ ...f, address: e.target.value }))}
+              value={orgForm.postalCode}
+              onChange={(e) => setOrgForm((f) => ({ ...f, postalCode: e.target.value }))}
+              placeholder="100-0001"
             />
           </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="text-sm font-medium text-gray-700">
+            都道府県
+            <input
+              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+              value={orgForm.prefecture}
+              onChange={(e) => setOrgForm((f) => ({ ...f, prefecture: e.target.value }))}
+              placeholder="東京都"
+            />
+          </label>
+          <label className="text-sm font-medium text-gray-700">
+            市区町村
+            <input
+              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+              value={orgForm.city}
+              onChange={(e) => setOrgForm((f) => ({ ...f, city: e.target.value }))}
+              placeholder="千代田区"
+            />
+          </label>
+          <label className="text-sm font-medium text-gray-700">
+            町名・番地
+            <input
+              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+              value={orgForm.addressLine1}
+              onChange={(e) => setOrgForm((f) => ({ ...f, addressLine1: e.target.value }))}
+            />
+          </label>
+          <label className="text-sm font-medium text-gray-700">
+            建物名・部屋番号
+            <input
+              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+              value={orgForm.addressLine2}
+              onChange={(e) => setOrgForm((f) => ({ ...f, addressLine2: e.target.value }))}
+            />
+          </label>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -276,29 +360,177 @@ export function ManagerSettingsPage() {
         </div>
 
         <div className="grid gap-4 border-t border-gray-100 pt-4 md:grid-cols-2">
-          <div>
+          <div className="md:col-span-2">
             <h3 className="text-sm font-semibold text-gray-700">営業時間</h3>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <input
-                type="time"
-                value={orgForm.businessOpen}
-                onChange={(e) => setOrgForm((f) => ({ ...f, businessOpen: e.target.value }))}
-                className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
-              />
-              <input
-                type="time"
-                value={orgForm.businessClose}
-                onChange={(e) => setOrgForm((f) => ({ ...f, businessClose: e.target.value }))}
-                className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
-              />
+            <div className="mt-3 divide-y divide-gray-100 rounded-xl border border-gray-200">
+              {calendar?.weeklyHours.map((day, index) => (
+                <div
+                  key={day.weekday}
+                  className="grid grid-cols-[32px_1fr] items-center gap-3 p-3 sm:grid-cols-[32px_110px_1fr_1fr]"
+                >
+                  <strong className="text-sm">{WEEKDAYS[day.weekday]}</strong>
+                  <label className="flex items-center gap-2 text-sm text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={day.isClosed}
+                      onChange={(e) =>
+                        setCalendar((current) =>
+                          current
+                            ? {
+                                ...current,
+                                weeklyHours: current.weeklyHours.map((item, itemIndex) =>
+                                  itemIndex === index
+                                    ? {
+                                        ...item,
+                                        isClosed: e.target.checked,
+                                        opensAt: e.target.checked ? null : '09:00',
+                                        closesAt: e.target.checked ? null : '18:00',
+                                      }
+                                    : item
+                                ),
+                              }
+                            : current
+                        )
+                      }
+                    />
+                    休業日
+                  </label>
+                  <input
+                    aria-label={`${WEEKDAYS[day.weekday]}曜日の開店時間`}
+                    type="time"
+                    disabled={day.isClosed}
+                    value={day.opensAt ?? ''}
+                    onChange={(e) =>
+                      setCalendar((current) =>
+                        current
+                          ? {
+                              ...current,
+                              weeklyHours: current.weeklyHours.map((item, itemIndex) =>
+                                itemIndex === index ? { ...item, opensAt: e.target.value } : item
+                              ),
+                            }
+                          : current
+                      )
+                    }
+                    className="rounded-lg border border-gray-200 px-3 py-2 text-sm disabled:bg-gray-50"
+                  />
+                  <input
+                    aria-label={`${WEEKDAYS[day.weekday]}曜日の閉店時間`}
+                    type="time"
+                    disabled={day.isClosed}
+                    value={day.closesAt ?? ''}
+                    onChange={(e) =>
+                      setCalendar((current) =>
+                        current
+                          ? {
+                              ...current,
+                              weeklyHours: current.weeklyHours.map((item, itemIndex) =>
+                                itemIndex === index ? { ...item, closesAt: e.target.value } : item
+                              ),
+                            }
+                          : current
+                      )
+                    }
+                    className="rounded-lg border border-gray-200 px-3 py-2 text-sm disabled:bg-gray-50"
+                  />
+                </div>
+              ))}
             </div>
-            <textarea
-              rows={2}
-              value={orgForm.holidays}
-              onChange={(e) => setOrgForm((f) => ({ ...f, holidays: e.target.value }))}
-              placeholder="定休日・特別休業日"
-              className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
-            />
+            <div className="mt-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-gray-700">祝日・臨時休業</h4>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCalendar((current) =>
+                      current
+                        ? {
+                            ...current,
+                            exceptionDays: [
+                              ...current.exceptionDays,
+                              {
+                                date: '',
+                                isClosed: true,
+                                opensAt: null,
+                                closesAt: null,
+                                reason: null,
+                              },
+                            ],
+                          }
+                        : current
+                    )
+                  }
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold"
+                >
+                  日付を追加
+                </button>
+              </div>
+              <div className="mt-2 space-y-2">
+                {calendar?.exceptionDays.map((day, index) => (
+                  <div
+                    key={`${day.date}-${index}`}
+                    className="grid gap-2 rounded-xl bg-gray-50 p-3 sm:grid-cols-[150px_1fr_auto]"
+                  >
+                    <input
+                      aria-label="例外日"
+                      type="date"
+                      value={day.date}
+                      onChange={(e) =>
+                        setCalendar((current) =>
+                          current
+                            ? {
+                                ...current,
+                                exceptionDays: current.exceptionDays.map((item, itemIndex) =>
+                                  itemIndex === index ? { ...item, date: e.target.value } : item
+                                ),
+                              }
+                            : current
+                        )
+                      }
+                      className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                    />
+                    <input
+                      aria-label="例外日の理由"
+                      value={day.reason ?? ''}
+                      onChange={(e) =>
+                        setCalendar((current) =>
+                          current
+                            ? {
+                                ...current,
+                                exceptionDays: current.exceptionDays.map((item, itemIndex) =>
+                                  itemIndex === index
+                                    ? { ...item, reason: e.target.value || null }
+                                    : item
+                                ),
+                              }
+                            : current
+                        )
+                      }
+                      placeholder="祝日・臨時休業の理由"
+                      className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCalendar((current) =>
+                          current
+                            ? {
+                                ...current,
+                                exceptionDays: current.exceptionDays.filter(
+                                  (_, itemIndex) => itemIndex !== index
+                                ),
+                              }
+                            : current
+                        )
+                      }
+                      className="rounded-lg px-3 py-2 text-xs font-bold text-red-600"
+                    >
+                      削除
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
           <div>
             <h3 className="text-sm font-semibold text-gray-700">支払いプロバイダー</h3>

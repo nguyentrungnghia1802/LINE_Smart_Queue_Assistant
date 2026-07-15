@@ -10,8 +10,15 @@ import {
   validate,
 } from '../../middlewares';
 
-import { getManagerOrg, getOrgBySlug, getOrgByToken, updateManagerOrg } from './orgs.controller';
-import { UpdateOrgSettingsSchema } from './orgs.validator';
+import {
+  getManagerBusinessCalendar,
+  getManagerOrg,
+  getOrgBySlug,
+  getOrgByToken,
+  updateManagerBusinessCalendar,
+  updateManagerOrg,
+} from './orgs.controller';
+import { BusinessCalendarSchema, UpdateOrgSettingsSchema } from './orgs.validator';
 
 export const orgsRouter = Router();
 
@@ -24,6 +31,20 @@ orgsRouter.patch(
   authenticatedActionRateLimiter,
   validate(UpdateOrgSettingsSchema),
   updateManagerOrg
+);
+orgsRouter.get(
+  '/my-org/business-calendar',
+  requireAuth,
+  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  getManagerBusinessCalendar
+);
+orgsRouter.put(
+  '/my-org/business-calendar',
+  requireAuth,
+  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  authenticatedActionRateLimiter,
+  validate(BusinessCalendarSchema),
+  updateManagerBusinessCalendar
 );
 
 // Public: get org info by QR token (stable token-based routing)

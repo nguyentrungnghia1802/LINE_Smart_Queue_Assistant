@@ -4,6 +4,13 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ## Unreleased
 
+### Production hardening
+
+- Completed atomic inventory reservation lifecycle and queue/counter concurrency controls.
+- Added audited payment reconciliation, replay/out-of-order webhook guards, partial/full refund accounting, and receipt eligibility checks.
+- Added tenant-scoped notification operations, LINE preferences, privacy-aware location alerts, and retention cleanup.
+- Added authenticated cross-device booking history, tenant staff related-booking views, Japan address fields, weekly hours, exception days, and Japan-localized seed data.
+
 ### LINE Messaging
 
 - Added a safe token verification and optional direct test-message command.

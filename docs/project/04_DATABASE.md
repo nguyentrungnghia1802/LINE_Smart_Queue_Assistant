@@ -13,6 +13,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 7. `000007_operational_correctness.js`
 8. `000008_payment_reconciliation.js`
 9. `000009_notification_consent_location_privacy.js`
+10. `000010_booking_history_japan_calendar.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -41,12 +42,14 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 
 ### Identity and tenancy
 
-| Table                  | Key purpose                                           | Important constraints                                       |
-| ---------------------- | ----------------------------------------------------- | ----------------------------------------------------------- |
-| `organizations`        | Tenant, slug/token, branding, location, LINE/settings | Unique slug/token; coordinate ranges; soft active flag      |
-| `users`                | Platform identity, role, password/profile             | Unique optional email; active flag                          |
-| `organization_members` | Tenant manager/staff authorization                    | Unique organization/user pair; cascading tenant/user delete |
-| `line_accounts`        | One linked LINE identity per user                     | Unique `line_user_id` and `user_id`                         |
+| Table                         | Key purpose                                                          | Important constraints                                                               |
+| ----------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `organizations`               | Tenant, slug/token, Japan address, branding, location, LINE/settings | Unique slug/token; postal/coordinate checks; `Asia/Tokyo` default; soft active flag |
+| `organization_business_hours` | Weekly local opening schedule                                        | Unique tenant/weekday; closed/open time consistency                                 |
+| `organization_exception_days` | Holidays and exceptional opening/closure dates                       | Unique tenant/date; closed/open time consistency                                    |
+| `users`                       | Platform identity, role, password/profile                            | Unique optional email; active flag                                                  |
+| `organization_members`        | Tenant manager/staff authorization                                   | Unique organization/user pair; cascading tenant/user delete                         |
+| `line_accounts`               | One linked LINE identity per user                                    | Unique `line_user_id` and `user_id`                                                 |
 
 ### Catalog, queue, and orders
 
@@ -131,7 +134,7 @@ An insufficient-stock update affects zero rows, raises a conflict, and rolls bac
 - Queue join counter, entry creation, and booking-created notification outbox enqueue use one transaction.
 - Queue/order lifecycle transitions that produce customer LINE notifications write the state change and outbox row in the same transaction. External LINE API delivery happens only after commit through the worker.
 
-Known concurrency gaps: queue capacity is checked before the join transaction, and organization order numbers are count-derived. Both need stronger locking/sequence semantics before high concurrency.
+Queue capacity, call-next, daily ticket numbering, and organization order numbering use transaction locks or atomic counters. Production load testing remains required.
 
 ## 7. Deletion and retention
 
@@ -163,19 +166,16 @@ Rules:
 - Keep the reset schema, repositories, shared/runtime types, seeds, tests, and this document synchronized.
 - Back up before production migration and test restore/rollback in staging.
 
-Schema migrations currently live under `db/migrations/node-pg-migrate` and are executed by the `apps/api` workspace `node-pg-migrate` command. The root `npm run db:migrate` command is a legacy SQL runner for `db/migrations/*.sql`; keep running it for compatibility checks, but it will not apply the JavaScript migrations unless the runner is unified in a future maintenance task.
+Schema migrations live under `db/migrations/node-pg-migrate` and are executed by the `apps/api` workspace `node-pg-migrate` command. Root migration commands are scheduled to be unified with this canonical runner in the CI/CD workstream.
 
 `npm run db:reset` is destructive and intended only for local/dev.
 
 ## 10. Seed baseline
 
-`db/seeds` provides one Queue Lab organization, admin/manager/staff/customer accounts, queues, products, orders, tickets, notifications, and penalties. Password and IDs are deterministic for local demonstration. Seed address/currency values are legacy Vietnamese samples and should be localized before a Japan-facing demo.
+`db/seeds` provides one Japan-localized demo organization, admin/manager/staff/customer accounts, weekly hours, queues, products, orders, tickets, notifications, and penalties. Password and IDs are deterministic for local demonstration only.
 
 ## 11. Schema gaps requiring follow-up
 
-- Inventory reservation release/consume/expire behavior is missing.
-- Payment transaction status history is still coarse; a full append-only transition history can be added if audit requirements demand it.
-- Business hours/holidays and per-organization payment/LINE provider secrets need structured encrypted configuration.
-- Booking-group retrieval/ownership constraints need an exposed domain service/API.
+- Real per-organization payment/LINE provider secrets need a managed encrypted configuration boundary.
 - Forecast and staffing tables lack producers and retention policy.
 - Advanced notification operations UI, manual replay/cancel controls, and long-term notification retention policy are not implemented.

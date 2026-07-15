@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { JapanesePhoneSchema } from '../shared/shared.validator';
+
 export const OrderItemSchema = z.object({
   productId: z.string().uuid(),
   quantity: z.number().int().min(1).max(99),
@@ -8,7 +10,7 @@ export const OrderItemSchema = z.object({
 export const CreateOrderSchema = z.object({
   orgSlug: z.string().min(1),
   customerName: z.string().min(1).max(100).optional(),
-  customerPhone: z.string().max(20).optional(),
+  customerPhone: JapanesePhoneSchema.optional(),
   items: z.array(OrderItemSchema).min(1),
   bookingGroupId: z.string().uuid().optional(),
   localDeviceKey: z.string().min(1).max(160).optional(),

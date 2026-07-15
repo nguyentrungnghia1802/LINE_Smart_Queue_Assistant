@@ -31,6 +31,11 @@ export const adminService = {
       logoUrl: dto.logoUrl ?? null,
       phone: dto.phone ?? null,
       address: dto.address ?? null,
+      postalCode: dto.postalCode ?? null,
+      prefecture: dto.prefecture ?? null,
+      city: dto.city ?? null,
+      addressLine1: dto.addressLine1 ?? null,
+      addressLine2: dto.addressLine2 ?? null,
       paymentInfo: dto.paymentInfo ?? null,
     });
   },
@@ -51,6 +56,11 @@ export const adminService = {
           logoUrl: dto.organization.logoUrl ?? null,
           phone: dto.organization.phone ?? null,
           address: dto.organization.address ?? null,
+          postalCode: dto.organization.postalCode ?? null,
+          prefecture: dto.organization.prefecture ?? null,
+          city: dto.organization.city ?? null,
+          addressLine1: dto.organization.addressLine1 ?? null,
+          addressLine2: dto.organization.addressLine2 ?? null,
           paymentInfo: dto.organization.paymentInfo ?? null,
         },
         client

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { get, patch, post } from '../../services/apiClient';
+import type { BookingGroup } from '../../services/bookingGroups.api';
 import { useAuthStore } from '../../store/authStore';
 
 interface OrderItem {
@@ -19,6 +20,7 @@ interface OrderItem {
 
 interface Order {
   id: string;
+  booking_group_id?: string | null;
   order_number: string;
   customer_name: string | null;
   customer_phone: string | null;
@@ -162,6 +164,12 @@ export function StaffDashboardPage() {
   ];
 
   const selectedEntry = allEntries.find((e) => e.id === selectedEntryId) ?? allEntries[0] ?? null;
+  const relatedBookings = useQuery<BookingGroup>({
+    queryKey: ['staff-booking-group', selectedEntry?.order?.booking_group_id],
+    queryFn: () =>
+      get<BookingGroup>(`/api/v1/booking-groups/${selectedEntry?.order?.booking_group_id}`),
+    enabled: Boolean(selectedEntry?.order?.booking_group_id),
+  });
 
   const invalidateQueue = () =>
     queryClient.invalidateQueries({ queryKey: ['staff-my-queue', orgId] });
@@ -349,6 +357,39 @@ export function StaffDashboardPage() {
                         <p className="mt-1 font-bold text-gray-900">
                           {selected.order.customer_phone}
                         </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {selected.order?.booking_group_id && (
+                  <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)] sm:p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                          関連予約
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-gray-900">
+                          {relatedBookings.isLoading
+                            ? '読み込み中…'
+                            : `${relatedBookings.data?.orders.length ?? 0}件の予約`}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
+                        グループ
+                      </span>
+                    </div>
+                    {relatedBookings.data && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {relatedBookings.data.orders.map((order) => (
+                          <span
+                            key={order.id}
+                            className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-700"
+                          >
+                            {order.order_number} ·{' '}
+                            {ORDER_STATUS_LABELS[order.status] ?? order.status}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>
