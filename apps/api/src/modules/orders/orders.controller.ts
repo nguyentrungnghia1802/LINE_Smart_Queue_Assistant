@@ -33,7 +33,8 @@ export const getOrderStats = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
-  const result = await ordersService.create(req.body as CreateOrderDto, req.user?.id);
+  const actor = req.user ? { userId: req.user.id, lineUserId: req.user.lineUserId } : undefined;
+  const result = await ordersService.create(req.body as CreateOrderDto, actor);
   res.status(201).json({ success: true, data: { order: result.order, queueEntry: result.entry } });
 });
 

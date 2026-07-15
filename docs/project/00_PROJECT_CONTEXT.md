@@ -29,18 +29,18 @@ Physical queues make customers wait near a counter with little visibility. Busin
 
 The project is a working local/demo modular monolith, not yet a production-complete payment or notification platform.
 
-| Area                      | Status                        | Meaning                                                                                                                 |
-| ------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Organization/admin        | Implemented                   | Admin list, detail, registration, manager assignment, update, soft deactivation                                         |
-| Catalog and QR booking    | Implemented                   | Products/services, stock display, quantity selection, organization slug/token entry                                     |
-| Queue and staff operation | Implemented                   | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                       |
-| Orders and inventory      | Implemented with gaps         | Atomic creation and finite stock decrement; cancellation does not yet restore stock                                     |
-| Payment                   | Demo/adapter-ready            | Demo auto-success and transaction records exist; no real provider webhook verification                                  |
-| LINE                      | Partial with booking-path gap | Real push adapter exists, but order-created tickets do not copy the linked LINE user ID; durable delivery is incomplete |
-| Location alerts           | Data path only                | Location and pending alerts can be stored; no job sends those alerts                                                    |
-| ETA                       | Heuristic implemented         | Position/workload calculation and 30-second updater; forecast history is not populated                                  |
-| Staffing recommendation   | Schema only                   | Table exists; no analyzer, API, scheduler, or dashboard producer                                                        |
-| Deployment                | Local/Compose ready           | Docker and health checks exist; production infrastructure and secret management are environment-specific                |
+| Area                      | Status                                    | Meaning                                                                                                              |
+| ------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Organization/admin        | Implemented                               | Admin list, detail, registration, manager assignment, update, soft deactivation                                      |
+| Catalog and QR booking    | Implemented                               | Products/services, stock display, quantity selection, organization slug/token entry                                  |
+| Queue and staff operation | Implemented                               | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                    |
+| Orders and inventory      | Implemented with gaps                     | Atomic creation and finite stock decrement; cancellation does not yet restore stock                                  |
+| Payment                   | Demo/adapter-ready                        | Demo auto-success and transaction records exist; no real provider webhook verification                               |
+| LINE                      | Functional baseline with reliability gaps | Authenticated bookings retain verified LINE recipients and use the real push adapter; durable delivery is incomplete |
+| Location alerts           | Data path only                            | Location and pending alerts can be stored; no job sends those alerts                                                 |
+| ETA                       | Heuristic implemented                     | Position/workload calculation and 30-second updater; forecast history is not populated                               |
+| Staffing recommendation   | Schema only                               | Table exists; no analyzer, API, scheduler, or dashboard producer                                                     |
+| Deployment                | Local/Compose ready                       | Docker and health checks exist; production infrastructure and secret management are environment-specific             |
 
 ## 5. Implemented features
 
@@ -101,7 +101,6 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Queue capacity is checked optimistically before the join transaction and can be exceeded under concurrent load.
 - Order numbering uses an organization order count and can collide under concurrent creation unless protected by a stronger sequence/constraint strategy.
 - Anonymous public booking cannot receive LINE notifications unless the session is linked to LINE and the queue entry stores `line_user_id`.
-- The current order-creation path passes `user_id` but not the authenticated user's `line_user_id` to the new queue entry, so the main order/QR flow must be fixed before LINE reminders work end to end.
 - Direct public queue join currently accepts a body `lineUserId` fallback; production must derive it only from a verified LINE token/account link.
 - Location data is sensitive personal data and needs explicit consent, retention, and deletion policies before production use.
 - The checked-in `.env.example` previously contained a secret-shaped value; credentials must be rotated if that value was ever real.

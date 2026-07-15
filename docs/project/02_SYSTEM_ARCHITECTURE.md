@@ -103,7 +103,7 @@ Frontend responsibilities are split into route pages, reusable components/layout
 
 LINE Login does not send messages. Messaging API does not authenticate the web session. A complete setup needs both capabilities under the intended provider and a consistent LINE user relationship.
 
-Current gap: direct queue join propagates `lineUserId`, but order creation currently sends only `userId` into the new queue entry. The order service must resolve/copy the verified linked LINE ID; it must not rely on an unverified public body value.
+Authenticated order creation copies `req.user.lineUserId`, which came from the verified LINE ID token and internal JWT, into the new queue entry. Guest orders remain valid without a LINE recipient. Direct public queue join still accepts an unverified body fallback and must be hardened before production.
 
 ## 7. Synchronous flows
 

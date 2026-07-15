@@ -152,11 +152,13 @@ Critical regression scenarios:
 
 1. Configure LINE Login/LIFF and Messaging API under the intended provider.
 2. Put secrets only in local `.env`; use the Messaging channel access token/secret and Login channel ID/LIFF ID correctly.
-3. Expose the local API through HTTPS for LINE webhook testing and set `/api/v1/line/webhook` as the webhook URL.
-4. Add/follow the LINE Official Account as required for push eligibility.
-5. Open the customer flow inside LIFF and verify `/api/v1/auth/line` links a real `line_user_id`.
-6. Create a booking, call the ticket from staff, and observe the Japanese message in LINE chat.
-7. Check API logs/metrics and ensure `notificationDisabled` remains `false` for normal notifications.
+3. Run `npm run line:verify` and confirm the expected Official Account name/basic ID without exposing the token.
+4. Expose the local API through HTTPS for LINE webhook testing and set `/api/v1/line/webhook` as the webhook URL.
+5. Add/follow the LINE Official Account as required for push eligibility.
+6. Open the customer flow inside LIFF and verify `/api/v1/auth/line` links a real `line_user_id`.
+7. Create a booking, call the ticket from staff, and observe the Japanese message in LINE chat.
+8. Optionally send a direct test with `npm run line:verify -- --send-to <LINE_USER_ID>`.
+9. Check API logs/metrics and ensure `notificationDisabled` remains `false` for normal notifications.
 
 Phone sound/banner ultimately follows the customer's LINE and OS notification settings; the server cannot override a muted device/chat.
 

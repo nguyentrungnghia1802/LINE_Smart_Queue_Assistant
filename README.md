@@ -66,22 +66,32 @@ LINE Login/LIFF and the Messaging API solve different problems and are both requ
 - LINE Login/LIFF identifies the customer and provides a verified LINE user ID.
 - The Messaging API sends queue messages into the customer's LINE chat and controls notification sound through LINE's normal notification settings.
 
-Without a linked LINE identity, public QR booking still works, but LINE push notifications cannot be delivered. See [System Architecture](docs/02_SYSTEM_ARCHITECTURE.md) and [Domain and Flows](docs/03_DOMAIN_AND_FLOWS.md).
+Without a linked LINE identity, public QR booking still works, but LINE push notifications cannot be delivered.
+
+After configuring the Messaging API token in the ignored `.env`, verify that it belongs to the intended Official Account:
+
+```bash
+npm run line:verify
+```
+
+The webhook additionally requires the Messaging API channel secret and a public HTTPS URL. A token alone is sufficient for outbound push calls, but not for validating inbound follow/message events.
+
+See [System Architecture](docs/project/02_SYSTEM_ARCHITECTURE.md) and [Domain and Flows](docs/project/03_DOMAIN_AND_FLOWS.md).
 
 ## Documentation
 
 Read the canonical documents in this order:
 
-1. [Project Context](docs/00_PROJECT_CONTEXT.md)
-2. [Product Requirements](docs/01_PRODUCT_REQUIREMENTS.md)
-3. [System Architecture](docs/02_SYSTEM_ARCHITECTURE.md)
-4. [Domain and Flows](docs/03_DOMAIN_AND_FLOWS.md)
-5. [Database](docs/04_DATABASE.md)
-6. [API](docs/05_API.md)
-7. [Codebase Guide](docs/06_CODEBASE_GUIDE.md)
-8. [Development and Testing](docs/07_DEVELOPMENT_AND_TESTING.md)
-9. [Deployment and Operations](docs/08_DEPLOYMENT_AND_OPERATIONS.md)
-10. [Roadmap and Decisions](docs/09_ROADMAP_AND_DECISIONS.md)
+1. [Project Context](docs/project/00_PROJECT_CONTEXT.md)
+2. [Product Requirements](docs/project/01_PRODUCT_REQUIREMENTS.md)
+3. [System Architecture](docs/project/02_SYSTEM_ARCHITECTURE.md)
+4. [Domain and Flows](docs/project/03_DOMAIN_AND_FLOWS.md)
+5. [Database](docs/project/04_DATABASE.md)
+6. [API](docs/project/05_API.md)
+7. [Codebase Guide](docs/project/06_CODEBASE_GUIDE.md)
+8. [Development and Testing](docs/project/07_DEVELOPMENT_AND_TESTING.md)
+9. [Deployment and Operations](docs/project/08_DEPLOYMENT_AND_OPERATIONS.md)
+10. [Roadmap and Decisions](docs/project/09_ROADMAP_AND_DECISIONS.md)
 
 `docs/archive` contains historical artifacts only. It is not a source of truth unless a task explicitly investigates project history.
 
@@ -91,7 +101,7 @@ When information conflicts, use this precedence:
 
 1. Executable migrations and runtime configuration
 2. Current routes, validators, services, repositories, and tests
-3. Canonical documents `docs/00` through `docs/09`
+3. Canonical documents `docs/project/00` through `docs/project/09`
 4. Historical artifacts under `docs/archive`
 
 Report and resolve any discrepancy instead of silently choosing an outdated document.

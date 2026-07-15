@@ -102,7 +102,7 @@ Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently
 4. For LINE notification eligibility, LIFF obtains an ID token and `/auth/line` links a LINE account.
 5. The intended rule is to use server-verified identity, not browser profile data, to attach the LINE recipient.
 
-Guest trade-off: the order/ticket works, but LINE push is unavailable unless the ticket resolves to a linked `line_user_id`. Current implementation gap: direct queue join can populate this field, while `ordersService.create` currently creates the queue entry with `userId` only. It must resolve the linked account and copy `lineUserId` before the QR/order path supports notifications end to end.
+Guest trade-off: the order/ticket works, but LINE push is unavailable unless the ticket resolves to a linked `line_user_id`. For a LINE-authenticated order, `currentUserMiddleware` reads the verified JWT identity and the order controller passes both internal user ID and LINE user ID to the order service. The service stores both on the queue entry in the booking transaction.
 
 ## 4. Booking without required prepayment
 
@@ -110,7 +110,7 @@ Guest trade-off: the order/ticket works, but LINE push is unavailable unless the
 2. UI checks visible stock and calculates a display subtotal.
 3. Customer may optionally choose checkout for all items or place the reservation unpaid.
 4. `POST /orders` reloads organization, active queue, products, prices, ownership, and stock.
-5. In one transaction the API increments the ticket counter, creates optional booking group, queue entry, order, items, stock reservations, payment row if supplied, and location/alert if supplied. The current order path does not yet propagate the linked LINE ID into that queue entry.
+5. In one transaction the API increments the ticket counter, creates optional booking group, queue entry with any verified LINE recipient, order, items, stock reservations, payment row if supplied, and location/alert if supplied.
 6. On success the UI stores a local booking record and navigates to `/ticket/:entryId`.
 7. Any transaction error rolls back all database writes.
 

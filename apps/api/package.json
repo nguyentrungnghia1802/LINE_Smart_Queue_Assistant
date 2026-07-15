@@ -14,6 +14,7 @@
     "test:watch": "jest --watch --passWithNoTests",
     "test:coverage": "jest --coverage --passWithNoTests",
     "clean": "rimraf dist *.tsbuildinfo",
+    "line:verify": "ts-node src/scripts/verify-line-messaging.ts",
     "db:migrate": "node-pg-migrate up --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env",
     "db:migrate:down": "node-pg-migrate down --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env",
     "db:migrate:redo": "npm run db:migrate:down && npm run db:migrate",
