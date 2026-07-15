@@ -76,7 +76,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Forecasting uses a measured heuristic baseline rather than an ML model; production calibration and longer-term accuracy evaluation remain pending.
 - Inventory lifecycle is implemented; production load testing and operator reconciliation UI remain pending.
 - Payment reconciliation keeps transaction, order, and item summaries aligned with audited manual operations, replay-safe webhook transitions, partial/full refund amounts, and guarded receipt access. Real PSP refund execution remains pending.
-- Full OpenAPI coverage and contract tests; the current Swagger source covers only part of the API.
+- Expand generic OpenAPI operation entries into detailed component schemas where provider/client generation requires stronger typing; runtime route coverage and contract drift tests are complete.
 - Browser end-to-end tests and production-scale concurrency tests.
 - Production stress testing for the implemented scheduler ownership, queue-capacity, call-next, and counter locks.
 - Real object storage, malware scanning, CDN policy, and orphan reconciliation; validated images currently use the local/mock media adapter while legacy data URLs remain readable.

@@ -20,7 +20,7 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 2. Complete legal review and connect an approved travel-time provider to the implemented privacy-aware location worker boundary.
 3. Connect the implemented audited reconciliation/refund boundary to a real PSP and settlement process.
 4. Calibrate the measured forecast/staffing heuristic with production history and accuracy reporting.
-5. Complete Swagger/OpenAPI coverage and API contract tests.
+5. Expand detailed OpenAPI component schemas as new integrations require generated clients; full runtime operation coverage and drift tests are implemented.
 6. Connect the implemented media boundary to object storage with signed upload, scanning, CDN policy, and orphan reconciliation.
 
 ### P2: Reliability, UX, and scale
@@ -42,7 +42,7 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 | TD-004 | Real PSP settlement/refund execution is absent                 | Demo-only external payment operations  | Provider adapter and settlement runbook         |
 | TD-007 | Forecast heuristic lacks production calibration                | Confidence may not reflect real error  | Measure prediction error before model upgrades  |
 | TD-008 | Location uses a mock travel-time provider                      | Real travel estimates are unavailable  | Approved provider adapter and legal review      |
-| TD-009 | Swagger is partial                                             | Client/agent contract drift            | Complete generated OpenAPI and CI diff          |
+| TD-009 | Some OpenAPI operations use generic request/response schemas   | Generated clients have weaker typing   | Incrementally model detailed component schemas  |
 | TD-010 | CI does not run tests/migrations                               | Regressions can merge                  | Add test DB and required checks                 |
 | TD-011 | Metrics reset per process and `/metrics` is public in app      | Weak operations/security               | Scrape/protect endpoint and expand metrics      |
 | TD-012 | Native Japanese/legal copy review is pending                   | Customer wording may be unsuitable     | Native review before external production launch |
