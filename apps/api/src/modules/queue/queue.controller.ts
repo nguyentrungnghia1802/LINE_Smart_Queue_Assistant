@@ -31,9 +31,7 @@ export const joinQueue = asyncHandler(async (req: Request, res: Response) => {
   const joinRequest: Parameters<typeof queueService.joinQueue>[0] = {
     ...dto,
     userId: req.user?.id,
-    // Prefer the lineUserId from the JWT; fall back to the body value for
-    // anonymous LIFF users who have a LINE UID but no backend session yet.
-    lineUserId: req.user?.lineUserId ?? dto.lineUserId,
+    lineUserId: req.user?.lineUserId,
   };
   const result = await queueService.joinQueue(joinRequest);
 

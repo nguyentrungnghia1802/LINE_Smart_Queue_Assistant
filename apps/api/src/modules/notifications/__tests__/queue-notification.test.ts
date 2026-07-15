@@ -8,6 +8,11 @@
  */
 
 import type { QueueEntryRow } from '../../../db/repositories/queue-entries.repository';
+import type {
+  ILineMessagingAdapter,
+  LineMessage,
+  LineMessageOptions,
+} from '../../line/line.adapter';
 import { MockLineAdapter } from '../../line/line.mock.adapter';
 import { notificationLogRepository } from '../notification-log.repository';
 import { ETA_WARNING_THRESHOLD, queueNotificationService } from '../queue-notification.service';
@@ -44,6 +49,24 @@ function makeEntry(override: Partial<QueueEntryRow> = {}): QueueEntryRow {
 beforeEach(() => {
   notificationLogRepository._resetForTests();
 });
+
+class FailingLineAdapter implements ILineMessagingAdapter {
+  async pushMessage(
+    _to: string,
+    _messages: LineMessage[],
+    _options?: LineMessageOptions
+  ): Promise<void> {
+    throw new Error('LINE unavailable');
+  }
+
+  async replyMessage(
+    _replyToken: string,
+    _messages: LineMessage[],
+    _options?: LineMessageOptions
+  ): Promise<void> {
+    throw new Error('LINE unavailable');
+  }
+}
 
 // ── notifyTicketCalled ─────────────────────────────────────────────────────────
 
@@ -86,6 +109,15 @@ describe('notifyTicketCalled', () => {
     await queueNotificationService.notifyTicketCalled(entry, adapter, notificationLogRepository);
 
     expect(notificationLogRepository.hasBeenSent(entry.id, 'called')).toBe(true);
+  });
+
+  it('does not mark the event as sent when LINE delivery fails', async () => {
+    const adapter = new FailingLineAdapter();
+    const entry = makeEntry({ status: 'called' });
+
+    await queueNotificationService.notifyTicketCalled(entry, adapter, notificationLogRepository);
+
+    expect(notificationLogRepository.hasBeenSent(entry.id, 'called')).toBe(false);
   });
 });
 
@@ -148,6 +180,43 @@ describe('notifyEtaWarning', () => {
     await queueNotificationService.notifyEtaWarning(entry, 1, adapter, notificationLogRepository);
 
     expect(adapter.pushCalls).toHaveLength(0);
+  });
+});
+
+// ── Other queue lifecycle notifications ───────────────────────────────────────
+
+describe('queue lifecycle status notifications', () => {
+  it('sends a serving message', async () => {
+    const adapter = new MockLineAdapter();
+    const entry = makeEntry({ status: 'serving' });
+
+    await queueNotificationService.notifyTicketServing(entry, adapter, notificationLogRepository);
+
+    expect(adapter.pushCalls).toHaveLength(1);
+    expect(adapter.pushCalls[0].messages[0].text).toContain('対応を開始');
+    expect(notificationLogRepository.hasBeenSent(entry.id, 'serving')).toBe(true);
+  });
+
+  it('sends a completed message', async () => {
+    const adapter = new MockLineAdapter();
+    const entry = makeEntry({ status: 'served', served_at: new Date() });
+
+    await queueNotificationService.notifyTicketCompleted(entry, adapter, notificationLogRepository);
+
+    expect(adapter.pushCalls).toHaveLength(1);
+    expect(adapter.pushCalls[0].messages[0].text).toContain('完了');
+    expect(notificationLogRepository.hasBeenSent(entry.id, 'completed')).toBe(true);
+  });
+
+  it('sends a no-show message', async () => {
+    const adapter = new MockLineAdapter();
+    const entry = makeEntry({ status: 'no_show', no_show_at: new Date() });
+
+    await queueNotificationService.notifyTicketNoShow(entry, adapter, notificationLogRepository);
+
+    expect(adapter.pushCalls).toHaveLength(1);
+    expect(adapter.pushCalls[0].messages[0].text).toContain('不在');
+    expect(notificationLogRepository.hasBeenSent(entry.id, 'no_show')).toBe(true);
   });
 });
 

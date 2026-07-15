@@ -9,6 +9,9 @@ All notable project changes should be recorded here. This file tracks delivered 
 - Added a safe token verification and optional direct test-message command.
 - Propagated the server-verified LINE user ID into queue entries created by authenticated orders.
 - Documented the separate LINE Login, Messaging API push, and webhook credential roles.
+- Completed Phase 1 LINE identity handling by removing public `lineUserId` trust from direct queue join and rechecking JWT LINE claims against linked `line_accounts`.
+- Centralized Japanese LINE notification copy and added LINE push attempts for called, serving, completed, cancelled, no-show, and ETA warning events.
+- Hardened LINE webhook handling with explicit channel-secret configuration checks and test coverage for follow, unfollow, and message events.
 
 ### Documentation
 

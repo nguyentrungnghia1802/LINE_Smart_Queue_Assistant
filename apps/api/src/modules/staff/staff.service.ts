@@ -8,6 +8,7 @@ import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
+import { queueNotificationService } from '../notifications/queue-notification.service';
 import { queueService } from '../queue/queue.service';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -179,6 +180,7 @@ export const staffService = {
 
     const cancelled = await queueEntriesRepository.markCancelled(entryId);
     metricsService.increment('queue_cancelled_total');
+    void queueNotificationService.notifyTicketCancelled(cancelled);
     auditStaff(actorUserId, 'staff_cancel', 'queue_entry', cancelled.id, {
       ticket: cancelled.ticket_code,
       previousStatus: entry.status,

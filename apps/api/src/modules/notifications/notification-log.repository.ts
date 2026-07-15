@@ -23,7 +23,13 @@
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 /** All lifecycle events that trigger a LINE push message. */
-export type NotificationEventType = 'called' | 'eta_warning' | 'cancelled' | 'completed';
+export type NotificationEventType =
+  | 'called'
+  | 'eta_warning'
+  | 'serving'
+  | 'cancelled'
+  | 'completed'
+  | 'no_show';
 
 export interface INotificationLogRepository {
   /** Returns true when this (entryId, type) pair has already been sent. */

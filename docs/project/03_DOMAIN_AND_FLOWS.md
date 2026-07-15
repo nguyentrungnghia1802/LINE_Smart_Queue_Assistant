@@ -100,9 +100,9 @@ Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently
 2. Web fetches public organization, queue, and active product data.
 3. Customer may continue as guest; LIFF login is optional for basic public booking.
 4. For LINE notification eligibility, LIFF obtains an ID token and `/auth/line` links a LINE account.
-5. The intended rule is to use server-verified identity, not browser profile data, to attach the LINE recipient.
+5. The backend uses server-verified identity, not browser profile data or public request body fields, to attach the LINE recipient.
 
-Guest trade-off: the order/ticket works, but LINE push is unavailable unless the ticket resolves to a linked `line_user_id`. For a LINE-authenticated order, `currentUserMiddleware` reads the verified JWT identity and the order controller passes both internal user ID and LINE user ID to the order service. The service stores both on the queue entry in the booking transaction.
+Guest trade-off: the order/ticket works, but LINE push is unavailable unless the ticket resolves to a linked `line_user_id`. For LINE-authenticated requests, `currentUserMiddleware` validates the JWT LINE claim against the active `line_accounts` row. The order and queue controllers pass both internal user ID and verified LINE user ID to their services, which store both on the queue entry inside the write transaction.
 
 ## 4. Booking without required prepayment
 
@@ -144,7 +144,7 @@ Current limitation: no dedicated group retrieval/management API is exposed, so t
 2. `/staff/my-queue` returns the organization queue board and selected order details.
 3. Calling next atomically selects/transitions the next eligible waiting entry.
 4. After commit, the notification service attempts a Japanese LINE called message.
-5. Staff starts service, completes, marks no-show, or cancels through guarded transitions.
+5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful state change attempts a Japanese LINE push when the ticket has a verified recipient.
 6. Staff updates order/payment status manually as needed.
 7. Receipt printing is available after the applicable payment success state.
 
@@ -161,6 +161,9 @@ QueueNotificationService -- missing LINE ID --> skip
           +-- already sent in memory --> suppress
           |
           v
+lineNotificationService + Japanese templates
+          |
+          v
 ILineMessagingAdapter
     | token absent/test -> MockLineAdapter
     | token present     -> LINE /v2/bot/message/push
@@ -170,8 +173,6 @@ ILineMessagingAdapter
 ```
 
 Current deduplication is process-local. Restarting or adding replicas can cause repeat sends. The database `notifications` table is not yet the authoritative queue-push outbox.
-
-Security note: `POST /queue/join` currently permits a fallback `lineUserId` in the public body. Production must remove that trust boundary and derive the recipient from a server-verified LINE login/account link.
 
 ## 9. Location warning flow
 

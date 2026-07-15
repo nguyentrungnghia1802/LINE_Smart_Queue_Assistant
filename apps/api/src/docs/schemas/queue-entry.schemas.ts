@@ -16,11 +16,6 @@ export const queueEntrySchemas = {
         format: 'uuid',
         description: 'Target queue ID',
       },
-      lineUserId: {
-        type: 'string',
-        maxLength: 60,
-        description: 'LINE user ID — enables push notifications for this ticket',
-      },
       notes: {
         type: 'string',
         maxLength: 500,

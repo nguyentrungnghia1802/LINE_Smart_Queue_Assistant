@@ -115,23 +115,23 @@ All paths require manager/admin.
 
 ### Customer ticket operations
 
-| Method | Path                               | Access                           | Purpose                    |
-| ------ | ---------------------------------- | -------------------------------- | -------------------------- |
-| POST   | `/api/v1/queue/join`               | Public, strict limit, idempotent | Join a queue directly      |
-| GET    | `/api/v1/queue/current?queueId=`   | Public                           | Current queue snapshot     |
-| GET    | `/api/v1/queue/me`                 | Authenticated                    | Current caller ticket      |
-| GET    | `/api/v1/queue/me/penalties`       | Authenticated                    | Active caller penalties    |
-| GET    | `/api/v1/queue/entry/:entryId`     | Public                           | Guest/public ticket status |
-| POST   | `/api/v1/queue/:entryId/cancel`    | Authenticated owner/operator     | Cancel eligible ticket     |
-| POST   | `/api/v1/queue/:entryId/skip`      | Authenticated                    | Apply skip policy          |
-| POST   | `/api/v1/queue/:entryId/serve`     | Staff/manager/admin              | Start service              |
-| POST   | `/api/v1/queue/:entryId/complete`  | Staff/manager/admin              | Complete service           |
-| GET    | `/api/v1/queue/:queueId/status`    | Public                           | Queue status/counts        |
-| POST   | `/api/v1/queue/:queueId/call-next` | Staff/manager/admin              | Call next ticket           |
+| Method | Path                               | Access                           | Purpose                                                                              |
+| ------ | ---------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------ |
+| POST   | `/api/v1/queue/join`               | Public, strict limit, idempotent | Join a queue directly; optional LINE recipient comes only from verified JWT identity |
+| GET    | `/api/v1/queue/current?queueId=`   | Public                           | Current queue snapshot                                                               |
+| GET    | `/api/v1/queue/me`                 | Authenticated                    | Current caller ticket                                                                |
+| GET    | `/api/v1/queue/me/penalties`       | Authenticated                    | Active caller penalties                                                              |
+| GET    | `/api/v1/queue/entry/:entryId`     | Public                           | Guest/public ticket status                                                           |
+| POST   | `/api/v1/queue/:entryId/cancel`    | Authenticated owner/operator     | Cancel eligible ticket                                                               |
+| POST   | `/api/v1/queue/:entryId/skip`      | Authenticated                    | Apply skip policy                                                                    |
+| POST   | `/api/v1/queue/:entryId/serve`     | Staff/manager/admin              | Start service                                                                        |
+| POST   | `/api/v1/queue/:entryId/complete`  | Staff/manager/admin              | Complete service                                                                     |
+| GET    | `/api/v1/queue/:queueId/status`    | Public                           | Queue status/counts                                                                  |
+| POST   | `/api/v1/queue/:queueId/call-next` | Staff/manager/admin              | Call next ticket                                                                     |
 
 Static `/current` and `/me` routes must remain before parameter routes.
 
-Current security gap: the public join validator accepts an optional body `lineUserId`. The controller prefers JWT identity but falls back to that body value. Production clients must not be allowed to assert another recipient; require and verify LINE identity server-side before persisting it.
+`POST /queue/join` accepts `queueId`, optional `guestName`, and optional `notes`. It does not accept a browser-supplied `lineUserId`; the controller passes only `req.user.lineUserId` after JWT and active `line_accounts` verification.
 
 ### Staff operations
 
@@ -189,7 +189,7 @@ Important `POST /orders` request fields:
 
 The server ignores browser price authority: it reloads product prices and calculates subtotal/covered amount. For real payment, the accepted payment object must be built from verified server-side provider state rather than direct browser assertions.
 
-For authenticated `POST /orders`, the controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified `line_user_id` on the new queue entry. Guest orders keep both recipient fields empty unless a separately verified identity flow is used.
+For authenticated `POST /orders`, the controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified linked `line_user_id` on the new queue entry. Guest orders keep both recipient fields empty unless a separately verified identity flow is used.
 
 ### Users and staff management
 

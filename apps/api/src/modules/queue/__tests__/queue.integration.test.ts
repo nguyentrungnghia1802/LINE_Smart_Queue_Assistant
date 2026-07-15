@@ -92,6 +92,9 @@ const mockWithTransaction = withTransaction as jest.MockedFunction<typeof withTr
 const mockFindUserById = usersRepository.findById as jest.MockedFunction<
   typeof usersRepository.findById
 >;
+const mockFindLineAccount = usersRepository.findLineAccount as jest.MockedFunction<
+  typeof usersRepository.findLineAccount
+>;
 const mockFindMembershipByUserId =
   organizationsRepository.findMembershipByUserId as jest.MockedFunction<
     typeof organizationsRepository.findMembershipByUserId
@@ -186,6 +189,17 @@ beforeEach(() => {
     created_at: new Date(),
     updated_at: new Date(),
   });
+  mockFindLineAccount.mockResolvedValue({
+    id: 'line-account-id',
+    user_id: USER_ID,
+    line_user_id: LINE_USER_ID,
+    display_name: 'Queue Customer',
+    picture_url: null,
+    status_message: null,
+    is_linked: true,
+    linked_at: new Date(),
+    last_synced_at: new Date(),
+  });
   mockFindMembershipByUserId.mockResolvedValue(null);
   mockGetEntryIdsAhead.mockResolvedValue([]);
 });
@@ -220,6 +234,13 @@ describe('POST /api/v1/queue/join', () => {
       expect(data.entry.status).toBe('waiting');
       expect(data.aheadCount).toBe(2);
       expect(data.estimatedWaitSeconds).toBe(2 * 120); // 2 ahead × 120 s/ticket
+      expect(mockCreateEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: USER_ID,
+          lineUserId: LINE_USER_ID,
+        }),
+        expect.anything()
+      );
     });
 
     it('returns 200 (not 201) when the caller already has an active ticket', async () => {
@@ -240,7 +261,7 @@ describe('POST /api/v1/queue/join', () => {
       expect(mockCreateEntry).not.toHaveBeenCalled();
     });
 
-    it('accepts an anonymous request with lineUserId in body', async () => {
+    it('ignores lineUserId in anonymous request body', async () => {
       mockFindQueueById.mockResolvedValue(openQueue);
       mockIncrementCounter.mockResolvedValue(7);
       mockCreateEntry.mockResolvedValue({ ...waitingEntry, user_id: null, ticket_code: 'A007' });
@@ -256,6 +277,13 @@ describe('POST /api/v1/queue/join', () => {
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
       expect(res.body.data.aheadCount).toBe(0);
+      expect(mockCreateEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: undefined,
+          lineUserId: undefined,
+        }),
+        expect.anything()
+      );
       // 0 ahead → 0 s wait → ceil(0/60) = 0 min
       expect(res.body.data.estimatedWaitSeconds).toBe(0);
     });

@@ -13,6 +13,7 @@ import { createHmac } from 'node:crypto';
 import request from 'supertest';
 
 import { createApp } from '../../../app';
+import { usersRepository } from '../../../db/repositories/users.repository';
 
 // ── Mocks ──────────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,19 @@ function messageEvent(text: string, userId = 'U_msg_001'): object {
   };
 }
 
+function unfollowEvent(userId = 'U_unfollow_001'): object {
+  return {
+    destination: 'U_bot',
+    events: [
+      {
+        type: 'unfollow',
+        timestamp: Date.now(),
+        source: { type: 'user', userId },
+      },
+    ],
+  };
+}
+
 // ── Shared app instance + live mock refs ──────────────────────────────────────
 
 const app = createApp();
@@ -108,6 +122,7 @@ const { lineMessagingAdapter: mockAdapter } = jest.requireMock('../line.messagin
 beforeEach(() => {
   mockAdapter.pushMessage.mockClear();
   mockAdapter.replyMessage.mockClear();
+  jest.restoreAllMocks();
 });
 
 describe('POST /api/v1/line/webhook — signature validation', () => {
@@ -173,6 +188,29 @@ describe('POST /api/v1/line/webhook — follow event', () => {
     expect(token).toBe('mock-reply-token');
     expect(messages[0].type).toBe('text');
     expect(messages[0].text).toContain('ようこそ');
+  });
+});
+
+describe('POST /api/v1/line/webhook — unfollow event', () => {
+  it('marks the LINE account as unlinked', async () => {
+    const markUnlinked = jest
+      .spyOn(usersRepository, 'markLineAccountUnlinked')
+      .mockResolvedValue(undefined);
+    const body = JSON.stringify(unfollowEvent());
+    const sig = makeSignature(body);
+
+    const res = await request(app)
+      .post('/api/v1/line/webhook')
+      .set('Content-Type', 'application/json')
+      .set('X-Line-Signature', sig)
+      .send(body);
+
+    expect(res.status).toBe(200);
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(markUnlinked).toHaveBeenCalledWith('U_unfollow_001');
+    expect(mockAdapter.replyMessage).not.toHaveBeenCalled();
   });
 });
 

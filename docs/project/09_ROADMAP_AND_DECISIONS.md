@@ -11,11 +11,10 @@ Last reviewed: 2026-07-15. This file records current priorities and accepted arc
 1. Rotate any previously exposed LINE/JWT/provider credential and enable secret scanning.
 2. Implement server-created payment intents, signed webhooks, durable idempotency, refund, and reconciliation for the selected Japan PSP.
 3. Complete inventory lifecycle: reserve, consume, release on cancellation, expire, and reconcile exactly once.
-4. Remove trust in the direct public queue-join body `lineUserId` and require verified LINE identity.
-5. Replace in-memory notification deduplication with a PostgreSQL outbox/delivery log, retry schedule, and dead-letter visibility.
-6. Enforce strict queue capacity and order number uniqueness under concurrency.
-7. Add all automated tests and clean migration smoke tests to CI.
-8. Correct Japan production configuration: timezone, JPY seed/demo data, addresses, legal/payment copy.
+4. Replace in-memory notification deduplication with a PostgreSQL outbox/delivery log, retry schedule, and dead-letter visibility.
+5. Enforce strict queue capacity and order number uniqueness under concurrency.
+6. Add all automated tests and clean migration smoke tests to CI.
+7. Correct Japan production configuration: timezone, JPY seed/demo data, addresses, legal/payment copy.
 
 ### P1: Complete requested product capabilities
 
@@ -54,7 +53,6 @@ Last reviewed: 2026-07-15. This file records current priorities and accepted arc
 | TD-010 | CI does not run tests/migrations                               | Regressions can merge                      | Add test DB and required checks                 |
 | TD-011 | Metrics reset per process and `/metrics` is public in app      | Weak operations/security                   | Scrape/protect endpoint and expand metrics      |
 | TD-012 | Daily counter uses UTC                                         | Wrong local business day                   | Organization timezone-aware reset               |
-| TD-014 | Public queue join accepts body `lineUserId`                    | Unverified recipient assertion             | Require verified LINE token/account identity    |
 
 ## 3. Decision record format
 
