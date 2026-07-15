@@ -21,7 +21,7 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 3. Connect the implemented audited reconciliation/refund boundary to a real PSP and settlement process.
 4. Calibrate the measured forecast/staffing heuristic with production history and accuracy reporting.
 5. Complete Swagger/OpenAPI coverage and API contract tests.
-6. Move logo/product image uploads to object storage with signed upload, compression, scanning, and lifecycle rules.
+6. Connect the implemented media boundary to object storage with signed upload, scanning, CDN policy, and orphan reconciliation.
 
 ### P2: Reliability, UX, and scale
 

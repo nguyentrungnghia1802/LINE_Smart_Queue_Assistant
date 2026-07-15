@@ -213,6 +213,15 @@ Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatu
 
 Booking-group requests never accept a customer or LINE user ID as authority. Customer scope comes from the verified system JWT; staff scope comes from active tenant membership. Payment, cancellation, receipt, and ticket status remain independent for every order in the response.
 
+### Media
+
+| Method | Path                | Access        | Purpose                                                        |
+| ------ | ------------------- | ------------- | -------------------------------------------------------------- |
+| POST   | `/api/v1/media`     | Manager/admin | Validate, compress to WebP, store, and register an image asset |
+| DELETE | `/api/v1/media/:id` | Tenant/admin  | Delete storage object and mark its metadata deleted            |
+
+The upload request currently carries a browser-compressed data URL for compatibility, but the service validates decoded bytes and image metadata, caps input pixels/bytes, creates a safe generated key, and stores only the returned URL in organization/product records. The local and mock providers are implemented; a real object-storage client remains external configuration.
+
 ### Users and staff management
 
 | Method | Path                                 | Access        | Purpose                                      |

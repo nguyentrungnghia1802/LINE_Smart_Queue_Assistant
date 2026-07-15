@@ -28,6 +28,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | ----------------- | ------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `web`             | React/Vite in dev, nginx static SPA in prod | Routes, Japanese UI, browser state, API calls, LIFF adapter                            |
 | `api`             | Node/Express                                | HTTP contracts, auth, business services, SQL repositories, LINE adapter, scheduler     |
+| Media adapter     | Local/mock plus object-compatible interface | Validates and compresses image ingress; isolates persistence transport                 |
 | `postgres`        | PostgreSQL 16                               | Tenant, identity, queue, order, inventory, payment, notification, audit, forecast data |
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
 | Payment provider  | Demo adapter or future PSP                  | Hosted/payment redirect and authoritative webhook                                      |

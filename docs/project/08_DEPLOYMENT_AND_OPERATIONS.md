@@ -100,6 +100,8 @@ Daily counters are checked hourly and reset when the organization-local date cha
 
 Use encrypted PostgreSQL logical/managed backups with access controls and off-host retention. Include migration version, application commit, deployment configuration references, and object-storage media when introduced.
 
+Local development media is written under `MEDIA_LOCAL_DIR` and served from `MEDIA_PUBLIC_BASE_URL`. It is not a production durability boundary. Production deployment must provide and verify an object-storage client, backups/lifecycle, CDN/access policy, malware scanning if required, and orphan cleanup before switching away from local storage.
+
 Example logical backup:
 
 ```bash

@@ -5,6 +5,7 @@ import { authRouter } from '../modules/auth/auth.routes';
 import { bookingGroupsRouter } from '../modules/bookings/booking-groups.routes';
 import { forecastsRouter } from '../modules/forecasts/forecasts.routes';
 import { lineRouter } from '../modules/line/line.routes';
+import { mediaRouter } from '../modules/media/media.routes';
 import { notificationsRouter } from '../modules/notifications/notifications.routes';
 import { ordersRouter } from '../modules/orders/orders.routes';
 import { orgsRouter } from '../modules/orgs/orgs.routes';
@@ -32,6 +33,7 @@ v1Router.use('/staff', staffRouter); // staff/admin queue operations
 v1Router.use('/users', usersRouter);
 v1Router.use('/notifications', notificationsRouter);
 v1Router.use('/line', lineRouter);
+v1Router.use('/media', mediaRouter);
 v1Router.use('/products', productsRouter);
 v1Router.use('/orders', ordersRouter);
 v1Router.use('/payments', paymentsRouter);
