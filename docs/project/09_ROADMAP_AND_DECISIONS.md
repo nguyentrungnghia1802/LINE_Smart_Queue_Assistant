@@ -168,6 +168,16 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 **Consequences:** LINE Console and real-device E2E configuration are required before production acceptance. Local mock mode remains available, but bookings in LIFF must be tested with the authenticated system JWT path.
 
+## ADR-012: LINE ticket notifications are Flex-first with text fallback
+
+**Status:** Accepted
+
+**Context:** Customers need a consistent, tappable LINE message for every queue lifecycle event, but Flex delivery can fail because of payload/provider constraints.
+
+**Decision:** Build ticket notification copy, Flex payloads, text fallback, and LIFF deeplinks in the notification templates/service layer. Queue/order services trigger notification intents only after successful state changes and never call the LINE SDK directly.
+
+**Consequences:** Customer-visible LINE content remains centralized and Japanese. A Flex send failure retries as text; final delivery failure is logged/metriced and never rolls back queue/order state. Durable outbox and distributed retry remain future work.
+
 ## 4. Open product decisions
 
 - Which Japan PSP is primary: Stripe, KOMOJU, PayPay, or a provider mix?

@@ -24,6 +24,7 @@
 
 /** All lifecycle events that trigger a LINE push message. */
 export type NotificationEventType =
+  | 'booking_created'
   | 'called'
   | 'eta_warning'
   | 'serving'

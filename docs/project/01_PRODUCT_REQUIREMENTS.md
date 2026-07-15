@@ -91,15 +91,17 @@ The platform role does not replace tenant membership. Staff and manager operatio
 
 ### LINE and notifications
 
-| ID          | Requirement                                                             | Status                                                                                                                            |
-| ----------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| FR-LINE-001 | Messaging API sends a LINE chat message when the turn approaches        | Implemented for authenticated LINE-linked tickets; durable delivery remains planned                                               |
-| FR-LINE-002 | Messaging API sends a LINE chat message when staff changes ticket state | Implemented for called/serving/completed/cancelled/no-show on authenticated LINE-linked tickets; durable delivery remains planned |
-| FR-LINE-003 | Queue state remains successful even if LINE delivery fails              | Implemented                                                                                                                       |
-| FR-LINE-004 | Delivery is durable and deduplicated across restarts/replicas           | Planned                                                                                                                           |
-| FR-LINE-005 | Follow/unfollow link state is persisted                                 | Implemented                                                                                                                       |
-| FR-LINE-006 | Consent/preferences and opt-out controls are user-manageable            | Planned                                                                                                                           |
-| FR-LINE-007 | LINE notification links open the correct LIFF ticket detail             | Implemented                                                                                                                       |
+| ID          | Requirement                                                                                   | Status                                                                                                                            |
+| ----------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| FR-LINE-001 | Messaging API sends a LINE chat message when the turn approaches                              | Implemented for authenticated LINE-linked tickets; durable delivery remains planned                                               |
+| FR-LINE-002 | Messaging API sends a LINE chat message when staff changes ticket state                       | Implemented for called/serving/completed/cancelled/no-show on authenticated LINE-linked tickets; durable delivery remains planned |
+| FR-LINE-003 | Queue state remains successful even if LINE delivery fails                                    | Implemented                                                                                                                       |
+| FR-LINE-004 | Delivery is durable and deduplicated across restarts/replicas                                 | Planned                                                                                                                           |
+| FR-LINE-005 | Follow/unfollow link state is persisted                                                       | Implemented                                                                                                                       |
+| FR-LINE-006 | Consent/preferences and opt-out controls are user-manageable                                  | Planned                                                                                                                           |
+| FR-LINE-007 | LINE notification links open the correct LIFF ticket detail                                   | Implemented                                                                                                                       |
+| FR-LINE-008 | Ticket lifecycle notifications use a common Flex Message with text fallback                   | Implemented                                                                                                                       |
+| FR-LINE-009 | Booking success sends a LINE ticket notification when the entry has a verified LINE recipient | Implemented                                                                                                                       |
 
 ### Location, prediction, and analytics
 
@@ -148,9 +150,10 @@ The platform role does not replace tenant membership. Staff and manager operatio
 5. Concurrent finite-stock orders cannot reduce stock below zero; a failed order leaves no partial ticket/order/item rows.
 6. Staff actions cannot access an entry/order in another organization.
 7. Staff state changes for a LINE-linked customer send Japanese queue messages without reverting queue state on delivery failure.
-8. Admin organization registration creates the organization, manager user, and active membership together.
-9. All primary pages remain usable at mobile and desktop widths and all visible copy is Japanese.
-10. Health/readiness clearly distinguish a live process from a usable database connection.
+8. LINE ticket notifications contain the system name, ticket code, status, people ahead, ETA, next action, and a LIFF ticket button; text fallback remains available.
+9. Admin organization registration creates the organization, manager user, and active membership together.
+10. All primary pages remain usable at mobile and desktop widths and all visible copy is Japanese.
+11. Health/readiness clearly distinguish a live process from a usable database connection.
 
 ## 6. Non-functional requirements
 

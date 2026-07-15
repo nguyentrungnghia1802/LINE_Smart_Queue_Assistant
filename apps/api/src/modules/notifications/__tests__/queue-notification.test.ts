@@ -68,6 +68,46 @@ class FailingLineAdapter implements ILineMessagingAdapter {
   }
 }
 
+function messagePayload(message: LineMessage): string {
+  return JSON.stringify(message);
+}
+
+// ── notifyBookingCreated ─────────────────────────────────────────────────────
+
+describe('notifyBookingCreated', () => {
+  it('sends a booking-created Flex Message with current position data', async () => {
+    const adapter = new MockLineAdapter();
+    const entry = makeEntry({ status: 'waiting' });
+
+    await queueNotificationService.notifyBookingCreated(
+      entry,
+      { aheadCount: 2, estimatedWaitSeconds: 600 },
+      adapter,
+      notificationLogRepository
+    );
+
+    expect(adapter.pushCalls).toHaveLength(1);
+    expect(adapter.pushCalls[0].messages[0].type).toBe('flex');
+    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('受付が完了しました');
+    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('A005');
+    expect(notificationLogRepository.hasBeenSent(entry.id, 'booking_created')).toBe(true);
+  });
+
+  it('does not mark booking-created as sent when Flex and text fallback fail', async () => {
+    const adapter = new FailingLineAdapter();
+    const entry = makeEntry({ status: 'waiting' });
+
+    await queueNotificationService.notifyBookingCreated(
+      entry,
+      {},
+      adapter,
+      notificationLogRepository
+    );
+
+    expect(notificationLogRepository.hasBeenSent(entry.id, 'booking_created')).toBe(false);
+  });
+});
+
 // ── notifyTicketCalled ─────────────────────────────────────────────────────────
 
 describe('notifyTicketCalled', () => {
@@ -79,8 +119,9 @@ describe('notifyTicketCalled', () => {
 
     expect(adapter.pushCalls).toHaveLength(1);
     expect(adapter.pushCalls[0].to).toBe('U_test_001');
-    expect(adapter.pushCalls[0].messages[0].text).toContain('A005');
-    expect(adapter.pushCalls[0].messages[0].text).toContain('順番です');
+    expect(adapter.pushCalls[0].messages[0].type).toBe('flex');
+    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('A005');
+    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('順番になりました');
   });
 
   it('does nothing when line_user_id is null', async () => {
@@ -131,8 +172,9 @@ describe('notifyEtaWarning', () => {
     await queueNotificationService.notifyEtaWarning(entry, 1, adapter, notificationLogRepository);
 
     expect(adapter.pushCalls).toHaveLength(1);
-    expect(adapter.pushCalls[0].messages[0].text).toContain('順番が近づいています');
-    expect(adapter.pushCalls[0].messages[0].text).toContain('前に1名');
+    expect(adapter.pushCalls[0].messages[0].type).toBe('flex');
+    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('まもなく順番です');
+    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('前の人数');
   });
 
   it('sends a warning at the exact threshold boundary', async () => {
@@ -193,7 +235,7 @@ describe('queue lifecycle status notifications', () => {
     await queueNotificationService.notifyTicketServing(entry, adapter, notificationLogRepository);
 
     expect(adapter.pushCalls).toHaveLength(1);
-    expect(adapter.pushCalls[0].messages[0].text).toContain('対応を開始');
+    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('対応を開始');
     expect(notificationLogRepository.hasBeenSent(entry.id, 'serving')).toBe(true);
   });
 
@@ -204,7 +246,7 @@ describe('queue lifecycle status notifications', () => {
     await queueNotificationService.notifyTicketCompleted(entry, adapter, notificationLogRepository);
 
     expect(adapter.pushCalls).toHaveLength(1);
-    expect(adapter.pushCalls[0].messages[0].text).toContain('完了');
+    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('完了');
     expect(notificationLogRepository.hasBeenSent(entry.id, 'completed')).toBe(true);
   });
 
@@ -215,7 +257,7 @@ describe('queue lifecycle status notifications', () => {
     await queueNotificationService.notifyTicketNoShow(entry, adapter, notificationLogRepository);
 
     expect(adapter.pushCalls).toHaveLength(1);
-    expect(adapter.pushCalls[0].messages[0].text).toContain('不在');
+    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('不在');
     expect(notificationLogRepository.hasBeenSent(entry.id, 'no_show')).toBe(true);
   });
 });
@@ -230,8 +272,8 @@ describe('notifyTicketCancelled', () => {
     await queueNotificationService.notifyTicketCancelled(entry, adapter, notificationLogRepository);
 
     expect(adapter.pushCalls).toHaveLength(1);
-    expect(adapter.pushCalls[0].messages[0].text).toContain('A005');
-    expect(adapter.pushCalls[0].messages[0].text).toContain('キャンセル');
+    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('A005');
+    expect(messagePayload(adapter.pushCalls[0].messages[0])).toContain('キャンセル');
   });
 
   it('only sends once even when called twice (anti-duplicate)', async () => {

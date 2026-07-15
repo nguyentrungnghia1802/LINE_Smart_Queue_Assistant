@@ -13,11 +13,22 @@ export interface LineTextMessage {
   text: string;
 }
 
+export interface LineFlexMessage {
+  type: 'flex';
+  altText: string;
+  contents: LineFlexContainer;
+}
+
+export interface LineFlexContainer {
+  type: 'bubble' | 'carousel';
+  [key: string]: unknown;
+}
+
 /**
  * Union of all supported LINE message types.
- * Add `LineFlexMessage`, `LineStickerMessage`, etc. as queue flow requires.
+ * Add `LineStickerMessage`, etc. as queue flow requires.
  */
-export type LineMessage = LineTextMessage;
+export type LineMessage = LineTextMessage | LineFlexMessage;
 
 export interface ILineMessagingAdapter {
   /**
