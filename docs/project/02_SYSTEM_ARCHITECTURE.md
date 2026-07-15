@@ -111,7 +111,7 @@ Authenticated order and direct queue creation copy only `req.user.lineUserId`, w
 
 - Browser-to-API communication is JSON REST over `/api/v1`.
 - API-to-PostgreSQL uses parameterized `pg` queries and explicit transactions for multi-row writes.
-- API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`; queue lifecycle copy and ticket deep links are centralized in `line-notification.templates.ts` and sent through `lineNotificationService`.
+- API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`; queue lifecycle copy, Flex Message payloads, text fallbacks, and ticket deep links are centralized in `line-notification.templates.ts` and sent through `lineNotificationService`.
 - Demo payment is currently browser-orchestrated and recorded by the order creation API; real payment must originate/verify on the server.
 
 ## 8. Background jobs

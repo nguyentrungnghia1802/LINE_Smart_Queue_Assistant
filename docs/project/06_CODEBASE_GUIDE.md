@@ -135,6 +135,7 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 - Keep third-party failure after-commit when failure must not roll back domain state, such as LINE delivery.
 - Keep commercial/stock writes inside one transaction when partial state would be invalid.
 - Invalidate caches only after commit.
+- Keep customer-facing LINE copy, Flex payloads, text fallback, and ticket deeplink construction inside `line-notification.templates.ts` and `lineNotificationService`; business services must not call the LINE SDK or adapter directly.
 
 ## 10. Files requiring extra care
 

@@ -6,6 +6,7 @@ import { queueEntriesRepository } from '../../db/repositories/queue-entries.repo
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
 import { productCatalogCache } from '../../utils/cache';
+import { etaService } from '../eta/eta.service';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
@@ -282,6 +283,24 @@ export const ordersService = {
       await client.query('COMMIT');
       productCatalogCache.invalidate(`org:${org.id}`);
       productCatalogCache.invalidate(`slug:${org.slug}`);
+      void (async () => {
+        try {
+          const aheadCount = await queuesRepository.getWaitingPosition(
+            queue.id,
+            linkedEntry.priority,
+            linkedEntry.ticket_number
+          );
+          await queueNotificationService.notifyBookingCreated(linkedEntry, {
+            aheadCount,
+            estimatedWaitSeconds: etaService.calculate({
+              aheadCount,
+              avgServiceSeconds: queue.avg_service_seconds,
+            }).estimatedWaitSeconds,
+          });
+        } catch {
+          await queueNotificationService.notifyBookingCreated(linkedEntry);
+        }
+      })();
       return { order: linkedOrder, entry: linkedEntry };
     } catch (err) {
       await client.query('ROLLBACK');

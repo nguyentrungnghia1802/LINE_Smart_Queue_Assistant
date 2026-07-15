@@ -145,6 +145,7 @@ Critical regression scenarios:
 - Cross-organization access attempts for every staff/manager command.
 - Ticket transition races and duplicate call-next requests.
 - LINE token absent, success, failure, duplicate scan, and process restart semantics.
+- LINE Flex Message payload, text fallback, deeplink URL, and no-rollback behavior for queue/order notifications.
 - Organization registration transaction and duplicate email/slug.
 - Mobile staff rail/detail layout and public QR/ticket pages.
 
@@ -157,7 +158,7 @@ Critical regression scenarios:
 5. Add/follow the LINE Official Account as required for push eligibility.
 6. Open `https://liff.line.me/{LIFF_ID}?liff.state=%2Fliff%2Fqr%2F{publicQrToken}` and verify `/api/v1/auth/line` links a real `line_user_id`.
 7. Select products/services, complete demo prepayment if required, create a booking, and confirm the app redirects to `/liff/tickets/:entryId`.
-8. Call the ticket from staff and observe the Japanese message in LINE chat. The message should include a link that opens the LIFF ticket detail.
+8. Call the ticket from staff and observe the Japanese Flex Message in LINE chat. The card should include ticket code, status, people ahead, ETA, next action, and a button that opens the LIFF ticket detail. Text fallback is expected only when Flex delivery fails.
 9. Optionally send a direct test with `npm run line:verify -- --send-to <LINE_USER_ID>`.
 10. Check API logs/metrics and ensure `notificationDisabled` remains `false` for normal notifications.
 

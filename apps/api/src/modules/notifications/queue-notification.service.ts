@@ -33,12 +33,8 @@ import { lineMessagingAdapter } from '../line/line.messaging';
 import { lineNotificationService } from './line-notification.service';
 import {
   buildTicketDeepLink,
-  etaWarningMessage,
-  ticketCalledMessage,
-  ticketCancelledMessage,
-  ticketCompletedMessage,
-  ticketNoShowMessage,
-  ticketServingMessage,
+  buildTicketNotification,
+  type TicketNotificationEventType,
 } from './line-notification.templates';
 import type { INotificationLogRepository } from './notification-log.repository';
 import { notificationLogRepository } from './notification-log.repository';
@@ -60,9 +56,52 @@ function ticketLink(entryId: string): string {
   });
 }
 
+interface TicketNotificationSnapshot {
+  aheadCount?: number | null;
+  estimatedWaitSeconds?: number | null;
+}
+
+function buildNotification(
+  entry: QueueEntryRow,
+  eventType: TicketNotificationEventType,
+  snapshot: TicketNotificationSnapshot = {}
+) {
+  return buildTicketNotification({
+    eventType,
+    ticketCode: entry.ticket_code,
+    ticketUrl: ticketLink(entry.id),
+    aheadCount: snapshot.aheadCount,
+    estimatedWaitSeconds: snapshot.estimatedWaitSeconds ?? entry.estimated_wait_seconds,
+  });
+}
+
 // ── Service ───────────────────────────────────────────────────────────────────
 
 export const queueNotificationService = {
+  async notifyBookingCreated(
+    entry: QueueEntryRow,
+    snapshot: TicketNotificationSnapshot = {},
+    adapter: ILineMessagingAdapter = lineMessagingAdapter,
+    log: INotificationLogRepository = notificationLogRepository
+  ): Promise<void> {
+    if (!entry.line_user_id) return;
+
+    if (log.hasBeenSent(entry.id, 'booking_created')) {
+      logger.debug({ entryId: entry.id }, 'Duplicate booking-created notification suppressed');
+      return;
+    }
+
+    const sent = await lineNotificationService.pushTicketNotification(
+      entry.line_user_id,
+      buildNotification(entry, 'booking_created', snapshot),
+      { entryId: entry.id, eventType: 'booking_created' },
+      adapter
+    );
+    if (sent) {
+      log.markSent(entry.id, 'booking_created');
+    }
+  },
+
   /**
    * Push a "your number is called" message to the ticket holder.
    *
@@ -85,9 +124,9 @@ export const queueNotificationService = {
       return;
     }
 
-    const sent = await lineNotificationService.pushText(
+    const sent = await lineNotificationService.pushTicketNotification(
       entry.line_user_id,
-      ticketCalledMessage(entry.ticket_code, { ticketUrl: ticketLink(entry.id) }),
+      buildNotification(entry, 'called', { aheadCount: 0, estimatedWaitSeconds: 0 }),
       { entryId: entry.id, eventType: 'called' },
       adapter
     );
@@ -120,9 +159,9 @@ export const queueNotificationService = {
       return;
     }
 
-    const sent = await lineNotificationService.pushText(
+    const sent = await lineNotificationService.pushTicketNotification(
       entry.line_user_id,
-      etaWarningMessage(entry.ticket_code, aheadCount, { ticketUrl: ticketLink(entry.id) }),
+      buildNotification(entry, 'eta_warning', { aheadCount }),
       { entryId: entry.id, eventType: 'eta_warning' },
       adapter
     );
@@ -143,9 +182,9 @@ export const queueNotificationService = {
       return;
     }
 
-    const sent = await lineNotificationService.pushText(
+    const sent = await lineNotificationService.pushTicketNotification(
       entry.line_user_id,
-      ticketServingMessage(entry.ticket_code, { ticketUrl: ticketLink(entry.id) }),
+      buildNotification(entry, 'serving', { aheadCount: 0, estimatedWaitSeconds: 0 }),
       { entryId: entry.id, eventType: 'serving' },
       adapter
     );
@@ -166,9 +205,9 @@ export const queueNotificationService = {
       return;
     }
 
-    const sent = await lineNotificationService.pushText(
+    const sent = await lineNotificationService.pushTicketNotification(
       entry.line_user_id,
-      ticketCompletedMessage(entry.ticket_code, { ticketUrl: ticketLink(entry.id) }),
+      buildNotification(entry, 'completed', { aheadCount: 0, estimatedWaitSeconds: 0 }),
       { entryId: entry.id, eventType: 'completed' },
       adapter
     );
@@ -189,9 +228,9 @@ export const queueNotificationService = {
       return;
     }
 
-    const sent = await lineNotificationService.pushText(
+    const sent = await lineNotificationService.pushTicketNotification(
       entry.line_user_id,
-      ticketNoShowMessage(entry.ticket_code, { ticketUrl: ticketLink(entry.id) }),
+      buildNotification(entry, 'no_show', { aheadCount: 0, estimatedWaitSeconds: 0 }),
       { entryId: entry.id, eventType: 'no_show' },
       adapter
     );
@@ -217,9 +256,9 @@ export const queueNotificationService = {
       return;
     }
 
-    const sent = await lineNotificationService.pushText(
+    const sent = await lineNotificationService.pushTicketNotification(
       entry.line_user_id,
-      ticketCancelledMessage(entry.ticket_code, { ticketUrl: ticketLink(entry.id) }),
+      buildNotification(entry, 'cancelled', { aheadCount: 0, estimatedWaitSeconds: 0 }),
       { entryId: entry.id, eventType: 'cancelled' },
       adapter
     );

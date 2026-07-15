@@ -182,14 +182,20 @@ export const queueService = {
       entry.priority,
       entry.ticket_number
     );
+    const estimatedWaitSeconds = etaService.calculate({
+      aheadCount,
+      avgServiceSeconds: queue.avg_service_seconds,
+    }).estimatedWaitSeconds;
+
+    void queueNotificationService.notifyBookingCreated(entry, {
+      aheadCount,
+      estimatedWaitSeconds,
+    });
 
     return {
       entry,
       aheadCount,
-      estimatedWaitSeconds: etaService.calculate({
-        aheadCount,
-        avgServiceSeconds: queue.avg_service_seconds,
-      }).estimatedWaitSeconds,
+      estimatedWaitSeconds,
       isExisting: false,
     };
   },

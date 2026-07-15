@@ -144,7 +144,7 @@ Current limitation: no dedicated group retrieval/management API is exposed, so t
 1. Staff authenticates and the API resolves active organization membership.
 2. `/staff/my-queue` returns the organization queue board and selected order details.
 3. Calling next atomically selects/transitions the next eligible waiting entry.
-4. After commit, the notification service attempts a Japanese LINE called message.
+4. After commit, the notification service attempts a Japanese LINE called Flex Message with text fallback.
 5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful state change attempts a Japanese LINE push when the ticket has a verified recipient.
 6. Staff updates order/payment status manually as needed.
 7. Receipt printing is available after the applicable payment success state.
@@ -162,20 +162,23 @@ QueueNotificationService -- missing LINE ID --> skip
           +-- already sent in memory --> suppress
           |
           v
-lineNotificationService + Japanese templates + LIFF ticket deep link
+lineNotificationService + Japanese Flex template + text fallback + LIFF ticket deep link
           |
           v
 ILineMessagingAdapter
     | token absent/test -> MockLineAdapter
     | token present     -> LINE /v2/bot/message/push
           |
-       success: mark in-memory sent + metric
-       failure: log + metric; queue state stays committed
+       Flex success: mark in-memory sent + metric
+       Flex failure: try Japanese text fallback
+       final failure: log + metric; queue/order state stays committed
 ```
 
 Current deduplication is process-local. Restarting or adding replicas can cause repeat sends. The database `notifications` table is not yet the authoritative queue-push outbox.
 
 Notification ticket links prefer `LINE_LIFF_ID` and generate `https://liff.line.me/{LINE_LIFF_ID}?liff.state=/liff/tickets/:entryId`. When the LIFF ID is not configured, the backend falls back to `WEB_ORIGIN` plus `/liff/tickets/:entryId`.
+
+Ticket lifecycle notifications currently cover booking-created, ETA warning, called, serving, completed, cancelled, and no-show events. Each Flex Message shows the system name, ticket code, current status, people ahead, ETA, next action guidance, and a button that opens the LIFF ticket detail.
 
 ## 9. Location warning flow
 
