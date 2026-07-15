@@ -195,9 +195,20 @@ export function StaffDashboardPage() {
     onSuccess: invalidateQueue,
   });
   const paymentMutation = useMutation({
-    mutationFn: ({ id, paymentStatus }: { id: string; paymentStatus: string }) =>
-      patch(`/api/v1/orders/${id}/payment`, { paymentStatus }),
+    mutationFn: ({
+      id,
+      paymentStatus,
+      reason,
+    }: {
+      id: string;
+      paymentStatus: string;
+      reason?: string;
+    }) => patch(`/api/v1/orders/${id}/payment`, { paymentStatus, reason }),
     onSuccess: invalidateQueue,
+  });
+  const receiptMutation = useMutation({
+    mutationFn: (id: string) => get<Order>(`/api/v1/orders/${id}/receipt`),
+    onSuccess: (order) => printReceipt(order, selectedEntry?.ticket_code ?? ''),
   });
 
   const isLoading = queueLoading;
@@ -512,21 +523,34 @@ export function StaffDashboardPage() {
                               onClick={() =>
                                 paymentMutation.mutate({
                                   id: order.id,
-                                  paymentStatus:
-                                    order.payment_status === 'paid' ? 'unpaid' : 'paid',
+                                  paymentStatus: 'paid',
                                 })
                               }
-                              disabled={paymentMutation.isPending}
-                              className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${
-                                order.payment_status === 'paid'
-                                  ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                  : 'bg-green-600 text-white hover:bg-green-700'
-                              } disabled:opacity-50`}
+                              disabled={
+                                paymentMutation.isPending || order.payment_status === 'paid'
+                              }
+                              className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:bg-gray-100 disabled:text-gray-500"
                             >
-                              {order.payment_status === 'paid'
-                                ? '支払いを取り消す'
-                                : '支払い済みにする'}
+                              {order.payment_status === 'paid' ? '支払い済み' : '支払い済みにする'}
                             </button>
+                            {order.payment_status === 'paid' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm('全額返金として記録しますか？')) {
+                                    paymentMutation.mutate({
+                                      id: order.id,
+                                      paymentStatus: 'refunded',
+                                      reason: 'スタッフによる全額返金',
+                                    });
+                                  }
+                                }}
+                                disabled={paymentMutation.isPending}
+                                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                返金を記録
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => {
@@ -543,10 +567,11 @@ export function StaffDashboardPage() {
                             </button>
                           </div>
                         )}
-                        {order.payment_status === 'paid' && (
+                        {order.payment_status === 'paid' && order.status === 'completed' && (
                           <button
                             type="button"
-                            onClick={() => printReceipt(order, selected.ticket_code)}
+                            onClick={() => receiptMutation.mutate(order.id)}
+                            disabled={receiptMutation.isPending}
                             className="mt-4 w-full rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
                           >
                             領収書を印刷

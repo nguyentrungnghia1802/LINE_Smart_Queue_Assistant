@@ -11,6 +11,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 5. `000005_durable_line_notification_outbox.js`
 6. `000006_payment_production_foundation.js`
 7. `000007_operational_correctness.js`
+8. `000008_payment_reconciliation.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -48,17 +49,18 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 
 ### Catalog, queue, and orders
 
-| Table                    | Key purpose                           | Important constraints                                                    |
-| ------------------------ | ------------------------------------- | ------------------------------------------------------------------------ |
-| `products`               | Product/service snapshot source       | Nonnegative price/stock; positive duration; service stock must be `NULL` |
-| `queues`                 | Queue configuration and daily counter | Tenant FK, capacity/time/policy checks and status indexes                |
-| `booking_groups`         | Group separate repeat bookings        | Tenant/customer/device keys; active/completed/cancelled check            |
-| `orders`                 | Commercial reservation header         | Tenant/order number, optional queue entry/customer/group, totals/status  |
-| `order_items`            | Price/name/duration/payment snapshots | Positive quantity, nonnegative subtotal/prepaid amount                   |
-| `payment_transactions`   | Provider intent/state/reconciliation  | Tenant/order, amount/currency, provider intent/external-ID indexes       |
-| `payment_webhook_events` | Idempotent provider callback log      | Unique provider/event ID; replay-safe status                             |
-| `inventory_reservations` | Finite stock allocation               | Positive quantity; reserved/consumed/released/expired check              |
-| `queue_entries`          | Ticket lifecycle and ETA fields       | Unique queue/ticket number and code; active-user/LINE indexes            |
+| Table                               | Key purpose                           | Important constraints                                                           |
+| ----------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------- |
+| `products`                          | Product/service snapshot source       | Nonnegative price/stock; positive duration; service stock must be `NULL`        |
+| `queues`                            | Queue configuration and daily counter | Tenant FK, capacity/time/policy checks and status indexes                       |
+| `booking_groups`                    | Group separate repeat bookings        | Tenant/customer/device keys; active/completed/cancelled check                   |
+| `orders`                            | Commercial reservation header         | Tenant/order number, optional queue entry/customer/group, totals/status         |
+| `order_items`                       | Price/name/duration/payment snapshots | Positive quantity, nonnegative subtotal/prepaid amount                          |
+| `payment_transactions`              | Provider intent/state/reconciliation  | Tenant/order, amount/currency, provider intent/external-ID indexes              |
+| `payment_webhook_events`            | Idempotent provider callback log      | Unique provider/event ID; replay-safe status                                    |
+| `inventory_reservations`            | Finite stock allocation               | Positive quantity; reserved/consumed/released/expired check                     |
+| `payment_reconciliation_operations` | Audited payment decisions             | Unique idempotency key; tenant, transaction, order, actor and amount references |
+| `queue_entries`                     | Ticket lifecycle and ETA fields       | Unique queue/ticket number and code; active-user/LINE indexes                   |
 
 ### Location, analysis, messaging, and audit
 

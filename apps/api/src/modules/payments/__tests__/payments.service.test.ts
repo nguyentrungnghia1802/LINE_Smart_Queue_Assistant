@@ -2,7 +2,7 @@ import { pool } from '../../../db/client';
 import { organizationsRepository } from '../../../db/repositories/organizations.repository';
 import { paymentTransactionsRepository } from '../../../db/repositories/payment-transactions.repository';
 import { productsRepository } from '../../../db/repositories/products.repository';
-import { paymentsService } from '../payments.service';
+import { canApplyPaymentEvent, paymentsService, resolveRefundState } from '../payments.service';
 
 jest.mock('../../../db/client', () => ({
   pool: {
@@ -112,7 +112,9 @@ describe('paymentsService', () => {
       release: jest.fn(),
     };
     jest.mocked(pool.connect).mockResolvedValue(client as never);
-    jest.mocked(paymentTransactionsRepository.findById).mockResolvedValue(baseTransaction as never);
+    jest
+      .mocked(paymentTransactionsRepository.findByIdForUpdate)
+      .mockResolvedValue(baseTransaction as never);
     jest.mocked(paymentTransactionsRepository.insertWebhookEvent).mockResolvedValue({
       row: {} as never,
       inserted: false,
@@ -129,6 +131,24 @@ describe('paymentsService', () => {
     expect(result.duplicate).toBe(true);
     expect(paymentTransactionsRepository.updateStatus).not.toHaveBeenCalled();
     expect(client.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  it('rejects stale and regressive provider transitions', () => {
+    const latest = new Date('2026-07-16T10:00:00Z');
+    expect(canApplyPaymentEvent('paid', 'pending', latest, new Date('2026-07-16T11:00:00Z'))).toBe(
+      false
+    );
+    expect(canApplyPaymentEvent('pending', 'paid', latest, new Date('2026-07-16T09:00:00Z'))).toBe(
+      false
+    );
+    expect(
+      canApplyPaymentEvent('authorized', 'paid', latest, new Date('2026-07-16T11:00:00Z'))
+    ).toBe(true);
+  });
+
+  it('keeps partial refunds paid and marks full refunds refunded', () => {
+    expect(resolveRefundState(1500, 500)).toEqual({ status: 'paid', refundedAmount: 500 });
+    expect(resolveRefundState(1500, 1500)).toEqual({ status: 'refunded', refundedAmount: 1500 });
   });
 
   it('reconciles paid all-item transactions to order and item payment state', async () => {

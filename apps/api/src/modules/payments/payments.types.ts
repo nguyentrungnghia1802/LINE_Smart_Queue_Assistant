@@ -52,6 +52,8 @@ export interface ParsedWebhookEvent {
   transactionId: string;
   providerIntentId?: string;
   status: PaymentState;
+  occurredAt?: Date;
+  refundedAmount?: number;
   rawPayload: Record<string, unknown>;
 }
 
