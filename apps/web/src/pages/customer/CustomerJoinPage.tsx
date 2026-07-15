@@ -167,9 +167,12 @@ export function CustomerJoinPage({
   const isRequiredPaid =
     needsPrepayment &&
     paidRequiredCheckout?.paid === true &&
+    Boolean(paidRequiredCheckout.transactionId) &&
     paidRequiredCheckout.cartSignature === currentCartSignature;
   const isFullyPaid =
-    paidFullCheckout?.paid === true && paidFullCheckout.cartSignature === currentCartSignature;
+    paidFullCheckout?.paid === true &&
+    Boolean(paidFullCheckout.transactionId) &&
+    paidFullCheckout.cartSignature === currentCartSignature;
   const canBook = !needsPrepayment || isRequiredPaid || isFullyPaid;
 
   function maxSelectable(product: Product): number {
@@ -269,6 +272,7 @@ export function CustomerJoinPage({
     const sessionId = createCheckoutId();
     saveCheckoutSession({
       id: sessionId,
+      orgSlug: data.org.slug,
       orgName: data.org.name,
       returnPath: location.pathname,
       cartSignature: currentCartSignature,
@@ -350,21 +354,7 @@ export function CustomerJoinPage({
                 accuracyMeters: customerLocation.accuracyMeters,
               }
             : undefined,
-          paymentStatus: isFullyPaid ? 'paid' : 'unpaid',
-          paymentCode: paidCheckout?.code,
-          payment: paidCheckout
-            ? {
-                status: 'paid',
-                provider: 'demo',
-                method: paidCheckout.method,
-                code: paidCheckout.code,
-                amount: paidCheckout.amount,
-                currency: 'JPY',
-                scope: paidCheckout.scope,
-                coveredProductIds: paidCheckout.coveredProductIds,
-                rawPayload: { paidAt: paidCheckout.paidAt },
-              }
-            : undefined,
+          payment: paidCheckout ? { transactionId: paidCheckout.transactionId } : undefined,
         }
       );
       const nextGroup = appendBookingRecord(

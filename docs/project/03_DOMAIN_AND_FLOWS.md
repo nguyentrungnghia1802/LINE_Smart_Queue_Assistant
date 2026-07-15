@@ -86,7 +86,7 @@ Order and ticket states are related but separate. A queue completion should not 
 
 ### Payment
 
-Database values are `unpaid`, `paid`, `refunded`, and `failed`. Current public create-order validation accepts a successful payment payload only; production must support a full provider transaction state machine.
+Order/item summary values include `unpaid` and `paid`; provider transaction values use the Phase 6 state machine: `pending`, `authorized`, `paid`, `failed`, `cancelled`, and `refunded`. Public create-order validation accepts only a server-created payment `transactionId`; it does not accept browser-supplied amount, status, method code, or covered product IDs.
 
 Per-item state determines prepaid coverage. The order header is `paid` only when every selected item is paid. Required-only checkout leaves the overall order `unpaid` until remaining balance is collected.
 
@@ -112,7 +112,7 @@ Public `/qr/:token`, `/q/:orgSlug`, `/ticket/:entryId`, and public demo checkout
 2. UI checks visible stock and calculates a display subtotal.
 3. Customer may optionally choose checkout for all items or place the reservation unpaid.
 4. `POST /orders` reloads organization, active queue, products, prices, ownership, and stock.
-5. In one transaction the API increments the ticket counter, creates optional booking group, queue entry with any verified LINE recipient, order, items, stock reservations, payment row if supplied, and location/alert if supplied.
+5. In one transaction the API increments the ticket counter, creates optional booking group, queue entry with any verified LINE recipient, order, items, stock reservations, and location/alert if supplied.
 6. On success the UI stores a local booking record and navigates to `/liff/tickets/:entryId` in LIFF or `/ticket/:entryId` in the public fallback.
 7. Any transaction error rolls back all database writes.
 
@@ -121,14 +121,15 @@ Public `/qr/:token`, `/q/:orgSlug`, `/ticket/:entryId`, and public demo checkout
 1. Selection includes one or more `requires_prepayment` items.
 2. The booking action explains that those items must be paid and opens one checkout flow.
 3. Checkout offers two scopes: `required_items` or `all_items`.
-4. Demo mode creates a synthetic successful code; a future external mode redirects to provider checkout.
-5. Browser returns to the booking page with its session draft preserved.
-6. Order request includes payment method/code/scope and covered product IDs.
-7. API rejects the request if any required product is not covered.
-8. API recomputes paid subtotal, writes the payment transaction, and marks covered order items paid.
-9. Full coverage marks the order paid; required-only coverage leaves the order unpaid for later staff collection.
+4. API creates a server-side payment intent and `payment_transactions` row with server-computed coverage.
+5. Demo provider completes with a server-signed token; future external providers redirect to PSP checkout and return via signed webhook/server verification.
+6. Browser returns to the booking page with its session draft preserved and only the verified `transactionId` stored locally.
+7. Order request includes the `transactionId` only.
+8. API reloads product data, loads the paid transaction, checks tenant, unused state, amount, cart metadata, and required prepayment coverage.
+9. API links the transaction to the order and marks covered order items paid.
+10. Full coverage marks the order paid; required-only coverage leaves the order unpaid for later staff collection.
 
-Production invariant: a browser return cannot establish payment. Only the server's verified provider state may produce step 6.
+Production invariant: a browser return cannot establish payment. Only the server's verified provider state may produce a paid transaction that order creation can consume.
 
 ## 6. Repeat/additional booking flow
 

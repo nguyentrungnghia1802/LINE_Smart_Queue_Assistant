@@ -13,10 +13,12 @@ import { config } from '../config';
 
 import { linePaths } from './paths/line.paths';
 import { notificationsPaths } from './paths/notifications.paths';
+import { paymentsPaths } from './paths/payments.paths';
 import { queueEntryPaths } from './paths/queue-entry.paths';
 import { queuesAdminPaths } from './paths/queues-admin.paths';
 import { commonSchemas } from './schemas/common.schemas';
 import { notificationSchemas } from './schemas/notification.schemas';
+import { paymentSchemas } from './schemas/payment.schemas';
 import { queueEntrySchemas } from './schemas/queue-entry.schemas';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -108,6 +110,7 @@ export const swaggerSpec = {
     { name: 'queues', description: 'Admin queue management' },
     { name: 'notifications', description: 'Notification history' },
     { name: 'line', description: 'LINE Messaging API webhook' },
+    { name: 'payments', description: 'Payment intent, webhook, return, and reconciliation' },
     { name: 'health', description: 'Health and liveness probes' },
   ],
 
@@ -116,6 +119,7 @@ export const swaggerSpec = {
     ...queuesAdminPaths,
     ...notificationsPaths,
     ...linePaths,
+    ...paymentsPaths,
 
     '/health': {
       get: {
@@ -147,6 +151,7 @@ export const swaggerSpec = {
       ...commonSchemas,
       ...queueEntrySchemas,
       ...notificationSchemas,
+      ...paymentSchemas,
       ...adminQueueSchemas,
     },
 

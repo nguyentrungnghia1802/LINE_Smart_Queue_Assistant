@@ -49,6 +49,14 @@ export const config = {
     ),
   },
 
+  payments: {
+    mode: (process.env.PAYMENT_MODE ?? 'demo') as 'demo' | 'external',
+    demoWebhookSecret:
+      process.env.DEMO_PAYMENT_WEBHOOK_SECRET ?? process.env.JWT_SECRET ?? 'demo-payment-secret',
+    externalRedirectBaseUrl: process.env.PAYMENT_EXTERNAL_REDIRECT_BASE_URL ?? '',
+    maxWebhookAgeSeconds: Number.parseInt(process.env.PAYMENT_WEBHOOK_MAX_AGE_SECONDS ?? '300', 10),
+  },
+
   cors: {
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
   },
