@@ -84,7 +84,7 @@ Current metrics are process-local and reset on restart. Notification delivery co
 
 ## 6. Scheduled jobs operations
 
-Jobs run inside each API process. At one replica this is simple. Notification delivery itself claims due rows with PostgreSQL row locks, so two workers should not send the same claimed row. Stale `processing` rows are reclaimable after `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS` to survive worker crashes. Other scans can still run on every replica; unique notification event keys protect LINE lifecycle messages from duplicate enqueue, but the platform should still move to an explicit single worker or coordinated scheduler before horizontal production scale.
+Jobs run inside each API process. Notification delivery claims due rows with PostgreSQL row locks, and stale `processing` rows are reclaimable after `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS`. Other logical jobs, including forecasting, use session-level PostgreSQL advisory locks and record safe scheduler health. A dedicated worker may still be useful at larger scale, but is not required for correctness of the current job set.
 
 Before scaling horizontally, use one of:
 
@@ -92,7 +92,7 @@ Before scaling horizontally, use one of:
 - PostgreSQL advisory locks/leader election;
 - durable queue such as BullMQ with Redis when justified.
 
-The daily counter reset currently follows UTC midnight rather than each organization timezone. Treat this as a production blocker for Japan-local daily numbering.
+Daily counters are checked hourly and reset when the organization-local date changes. Keep organization timezone configuration accurate and monitor `scheduler_job_runs` for missed cycles.
 
 ## 7. Backup and recovery
 

@@ -112,7 +112,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | FR-LOC-001 | With consent, capture customer and organization coordinates and calculate distance         | Partial                                    |
 | FR-LOC-002 | Warn a distant customer shortly before their turn through LINE                             | Planned; pending alerts are stored only    |
 | FR-AI-001  | Estimate wait from queue position/workload and configured service time                     | Implemented heuristic                      |
-| FR-AI-002  | Persist forecast history with confidence/model metadata                                    | Schema only                                |
+| FR-AI-002  | Persist forecast history with confidence/model metadata                                    | Implemented as measured heuristic          |
 | FR-AI-003  | Analyze historical load and recommend staff by weekday/hour                                | Schema only                                |
 | FR-AN-001  | Manager sees organization operational statistics                                           | Implemented in order stats/dashboard scope |
 | FR-AN-002  | Admin sees platform organization/user health counts without tenant customer/revenue detail | Implemented/Partial                        |

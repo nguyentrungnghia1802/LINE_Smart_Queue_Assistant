@@ -229,7 +229,7 @@ Step 6 is not implemented. There is no continuous tracking, and production requi
 
 Current ETA uses total service workload when available, otherwise people ahead multiplied by configured average service seconds. Confidence is heuristic. A 30-second job updates waiting entries.
 
-`wait_time_forecasts` and `staffing_recommendations` are target output tables. No current job trains a model, aggregates hourly history, writes these tables, or exposes recommendations. “AI” should therefore be described as planned/heuristic, not a deployed predictive model.
+The PostgreSQL-locked forecasting job aggregates the previous eight weeks by organization-local weekday/hour, persists demand and measured service duration, and writes versioned wait forecasts and staffing recommendations. Confidence increases with sample size, every recommendation carries a Japanese explanation, and expired records are removed according to configuration. This baseline is a deterministic measured heuristic, not a trained ML model.
 
 ## 12. Failure flows
 

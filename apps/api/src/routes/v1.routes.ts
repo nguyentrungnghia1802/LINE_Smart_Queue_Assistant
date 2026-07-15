@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { adminRouter } from '../modules/admin/admin.routes';
 import { authRouter } from '../modules/auth/auth.routes';
 import { bookingGroupsRouter } from '../modules/bookings/booking-groups.routes';
+import { forecastsRouter } from '../modules/forecasts/forecasts.routes';
 import { lineRouter } from '../modules/line/line.routes';
 import { notificationsRouter } from '../modules/notifications/notifications.routes';
 import { ordersRouter } from '../modules/orders/orders.routes';
@@ -23,6 +24,7 @@ export const v1Router = Router();
 
 v1Router.use('/auth', authRouter);
 v1Router.use('/booking-groups', bookingGroupsRouter);
+v1Router.use('/forecasts', forecastsRouter);
 v1Router.use('/admin', adminRouter);
 v1Router.use('/queue', queueEntryRouter); // singular: customer ticket ops
 v1Router.use('/queues', queuesRouter); // plural:   admin queue management

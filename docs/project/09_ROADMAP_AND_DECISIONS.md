@@ -19,10 +19,9 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 1. Add LINE consent/preferences, richer post-follow experience, production Rich Menu asset/E2E verification, and organization channel configuration strategy.
 2. Complete legal review and connect an approved travel-time provider to the implemented privacy-aware location worker boundary.
 3. Connect the implemented audited reconciliation/refund boundary to a real PSP and settlement process.
-4. Persist wait forecasts and build a measured heuristic baseline from service history.
-5. Aggregate demand/service history and expose staffing recommendations by weekday/hour with confidence/explanation.
-6. Complete Swagger/OpenAPI coverage and API contract tests.
-7. Move logo/product image uploads to object storage with signed upload, compression, scanning, and lifecycle rules.
+4. Calibrate the measured forecast/staffing heuristic with production history and accuracy reporting.
+5. Complete Swagger/OpenAPI coverage and API contract tests.
+6. Move logo/product image uploads to object storage with signed upload, compression, scanning, and lifecycle rules.
 
 ### P2: Reliability, UX, and scale
 
@@ -41,7 +40,7 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 | TD-002 | Notification operations have API but no dashboard              | Support workflow remains technical     | Manager/admin operations dashboard              |
 | TD-003 | Inventory lifecycle needs production load validation           | Rare race behavior may be undiscovered | Staged concurrent integration/load tests        |
 | TD-004 | Real PSP settlement/refund execution is absent                 | Demo-only external payment operations  | Provider adapter and settlement runbook         |
-| TD-007 | Forecast/staffing tables have no producers                     | Feature can be overstated              | Label schema-only until pipeline/API/UI exist   |
+| TD-007 | Forecast heuristic lacks production calibration                | Confidence may not reflect real error  | Measure prediction error before model upgrades  |
 | TD-008 | Location uses a mock travel-time provider                      | Real travel estimates are unavailable  | Approved provider adapter and legal review      |
 | TD-009 | Swagger is partial                                             | Client/agent contract drift            | Complete generated OpenAPI and CI diff          |
 | TD-010 | CI does not run tests/migrations                               | Regressions can merge                  | Add test DB and required checks                 |

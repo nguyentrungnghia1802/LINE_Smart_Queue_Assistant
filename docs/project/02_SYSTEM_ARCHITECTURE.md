@@ -122,15 +122,16 @@ Authenticated order and direct queue creation copy only `req.user.lineUserId`, w
 
 The API scheduler uses overlap-protected `setInterval` jobs:
 
-| Job                   | Interval     | Current behavior                                                                |
-| --------------------- | ------------ | ------------------------------------------------------------------------------- |
-| ETA updater           | 30 seconds   | Recomputes wait estimates for waiting entries in open queues                    |
-| ETA warning scan      | 30 seconds   | Enqueues approaching-turn LINE notification intents for eligible linked tickets |
-| Called retry scan     | 60 seconds   | Enqueues called-reminder intents using the same durable event-key deduplication |
-| Notification delivery | 15 seconds   | Claims due LINE outbox rows, sends them, and records sent/retry/failed outcomes |
-| Counter reset         | Hourly check | Resets daily counters once during UTC midnight hour                             |
+| Job                   | Interval     | Current behavior                                                                 |
+| --------------------- | ------------ | -------------------------------------------------------------------------------- |
+| ETA updater           | 30 seconds   | Recomputes wait estimates for waiting entries in open queues                     |
+| ETA warning scan      | 30 seconds   | Enqueues approaching-turn LINE notification intents for eligible linked tickets  |
+| Called retry scan     | 60 seconds   | Enqueues called-reminder intents using the same durable event-key deduplication  |
+| Notification delivery | 15 seconds   | Claims due LINE outbox rows, sends them, and records sent/retry/failed outcomes  |
+| Counter reset         | Hourly check | Resets counters after the organization-local business date changes               |
+| Forecasting           | Configurable | Persists measured demand/service aggregates, wait forecasts, and staffing advice |
 
-Notification delivery uses PostgreSQL row locking with `FOR UPDATE SKIP LOCKED` to avoid two workers sending the same claimed message. Other scheduled jobs still have no distributed scheduler lock; horizontal API replicas may duplicate scans, but notification event keys keep duplicate lifecycle notifications from becoming duplicate sends.
+Notification delivery uses PostgreSQL row locking with `FOR UPDATE SKIP LOCKED`. ETA, warning, called, inventory expiry, location, counter reset, and forecasting jobs use PostgreSQL advisory locks with scheduler run health records, so multiple API replicas do not execute the same logical cycle concurrently.
 
 ## 9. Payment architecture
 
