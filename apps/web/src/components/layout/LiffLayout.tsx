@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 
+import { LiffRuntimeProvider } from '../../contexts/LiffRuntimeContext';
 import { useLiff } from '../../hooks/useLiff';
 import { ErrorState } from '../ui/ErrorState';
 import { Spinner } from '../ui/Spinner';
@@ -21,7 +22,8 @@ const NAV_ITEMS = [
  *   - Provides a persistent bottom tab bar for primary navigation
  */
 export function LiffLayout() {
-  const { initStatus, error } = useLiff();
+  const liff = useLiff();
+  const { initStatus, error } = liff;
 
   if (initStatus === 'idle' || initStatus === 'loading') {
     return (
@@ -44,44 +46,46 @@ export function LiffLayout() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col bg-gray-50">
-      {/* ── Top header ── */}
-      <header className="bg-line-green text-white px-4 py-3 flex items-center gap-2 shrink-0">
-        <span className="text-xl font-bold tracking-tight">
-          {import.meta.env.VITE_APP_NAME ?? 'LINE Queue'}
-        </span>
-      </header>
+    <LiffRuntimeProvider value={liff}>
+      <div className="min-h-dvh flex flex-col bg-gray-50">
+        {/* ── Top header ── */}
+        <header className="bg-line-green text-white px-4 py-3 flex items-center gap-2 shrink-0">
+          <span className="text-xl font-bold tracking-tight">
+            {import.meta.env.VITE_APP_NAME ?? 'LINE Queue'}
+          </span>
+        </header>
 
-      {/* ── Page content (scrollable) ── */}
-      <main className="flex-1 overflow-y-auto px-4 py-5 pb-24">
-        <Outlet />
-      </main>
+        {/* ── Page content (scrollable) ── */}
+        <main className="flex-1 overflow-y-auto px-4 py-5 pb-24">
+          <Outlet />
+        </main>
 
-      {/* ── Bottom tab bar ── */}
-      <nav
-        aria-label="メインナビゲーション"
-        className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex items-stretch z-10 safe-bottom"
-      >
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `flex-1 flex flex-col items-center justify-center gap-1 py-2 text-xs font-medium transition-colors ${
-                isActive ? 'text-line-green' : 'text-gray-400 hover:text-gray-600'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon active={isActive} />
-                <span>{label}</span>
-              </>
-            )}
-          </NavLink>
-        ))}
-      </nav>
-    </div>
+        {/* ── Bottom tab bar ── */}
+        <nav
+          aria-label="メインナビゲーション"
+          className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex items-stretch z-10 safe-bottom"
+        >
+          {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `flex-1 flex flex-col items-center justify-center gap-1 py-2 text-xs font-medium transition-colors ${
+                  isActive ? 'text-line-green' : 'text-gray-400 hover:text-gray-600'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon active={isActive} />
+                  <span>{label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+      </div>
+    </LiffRuntimeProvider>
   );
 }
 

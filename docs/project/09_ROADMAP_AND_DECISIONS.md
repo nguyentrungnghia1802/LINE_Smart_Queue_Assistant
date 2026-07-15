@@ -86,7 +86,7 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 **Decision:** Verify LINE ID tokens against the Login channel and send notifications through a Messaging API channel/Official Account. Link the verified LINE user ID to the platform user.
 
-**Consequences:** Full notification experience needs both configurations and user eligibility; guest booking remains possible without LINE push.
+**Consequences:** Full notification experience needs both configurations and user eligibility. The customer path is LIFF-first for LINE identity and push eligibility, while public booking remains a fallback without LINE push.
 
 ## ADR-004: REST `/api/v1` with polling at current scale
 
@@ -157,6 +157,16 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 **Decision:** Create the coupled records and stock mutation in one PostgreSQL transaction, then perform noncritical external delivery after commit.
 
 **Consequences:** Transaction code is more complex, but rollback preserves business consistency; third-party calls require separate durable workflows.
+
+## ADR-011: Customer booking is LIFF-first
+
+**Status:** Accepted
+
+**Context:** Customer notifications, ticket deeplinks, and queue ownership need a verified LINE identity. A browser-supplied LINE profile or `lineUserId` cannot be trusted.
+
+**Decision:** Use `/liff/qr/:token` and `/liff/q/:orgSlug` as the primary customer booking routes. LIFF initializes LINE Login, exchanges the ID token for the system JWT, and blocks LIFF booking until that authenticated identity is ready. Public `/qr`, `/q`, and `/ticket` routes remain for fallback/demo access.
+
+**Consequences:** LINE Console and real-device E2E configuration are required before production acceptance. Local mock mode remains available, but bookings in LIFF must be tested with the authenticated system JWT path.
 
 ## 4. Open product decisions
 

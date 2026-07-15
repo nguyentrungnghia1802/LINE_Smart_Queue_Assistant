@@ -29,9 +29,15 @@ export const config = {
     channelSecret: process.env.LINE_CHANNEL_SECRET ?? '',
     /** LINE Login / LIFF channel ID — required to verify OIDC id_tokens. */
     channelId: process.env.LINE_CHANNEL_ID ?? '',
+    /** LIFF app ID used to generate customer deep links in LINE push messages. */
+    liffId: process.env.LINE_LIFF_ID ?? process.env.VITE_LIFF_ID ?? '',
   },
 
   cors: {
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+  },
+
+  web: {
+    origin: process.env.WEB_ORIGIN ?? process.env.CORS_ORIGIN ?? 'http://localhost:5173',
   },
 } as const;

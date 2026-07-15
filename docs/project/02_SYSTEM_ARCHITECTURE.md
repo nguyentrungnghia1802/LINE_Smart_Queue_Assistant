@@ -67,8 +67,8 @@ Routes and controllers must not contain domain policy. Repositories must not kno
 
 `apps/web/src/router.tsx` defines one SPA with these route domains:
 
-- Public customer: `/q/:orgSlug`, `/qr/:token`, `/ticket/:entryId`, `/checkout/demo/:sessionId`
-- LINE LIFF customer: `/liff/*`
+- Public customer fallback: `/q/:orgSlug`, `/qr/:token`, `/ticket/:entryId`, `/checkout/demo/:sessionId`
+- LINE-first customer: `/liff/q/:orgSlug`, `/liff/qr/:token`, `/liff/checkout/demo/:sessionId`, `/liff/tickets/:entryId`
 - Staff: `/staff`, `/staff/products`
 - Manager: `/manager/*`
 - Platform admin: `/admin/*`
@@ -95,12 +95,13 @@ Frontend responsibilities are split into route pages, reusable components/layout
 
 ### LINE LIFF
 
-1. LIFF initializes with public `VITE_LIFF_ID` and obtains a LINE ID token.
-2. Client posts the ID token to `/api/v1/auth/line`.
+1. LIFF initializes with public `VITE_LIFF_ID`. In real mode, a signed-out customer is automatically sent through LINE Login; mock mode can stay signed in/out for local tests.
+2. After LINE login, the client obtains an OIDC ID token and posts it to `/api/v1/auth/line`.
 3. API verifies it against the configured LINE Login channel ID.
 4. API finds or creates the customer and links `line_accounts.line_user_id` transactionally.
 5. `currentUserMiddleware` accepts the JWT LINE claim only when the matching `line_accounts` row still belongs to that user and `is_linked = TRUE`.
-6. Queue entries that store that verified linked LINE user ID can be targeted through Messaging API push.
+6. LIFF booking, demo payment return, order creation, and ticket display run in the same `/liff/*` flow. Order and direct queue creation in LIFF are blocked until the system JWT has been issued from the LINE ID token.
+7. Queue entries that store that verified linked LINE user ID can be targeted through Messaging API push.
 
 LINE Login does not send messages. Messaging API does not authenticate the web session. A complete setup needs both capabilities under the intended provider and a consistent LINE user relationship.
 
@@ -110,7 +111,7 @@ Authenticated order and direct queue creation copy only `req.user.lineUserId`, w
 
 - Browser-to-API communication is JSON REST over `/api/v1`.
 - API-to-PostgreSQL uses parameterized `pg` queries and explicit transactions for multi-row writes.
-- API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`; queue lifecycle copy is centralized in `line-notification.templates.ts` and sent through `lineNotificationService`.
+- API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`; queue lifecycle copy and ticket deep links are centralized in `line-notification.templates.ts` and sent through `lineNotificationService`.
 - Demo payment is currently browser-orchestrated and recorded by the order creation API; real payment must originate/verify on the server.
 
 ## 8. Background jobs

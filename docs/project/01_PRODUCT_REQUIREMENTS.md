@@ -12,14 +12,14 @@ Status labels in this document mean:
 
 ## 2. Actors and authorization
 
-| Actor                       | Scope                                                                       |
-| --------------------------- | --------------------------------------------------------------------------- |
-| Customer/guest              | Public organization, catalog, booking, checkout, and ticket views           |
-| Authenticated LINE customer | Guest capabilities plus verified LINE identity and notification eligibility |
-| Staff                       | Operational data and actions for their active organization membership       |
-| Manager                     | Staff capabilities plus configuration and management for their organization |
-| Platform admin              | Cross-tenant organization and manager administration only                   |
-| Scheduler/system            | ETA updates, notification scans, and counter resets                         |
+| Actor                       | Scope                                                                                   |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| Customer/guest              | Public fallback organization, catalog, booking, checkout, and ticket views              |
+| Authenticated LINE customer | Primary LIFF booking, verified LINE identity, ticket view, and notification eligibility |
+| Staff                       | Operational data and actions for their active organization membership                   |
+| Manager                     | Staff capabilities plus configuration and management for their organization             |
+| Platform admin              | Cross-tenant organization and manager administration only                               |
+| Scheduler/system            | ETA updates, notification scans, and counter resets                                     |
 
 The platform role does not replace tenant membership. Staff and manager operations must verify both role and organization ownership.
 
@@ -34,6 +34,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | FR-AUTH-003 | Link one LINE account to one platform user and preserve the LINE user ID    | Implemented |
 | FR-AUTH-004 | Allow the authenticated user to view/update supported profile fields        | Implemented |
 | FR-AUTH-005 | Keep public QR booking available without mandatory account login            | Implemented |
+| FR-AUTH-006 | Automatically initialize LIFF login and exchange ID token for system JWT    | Implemented |
 
 ### Organization administration
 
@@ -60,20 +61,21 @@ The platform role does not replace tenant membership. Staff and manager operatio
 
 ### Booking, ordering, and payment
 
-| ID          | Requirement                                                                      | Status                                                  |
-| ----------- | -------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| FR-BOOK-001 | Customer enters through organization slug or generated QR token                  | Implemented                                             |
-| FR-BOOK-002 | Customer selects quantities and supplies name/phone where required               | Implemented                                             |
-| FR-BOOK-003 | An order can be placed without payment when no selected item requires prepayment | Implemented                                             |
-| FR-BOOK-004 | When required items exist, checkout is mandatory before order creation           | Implemented                                             |
-| FR-BOOK-005 | Inside checkout, customer chooses required-items-only or full-order payment      | Implemented                                             |
-| FR-BOOK-006 | Returning from checkout preserves form/cart/payment state                        | Implemented with browser session storage                |
-| FR-BOOK-007 | Successful order stores item-level payment and full-order payment accurately     | Implemented for creation; manual reconciliation partial |
-| FR-BOOK-008 | Repeat bookings remain separate but can be grouped by customer/device            | Partial; DB group and local browser history exist       |
-| FR-PAY-001  | Demo mode completes automatically without paid third-party services              | Implemented                                             |
-| FR-PAY-002  | Production provider creates a server-side payment intent and redirects securely  | Planned                                                 |
-| FR-PAY-003  | Webhook verification is authoritative for paid/refunded/failed status            | Planned                                                 |
-| FR-PAY-004  | Staff manually records final payment and prints receipt after success            | Implemented/Partial                                     |
+| ID          | Requirement                                                                                 | Status                                                  |
+| ----------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| FR-BOOK-001 | Customer enters through organization slug or generated QR token                             | Implemented                                             |
+| FR-BOOK-002 | Customer selects quantities and supplies name/phone where required                          | Implemented                                             |
+| FR-BOOK-003 | An order can be placed without payment when no selected item requires prepayment            | Implemented                                             |
+| FR-BOOK-004 | When required items exist, checkout is mandatory before order creation                      | Implemented                                             |
+| FR-BOOK-005 | Inside checkout, customer chooses required-items-only or full-order payment                 | Implemented                                             |
+| FR-BOOK-006 | Returning from checkout preserves form/cart/payment state                                   | Implemented with browser session storage                |
+| FR-BOOK-007 | Successful order stores item-level payment and full-order payment accurately                | Implemented for creation; manual reconciliation partial |
+| FR-BOOK-008 | Repeat bookings remain separate but can be grouped by customer/device                       | Partial; DB group and local browser history exist       |
+| FR-BOOK-009 | LIFF booking uses the current authenticated LINE identity and redirects to LIFF ticket view | Implemented                                             |
+| FR-PAY-001  | Demo mode completes automatically without paid third-party services                         | Implemented                                             |
+| FR-PAY-002  | Production provider creates a server-side payment intent and redirects securely             | Planned                                                 |
+| FR-PAY-003  | Webhook verification is authoritative for paid/refunded/failed status                       | Planned                                                 |
+| FR-PAY-004  | Staff manually records final payment and prints receipt after success                       | Implemented/Partial                                     |
 
 ### Queue and staff operation
 
@@ -97,6 +99,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | FR-LINE-004 | Delivery is durable and deduplicated across restarts/replicas           | Planned                                                                                                                           |
 | FR-LINE-005 | Follow/unfollow link state is persisted                                 | Implemented                                                                                                                       |
 | FR-LINE-006 | Consent/preferences and opt-out controls are user-manageable            | Planned                                                                                                                           |
+| FR-LINE-007 | LINE notification links open the correct LIFF ticket detail             | Implemented                                                                                                                       |
 
 ### Location, prediction, and analytics
 
@@ -133,6 +136,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | BR-LINE-001    | A LINE push requires a verified/linkable recipient LINE user ID and a configured Messaging API token.      |
 | BR-LINE-002    | Login and Messaging API are separate LINE channels/capabilities and must be configured consistently.       |
 | BR-LINE-003    | Public request bodies must not assert a LINE user ID; derive the recipient from a verified LINE account.   |
+| BR-LINE-004    | LIFF booking must wait for the LINE-derived system JWT before creating order/queue records.                |
 | BR-PRIVACY-001 | Location is optional, consent-based, purpose-limited, and must have a retention/deletion policy.           |
 
 ## 5. Core acceptance criteria

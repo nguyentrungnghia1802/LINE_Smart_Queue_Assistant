@@ -26,7 +26,8 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiResponse<never> | ApiErrorResponse>) => {
-    if (error.response?.status === 401) {
+    const skipAuthRedirect = error.config?.headers?.['X-Skip-Auth-Redirect'] === 'true';
+    if (error.response?.status === 401 && !skipAuthRedirect) {
       localStorage.removeItem('auth_token');
       window.location.href = '/login';
     }

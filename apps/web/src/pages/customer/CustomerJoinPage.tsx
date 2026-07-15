@@ -2,8 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
 import { get, post } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
+import type { LiffAuthStatus } from '../../types/liff';
 import {
   appendBookingRecord,
   type BookingGroup,
@@ -64,11 +66,30 @@ interface CartItem {
   quantity: number;
 }
 
-export function CustomerJoinPage() {
+interface CustomerJoinPageProps {
+  mode?: 'public' | 'liff';
+  liffAuthStatus?: LiffAuthStatus;
+  liffAuthError?: Error | null;
+}
+
+export function LiffCustomerJoinPage() {
+  const liff = useLiffRuntime();
+  return (
+    <CustomerJoinPage mode="liff" liffAuthStatus={liff.authStatus} liffAuthError={liff.authError} />
+  );
+}
+
+export function CustomerJoinPage({
+  mode = 'public',
+  liffAuthStatus = 'guest',
+  liffAuthError = null,
+}: Readonly<CustomerJoinPageProps>) {
   const { orgSlug, token } = useParams<{ orgSlug?: string; token?: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuthStore();
+  const isLiffMode = mode === 'liff';
+  const isLineAuthenticated = !isLiffMode || liffAuthStatus === 'authenticated';
 
   const [cart, setCart] = useState<Record<string, number>>({});
   const [customerName, setCustomerName] = useState('');
@@ -95,7 +116,8 @@ export function CustomerJoinPage() {
     staleTime: 30_000,
   });
 
-  const draftKey = token ? `qr:${token}` : `q:${orgSlug ?? ''}`;
+  const draftKeyPrefix = isLiffMode ? 'liff' : 'public';
+  const draftKey = token ? `${draftKeyPrefix}:qr:${token}` : `${draftKeyPrefix}:q:${orgSlug ?? ''}`;
 
   const cartItems: CartItem[] = useMemo(
     () =>
@@ -234,6 +256,10 @@ export function CustomerJoinPage() {
 
   function startPayment() {
     if (!data || checkoutItems.length === 0 || !currentCartSignature) return;
+    if (!isLineAuthenticated) {
+      setError('LINE認証が完了してからお支払いへ進んでください。');
+      return;
+    }
     const stockError = stockViolation();
     if (stockError) {
       setError(stockError);
@@ -256,7 +282,7 @@ export function CustomerJoinPage() {
       requiredSubtotal: requiredPrepaymentSubtotal,
       createdAt: new Date().toISOString(),
     });
-    navigate(`/checkout/demo/${sessionId}`);
+    navigate(`${isLiffMode ? '/liff' : ''}/checkout/demo/${sessionId}`);
   }
 
   function requestCustomerLocation() {
@@ -287,6 +313,10 @@ export function CustomerJoinPage() {
     }
     if (!canBook) {
       setError('事前支払いが必要な商品があります。対象商品のお支払いを完了してください。');
+      return;
+    }
+    if (!isLineAuthenticated) {
+      setError('LINE認証が完了してから予約してください。');
       return;
     }
     const stockError = stockViolation();
@@ -343,7 +373,7 @@ export function CustomerJoinPage() {
         {
           orderId: result.order.id,
           queueEntryId: result.queueEntry.id,
-          ticketPath: `/ticket/${result.queueEntry.id}`,
+          ticketPath: `${isLiffMode ? '/liff' : ''}/ticket${isLiffMode ? 's' : ''}/${result.queueEntry.id}`,
           createdAt: new Date().toISOString(),
           items: checkoutItems,
           subtotal,
@@ -355,7 +385,7 @@ export function CustomerJoinPage() {
       setCart({});
       setPaidRequiredCheckout(null);
       setPaidFullCheckout(null);
-      navigate(`/ticket/${result.queueEntry.id}`);
+      navigate(`${isLiffMode ? '/liff/tickets' : '/ticket'}/${result.queueEntry.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : '注文に失敗しました。もう一度お試しください。');
     } finally {
@@ -399,14 +429,24 @@ export function CustomerJoinPage() {
             <h1 className="truncate text-xl font-bold text-gray-950">{org.name}</h1>
             {org.address && <p className="truncate text-sm text-gray-500">{org.address}</p>}
           </div>
-          {isAuthenticated && (
+          {isLiffMode ? (
             <button
               type="button"
-              onClick={() => navigate('/customer')}
+              onClick={() => navigate('/liff/home')}
               className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              ダッシュボード
+              ホーム
             </button>
+          ) : (
+            isAuthenticated && (
+              <button
+                type="button"
+                onClick={() => navigate('/customer')}
+                className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                ダッシュボード
+              </button>
+            )
           )}
         </div>
       </header>
@@ -462,6 +502,26 @@ export function CustomerJoinPage() {
           onSubmit={handleSubmit}
           className="h-fit space-y-4 rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)] lg:sticky lg:top-6"
         >
+          {isLiffMode && liffAuthStatus !== 'authenticated' && (
+            <section
+              className={`rounded-xl border p-4 ${
+                liffAuthStatus === 'error'
+                  ? 'border-red-100 bg-red-50 text-red-800'
+                  : 'border-brand-100 bg-brand-50 text-brand-800'
+              }`}
+            >
+              <h2 className="text-sm font-bold">
+                {liffAuthStatus === 'error' ? 'LINE認証が必要です' : 'LINE認証中'}
+              </h2>
+              <p className="mt-1 text-xs leading-5">
+                {liffAuthStatus === 'error'
+                  ? (liffAuthError?.message ??
+                    'LINE認証を完了できませんでした。LINEからもう一度開いてください。')
+                  : '予約内容をLINEアカウントに紐づけています。'}
+              </p>
+            </section>
+          )}
+
           {bookingGroup && bookingGroup.records.length > 0 && (
             <section className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
               <div className="flex items-center justify-between gap-3">
@@ -583,7 +643,7 @@ export function CustomerJoinPage() {
                     <button
                       type="button"
                       onClick={startPayment}
-                      disabled={checkoutItems.length === 0}
+                      disabled={checkoutItems.length === 0 || !isLineAuthenticated}
                       className="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-50"
                     >
                       事前支払いへ進む
@@ -601,7 +661,9 @@ export function CustomerJoinPage() {
 
           <button
             type="submit"
-            disabled={submitting || !queue || cartItems.length === 0 || !canBook}
+            disabled={
+              submitting || !queue || cartItems.length === 0 || !canBook || !isLineAuthenticated
+            }
             className="w-full rounded-xl bg-gray-950 px-4 py-3 text-base font-bold text-white transition hover:bg-gray-800 disabled:opacity-50"
           >
             {submitting ? '予約中...' : canBook ? '予約する' : '必須支払い後に予約'}

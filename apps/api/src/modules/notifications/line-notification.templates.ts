@@ -1,38 +1,74 @@
 import type { QueueEntryRow } from '../../db/repositories/queue-entries.repository';
 
-export function ticketCalledMessage(ticketCode: string): string {
-  return (
+interface TicketLinkOptions {
+  ticketUrl?: string;
+}
+
+export function buildTicketDeepLink(
+  entryId: string,
+  options: { liffId?: string; webOrigin?: string }
+): string {
+  const state = `/liff/tickets/${entryId}`;
+  if (options.liffId) {
+    return `https://liff.line.me/${options.liffId}?liff.state=${encodeURIComponent(state)}`;
+  }
+  const origin = (options.webOrigin ?? 'http://localhost:5173').replace(/\/$/, '');
+  return `${origin}${state}`;
+}
+
+function withTicketLink(message: string, ticketUrl?: string): string {
+  if (!ticketUrl) return message;
+  return `${message}\n\n受付状況: ${ticketUrl}`;
+}
+
+export function ticketCalledMessage(ticketCode: string, options: TicketLinkOptions = {}): string {
+  return withTicketLink(
     `受付番号 ${ticketCode} の順番です。\n\n` +
-    'カウンターまでお越しください。お待ちいただきありがとうございます。'
+      'カウンターまでお越しください。お待ちいただきありがとうございます。',
+    options.ticketUrl
   );
 }
 
-export function etaWarningMessage(ticketCode: string, aheadCount: number): string {
+export function etaWarningMessage(
+  ticketCode: string,
+  aheadCount: number,
+  options: TicketLinkOptions = {}
+): string {
   const who = aheadCount === 1 ? '前に1名' : `前に${aheadCount}名`;
-  return (
+  return withTicketLink(
     `受付番号 ${ticketCode} の順番が近づいています。\n\n` +
-    `${who}お待ちです。カウンター付近でお待ちください。`
+      `${who}お待ちです。カウンター付近でお待ちください。`,
+    options.ticketUrl
   );
 }
 
-export function ticketServingMessage(ticketCode: string): string {
-  return `受付番号 ${ticketCode} の対応を開始しました。`;
+export function ticketServingMessage(ticketCode: string, options: TicketLinkOptions = {}): string {
+  return withTicketLink(`受付番号 ${ticketCode} の対応を開始しました。`, options.ticketUrl);
 }
 
-export function ticketCompletedMessage(ticketCode: string): string {
-  return `受付番号 ${ticketCode} の対応が完了しました。ご利用ありがとうございました。`;
+export function ticketCompletedMessage(
+  ticketCode: string,
+  options: TicketLinkOptions = {}
+): string {
+  return withTicketLink(
+    `受付番号 ${ticketCode} の対応が完了しました。ご利用ありがとうございました。`,
+    options.ticketUrl
+  );
 }
 
-export function ticketCancelledMessage(ticketCode: string): string {
-  return `受付番号 ${ticketCode} をキャンセルしました。`;
+export function ticketCancelledMessage(
+  ticketCode: string,
+  options: TicketLinkOptions = {}
+): string {
+  return withTicketLink(`受付番号 ${ticketCode} をキャンセルしました。`, options.ticketUrl);
 }
 
 export function cancelSucceededMessage(): string {
   return '受付番号をキャンセルしました。';
 }
 
-export function ticketNoShowMessage(ticketCode: string): string {
-  return `受付番号 ${ticketCode} は不在として処理されました。`;
+export function ticketNoShowMessage(ticketCode: string, options: TicketLinkOptions = {}): string {
+  return withTicketLink(`受付番号 ${ticketCode} は不在として処理されました。`, options.ticketUrl);
 }
 
 export function followWelcomeMessage(): string {

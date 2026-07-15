@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { QueueInfoSkeleton } from '../../components/ui/Skeleton';
+import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
 import { useJoinQueue, useQueueStatus } from '../../hooks/useQueueEntry';
 
 /**
@@ -22,12 +23,14 @@ import { useJoinQueue, useQueueStatus } from '../../hooks/useQueueEntry';
 export function QueueJoinPage() {
   const { queueId = '' } = useParams<{ queueId: string }>();
   const navigate = useNavigate();
+  const { authStatus } = useLiffRuntime();
   const [notes, setNotes] = useState('');
 
   const { data: statusData, isLoading, isError, refetch } = useQueueStatus(queueId);
   const joinMutation = useJoinQueue();
 
   async function handleJoin() {
+    if (authStatus !== 'authenticated') return;
     const result = await joinMutation.mutateAsync({
       queueId,
       notes: notes.trim() || undefined,
@@ -128,12 +131,18 @@ export function QueueJoinPage() {
       <button
         type="button"
         onClick={() => void handleJoin()}
-        disabled={!isQueueOpen || joinMutation.isPending}
+        disabled={!isQueueOpen || joinMutation.isPending || authStatus !== 'authenticated'}
         className="w-full bg-line-green hover:opacity-90 active:scale-[0.98] disabled:opacity-50 text-white font-semibold py-4 rounded-xl text-lg transition-all"
         aria-busy={joinMutation.isPending}
       >
         {joinMutation.isPending ? '参加しています…' : '順番待ちに参加'}
       </button>
+
+      {authStatus !== 'authenticated' && (
+        <p role="status" className="text-sm text-gray-500 text-center">
+          LINE認証が完了してから参加できます。
+        </p>
+      )}
 
       {/* ── Error feedback ────────────────────────────────────────────────── */}
       {joinMutation.isError && (

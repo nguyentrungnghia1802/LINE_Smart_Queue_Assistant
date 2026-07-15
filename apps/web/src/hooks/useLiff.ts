@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { isLiffMockMode, liffAdapter } from '../services/liff';
 import { useAuthStore } from '../store/authStore';
-import type { LiffContext, LiffInitStatus, LiffProfile } from '../types/liff';
+import type { LiffAuthStatus, LiffContext, LiffInitStatus, LiffProfile } from '../types/liff';
 
 /**
  * LIFF ID resolved from env.
@@ -16,9 +16,10 @@ const LIFF_ID = import.meta.env.VITE_LIFF_ID ?? '';
  *
  * After LIFF init:
  *   - If user is logged in via LINE, the hook calls POST /api/v1/auth/line with
- *     the LIFF access-token to obtain a backend JWT.  This keeps the session
+ *     the LIFF OIDC ID token to obtain a backend JWT.  This keeps the session
  *     consistent whether the customer opens the web app or the LINE LIFF app.
- *   - If the backend call fails the LIFF UI still works (guest mode).
+ *   - In real LIFF mode, a signed-out customer is redirected into LINE Login.
+ *   - Mock mode stays in the browser and can be configured as signed-in/out.
  *
  * Environment variables:
  *   VITE_LIFF_ID        — required for production; ignored when mock mode is on.
@@ -28,14 +29,16 @@ const LIFF_ID = import.meta.env.VITE_LIFF_ID ?? '';
  */
 export function useLiff(): LiffContext {
   const [initStatus, setInitStatus] = useState<LiffInitStatus>('idle');
+  const [authStatus, setAuthStatus] = useState<LiffAuthStatus>('idle');
   const [profile, setProfile] = useState<LiffProfile | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isInClient, setIsInClient] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [idToken, setIdToken] = useState<string | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [authError, setAuthError] = useState<Error | null>(null);
 
-  const { loginWithLine, isAuthenticated } = useAuthStore();
+  const { loginWithLine } = useAuthStore();
 
   useEffect(() => {
     // In real mode a LIFF ID is mandatory; fail fast with a clear message.
@@ -64,6 +67,17 @@ export function useLiff(): LiffContext {
         setIsInClient(inClient);
         setIsLoggedIn(loggedIn);
 
+        if (!loggedIn) {
+          if (!isLiffMockMode) {
+            setAuthStatus('authenticating');
+            liffAdapter.login();
+            return;
+          }
+          setAuthStatus('guest');
+          if (!cancelled) setInitStatus('ready');
+          return;
+        }
+
         if (loggedIn) {
           const [liffProfile, token, oidcToken] = await Promise.all([
             liffAdapter.getProfile(),
@@ -76,14 +90,27 @@ export function useLiff(): LiffContext {
             setIdToken(oidcToken);
 
             // Auto-authenticate with backend using LINE OIDC ID token.
-            // Only do this if the user isn't already authenticated.
-            if (!isAuthenticated && oidcToken) {
+            // LIFF refreshes the system JWT on every app open so stale browser
+            // sessions never become the source of customer identity.
+            if (oidcToken) {
+              setAuthStatus('authenticating');
               try {
                 await loginWithLine(oidcToken);
-              } catch {
-                // Non-fatal: user can still browse as guest.
-                // The backend auth will be attempted again on the next LINE action.
+                if (!cancelled) {
+                  setAuthStatus('authenticated');
+                  setAuthError(null);
+                }
+              } catch (authErr) {
+                if (!cancelled) {
+                  const nextError = authErr instanceof Error ? authErr : new Error(String(authErr));
+                  setAuthError(nextError);
+                  setAuthStatus('error');
+                }
               }
+            } else if (!cancelled) {
+              const nextError = new Error('LINE ID tokenを取得できませんでした。');
+              setAuthError(nextError);
+              setAuthStatus('error');
             }
           }
         }
@@ -115,10 +142,13 @@ export function useLiff(): LiffContext {
     setProfile(null);
     setAccessToken(null);
     setIdToken(null);
+    setAuthStatus('guest');
+    setAuthError(null);
   }, []);
 
   return {
     initStatus,
+    authStatus,
     isInitialized: initStatus === 'ready',
     isLoggedIn,
     isInClient,
@@ -126,6 +156,7 @@ export function useLiff(): LiffContext {
     accessToken,
     idToken,
     error,
+    authError,
     login,
     logout,
   };

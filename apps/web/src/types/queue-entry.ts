@@ -63,6 +63,30 @@ export interface TicketPositionResult {
   estimatedWaitSeconds: number;
 }
 
+export interface TicketStatusOrderItem {
+  id: string;
+  product_name: string;
+  product_price: string;
+  quantity: number;
+  subtotal: string;
+}
+
+export interface TicketStatusResult {
+  entry: QueueEntryDisplay;
+  order: {
+    id: string;
+    order_number: string;
+    customer_name: string | null;
+    subtotal: string;
+    payment_status: string;
+    status: string;
+    items: TicketStatusOrderItem[];
+  } | null;
+  aheadCount: number;
+  estimatedWaitSeconds: number;
+  queueName: string;
+}
+
 /** GET /api/v1/queue/:queueId/status and GET /api/v1/queue/current */
 export interface QueueStatusResult {
   queue: QueueDisplay;

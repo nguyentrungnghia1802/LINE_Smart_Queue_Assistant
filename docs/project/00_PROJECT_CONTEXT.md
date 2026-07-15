@@ -29,24 +29,24 @@ Physical queues make customers wait near a counter with little visibility. Busin
 
 The project is a working local/demo modular monolith, not yet a production-complete payment or notification platform.
 
-| Area                      | Status                                    | Meaning                                                                                                                                                                                                         |
-| ------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Organization/admin        | Implemented                               | Admin list, detail, registration, manager assignment, update, soft deactivation                                                                                                                                 |
-| Catalog and QR booking    | Implemented                               | Products/services, stock display, quantity selection, organization slug/token entry                                                                                                                             |
-| Queue and staff operation | Implemented                               | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                                                                                                               |
-| Orders and inventory      | Implemented with gaps                     | Atomic creation and finite stock decrement; cancellation does not yet restore stock                                                                                                                             |
-| Payment                   | Demo/adapter-ready                        | Demo auto-success and transaction records exist; no real provider webhook verification                                                                                                                          |
-| LINE                      | Phase 1 implemented with reliability gaps | LIFF login verifies ID tokens, authenticated queue/order creation stores linked LINE recipients, webhook events are signature-checked, and lifecycle push uses the real adapter; durable delivery is incomplete |
-| Location alerts           | Data path only                            | Location and pending alerts can be stored; no job sends those alerts                                                                                                                                            |
-| ETA                       | Heuristic implemented                     | Position/workload calculation and 30-second updater; forecast history is not populated                                                                                                                          |
-| Staffing recommendation   | Schema only                               | Table exists; no analyzer, API, scheduler, or dashboard producer                                                                                                                                                |
-| Deployment                | Local/Compose ready                       | Docker and health checks exist; production infrastructure and secret management are environment-specific                                                                                                        |
+| Area                      | Status                                         | Meaning                                                                                                                                                                                                                           |
+| ------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Organization/admin        | Implemented                                    | Admin list, detail, registration, manager assignment, update, soft deactivation                                                                                                                                                   |
+| Catalog and QR booking    | Implemented                                    | Products/services, stock display, quantity selection, organization slug/token entry, and LIFF-first customer booking                                                                                                              |
+| Queue and staff operation | Implemented                                    | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                                                                                                                                 |
+| Orders and inventory      | Implemented with gaps                          | Atomic creation and finite stock decrement; cancellation does not yet restore stock                                                                                                                                               |
+| Payment                   | Demo/adapter-ready                             | Demo auto-success and transaction records exist; no real provider webhook verification                                                                                                                                            |
+| LINE                      | Phase 2 code implemented with reliability gaps | LIFF login verifies ID tokens, LIFF booking stores linked LINE recipients, webhook events are signature-checked, lifecycle push uses the real adapter with ticket deeplinks; LINE Console/E2E and durable delivery are incomplete |
+| Location alerts           | Data path only                                 | Location and pending alerts can be stored; no job sends those alerts                                                                                                                                                              |
+| ETA                       | Heuristic implemented                          | Position/workload calculation and 30-second updater; forecast history is not populated                                                                                                                                            |
+| Staffing recommendation   | Schema only                                    | Table exists; no analyzer, API, scheduler, or dashboard producer                                                                                                                                                                  |
+| Deployment                | Local/Compose ready                            | Docker and health checks exist; production infrastructure and secret management are environment-specific                                                                                                                          |
 
 ## 5. Implemented features
 
 - Email/password authentication for admin, manager, staff, and customer roles.
 - LINE LIFF login with server-side ID-token verification and linked `line_accounts` records.
-- Public QR entry by organization slug or stable generated token.
+- LINE-first QR entry by organization slug or stable generated token, with public fallback routes.
 - Separate Japanese portals for customer, staff, manager, and admin workflows.
 - Organization registration with a Gmail manager and compressed logo data URL/URL support.
 - Product/service CRUD, prepayment flag, service duration, finite or unlimited stock, and active state.
@@ -56,6 +56,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Demo payment gateway boundary with Japanese payment methods and external redirect placeholder.
 - Staff order details, item images, manual payment/status controls, queue actions, and receipt printing.
 - LINE push for approaching, called, serving, cancelled, completed, and no-show ticket events on queue entries that contain a verified linked LINE user ID.
+- LINE notification ticket deeplinks that open `/liff/tickets/:entryId`.
 - LINE webhook signature verification and basic follow, unfollow, and message command handling.
 - Scheduled ETA refresh, approaching-turn scan, called-message retry scan, and daily counter reset.
 - Rate limits, request IDs, structured logging, basic Prometheus text metrics, health/readiness endpoints, and audit logs.
@@ -101,7 +102,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - The seed organization still uses Vietnamese sample address/currency data even though the product UI targets Japan.
 - Queue capacity is checked optimistically before the join transaction and can be exceeded under concurrent load.
 - Order numbering uses an organization order count and can collide under concurrent creation unless protected by a stronger sequence/constraint strategy.
-- Anonymous public booking cannot receive LINE notifications unless the session is linked to LINE and the queue entry stores a verified linked `line_user_id`.
+- Anonymous public booking cannot receive LINE notifications unless the session is linked to LINE and the queue entry stores a verified linked `line_user_id`; production customer entry should therefore use the LIFF-first flow.
 - LINE follow/unfollow currently toggles link state, but does not yet provide user-facing notification preferences or a full consent management UI.
 - Location data is sensitive personal data and needs explicit consent, retention, and deletion policies before production use.
 - The checked-in `.env.example` previously contained a secret-shaped value; credentials must be rotated if that value was ever real.

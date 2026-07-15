@@ -8,6 +8,7 @@ import type { JoinQueueInput } from '../types';
 export const queueEntryKeys = {
   all: ['queueEntry'] as const,
   myTickets: () => [...queueEntryKeys.all, 'me'] as const,
+  detail: (entryId: string) => [...queueEntryKeys.all, 'entry', entryId] as const,
   status: (queueId: string) => [...queueEntryKeys.all, 'status', queueId] as const,
   current: (queueId: string) => [...queueEntryKeys.all, 'current', queueId] as const,
 };
@@ -15,10 +16,11 @@ export const queueEntryKeys = {
 // ── Queries ────────────────────────────────────────────────────────────────────
 
 /** Active tickets for the current caller across all queues. */
-export function useMyTickets() {
+export function useMyTickets(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: queueEntryKeys.myTickets(),
     queryFn: () => queueEntryApi.myTickets(),
+    enabled: options.enabled ?? true,
     // Re-fetch every 30 s for live position updates
     refetchInterval: 30_000,
   });
@@ -31,6 +33,16 @@ export function useQueueStatus(queueId: string) {
     queryFn: () => queueEntryApi.getStatus(queueId),
     enabled: Boolean(queueId),
     refetchInterval: 30_000,
+  });
+}
+
+/** Live status for one ticket by entry ID. Used by LIFF notification deep links. */
+export function useTicketStatus(entryId: string) {
+  return useQuery({
+    queryKey: queueEntryKeys.detail(entryId),
+    queryFn: () => queueEntryApi.getEntry(entryId),
+    enabled: Boolean(entryId),
+    refetchInterval: 15_000,
   });
 }
 
