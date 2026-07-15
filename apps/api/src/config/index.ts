@@ -83,6 +83,15 @@ export const config = {
     intervalMs: Number.parseInt(process.env.FORECAST_WORKER_INTERVAL_MS ?? '3600000', 10),
   },
 
+  media: {
+    mode: (process.env.MEDIA_STORAGE_MODE ??
+      (process.env.NODE_ENV === 'test' ? 'mock' : 'local')) as 'local' | 'mock',
+    localDir: path.resolve(__dirname, process.env.MEDIA_LOCAL_DIR ?? '../../../../var/media'),
+    publicBaseUrl: process.env.MEDIA_PUBLIC_BASE_URL ?? '/media',
+    maxOriginalBytes: Number.parseInt(process.env.MEDIA_MAX_ORIGINAL_BYTES ?? '5242880', 10),
+    requestBodyLimit: process.env.MEDIA_REQUEST_BODY_LIMIT ?? '8mb',
+  },
+
   cors: {
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
   },

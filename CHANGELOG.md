@@ -11,6 +11,7 @@ All notable project changes should be recorded here. This file tracks delivered 
 - Added tenant-scoped notification operations, LINE preferences, privacy-aware location alerts, and retention cleanup.
 - Added authenticated cross-device booking history, tenant staff related-booking views, Japan address fields, weekly hours, exception days, and Japan-localized seed data.
 - Added measured heuristic wait forecasts and staffing recommendations with hourly aggregates, confidence, explanations, retention, manager APIs, dashboard output, and a PostgreSQL-locked scheduler job.
+- Added a media storage boundary with validated/compressed image uploads, local and mock providers, an object-storage-compatible interface, metadata tracking, deletion, and URL-based organization/product forms.
 
 ### LINE Messaging
 

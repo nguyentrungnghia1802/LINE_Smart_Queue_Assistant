@@ -3,7 +3,9 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState } from 'react';
 
 import { get, patch, put } from '../../services/apiClient';
+import { uploadImage } from '../../services/media.api';
 import { useAuthStore } from '../../store/authStore';
+import { compressLogoFile } from '../../utils/compressLogoFile';
 
 interface OrgInfo {
   id: string;
@@ -80,6 +82,24 @@ export function ManagerSettingsPage() {
   const [orgSaved, setOrgSaved] = useState(false);
   const [error, setError] = useState('');
   const [calendar, setCalendar] = useState<BusinessCalendar | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+
+  async function handleLogo(file: File | undefined) {
+    if (!file) return;
+    setLogoBusy(true);
+    setError('');
+    try {
+      const dataUrl = await compressLogoFile(file);
+      const asset = await uploadImage(dataUrl, 'organization_logo');
+      setOrgForm((value) => ({ ...value, logoUrl: asset.public_url }));
+    } catch (uploadError) {
+      setError(
+        uploadError instanceof Error ? uploadError.message : '画像をアップロードできませんでした。'
+      );
+    } finally {
+      setLogoBusy(false);
+    }
+  }
 
   const { data: org } = useQuery<OrgInfo>({
     queryKey: ['manager-my-org'],
@@ -264,13 +284,24 @@ export function ManagerSettingsPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-          <input
-            className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
-            value={orgForm.logoUrl}
-            onChange={(e) => setOrgForm((f) => ({ ...f, logoUrl: e.target.value }))}
-            type="url"
-          />
+          <label className="block text-sm font-medium text-gray-700 mb-1">組織ロゴ</label>
+          <div className="flex items-center gap-4">
+            {orgForm.logoUrl && (
+              <img
+                src={orgForm.logoUrl}
+                alt="組織ロゴ"
+                className="h-16 w-16 rounded-lg object-cover"
+              />
+            )}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              disabled={logoBusy}
+              onChange={(e) => void handleLogo(e.target.files?.[0])}
+              className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+            />
+          </div>
+          {logoBusy && <p className="mt-1 text-xs text-gray-500">画像を処理しています…</p>}
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>

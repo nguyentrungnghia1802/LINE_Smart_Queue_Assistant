@@ -15,6 +15,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 9. `000009_notification_consent_location_privacy.js`
 10. `000010_booking_history_japan_calendar.js`
 11. `000011_forecasting_baseline.js`
+12. `000012_media_storage.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -51,6 +52,7 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 | `users`                       | Platform identity, role, password/profile                            | Unique optional email; active flag                                                  |
 | `organization_members`        | Tenant manager/staff authorization                                   | Unique organization/user pair; cascading tenant/user delete                         |
 | `line_accounts`               | One linked LINE identity per user                                    | Unique `line_user_id` and `user_id`                                                 |
+| `media_assets`                | Stored image key, URL, ownership and deletion state                  | Unique key; provider/purpose/type/size/status checks                                |
 
 ### Catalog, queue, and orders
 

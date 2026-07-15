@@ -79,7 +79,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Full OpenAPI coverage and contract tests; the current Swagger source covers only part of the API.
 - Browser end-to-end tests and production-scale concurrency tests.
 - Production stress testing for the implemented scheduler ownership, queue-capacity, call-next, and counter locks.
-- Production media storage; logos are currently saved as URLs or compressed data URLs.
+- Real object storage, malware scanning, CDN policy, and orphan reconciliation; validated images currently use the local/mock media adapter while legacy data URLs remain readable.
 
 ## 7. Out of scope for the current baseline
 

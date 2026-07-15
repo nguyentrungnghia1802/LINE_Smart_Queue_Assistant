@@ -251,6 +251,23 @@ CREATE TABLE line_accounts (
   CONSTRAINT line_accounts_user_id_unique UNIQUE (user_id)
 );
 
+CREATE TABLE media_assets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+  owner_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  storage_provider TEXT NOT NULL CHECK (storage_provider IN ('local','mock','object')),
+  storage_key TEXT NOT NULL UNIQUE,
+  public_url TEXT NOT NULL,
+  purpose TEXT NOT NULL CHECK (purpose IN ('organization_logo','product_image')),
+  content_type TEXT NOT NULL CHECK (content_type IN ('image/webp','image/png','image/jpeg')),
+  byte_size INT NOT NULL CHECK (byte_size > 0),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','deleted')),
+  deleted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TRIGGER trg_media_assets_updated_at BEFORE UPDATE ON media_assets FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 -- -----------------------------------------------------------------------------
 -- 4. Catalog / queue / order tables
 -- -----------------------------------------------------------------------------
@@ -745,6 +762,8 @@ CREATE INDEX idx_qe_called_timeout ON queue_entries(queue_id, called_at)
   WHERE status = 'called';
 
 CREATE INDEX idx_booking_groups_org_updated ON booking_groups(organization_id, updated_at DESC);
+CREATE INDEX idx_media_assets_org_active ON media_assets(organization_id, created_at DESC) WHERE status = 'active';
+CREATE INDEX idx_media_assets_owner_active ON media_assets(owner_user_id, created_at DESC) WHERE status = 'active';
 CREATE INDEX idx_booking_groups_customer_updated ON booking_groups(customer_user_id, updated_at DESC) WHERE customer_user_id IS NOT NULL;
 CREATE INDEX idx_booking_groups_line_updated ON booking_groups(customer_line_user_id, updated_at DESC) WHERE customer_line_user_id IS NOT NULL;
 CREATE INDEX idx_organization_exception_days_lookup ON organization_exception_days(organization_id, exception_date);
