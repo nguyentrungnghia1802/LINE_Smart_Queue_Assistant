@@ -10,49 +10,43 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 
 1. Rotate any previously exposed LINE/JWT/provider credential and enable secret scanning.
 2. Select and integrate a real Japan PSP adapter, including merchant secrets, refund execution, settlement reconciliation, and provider operations.
-3. Complete inventory lifecycle: reserve, consume, release on cancellation, expire, and reconcile exactly once.
-4. Build a dashboard over the implemented notification operations API and delivery metrics.
-5. Enforce strict queue capacity and order number uniqueness under concurrency.
-6. Add all automated tests and clean migration smoke tests to CI.
-7. Correct Japan production configuration: timezone, JPY seed/demo data, addresses, legal/payment copy.
+3. Build a dashboard over the implemented notification operations API and delivery metrics.
+4. Add all automated tests and clean migration smoke tests to CI.
+5. Complete native Japanese and legal/payment copy review.
 
 ### P1: Complete requested product capabilities
 
 1. Add LINE consent/preferences, richer post-follow experience, production Rich Menu asset/E2E verification, and organization channel configuration strategy.
 2. Complete legal review and connect an approved travel-time provider to the implemented privacy-aware location worker boundary.
-3. Build booking-group retrieval and staff/customer views while keeping each order/ticket independent.
-4. Connect the implemented audited reconciliation/refund boundary to a real PSP and settlement process.
-5. Persist wait forecasts and build a measured heuristic baseline from service history.
-6. Aggregate demand/service history and expose staffing recommendations by weekday/hour with confidence/explanation.
-7. Complete Swagger/OpenAPI coverage and API contract tests.
-8. Move logo/product image uploads to object storage with signed upload, compression, scanning, and lifecycle rules.
+3. Connect the implemented audited reconciliation/refund boundary to a real PSP and settlement process.
+4. Persist wait forecasts and build a measured heuristic baseline from service history.
+5. Aggregate demand/service history and expose staffing recommendations by weekday/hour with confidence/explanation.
+6. Complete Swagger/OpenAPI coverage and API contract tests.
+7. Move logo/product image uploads to object storage with signed upload, compression, scanning, and lifecycle rules.
 
 ### P2: Reliability, UX, and scale
 
 1. Add browser E2E tests for QR booking, payment return, staff flow, admin registration, QR print, and mobile layouts.
 2. Add realtime queue updates through SSE or WebSocket only after measuring polling limitations.
-3. Separate scheduler worker or add distributed locks before multiple API replicas.
+3. Consider a separate scheduler worker after measuring the implemented PostgreSQL advisory-lock design.
 4. Add observability dashboards, SLOs, tracing, centralized logs, and provider/webhook alerts.
 5. Run staged load tests and optimize indexes/queries from measured bottlenecks.
-6. Add organization business hours, holidays, exception days, and local-time counter resets.
-7. Expand accessibility and Japanese copy review with native-user testing.
+6. Expand accessibility and Japanese copy review with native-user testing.
 
 ## 2. Technical debt and risks
 
-| ID     | Issue                                                          | Impact                                | Planned control                                 |
-| ------ | -------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------- |
-| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places | Incorrect assumptions/contracts       | Align shared types and add serialization tests  |
-| TD-002 | Notification operations have API but no dashboard              | Support workflow remains technical    | Manager/admin operations dashboard              |
-| TD-003 | Cancellation does not restore stock                            | Inventory leakage                     | Transactional release service and tests         |
-| TD-004 | Manual payment patch updates summary only                      | Order/item/transaction mismatch       | Reconciliation state machine                    |
-| TD-005 | Queue capacity check is optimistic                             | Over-capacity under race              | Lock queue/capacity row in transaction          |
-| TD-006 | Order number derived from count                                | Collision under concurrency           | Per-org sequence/counter plus unique constraint |
-| TD-007 | Forecast/staffing tables have no producers                     | Feature can be overstated             | Label schema-only until pipeline/API/UI exist   |
-| TD-008 | Location uses a mock travel-time provider                      | Real travel estimates are unavailable | Approved provider adapter and legal review      |
-| TD-009 | Swagger is partial                                             | Client/agent contract drift           | Complete generated OpenAPI and CI diff          |
-| TD-010 | CI does not run tests/migrations                               | Regressions can merge                 | Add test DB and required checks                 |
-| TD-011 | Metrics reset per process and `/metrics` is public in app      | Weak operations/security              | Scrape/protect endpoint and expand metrics      |
-| TD-012 | Daily counter uses UTC                                         | Wrong local business day              | Organization timezone-aware reset               |
+| ID     | Issue                                                          | Impact                                 | Planned control                                 |
+| ------ | -------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------- |
+| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places | Incorrect assumptions/contracts        | Align shared types and add serialization tests  |
+| TD-002 | Notification operations have API but no dashboard              | Support workflow remains technical     | Manager/admin operations dashboard              |
+| TD-003 | Inventory lifecycle needs production load validation           | Rare race behavior may be undiscovered | Staged concurrent integration/load tests        |
+| TD-004 | Real PSP settlement/refund execution is absent                 | Demo-only external payment operations  | Provider adapter and settlement runbook         |
+| TD-007 | Forecast/staffing tables have no producers                     | Feature can be overstated              | Label schema-only until pipeline/API/UI exist   |
+| TD-008 | Location uses a mock travel-time provider                      | Real travel estimates are unavailable  | Approved provider adapter and legal review      |
+| TD-009 | Swagger is partial                                             | Client/agent contract drift            | Complete generated OpenAPI and CI diff          |
+| TD-010 | CI does not run tests/migrations                               | Regressions can merge                  | Add test DB and required checks                 |
+| TD-011 | Metrics reset per process and `/metrics` is public in app      | Weak operations/security               | Scrape/protect endpoint and expand metrics      |
+| TD-012 | Native Japanese/legal copy review is pending                   | Customer wording may be unsuitable     | Native review before external production launch |
 
 ## 3. Decision record format
 

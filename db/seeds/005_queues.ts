@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg';
+
 import { ORG_ID, QUEUES } from './_ids';
 
 export async function seed(client: PoolClient): Promise<void> {
@@ -11,8 +12,8 @@ export async function seed(client: PoolClient): Promise<void> {
         auto_no_show_minutes, opens_at, closes_at, settings, is_active
       )
       VALUES
-        ($1, $3, 'Counter A', 'Main walk-in queue', 'open', 'walk_in', 'A', 200, 8, 900, 3, TRUE, 2, 5, '08:00', '20:00', '{"demo":true}'::jsonb, TRUE),
-        ($2, $3, 'VIP Lane', 'Priority queue for VIP or urgent cases', 'open', 'priority', 'VIP', 50, 3, 600, 2, TRUE, 1, 3, '08:00', '20:00', '{"demo":true}'::jsonb, TRUE)
+        ($1, $3, '受付カウンターA', '通常受付', 'open', 'walk_in', 'A', 200, 8, 900, 3, TRUE, 2, 5, '09:00', '18:00', '{"demo":true}'::jsonb, TRUE),
+        ($2, $3, '優先受付', '優先対応用の受付', 'open', 'priority', 'VIP', 50, 3, 600, 2, TRUE, 1, 3, '09:00', '18:00', '{"demo":true}'::jsonb, TRUE)
       ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
         description = EXCLUDED.description,
@@ -32,6 +33,6 @@ export async function seed(client: PoolClient): Promise<void> {
         is_active = TRUE,
         updated_at = NOW();
     `,
-    [QUEUES.COUNTER_A, QUEUES.VIP_LANE, ORG_ID],
+    [QUEUES.COUNTER_A, QUEUES.VIP_LANE, ORG_ID]
   );
 }

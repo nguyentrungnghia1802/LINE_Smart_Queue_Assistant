@@ -200,6 +200,17 @@ Payment intent creation accepts `orgSlug`, selected `items`, `scope`, `provider`
 
 Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatus: paid | refunded`, optional refund `amount` and `reason`, and an `Idempotency-Key` header. Every accepted operation writes an audited reconciliation row. `GET /api/v1/orders/:id/receipt` is staff/manager/admin only and returns receipt source data only for a completed, fully paid order.
 
+### Booking groups and organization calendar
+
+| Method | Path                                     | Access                     | Purpose                                                       |
+| ------ | ---------------------------------------- | -------------------------- | ------------------------------------------------------------- |
+| GET    | `/api/v1/booking-groups/me?page=&limit=` | Authenticated customer     | Paginated cross-device history for the current internal user  |
+| GET    | `/api/v1/booking-groups/:id`             | Owner, tenant staff, admin | Independent orders/items/tickets in one related booking group |
+| GET    | `/api/v1/orgs/my-org/business-calendar`  | Manager/admin              | Weekly hours and upcoming holiday/exception dates             |
+| PUT    | `/api/v1/orgs/my-org/business-calendar`  | Manager/admin              | Atomically replace validated tenant calendar and write audit  |
+
+Booking-group requests never accept a customer or LINE user ID as authority. Customer scope comes from the verified system JWT; staff scope comes from active tenant membership. Payment, cancellation, receipt, and ticket status remain independent for every order in the response.
+
 ### Users and staff management
 
 | Method | Path                                 | Access        | Purpose                                      |

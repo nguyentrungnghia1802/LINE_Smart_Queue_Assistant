@@ -234,6 +234,7 @@ export const ordersRepository = {
       organizationId: string;
       orderNumber: string;
       bookingGroupId?: string;
+      customerLineUserId?: string;
       customerName?: string;
       customerUserId?: string;
       customerPhone?: string;
@@ -247,15 +248,16 @@ export const ordersRepository = {
     const executor = client ?? pool;
     const { rows } = await executor.query<OrderRow>(
       `INSERT INTO orders
-       (organization_id, order_number, customer_name, customer_user_id,
+       (organization_id, order_number, customer_name, customer_user_id, customer_line_user_id,
           customer_phone, subtotal, payment_status, payment_code, notes, booking_group_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *, NULL::uuid AS queue_entry_id`,
       [
         data.organizationId,
         data.orderNumber,
         data.customerName ?? null,
         data.customerUserId ?? null,
+        data.customerLineUserId ?? null,
         data.customerPhone ?? null,
         data.subtotal,
         data.paymentStatus ?? 'unpaid',
@@ -272,20 +274,31 @@ export const ordersRepository = {
       id: string;
       organizationId: string;
       customerUserId?: string;
+      customerLineUserId?: string;
       localDeviceKey?: string;
     },
     client?: PoolClient
-  ): Promise<void> {
+  ): Promise<boolean> {
     const executor = client ?? pool;
-    await executor.query(
-      `INSERT INTO booking_groups (id, organization_id, customer_user_id, local_device_key)
-       VALUES ($1,$2,$3,$4)
+    const result = await executor.query(
+      `INSERT INTO booking_groups
+         (id, organization_id, customer_user_id, customer_line_user_id, local_device_key)
+       VALUES ($1,$2,$3,$4,$5)
        ON CONFLICT (id) DO UPDATE
        SET updated_at = NOW(),
            customer_user_id = COALESCE(booking_groups.customer_user_id, EXCLUDED.customer_user_id),
-           local_device_key = COALESCE(booking_groups.local_device_key, EXCLUDED.local_device_key)`,
-      [data.id, data.organizationId, data.customerUserId ?? null, data.localDeviceKey ?? null]
+           customer_line_user_id = COALESCE(booking_groups.customer_line_user_id, EXCLUDED.customer_line_user_id),
+           local_device_key = COALESCE(booking_groups.local_device_key, EXCLUDED.local_device_key)
+       WHERE booking_groups.organization_id = EXCLUDED.organization_id`,
+      [
+        data.id,
+        data.organizationId,
+        data.customerUserId ?? null,
+        data.customerLineUserId ?? null,
+        data.localDeviceKey ?? null,
+      ]
     );
+    return (result.rowCount ?? 0) > 0;
   },
 
   async createItem(

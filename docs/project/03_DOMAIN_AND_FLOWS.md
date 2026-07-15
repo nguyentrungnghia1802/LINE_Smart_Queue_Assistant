@@ -140,10 +140,11 @@ Production invariant: a browser return cannot establish payment. Only the server
 1. Browser creates a stable local device key and a booking-group UUID.
 2. First reservation creates an independent order/ticket and optionally the server booking group.
 3. A later reservation creates another independent order/ticket using the same group ID.
-4. Browser history groups the records for convenience; staff can eventually retrieve the group server-side.
-5. Cancellation, queue state, item/payment records, and receipts remain per order.
+4. The authenticated customer history API resolves the group by internal user identity, supports pagination across devices, and returns each order/ticket independently.
+5. Tenant staff may inspect a related group from the staff workspace; customer ownership and staff organization scope are enforced server-side.
+6. Cancellation, queue state, item/payment records, and receipts remain per order.
 
-Current limitation: no dedicated group retrieval/management API is exposed, so the end-to-end server experience is partial.
+Anonymous browser drafts may still use a local grouping key, but cross-device history requires authenticated LINE/system identity.
 
 ## 7. Staff queue flow
 

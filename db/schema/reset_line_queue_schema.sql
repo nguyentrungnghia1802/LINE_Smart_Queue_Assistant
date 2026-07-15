@@ -157,7 +157,12 @@ CREATE TABLE organizations (
   payment_info      TEXT,
   line_channel_id   TEXT,
   line_oa_basic_id  TEXT,
-  timezone          TEXT NOT NULL DEFAULT 'Asia/Bangkok',
+  timezone          TEXT NOT NULL DEFAULT 'Asia/Tokyo',
+  postal_code       TEXT,
+  prefecture        TEXT,
+  city              TEXT,
+  address_line1     TEXT,
+  address_line2     TEXT,
   settings          JSONB NOT NULL DEFAULT '{}',
   is_active         BOOLEAN NOT NULL DEFAULT TRUE,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -168,12 +173,42 @@ CREATE TABLE organizations (
   CONSTRAINT organizations_public_qr_token_format
     CHECK (public_qr_token ~ '^[A-Za-z0-9_-]{8,128}$'),
   CONSTRAINT organizations_latitude_range CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
-  CONSTRAINT organizations_longitude_range CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180)
+  CONSTRAINT organizations_longitude_range CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180),
+  CONSTRAINT organizations_postal_code_format CHECK (postal_code IS NULL OR postal_code ~ '^[0-9]{3}-?[0-9]{4}$')
 );
 
 CREATE TRIGGER trg_organizations_updated_at
 BEFORE UPDATE ON organizations
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE organization_business_hours (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  weekday SMALLINT NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+  is_closed BOOLEAN NOT NULL DEFAULT FALSE,
+  opens_at TIME,
+  closes_at TIME,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (organization_id, weekday),
+  CHECK ((is_closed AND opens_at IS NULL AND closes_at IS NULL) OR (NOT is_closed AND opens_at IS NOT NULL AND closes_at IS NOT NULL AND opens_at < closes_at))
+);
+CREATE TRIGGER trg_organization_business_hours_updated_at BEFORE UPDATE ON organization_business_hours FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE organization_exception_days (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  exception_date DATE NOT NULL,
+  is_closed BOOLEAN NOT NULL DEFAULT TRUE,
+  opens_at TIME,
+  closes_at TIME,
+  reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (organization_id, exception_date),
+  CHECK ((is_closed AND opens_at IS NULL AND closes_at IS NULL) OR (NOT is_closed AND opens_at IS NOT NULL AND closes_at IS NOT NULL AND opens_at < closes_at))
+);
+CREATE TRIGGER trg_organization_exception_days_updated_at BEFORE UPDATE ON organization_exception_days FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE users (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -690,6 +725,9 @@ CREATE INDEX idx_qe_called_timeout ON queue_entries(queue_id, called_at)
   WHERE status = 'called';
 
 CREATE INDEX idx_booking_groups_org_updated ON booking_groups(organization_id, updated_at DESC);
+CREATE INDEX idx_booking_groups_customer_updated ON booking_groups(customer_user_id, updated_at DESC) WHERE customer_user_id IS NOT NULL;
+CREATE INDEX idx_booking_groups_line_updated ON booking_groups(customer_line_user_id, updated_at DESC) WHERE customer_line_user_id IS NOT NULL;
+CREATE INDEX idx_organization_exception_days_lookup ON organization_exception_days(organization_id, exception_date);
 CREATE INDEX idx_customer_locations_entry ON customer_locations(queue_entry_id) WHERE queue_entry_id IS NOT NULL;
 CREATE INDEX idx_customer_locations_org_captured ON customer_locations(organization_id, captured_at DESC);
 CREATE INDEX idx_location_alerts_pending ON location_alerts(organization_id, due_at)

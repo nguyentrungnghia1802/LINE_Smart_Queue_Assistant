@@ -38,15 +38,15 @@ The platform role does not replace tenant membership. Staff and manager operatio
 
 ### Organization administration
 
-| ID         | Requirement                                                                             | Status          |
-| ---------- | --------------------------------------------------------------------------------------- | --------------- |
-| FR-ORG-001 | Admin sees an organization list, not an implicit single-organization editor             | Implemented     |
-| FR-ORG-002 | Admin opens a separate detail view for full organization information                    | Implemented     |
-| FR-ORG-003 | Admin registers an organization and initial Gmail manager atomically                    | Implemented     |
-| FR-ORG-004 | Admin uploads/compresses a logo and never manually enters a QR token                    | Implemented     |
-| FR-ORG-005 | The system generates a unique slug and public QR token                                  | Implemented     |
-| FR-ORG-006 | Manager edits only their own organization settings                                      | Implemented     |
-| FR-ORG-007 | Organization stores location, business hours, holiday rules, and provider configuration | Partial/Planned |
+| ID         | Requirement                                                                             | Status                                     |
+| ---------- | --------------------------------------------------------------------------------------- | ------------------------------------------ |
+| FR-ORG-001 | Admin sees an organization list, not an implicit single-organization editor             | Implemented                                |
+| FR-ORG-002 | Admin opens a separate detail view for full organization information                    | Implemented                                |
+| FR-ORG-003 | Admin registers an organization and initial Gmail manager atomically                    | Implemented                                |
+| FR-ORG-004 | Admin uploads/compresses a logo and never manually enters a QR token                    | Implemented                                |
+| FR-ORG-005 | The system generates a unique slug and public QR token                                  | Implemented                                |
+| FR-ORG-006 | Manager edits only their own organization settings                                      | Implemented                                |
+| FR-ORG-007 | Organization stores location, business hours, holiday rules, and provider configuration | Implemented; real provider secrets pending |
 
 ### Catalog and inventory
 
@@ -57,7 +57,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | FR-CAT-003 | `NULL` stock means unlimited; zero stock is unavailable                                                       | Implemented                             |
 | FR-CAT-004 | Customer cannot choose inactive/out-of-stock products or quantity above stock                                 | Implemented in UI and transaction guard |
 | FR-CAT-005 | Finite stock is changed atomically when the order succeeds                                                    | Implemented                             |
-| FR-CAT-006 | Cancellation/expiry restores or releases finite stock exactly once                                            | Planned                                 |
+| FR-CAT-006 | Cancellation/expiry restores or releases finite stock exactly once                                            | Implemented                             |
 
 ### Booking, ordering, and payment
 
@@ -70,7 +70,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | FR-BOOK-005 | Inside checkout, customer chooses required-items-only or full-order payment                 | Implemented                                            |
 | FR-BOOK-006 | Returning from checkout preserves form/cart/payment state                                   | Implemented with browser draft plus server transaction |
 | FR-BOOK-007 | Successful order stores item-level payment and full-order payment accurately                | Implemented for server-verified transactions           |
-| FR-BOOK-008 | Repeat bookings remain separate but can be grouped by customer/device                       | Partial; DB group and local browser history exist      |
+| FR-BOOK-008 | Repeat bookings remain separate but can be grouped by customer/device                       | Implemented with authenticated server history          |
 | FR-BOOK-009 | LIFF booking uses the current authenticated LINE identity and redirects to LIFF ticket view | Implemented                                            |
 | FR-PAY-001  | Demo mode completes automatically without paid third-party services                         | Implemented                                            |
 | FR-PAY-002  | Production provider creates a server-side payment intent and redirects securely             | Foundation implemented; real PSP pending               |

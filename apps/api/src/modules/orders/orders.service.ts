@@ -190,15 +190,19 @@ export const ordersService = {
       const ticketCode = `${queue.prefix ?? ''}${String(ticketNumber).padStart(3, '0')}`;
 
       if (dto.bookingGroupId) {
-        await ordersRepository.ensureBookingGroup(
+        const bookingGroupAccepted = await ordersRepository.ensureBookingGroup(
           {
             id: dto.bookingGroupId,
             organizationId: org.id,
             customerUserId: actorUserId,
+            customerLineUserId: actor?.lineUserId,
             localDeviceKey: dto.localDeviceKey,
           },
           client
         );
+        if (!bookingGroupAccepted) {
+          throw AppError.conflict('Booking group belongs to another organization');
+        }
       }
 
       // Create queue entry (link to user if authenticated)
@@ -224,6 +228,7 @@ export const ordersService = {
           orderNumber: orderNum,
           customerName: dto.customerName,
           customerUserId: actorUserId,
+          customerLineUserId: actor?.lineUserId,
           customerPhone: dto.customerPhone,
           subtotal,
           bookingGroupId: dto.bookingGroupId,

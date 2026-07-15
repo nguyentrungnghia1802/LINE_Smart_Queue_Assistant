@@ -112,7 +112,11 @@ export function HomePage() {
         </div>
       )}
 
-      <QuickActions onStartBooking={startBooking} onViewTickets={() => navigate('/liff/tickets')} />
+      <QuickActions
+        onStartBooking={startBooking}
+        onViewTickets={() => navigate('/liff/tickets')}
+        onViewHistory={() => navigate('/liff/history')}
+      />
 
       <ActiveTicketsSection
         isLoading={isLoading}
@@ -304,7 +308,12 @@ function ActiveTicketsSection({
 function QuickActions({
   onStartBooking,
   onViewTickets,
-}: Readonly<{ onStartBooking: () => void; onViewTickets: () => void }>) {
+  onViewHistory,
+}: Readonly<{
+  onStartBooking: () => void;
+  onViewTickets: () => void;
+  onViewHistory: () => void;
+}>) {
   return (
     <section aria-label="クイックアクション" className="grid grid-cols-2 gap-3">
       <button
@@ -322,6 +331,14 @@ function QuickActions({
       >
         <span className="block text-sm font-bold">現在の受付</span>
         <span className="mt-1 block text-xs text-gray-500">受付番号を確認</span>
+      </button>
+      <button
+        type="button"
+        onClick={onViewHistory}
+        className="col-span-2 rounded-(--radius-card) border border-gray-200 bg-white px-4 py-3 text-left text-gray-900 shadow-sm transition hover:bg-gray-50"
+      >
+        <span className="block text-sm font-bold">予約履歴</span>
+        <span className="mt-1 block text-xs text-gray-500">過去の注文と受付番号を確認</span>
       </button>
     </section>
   );
