@@ -14,6 +14,7 @@ import {
   ticketCancelledMessage,
   unknownCommandMessage,
 } from '../notifications/line-notification.templates';
+import { notificationPreferencesRepository } from '../notifications/notification-preferences.repository';
 import { queueService } from '../queue/queue.service';
 
 import type { ILineMessagingAdapter } from './line.adapter';
@@ -49,7 +50,7 @@ async function dispatchEvent(event: LineEvent, adapter: ILineMessagingAdapter): 
       await handleFollow(event, adapter);
       break;
     case 'unfollow':
-      handleUnfollow(event);
+      await handleUnfollow(event);
       break;
     case 'message':
       await handleMessage(event, adapter);
@@ -84,7 +85,11 @@ async function handleFollow(event: LineEvent, adapter: ILineMessagingAdapter): P
         lineUserId,
         displayName: userRow.display_name,
       });
-      logger.info({ lineUserId, userId: userRow.id }, 'LINE follow: user upserted');
+      await notificationPreferencesRepository.setFollowState(lineUserId, true);
+      logger.info(
+        { lineRecipient: lineUserId.slice(-6), userId: userRow.id },
+        'LINE follow: user upserted'
+      );
     } catch (err) {
       logger.error({ err, lineUserId }, 'LINE follow: failed to upsert user');
     }
@@ -100,14 +105,20 @@ async function handleFollow(event: LineEvent, adapter: ILineMessagingAdapter): P
   }
 }
 
-function handleUnfollow(event: LineEvent): void {
+async function handleUnfollow(event: LineEvent): Promise<void> {
   const lineUserId = event.source.userId;
   logger.info({ lineUserId }, 'LINE unfollow event');
   // Mark line_account as unlinked so push notifications are no longer attempted.
   if (lineUserId) {
-    usersRepository.markLineAccountUnlinked(lineUserId).catch((err: unknown) => {
-      logger.error({ err, lineUserId }, 'LINE unfollow: failed to mark account unlinked');
-    });
+    try {
+      await usersRepository.markLineAccountUnlinked(lineUserId);
+      await notificationPreferencesRepository.setFollowState(lineUserId, false);
+    } catch (err) {
+      logger.error(
+        { err, lineRecipient: lineUserId.slice(-6) },
+        'LINE unfollow: failed to update account state'
+      );
+    }
   }
 }
 

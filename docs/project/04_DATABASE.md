@@ -12,6 +12,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 6. `000006_payment_production_foundation.js`
 7. `000007_operational_correctness.js`
 8. `000008_payment_reconciliation.js`
+9. `000009_notification_consent_location_privacy.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -64,16 +65,18 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 
 ### Location, analysis, messaging, and audit
 
-| Table                      | Key purpose                              | Important constraints                                                                 |
-| -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------- |
-| `customer_locations`       | Consent-based coordinate snapshot        | Coordinate and nonnegative accuracy/distance checks                                   |
-| `location_alerts`          | Proximity warning intent                 | pending/sent/skipped/failed check and due index                                       |
-| `wait_time_forecasts`      | Forecast output history                  | Nonnegative wait/depth; confidence 0..1                                               |
-| `staffing_recommendations` | Hourly staffing output                   | weekday 0..6, hour 0..23, positive staff, confidence 0..1                             |
-| `notifications`            | Durable LINE outbox and delivery log     | Unique event key, tenant/entry/user/LINE references, pending/processing/retry indexes |
-| `penalty_records`          | No-show/late/cancel/manual policy record | User/LINE/tenant lookup indexes                                                       |
-| `queue_histories`          | Queue transition/event history           | Tenant/queue/entry/actor indexes                                                      |
-| `audit_logs`               | Administrative/system audit trail        | Actor, tenant, resource indexes and JSON changes                                      |
+| Table                           | Key purpose                                       | Important constraints                                                                       |
+| ------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `customer_locations`            | Consent-based coordinate snapshot                 | Coordinate and nonnegative accuracy/distance checks                                         |
+| `location_alerts`               | Proximity warning intent                          | Idempotent event key, attempt/retry fields, pending/sent/skipped/failed state and due index |
+| `line_notification_preferences` | Verified LINE delivery consent and event switches | One row per linked user/LINE recipient                                                      |
+| `customer_location_consents`    | Location consent, revocation and deletion request | One row per authenticated customer                                                          |
+| `wait_time_forecasts`           | Forecast output history                           | Nonnegative wait/depth; confidence 0..1                                                     |
+| `staffing_recommendations`      | Hourly staffing output                            | weekday 0..6, hour 0..23, positive staff, confidence 0..1                                   |
+| `notifications`                 | Durable LINE outbox and delivery log              | Unique event key, tenant/entry/user/LINE references, pending/processing/retry indexes       |
+| `penalty_records`               | No-show/late/cancel/manual policy record          | User/LINE/tenant lookup indexes                                                             |
+| `queue_histories`               | Queue transition/event history                    | Tenant/queue/entry/actor indexes                                                            |
+| `audit_logs`                    | Administrative/system audit trail                 | Actor, tenant, resource indexes and JSON changes                                            |
 
 ## 4. Enumerated values
 

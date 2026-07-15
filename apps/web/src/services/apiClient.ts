@@ -69,6 +69,11 @@ export async function patch<T>(
   return unwrap(res.data);
 }
 
+export async function put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+  const res = await apiClient.put<ApiResponse<T>>(url, data, config);
+  return unwrap(res.data);
+}
+
 export async function del<T = void>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const res = await apiClient.delete<ApiResponse<T>>(url, config);
   return unwrap(res.data);

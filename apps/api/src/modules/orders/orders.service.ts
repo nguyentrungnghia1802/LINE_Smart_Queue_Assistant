@@ -1,5 +1,6 @@
 import type { PoolClient } from 'pg';
 
+import { config } from '../../config';
 import { pool } from '../../db/client';
 import { ordersRepository } from '../../db/repositories/orders.repository';
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
@@ -11,6 +12,7 @@ import { AppError } from '../../utils/AppError';
 import { productCatalogCache } from '../../utils/cache';
 import { etaService } from '../eta/eta.service';
 import { inventoryService } from '../inventory/inventory.service';
+import { locationRepository } from '../location/location.repository';
 import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { paymentsService } from '../payments/payments.service';
@@ -244,6 +246,12 @@ export const ordersService = {
       const linkedOrder = { ...order, queue_entry_id: linkedEntry.id };
 
       if (dto.customerLocation) {
+        if (!actorUserId || !actor?.lineUserId) {
+          throw AppError.forbidden('Verified LINE authentication is required for location sharing');
+        }
+        if (!(await locationRepository.isEnabled(actorUserId, client))) {
+          throw AppError.forbidden('Location consent is required');
+        }
         const orgWithLocation = org as typeof org & {
           latitude?: string | number | null;
           longitude?: string | number | null;
@@ -268,6 +276,8 @@ export const ordersService = {
             longitude: dto.customerLocation.longitude,
             accuracyMeters: dto.customerLocation.accuracyMeters,
             distanceToOrgMeters,
+            consentUserId: actorUserId,
+            expiresAt: new Date(Date.now() + config.location.retentionDays * 86_400_000),
           },
           client
         );

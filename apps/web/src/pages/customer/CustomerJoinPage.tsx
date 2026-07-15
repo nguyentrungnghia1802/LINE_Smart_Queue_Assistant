@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
-import { get, post } from '../../services/apiClient';
+import { get, post, put } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import type { LiffAuthStatus } from '../../types/liff';
 import {
@@ -289,9 +289,19 @@ export function CustomerJoinPage({
     navigate(`${isLiffMode ? '/liff' : ''}/checkout/demo/${sessionId}`);
   }
 
-  function requestCustomerLocation() {
+  async function requestCustomerLocation() {
+    if (!isLiffMode) {
+      setLocationStatus('位置情報の共有にはLINE認証が必要です。');
+      return;
+    }
     if (!('geolocation' in navigator)) {
       setLocationStatus('位置情報を利用できません。');
+      return;
+    }
+    try {
+      await put('/api/v1/line/location-consent', { enabled: true });
+    } catch {
+      setLocationStatus('位置情報の同意を保存できませんでした。');
       return;
     }
     setLocationStatus('現在地を取得中...');
@@ -593,7 +603,7 @@ export function CustomerJoinPage({
               <div>
                 <h3 className="text-sm font-bold text-gray-950">現在地</h3>
                 <p className="mt-1 text-xs leading-5 text-gray-500">
-                  順番が近い時の距離アラートに利用します。
+                  順番が近い時の距離アラートに利用します。継続的な追跡は行いません。
                 </p>
               </div>
               <button

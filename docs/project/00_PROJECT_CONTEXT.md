@@ -37,7 +37,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 | Orders and inventory      | Operational lifecycle implemented                   | Atomic reserve/decrement, consume on fulfillment, release/restore on cancellation or no-show, expiry worker, transition history, and idempotent guarded transitions                                                                                                                                              |
 | Payment                   | Phase 6 foundation implemented                      | Server-created payment intents, demo provider, signed demo completion, provider abstraction, payment state machine, webhook idempotency log, and reconciliation exist; no real PSP account is connected yet                                                                                                      |
 | LINE                      | Phase 5 code implemented; real-device setup pending | LIFF login verifies ID tokens, LIFF booking stores linked LINE recipients, webhook events are signature-checked, lifecycle push uses durable PostgreSQL outbox delivery with Flex Messages, text fallback and ticket deeplinks, and Rich Menu sync/LIFF Home navigation exist; LINE Console/E2E is still pending |
-| Location alerts           | Data path only                                      | Location and pending alerts can be stored; no job sends those alerts                                                                                                                                                                                                                                             |
+| Location alerts           | Privacy-aware mock-provider flow implemented        | Explicit verified-user consent, one-time snapshot, distance alert worker, durable LINE enqueue, retry state, configurable retention and deletion exist; no paid travel-time provider is connected                                                                                                                |
 | ETA                       | Heuristic implemented                               | Position/workload calculation and 30-second updater; forecast history is not populated                                                                                                                                                                                                                           |
 | Staffing recommendation   | Schema only                                         | Table exists; no analyzer, API, scheduler, or dashboard producer                                                                                                                                                                                                                                                 |
 | Deployment                | Local/Compose ready                                 | Docker and health checks exist; production infrastructure and secret management are environment-specific                                                                                                                                                                                                         |
@@ -69,8 +69,8 @@ The project is a working local/demo modular monolith, not yet a production-compl
 ## 6. Incomplete features
 
 - Real PSP integration: signed provider requests, hosted checkout, provider-specific callback verification, refund execution, and encrypted merchant secrets.
-- LINE production controls: notification preferences, production Rich Menu asset/E2E verification, advanced notification replay/dead-letter operations UI, delivery reporting dashboard, and multi-organization channel configuration.
-- Location alert execution: no scheduler consumes `location_alerts`; no retention/deletion workflow is implemented.
+- LINE operator APIs and customer preferences are implemented; production Rich Menu asset/E2E verification, an operator dashboard, and multi-organization channel configuration remain pending.
+- Location alert execution uses a deterministic mock travel-time provider. Legal review of consent/retention copy and any real provider integration remain pending.
 - Forecasting and staffing analysis: schema exists, but no data pipeline or user-facing API populates it.
 - Inventory lifecycle is implemented; production load testing and operator reconciliation UI remain pending.
 - Payment reconciliation keeps transaction, order, and item summaries aligned with audited manual operations, replay-safe webhook transitions, partial/full refund amounts, and guarded receipt access. Real PSP refund execution remains pending.
@@ -105,8 +105,8 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - The seed organization still uses Vietnamese sample address/currency data even though the product UI targets Japan.
 - Queue capacity, call-next, daily ticket numbering, and organization order numbering use transactional row locks/counters; production stress testing remains pending.
 - Anonymous public booking cannot receive LINE notifications unless the session is linked to LINE and the queue entry stores a verified linked `line_user_id`; production customer entry should therefore use the LIFF-first flow.
-- LINE follow/unfollow currently toggles link state, but does not yet provide user-facing notification preferences or a full consent management UI.
-- Location data is sensitive personal data and needs explicit consent, retention, and deletion policies before production use.
+- One Messaging API channel is still shared by the deployment; multi-organization LINE channels are not implemented.
+- Location data is snapshot-only with configurable retention and deletion, but the production retention period and consent wording still require legal approval.
 - The checked-in `.env.example` previously contained a secret-shaped value; credentials must be rotated if that value was ever real.
 
 ## 10. Documentation map
