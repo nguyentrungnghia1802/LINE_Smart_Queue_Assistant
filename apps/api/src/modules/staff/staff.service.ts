@@ -218,9 +218,20 @@ export const staffService = {
   async getMyQueueOverview(organizationId: string): Promise<EnrichedQueueOverview | null> {
     const queues = await queuesRepository.findActiveByOrg(organizationId);
     if (queues.length === 0) return null;
-    const queue = queues[0];
-
-    const overview = await this.getQueueOverview(queue.id, organizationId);
+    const overviews = await Promise.all(
+      queues.map(async (queue) => ({
+        queue,
+        overview: await this.getQueueOverview(queue.id, organizationId),
+      }))
+    );
+    const selected =
+      overviews.find(
+        ({ overview }) =>
+          overview.waitingCount > 0 ||
+          overview.calledEntry !== null ||
+          overview.servingEntry !== null
+      ) ?? overviews[0];
+    const { queue, overview } = selected;
 
     const enrichEntry = async (entry: QueueEntryRow | null): Promise<EntryWithOrder | null> => {
       if (!entry) return null;

@@ -175,4 +175,20 @@ describe('staffService.getMyQueueOverview', () => {
     expect(result.calledEntryWithOrder.ticket_code).toBe('A-006');
     expect(result.servingEntryWithOrder.ticket_code).toBe('A-007');
   });
+
+  it('selects an active queue with customers instead of the first empty queue', async () => {
+    const secondQueue = { ...queueRow, id: 'queue-002', name: 'Counter B' };
+    const waitingEntry = { ...makeEntry('e008', 'A-008', 'waiting'), queue_id: secondQueue.id };
+    mockFindActiveByOrg.mockResolvedValue([queueRow, secondQueue]);
+    mockFindById.mockImplementation(async (id) => (id === secondQueue.id ? secondQueue : queueRow));
+    mockListWaiting.mockImplementation(async (queueId) =>
+      queueId === secondQueue.id ? [waitingEntry] : []
+    );
+    mockFindByQueueAndStatus.mockResolvedValue(null);
+
+    const result = await staffService.getMyQueueOverview(ORG_ID);
+
+    expect(result?.queueId).toBe(secondQueue.id);
+    expect(result?.waitingCount).toBe(1);
+  });
 });

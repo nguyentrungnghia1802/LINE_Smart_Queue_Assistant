@@ -21,7 +21,7 @@ export async function seed(client: PoolClient): Promise<void> {
         queue_type = EXCLUDED.queue_type,
         prefix = EXCLUDED.prefix,
         max_capacity = EXCLUDED.max_capacity,
-        daily_ticket_counter = EXCLUDED.daily_ticket_counter,
+        daily_ticket_counter = GREATEST(queues.daily_ticket_counter, EXCLUDED.daily_ticket_counter),
         avg_service_seconds = EXCLUDED.avg_service_seconds,
         notify_ahead_positions = EXCLUDED.notify_ahead_positions,
         allow_skip = EXCLUDED.allow_skip,

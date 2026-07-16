@@ -22,7 +22,7 @@ const orders: OrderSeed[] = [
     id: ORDERS.ORDER_1,
     number: 'ORD-0001',
     customerId: USERS.CUSTOMER_1,
-    customerName: 'Customer Demo',
+    customerName: '山田 太郎',
     customerPhone: '0900000031',
     status: 'completed',
     paymentStatus: 'paid',
@@ -36,7 +36,7 @@ const orders: OrderSeed[] = [
     id: ORDERS.ORDER_2,
     number: 'ORD-0002',
     customerId: USERS.CUSTOMER_2,
-    customerName: 'Customer Two',
+    customerName: '佐藤 花子',
     customerPhone: '0900000032',
     status: 'pending',
     paymentStatus: 'paid',
@@ -50,7 +50,7 @@ const orders: OrderSeed[] = [
     id: ORDERS.ORDER_3,
     number: 'ORD-0003',
     customerId: USERS.CUSTOMER_3,
-    customerName: 'Customer Three',
+    customerName: '鈴木 一郎',
     customerPhone: '0900000033',
     status: 'processing',
     paymentStatus: 'unpaid',
@@ -67,7 +67,7 @@ const orders: OrderSeed[] = [
     id: ORDERS.ORDER_4,
     number: 'ORD-0004',
     customerId: USERS.CUSTOMER_4,
-    customerName: 'Customer Four',
+    customerName: '高橋 美咲',
     customerPhone: '0900000034',
     status: 'processing',
     paymentStatus: 'paid',
@@ -81,7 +81,7 @@ const orders: OrderSeed[] = [
     id: ORDERS.ORDER_5,
     number: 'ORD-0005',
     customerId: USERS.CUSTOMER_5,
-    customerName: 'Customer Five',
+    customerName: '田中 健太',
     customerPhone: '0900000035',
     status: 'pending',
     paymentStatus: 'unpaid',
@@ -98,7 +98,7 @@ const orders: OrderSeed[] = [
     id: ORDERS.ORDER_6,
     number: 'ORD-0006',
     customerId: USERS.CUSTOMER_1,
-    customerName: 'Customer Demo',
+    customerName: '山田 太郎',
     customerPhone: '0900000031',
     status: 'cancelled',
     paymentStatus: 'refunded',
@@ -115,7 +115,7 @@ const orders: OrderSeed[] = [
     id: ORDERS.ORDER_7,
     number: 'ORD-0007',
     customerId: USERS.CUSTOMER_2,
-    customerName: 'Customer Two',
+    customerName: '佐藤 花子',
     customerPhone: '0900000032',
     status: 'cancelled',
     paymentStatus: 'failed',
@@ -129,7 +129,7 @@ const orders: OrderSeed[] = [
     id: ORDERS.ORDER_8,
     number: 'ORD-0008',
     customerId: USERS.CUSTOMER_3,
-    customerName: 'Customer Three',
+    customerName: '鈴木 一郎',
     customerPhone: '0900000033',
     status: 'pending',
     paymentStatus: 'unpaid',
@@ -314,6 +314,7 @@ export async function seed(client: PoolClient): Promise<void> {
           line_user_id = EXCLUDED.line_user_id,
           ticket_number = EXCLUDED.ticket_number,
           ticket_code = EXCLUDED.ticket_code,
+          business_date = EXCLUDED.business_date,
           status = EXCLUDED.status,
           position_snapshot = EXCLUDED.position_snapshot,
           estimated_wait_seconds = EXCLUDED.estimated_wait_seconds,
@@ -365,7 +366,20 @@ export async function seed(client: PoolClient): Promise<void> {
   }
 
   await client.query(
-    `UPDATE queues SET daily_ticket_counter = 8, updated_at = NOW() WHERE id = $1`,
-    [QUEUES.COUNTER_A]
+    `UPDATE queues q
+     SET daily_ticket_counter = GREATEST(
+           q.daily_ticket_counter,
+           COALESCE((
+             SELECT MAX(qe.ticket_number)
+             FROM queue_entries qe
+             WHERE qe.queue_id = q.id
+               AND qe.business_date = (NOW() AT TIME ZONE o.timezone)::date
+           ), 0)
+         ),
+         counter_business_date = (NOW() AT TIME ZONE o.timezone)::date,
+         updated_at = NOW()
+     FROM organizations o
+     WHERE q.organization_id = o.id AND q.organization_id = $1`,
+    [ORG_ID]
   );
 }

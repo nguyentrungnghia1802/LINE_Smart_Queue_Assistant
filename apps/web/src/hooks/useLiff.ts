@@ -44,11 +44,7 @@ export function useLiff(): LiffContext {
     // In real mode a LIFF ID is mandatory; fail fast with a clear message.
     if (!isLiffMockMode && !LIFF_ID) {
       setError(
-        new Error(
-          'VITE_LIFF_ID is not configured.\n' +
-            'Add it to apps/web/.env.local or set VITE_LIFF_MOCK=true for local development.\n' +
-            'See apps/web/.env.example for details.'
-        )
+        new Error('LINEアプリの設定が完了していません。しばらくしてからもう一度お試しください。')
       );
       setInitStatus('error');
       return;

@@ -169,7 +169,7 @@ export const paymentTransactionsRepository = {
     const executor = client ?? pool;
     const { rows } = await executor.query<PaymentTransactionRow>(
       `UPDATE payment_transactions
-       SET status = $2,
+       SET status = $2::payment_status,
            payment_intent_id = COALESCE($3, payment_intent_id),
            external_transaction_id = COALESCE($3, external_transaction_id),
            raw_payload = raw_payload || $4::jsonb,
@@ -177,11 +177,11 @@ export const paymentTransactionsRepository = {
            refunded_amount = COALESCE($6, refunded_amount),
            last_provider_event_at = COALESCE($7, last_provider_event_at),
            last_verified_at = NOW(),
-           authorized_at = CASE WHEN $2 = 'authorized' THEN COALESCE(authorized_at, NOW()) ELSE authorized_at END,
-           paid_at = CASE WHEN $2 = 'paid' THEN COALESCE(paid_at, NOW()) ELSE paid_at END,
-           failed_at = CASE WHEN $2 = 'failed' THEN COALESCE(failed_at, NOW()) ELSE failed_at END,
-           cancelled_at = CASE WHEN $2 = 'cancelled' THEN COALESCE(cancelled_at, NOW()) ELSE cancelled_at END,
-           refunded_at = CASE WHEN $2 = 'refunded' THEN COALESCE(refunded_at, NOW()) ELSE refunded_at END
+           authorized_at = CASE WHEN $2::payment_status = 'authorized' THEN COALESCE(authorized_at, NOW()) ELSE authorized_at END,
+           paid_at = CASE WHEN $2::payment_status = 'paid' THEN COALESCE(paid_at, NOW()) ELSE paid_at END,
+           failed_at = CASE WHEN $2::payment_status = 'failed' THEN COALESCE(failed_at, NOW()) ELSE failed_at END,
+           cancelled_at = CASE WHEN $2::payment_status = 'cancelled' THEN COALESCE(cancelled_at, NOW()) ELSE cancelled_at END,
+           refunded_at = CASE WHEN $2::payment_status = 'refunded' THEN COALESCE(refunded_at, NOW()) ELSE refunded_at END
        WHERE id = $1
        RETURNING *`,
       [

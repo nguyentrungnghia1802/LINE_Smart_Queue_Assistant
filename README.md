@@ -2,7 +2,7 @@
 
 LINE Smart Queue Assistant is a multi-tenant queue, reservation, ordering, and customer-notification system for Japanese businesses. Customers enter from a public QR page or LINE LIFF, while staff, managers, and platform administrators use role-specific web dashboards.
 
-The repository is an npm-workspaces monorepo. The application is functional as a local/demo system; real payment processing, durable LINE delivery, location-triggered alerts, and predictive staffing still require production work.
+The repository is an npm-workspaces monorepo. The application is functional as a local/demo system with durable LINE delivery and measured staffing forecasts; a real PSP, LINE Console/device acceptance, and an approved travel-time provider still require production work.
 
 ## Main components
 
@@ -57,6 +57,8 @@ npm run typecheck
 npm run test
 npm run build
 npm run format:check
+npm run openapi:check
+npm run e2e:all
 ```
 
 ## LINE setup
