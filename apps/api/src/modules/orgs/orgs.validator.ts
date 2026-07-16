@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { JapanesePhoneSchema } from '../shared/shared.validator';
 
 export const UpdateOrgSettingsSchema = z.object({
+  defaultLocale: z.enum(['ja', 'vi', 'en']).optional(),
   name: z.string().min(1).max(200).optional(),
   logoUrl: z.string().url().nullable().optional(),
   address: z.string().max(500).nullable().optional(),
@@ -76,14 +77,14 @@ export const BusinessCalendarSchema = z
   })
   .superRefine((calendar, ctx) => {
     if (new Set(calendar.weeklyHours.map((item) => item.weekday)).size !== 7) {
-      ctx.addIssue({ code: 'custom', message: '曜日は重複できません' });
+      ctx.addIssue({ code: 'custom', message: 'Weekdays must be unique' });
     }
     for (const item of [...calendar.weeklyHours, ...calendar.exceptionDays]) {
       if (item.isClosed && (item.opensAt || item.closesAt)) {
-        ctx.addIssue({ code: 'custom', message: '休業日に営業時間は設定できません' });
+        ctx.addIssue({ code: 'custom', message: 'Closed days cannot define business hours' });
       }
       if (!item.isClosed && (!item.opensAt || !item.closesAt || item.opensAt >= item.closesAt)) {
-        ctx.addIssue({ code: 'custom', message: '営業時間を正しく入力してください' });
+        ctx.addIssue({ code: 'custom', message: 'Enter valid business hours' });
       }
     }
   });

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
+import { formatCurrency } from '../../i18n/format';
 import { get, post } from '../../services/apiClient';
 
 interface OrderItem {
@@ -32,30 +34,20 @@ interface TicketStatus {
   queueName: string;
 }
 
-function fmtWait(seconds: number | null): string {
-  if (!seconds || seconds <= 0) return 'まもなく順番です';
-  const m = Math.ceil(seconds / 60);
-  return m < 60 ? `~${m} 分` : `~${Math.floor(m / 60)}時間${m % 60} 分`;
-}
-
-function formatCurrency(n: string | number) {
-  return Number(n).toLocaleString('vi-VN') + '₫';
-}
-
-const STATUS_LABELS: Record<string, { label: string; color: string; icon: string }> = {
-  waiting: { label: '待機中', color: 'bg-yellow-100 text-yellow-800', icon: '⏳' },
+const STATUS_STYLES: Record<string, { color: string; icon: string }> = {
+  waiting: { color: 'bg-yellow-100 text-yellow-800', icon: '⏳' },
   called: {
-    label: '呼び出し中！カウンターへお越しください',
     color: 'bg-green-100 text-green-800',
     icon: '📢',
   },
-  serving: { label: '対応中', color: 'bg-blue-100 text-blue-800', icon: '✅' },
-  completed: { label: '完了', color: 'bg-gray-100 text-gray-800', icon: '✔️' },
-  cancelled: { label: 'キャンセル済み', color: 'bg-red-100 text-red-800', icon: '❌' },
-  no_show: { label: '不在', color: 'bg-orange-100 text-orange-800', icon: '🚫' },
+  serving: { color: 'bg-blue-100 text-blue-800', icon: '✅' },
+  completed: { color: 'bg-gray-100 text-gray-800', icon: '✔️' },
+  cancelled: { color: 'bg-red-100 text-red-800', icon: '❌' },
+  no_show: { color: 'bg-orange-100 text-orange-800', icon: '🚫' },
 };
 
 export function PublicTicketPage() {
+  const { t, i18n } = useTranslation(['customer', 'common']);
   const { entryId } = useParams<{ entryId: string }>();
   const queryClient = useQueryClient();
 
@@ -78,7 +70,7 @@ export function PublicTicketPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-500">読み込み中...</p>
+        <p className="text-gray-500">{t('states.loading', { ns: 'common' })}</p>
       </div>
     );
   }
@@ -88,21 +80,25 @@ export function PublicTicketPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="text-center">
           <p className="text-2xl mb-2">😕</p>
-          <p className="text-gray-700 font-medium">受付番号が見つかりません。</p>
+          <p className="text-gray-700 font-medium">{t('ticket.notFound', { ns: 'customer' })}</p>
         </div>
       </div>
     );
   }
 
   const { entry, order, aheadCount, estimatedWaitSeconds, queueName } = data;
-  const statusInfo = STATUS_LABELS[entry.status] ?? {
-    label: entry.status,
+  const statusInfo = STATUS_STYLES[entry.status] ?? {
     color: 'bg-gray-100 text-gray-800',
     icon: '❓',
   };
   const isCalled = entry.status === 'called';
   const isActive = ['waiting', 'called'].includes(entry.status);
   const canCancel = isActive && order && ['pending', 'processing'].includes(order.status);
+  const waitMinutes = Math.ceil((estimatedWaitSeconds ?? 0) / 60);
+  const waitLabel =
+    !estimatedWaitSeconds || estimatedWaitSeconds <= 0
+      ? t('units.soon', { ns: 'common' })
+      : t('units.approximateMinutes', { ns: 'common', count: waitMinutes });
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start px-4 py-8">
@@ -111,7 +107,7 @@ export function PublicTicketPage() {
         <div className="text-center">
           <span className="text-5xl">🟢</span>
           <h1 className="mt-3 text-xl font-bold text-gray-900">{queueName}</h1>
-          <p className="text-sm text-gray-500 mt-1">あなたの受付番号</p>
+          <p className="text-sm text-gray-500 mt-1">{t('ticket.yourTicket', { ns: 'customer' })}</p>
         </div>
 
         {/* Ticket number */}
@@ -123,7 +119,10 @@ export function PublicTicketPage() {
             className={`mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${statusInfo.color}`}
           >
             <span>{statusInfo.icon}</span>
-            {statusInfo.label}
+            {t(`states.${entry.status === 'no_show' ? 'noShow' : entry.status}`, {
+              ns: 'common',
+              defaultValue: entry.status,
+            })}
           </div>
         </div>
 
@@ -132,20 +131,26 @@ export function PublicTicketPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
               <p className="text-3xl font-bold text-gray-800">{aheadCount}</p>
-              <p className="text-xs text-gray-500 mt-1">前の人数</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {t('labels.peopleAhead', { ns: 'common' })}
+              </p>
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-              <p className="text-base font-bold text-gray-800">{fmtWait(estimatedWaitSeconds)}</p>
-              <p className="text-xs text-gray-500 mt-1">待ち時間</p>
+              <p className="text-base font-bold text-gray-800">{waitLabel}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {t('labels.estimatedWait', { ns: 'common' })}
+              </p>
             </div>
           </div>
         )}
 
         {isCalled && (
           <div className="bg-green-50 border-2 border-green-400 rounded-xl p-4 text-center">
-            <p className="text-green-800 font-bold text-lg">📢 カウンターへお越しください</p>
+            <p className="text-green-800 font-bold text-lg">
+              📢 {t('ticket.goCounter', { ns: 'customer' })}
+            </p>
             <p className="text-green-700 text-sm mt-1">
-              受付番号が呼び出されました。カウンターへお越しください。
+              {t('ticket.calledDescription', { ns: 'customer' })}
             </p>
           </div>
         )}
@@ -155,12 +160,14 @@ export function PublicTicketPage() {
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <span className="text-sm font-semibold text-gray-700">
-                注文 #{order.order_number}
+                {t('ticket.orderNumber', { ns: 'customer', number: order.order_number })}
               </span>
               <span
                 className={`text-xs px-2 py-0.5 rounded-full ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}
               >
-                {order.payment_status === 'paid' ? '✓ 支払い済み' : '未払い'}
+                {order.payment_status === 'paid'
+                  ? `✓ ${t('states.paid', { ns: 'common' })}`
+                  : t('states.unpaid', { ns: 'common' })}
               </span>
             </div>
             <div className="divide-y divide-gray-50">
@@ -169,14 +176,18 @@ export function PublicTicketPage() {
                   <span className="text-gray-700">
                     {item.product_name} × {item.quantity}
                   </span>
-                  <span className="font-medium text-gray-800">{formatCurrency(item.subtotal)}</span>
+                  <span className="font-medium text-gray-800">
+                    {formatCurrency(Number(item.subtotal), i18n.resolvedLanguage ?? 'ja')}
+                  </span>
                 </div>
               ))}
             </div>
             <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-              <span className="font-semibold text-gray-700">合計</span>
+              <span className="font-semibold text-gray-700">
+                {t('labels.total', { ns: 'common' })}
+              </span>
               <span className="text-lg font-bold text-gray-900">
-                {formatCurrency(order.subtotal)}
+                {formatCurrency(Number(order.subtotal), i18n.resolvedLanguage ?? 'ja')}
               </span>
             </div>
           </div>
@@ -186,25 +197,29 @@ export function PublicTicketPage() {
           to="/customer"
           className="block w-full rounded-xl bg-[#06C755] px-4 py-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-[#05b54c] focus:outline-none focus:ring-4 focus:ring-[#06C755]/20"
         >
-          ホームへ戻る
+          {t('actions.back', { ns: 'common' })}
         </Link>
 
         {/* Cancel button */}
         {canCancel && (
           <button
             onClick={() => {
-              if (confirm('注文と受付番号をキャンセルしますか？')) {
+              if (confirm(t('ticket.cancelConfirm', { ns: 'customer' }))) {
                 cancelMutation.mutate();
               }
             }}
             disabled={cancelMutation.isPending}
             className="w-full rounded-xl border border-red-200 bg-white/40 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50/60 disabled:opacity-50"
           >
-            {cancelMutation.isPending ? 'キャンセル中...' : '注文と受付番号をキャンセル'}
+            {cancelMutation.isPending
+              ? t('ticket.cancelling', { ns: 'customer' })
+              : t('ticket.cancelOrder', { ns: 'customer' })}
           </button>
         )}
 
-        <p className="text-center text-xs text-gray-400">15秒ごとに自動更新</p>
+        <p className="text-center text-xs text-gray-400">
+          {t('ticket.autoRefresh', { ns: 'customer' })}
+        </p>
       </div>
     </div>
   );

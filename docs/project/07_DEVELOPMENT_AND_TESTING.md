@@ -124,6 +124,8 @@ Public demo paths:
 
 Seed organization, customer, product, address, currency, and timezone data use the Japanese demo baseline.
 
+Internationalization tests cover locale precedence, Japanese fallback, Intl formatting, language resources, and LINE Flex/text templates. Add every semantic key to the `ja`, `vi`, and `en` domain resources.
+
 ## 8. Validation commands
 
 ```bash
@@ -192,7 +194,7 @@ rejected when `NODE_ENV=production`. Browser E2E never contacts LINE or a PSP.
 5. Add/follow the LINE Official Account as required for push eligibility.
 6. Open `https://liff.line.me/{LIFF_ID}?liff.state=%2Fliff%2Fqr%2F{publicQrToken}` and verify `/api/v1/auth/line` links a real `line_user_id`.
 7. Select products/services, complete demo prepayment if required, create a booking, and confirm the app redirects to `/liff/tickets/:entryId`.
-8. Call the ticket from staff and observe the Japanese Flex Message in LINE chat after the notification worker claims the outbox row. The card should include ticket code, status, people ahead, ETA, next action, and a button that opens the LIFF ticket detail. Text fallback is expected only when Flex delivery fails.
+8. Call the ticket from staff and observe the Flex Message in the customer's selected locale after the notification worker claims the outbox row. The card should include ticket code, status, people ahead, ETA, next action, and a button that opens the LIFF ticket detail. Japanese is the final locale fallback; text delivery is expected only when Flex delivery fails.
 9. Configure `LINE_RICH_MENU_IMAGE_PATH`, run `npm run line:rich-menu:sync`, and confirm the Official Account Rich Menu opens LIFF Home, booking, current ticket, and usage guide routes.
 10. Optionally send a direct test with `npm run line:verify -- --send-to <LINE_USER_ID>`.
 11. Check API logs/metrics and the `notifications` table. Successful rows should move to `sent`; retryable failures return to `pending` with a future `next_retry_at`; exhausted rows remain `failed`. Ensure `notificationDisabled` remains `false` for normal notifications.

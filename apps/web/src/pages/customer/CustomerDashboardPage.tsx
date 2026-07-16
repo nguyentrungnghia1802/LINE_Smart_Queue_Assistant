@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { AccountMenu } from '../../components/layout/AccountMenu';
@@ -24,32 +25,8 @@ type Ticket = {
   estimatedWaitSeconds: number;
 };
 
-function formatDuration(seconds: number) {
-  if (seconds <= 0) return '順番です';
-  const m = Math.ceil(seconds / 60);
-  return `${m} 分`;
-}
-
-function statusLabel(s: string) {
-  switch (s) {
-    case 'waiting':
-      return '待機中';
-    case 'called':
-      return '呼び出し中';
-    case 'serving':
-      return '対応中';
-    case 'served':
-      return '対応済み';
-    case 'cancelled':
-      return 'キャンセル済み';
-    case 'no_show':
-      return '不在';
-    default:
-      return s;
-  }
-}
-
 export function CustomerDashboardPage() {
+  const { t } = useTranslation(['customer', 'common']);
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuthStore();
   const prevUrgentIdsRef = useRef<Set<string>>(new Set());
@@ -59,7 +36,7 @@ export function CustomerDashboardPage() {
   const [error, setError] = useState('');
 
   const urgentTickets = useMemo(
-    () => tickets.filter((t) => t.entry.status === 'called' || t.aheadCount <= 1),
+    () => tickets.filter((ticket) => ticket.entry.status === 'called' || ticket.aheadCount <= 1),
     [tickets]
   );
 
@@ -81,7 +58,7 @@ export function CustomerDashboardPage() {
       } catch {
         if (!mounted) return;
         pollingPaused = true;
-        setError('APIサーバーに接続できません。バックエンドが起動しているか確認してください。');
+        setError(t('errors.NETWORK_ERROR', { ns: 'common' }));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -96,14 +73,14 @@ export function CustomerDashboardPage() {
       mounted = false;
       clearInterval(timer);
     };
-  }, [isAuthenticated, user?.role, navigate]);
+  }, [isAuthenticated, user?.role, navigate, t]);
 
   useEffect(() => {
-    const currentUrgent = new Set(urgentTickets.map((t) => t.entry.id));
+    const currentUrgent = new Set(urgentTickets.map((ticket) => ticket.entry.id));
     const previousUrgent = prevUrgentIdsRef.current;
 
-    for (const t of urgentTickets) {
-      if (!previousUrgent.has(t.entry.id)) {
+    for (const ticket of urgentTickets) {
+      if (!previousUrgent.has(ticket.entry.id)) {
         try {
           const audio = new Audio('/notification.mp3');
           void audio.play().catch(() => undefined);
@@ -111,15 +88,28 @@ export function CustomerDashboardPage() {
           // no-op
         }
         if (window.Notification && Notification.permission === 'granted') {
-          new Notification(`まもなく順番です: ${t.entry.ticket_code}`, {
-            body: `ステータス: ${statusLabel(t.entry.status)} - タップして詳細を確認`,
-          });
+          const statusKey = ticket.entry.status === 'no_show' ? 'noShow' : ticket.entry.status;
+          new Notification(
+            t('dashboard.notificationTitle', {
+              ns: 'customer',
+              ticket: ticket.entry.ticket_code,
+            }),
+            {
+              body: t('dashboard.notificationBody', {
+                ns: 'customer',
+                status: t(`states.${statusKey}`, {
+                  ns: 'common',
+                  defaultValue: ticket.entry.status,
+                }),
+              }),
+            }
+          );
         }
       }
     }
 
     prevUrgentIdsRef.current = currentUrgent;
-  }, [urgentTickets]);
+  }, [urgentTickets, t]);
 
   useEffect(() => {
     if (window.Notification && Notification.permission === 'default') {
@@ -127,12 +117,15 @@ export function CustomerDashboardPage() {
     }
   }, []);
 
-  if (loading) return <div className="p-6 text-gray-500">顧客ダッシュボードを読み込み中...</div>;
+  if (loading)
+    return <div className="p-6 text-gray-500">{t('dashboard.loading', { ns: 'customer' })}</div>;
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">顧客ダッシュボード</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {t('dashboard.title', { ns: 'customer' })}
+        </h1>
         <AccountMenu compact />
       </div>
 
@@ -140,33 +133,61 @@ export function CustomerDashboardPage() {
 
       {tickets.length === 0 ? (
         <div className="p-6 rounded-xl border border-gray-200 bg-white text-gray-500">
-          現在有効な受付はありません。
+          {t('dashboard.noActiveTicket', { ns: 'customer' })}
         </div>
       ) : (
         <div className="space-y-3">
-          {tickets.map((t) => (
+          {tickets.map((ticket) => (
             <button
-              key={t.entry.id}
+              key={ticket.entry.id}
               type="button"
-              onClick={() => navigate(`/ticket/${t.entry.id}`)}
+              onClick={() => navigate(`/ticket/${ticket.entry.id}`)}
               className="w-full text-left p-4 rounded-xl border border-gray-200 bg-white hover:border-brand-300 hover:shadow-sm transition"
             >
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <div className="text-lg font-semibold text-gray-900">{t.entry.ticket_code}</div>
-                  <div className="text-sm text-gray-500">
-                    ステータス: <span className="font-medium">{statusLabel(t.entry.status)}</span>
+                  <div className="text-lg font-semibold text-gray-900">
+                    {ticket.entry.ticket_code}
                   </div>
                   <div className="text-sm text-gray-500">
-                    前に{t.aheadCount}人 · ETA {formatDuration(t.estimatedWaitSeconds)}
+                    {t('dashboard.status', { ns: 'customer' })}:{' '}
+                    <span className="font-medium">
+                      {t(
+                        `states.${
+                          ticket.entry.status === 'no_show' ? 'noShow' : ticket.entry.status
+                        }`,
+                        {
+                          ns: 'common',
+                          defaultValue: ticket.entry.status,
+                        }
+                      )}
+                    </span>
                   </div>
-                  {t.order && (
-                    <div className="text-xs text-gray-400 mt-1">注文: {t.order.order_number}</div>
+                  <div className="text-sm text-gray-500">
+                    {t('dashboard.aheadEta', {
+                      ns: 'customer',
+                      count: ticket.aheadCount,
+                      eta:
+                        ticket.estimatedWaitSeconds <= 0
+                          ? t('dashboard.turnNow', { ns: 'customer' })
+                          : t('units.minutes', {
+                              ns: 'common',
+                              count: Math.ceil(ticket.estimatedWaitSeconds / 60),
+                            }),
+                    })}
+                  </div>
+                  {ticket.order && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      {t('dashboard.order', {
+                        ns: 'customer',
+                        number: ticket.order.order_number,
+                      })}
+                    </div>
                   )}
                 </div>
-                {(t.entry.status === 'called' || t.aheadCount <= 1) && (
+                {(ticket.entry.status === 'called' || ticket.aheadCount <= 1) && (
                   <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-                    まもなく順番です
+                    {t('dashboard.approaching', { ns: 'customer' })}
                   </span>
                 )}
               </div>

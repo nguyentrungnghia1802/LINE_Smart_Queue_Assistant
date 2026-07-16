@@ -1,5 +1,7 @@
 import type { PoolClient } from 'pg';
 
+import type { SupportedLocale } from '@line-queue/shared';
+
 import { config } from '../../config';
 import { BaseRepository } from '../../db/repositories/base.repository';
 
@@ -20,6 +22,7 @@ export interface NotificationOutboxRow {
   channel: string;
   status: NotificationDeliveryStatus;
   payload: Record<string, unknown>;
+  locale: SupportedLocale;
   retry_count: number;
   attempt_count: number;
   max_attempts: number;
@@ -77,9 +80,14 @@ export class NotificationOutboxRepository extends BaseRepository {
         (
           organization_id, queue_entry_id, user_id, line_user_id, type,
           event_key, event_type, channel, status, payload, max_attempts,
-          next_retry_at
+          next_retry_at, locale
         )
-      SELECT $1,$2,$3,$4,$5,$6,$7,'line_push','pending',$8,$9,NOW()
+      SELECT $1,$2,$3,$4,$5,$6,$7,'line_push','pending',$8,$9,NOW(),
+        COALESCE(
+          (SELECT preferred_locale FROM users WHERE id = $3),
+          (SELECT default_locale FROM organizations WHERE id = $1),
+          'ja'
+        )
       WHERE EXISTS (
         SELECT 1 FROM line_notification_preferences p
         WHERE p.line_user_id = $4

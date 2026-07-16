@@ -1,5 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
+import { i18n } from '../../i18n';
+
 import { ErrorState } from './ErrorState';
 
 interface Props {
@@ -45,10 +47,10 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="min-h-dvh flex items-center justify-center p-6 bg-gray-50">
           <ErrorState
-            title="Something went wrong"
-            message="予期しないエラーが発生しました。ページを再読み込みしてお試しください。"
+            title={i18n.t('errors.UNKNOWN', { ns: 'common' })}
+            message={i18n.t('errors.INTERNAL_ERROR', { ns: 'common' })}
             onRetry={this.reset}
-            retryLabel="Try again"
+            retryLabel={i18n.t('actions.retry', { ns: 'common' })}
           />
         </div>
       );

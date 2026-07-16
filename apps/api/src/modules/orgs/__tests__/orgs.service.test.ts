@@ -29,6 +29,7 @@ function makeOrg(overrides: Partial<OrganizationRow> = {}): OrganizationRow {
     line_channel_id: null,
     line_oa_basic_id: null,
     timezone: 'Asia/Tokyo',
+    default_locale: 'ja',
     settings: {},
     logo_url: null,
     phone: '0900000000',

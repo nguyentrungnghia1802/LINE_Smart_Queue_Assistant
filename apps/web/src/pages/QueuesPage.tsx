@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { QueueCard } from '../components/queue/QueueCard';
@@ -5,17 +6,18 @@ import { Spinner } from '../components/ui/Spinner';
 import { useQueues } from '../hooks/useQueues';
 
 export function QueuesPage() {
+  const { t } = useTranslation(['manager', 'common']);
   const { data: queues, isLoading, isError } = useQueues();
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">キュー</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('nav.queue', { ns: 'common' })}</h1>
         <Link
           to="/queues/new"
           className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
         >
-          + 新しいキュー
+          + {t('queue.create')}
         </Link>
       </div>
 
@@ -25,11 +27,7 @@ export function QueuesPage() {
         </div>
       )}
 
-      {isError && (
-        <p className="text-red-600 text-sm">
-          キューを読み込めませんでした。もう一度お試しください。
-        </p>
-      )}
+      {isError && <p className="text-red-600 text-sm">{t('queue.listLoadFailed')}</p>}
 
       {queues && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -37,9 +35,7 @@ export function QueuesPage() {
             <QueueCard key={q.id} queue={q} />
           ))}
           {queues.length === 0 && (
-            <p className="text-gray-500 col-span-3 py-12 text-center">
-              キューはまだありません。最初のキューを作成してください。
-            </p>
+            <p className="text-gray-500 col-span-3 py-12 text-center">{t('queue.listEmpty')}</p>
           )}
         </div>
       )}

@@ -1,3 +1,5 @@
+import type { SupportedLocale } from '@line-queue/shared';
+
 import { productCatalogCache } from '../../utils/cache';
 import { pool } from '../client';
 
@@ -19,30 +21,44 @@ export interface ProductRow {
 }
 
 export const productsRepository = {
-  async findByOrg(orgId: string): Promise<ProductRow[]> {
-    const cacheKey = `org:${orgId}`;
+  async findByOrg(orgId: string, locale: SupportedLocale = 'ja'): Promise<ProductRow[]> {
+    const cacheKey = `org:${orgId}:${locale}`;
     const cached = productCatalogCache.get(cacheKey);
     if (cached !== null) return cached;
 
     const { rows } = await pool.query<ProductRow>(
-      `SELECT * FROM products WHERE organization_id = $1 AND is_active = TRUE ORDER BY created_at`,
-      [orgId]
+      `SELECT p.*,
+              COALESCE(requested.name, tenant_default.name, japanese.name, p.name) AS name,
+              COALESCE(requested.description, tenant_default.description, japanese.description, p.description) AS description
+       FROM products p
+       JOIN organizations o ON o.id = p.organization_id
+       LEFT JOIN product_translations requested ON requested.product_id = p.id AND requested.locale = $2
+       LEFT JOIN product_translations tenant_default ON tenant_default.product_id = p.id AND tenant_default.locale = o.default_locale
+       LEFT JOIN product_translations japanese ON japanese.product_id = p.id AND japanese.locale = 'ja'
+       WHERE p.organization_id = $1 AND p.is_active = TRUE ORDER BY p.created_at`,
+      [orgId, locale]
     );
     productCatalogCache.set(cacheKey, rows);
     return rows;
   },
 
-  async findByOrgSlug(slug: string): Promise<ProductRow[]> {
-    const cacheKey = `slug:${slug}`;
+  async findByOrgSlug(slug: string, locale: SupportedLocale = 'ja'): Promise<ProductRow[]> {
+    const cacheKey = `slug:${slug}:${locale}`;
     const cached = productCatalogCache.get(cacheKey);
     if (cached !== null) return cached;
 
     const { rows } = await pool.query<ProductRow>(
-      `SELECT p.* FROM products p
+      `SELECT p.*,
+              COALESCE(requested.name, tenant_default.name, japanese.name, p.name) AS name,
+              COALESCE(requested.description, tenant_default.description, japanese.description, p.description) AS description
+       FROM products p
        JOIN organizations o ON p.organization_id = o.id
+       LEFT JOIN product_translations requested ON requested.product_id = p.id AND requested.locale = $2
+       LEFT JOIN product_translations tenant_default ON tenant_default.product_id = p.id AND tenant_default.locale = o.default_locale
+       LEFT JOIN product_translations japanese ON japanese.product_id = p.id AND japanese.locale = 'ja'
        WHERE o.slug = $1 AND p.is_active = TRUE
        ORDER BY p.created_at`,
-      [slug]
+      [slug, locale]
     );
     productCatalogCache.set(cacheKey, rows);
     return rows;
@@ -85,6 +101,12 @@ export const productsRepository = {
       ]
     );
     productCatalogCache.invalidate(`org:${data.organizationId}`);
+    await pool.query(
+      `INSERT INTO product_translations (product_id, locale, name, description)
+       VALUES ($1,'ja',$2,$3)
+       ON CONFLICT (product_id, locale) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description`,
+      [rows[0].id, data.name, data.description ?? null]
+    );
     return rows[0];
   },
 
@@ -136,6 +158,14 @@ export const productsRepository = {
     const updated = rows[0] ?? null;
     if (updated) {
       productCatalogCache.invalidate(`org:${updated.organization_id}`);
+      if (data.name !== undefined || data.description !== undefined) {
+        await pool.query(
+          `INSERT INTO product_translations (product_id, locale, name, description)
+           VALUES ($1,'ja',$2,$3)
+           ON CONFLICT (product_id, locale) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description`,
+          [updated.id, updated.name, updated.description]
+        );
+      }
     }
     return updated;
   },

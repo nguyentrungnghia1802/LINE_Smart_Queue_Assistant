@@ -2,6 +2,19 @@ import axios, { AxiosError, type AxiosInstance, type AxiosRequestConfig } from '
 
 import type { ApiErrorResponse, ApiResponse } from '@line-queue/shared';
 
+import { i18n } from '../i18n';
+
+export class ApiClientError extends Error {
+  constructor(
+    readonly code: string,
+    readonly status?: number,
+    readonly details?: unknown
+  ) {
+    super(translateErrorCode(code));
+    this.name = 'ApiClientError';
+  }
+}
+
 // ── Singleton Axios instance ───────────────────────────────────────────────────
 
 const apiClient: AxiosInstance = axios.create({
@@ -18,6 +31,7 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
   }
+  config.headers['Accept-Language'] = i18n.resolvedLanguage ?? 'ja';
   return config;
 });
 
@@ -34,7 +48,7 @@ apiClient.interceptors.response.use(
     const payload = error.response?.data;
     if (payload && !payload.success) {
       return Promise.reject(
-        new Error(toVisibleJapaneseError(payload.error.message, error.response?.status))
+        new ApiClientError(payload.error.code, error.response?.status, payload.error.details)
       );
     }
     return Promise.reject(error);
@@ -44,7 +58,8 @@ apiClient.interceptors.response.use(
 // ── Typed request helpers ──────────────────────────────────────────────────────
 
 function unwrap<T>(envelope: ApiResponse<T> | ApiErrorResponse): T {
-  if (!envelope.success) throw new Error(envelope.error.message);
+  if (!envelope.success)
+    throw new ApiClientError(envelope.error.code, undefined, envelope.error.details);
   return envelope.data;
 }
 
@@ -83,13 +98,9 @@ export async function del<T = void>(url: string, config?: AxiosRequestConfig): P
 
 export { apiClient };
 
-function toVisibleJapaneseError(message: string, status?: number): string {
-  if (/[\u3040-\u30ff\u3400-\u9fff]/u.test(message)) return message;
-  if (status === 401) return '認証が必要です。もう一度ログインしてください。';
-  if (status === 403) return 'この操作を行う権限がありません。';
-  if (status === 404) return '指定された情報が見つかりません。';
-  if (status === 409) return '現在の状態ではこの操作を完了できません。';
-  if (status === 422) return '入力内容を確認してください。';
-  if (status === 429) return '操作が多すぎます。しばらくしてからお試しください。';
-  return '処理中にエラーが発生しました。もう一度お試しください。';
+function translateErrorCode(code: string): string {
+  const key = `errors.${code}`;
+  return i18n.exists(key, { ns: 'common' })
+    ? i18n.t(key, { ns: 'common' })
+    : i18n.t('errors.UNKNOWN', { ns: 'common' });
 }

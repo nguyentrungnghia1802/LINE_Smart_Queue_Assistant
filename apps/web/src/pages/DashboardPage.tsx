@@ -1,14 +1,18 @@
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 export function DashboardPage() {
+  const { t } = useTranslation(['manager', 'common']);
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">ダッシュボード</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+        {t('nav.dashboard', { ns: 'common' })}
+      </h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard label="稼働中のキュー" value="—" />
-        <StatCard label="待機中の受付" value="—" />
-        <StatCard label="平均待ち時間（分）" value="—" />
+        <StatCard label={t('dashboard.activeQueues')} value="—" />
+        <StatCard label={t('dashboard.waitingTickets')} value="—" />
+        <StatCard label={t('dashboard.averageWaitMinutes')} value="—" />
       </div>
 
       <div className="mt-8">
@@ -16,7 +20,7 @@ export function DashboardPage() {
           to="/queues"
           className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
         >
-          キューを管理 →
+          {t('dashboard.manageQueues')} →
         </Link>
       </div>
     </div>

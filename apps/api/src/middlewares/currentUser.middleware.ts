@@ -45,6 +45,9 @@ export async function currentUserMiddleware(
     }
 
     const membership = await organizationsRepository.findMembershipByUserId(userRow.id);
+    const organization = membership
+      ? await organizationsRepository.findById(membership.organization_id)
+      : null;
     const role = userRow.role as UserRole;
     let verifiedLineUserId = payload.lineUserId;
 
@@ -66,6 +69,8 @@ export async function currentUserMiddleware(
       organizationId: membership?.organization_id,
       displayName: userRow.display_name,
       email: userRow.email ?? undefined,
+      preferredLocale: userRow.preferred_locale,
+      organizationLocale: organization?.default_locale,
     };
 
     req.user = user;

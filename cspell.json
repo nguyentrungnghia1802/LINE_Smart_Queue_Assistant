@@ -50,10 +50,12 @@
     "worktree"
   ],
   "ignorePaths": [
-    "node_modules/**",
-    "dist/**",
-    "build/**",
-    "coverage/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "apps/web/src/i18n/locales/ja/**",
+    "apps/web/src/i18n/locales/vi/**",
     "*.lock",
     "package-lock.json",
     "*.tsbuildinfo",

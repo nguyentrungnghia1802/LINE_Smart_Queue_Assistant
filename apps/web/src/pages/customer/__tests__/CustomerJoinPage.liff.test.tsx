@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LiffRuntimeProvider } from '../../../contexts/LiffRuntimeContext';
+import { i18n } from '../../../i18n';
 import { get, post } from '../../../services/apiClient';
 import type { LiffContext } from '../../../types/liff';
 import { LiffCustomerJoinPage } from '../CustomerJoinPage';
@@ -125,7 +126,7 @@ describe('LiffCustomerJoinPage', () => {
     renderLiffBooking('authenticating');
 
     await screen.findByRole('heading', { name: 'テスト店舗' });
-    expect(screen.getByText('LINE認証中')).toBeInTheDocument();
+    expect(screen.getByText(i18n.t('customer:home.authenticating'))).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '予約する' })).toBeDisabled();
     expect(post).not.toHaveBeenCalled();
   });

@@ -158,6 +158,7 @@ CREATE TABLE organizations (
   line_channel_id   TEXT,
   line_oa_basic_id  TEXT,
   timezone          TEXT NOT NULL DEFAULT 'Asia/Tokyo',
+  default_locale    TEXT NOT NULL DEFAULT 'ja' CHECK (default_locale IN ('ja','vi','en')),
   postal_code       TEXT,
   prefecture        TEXT,
   city              TEXT,
@@ -217,6 +218,7 @@ CREATE TABLE users (
   phone          TEXT,
   role           user_role NOT NULL DEFAULT 'customer',
   password_hash  TEXT,
+  preferred_locale TEXT CHECK (preferred_locale IS NULL OR preferred_locale IN ('ja','vi','en')),
   is_active      BOOLEAN NOT NULL DEFAULT TRUE,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -225,6 +227,16 @@ CREATE TABLE users (
 CREATE TRIGGER trg_users_updated_at
 BEFORE UPDATE ON users
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE organization_translations (
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  locale TEXT NOT NULL CHECK (locale IN ('ja','vi','en')),
+  name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (organization_id, locale)
+);
+CREATE TRIGGER trg_organization_translations_updated_at BEFORE UPDATE ON organization_translations FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE organization_members (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -298,6 +310,17 @@ CREATE TRIGGER trg_products_updated_at
 BEFORE UPDATE ON products
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+CREATE TABLE product_translations (
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  locale TEXT NOT NULL CHECK (locale IN ('ja','vi','en')),
+  name TEXT NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (product_id, locale)
+);
+CREATE TRIGGER trg_product_translations_updated_at BEFORE UPDATE ON product_translations FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 CREATE TABLE queues (
   id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id            UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
@@ -337,6 +360,17 @@ COMMENT ON COLUMN queues.auto_no_show_minutes IS
 CREATE TRIGGER trg_queues_updated_at
 BEFORE UPDATE ON queues
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE queue_translations (
+  queue_id UUID NOT NULL REFERENCES queues(id) ON DELETE CASCADE,
+  locale TEXT NOT NULL CHECK (locale IN ('ja','vi','en')),
+  name TEXT NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (queue_id, locale)
+);
+CREATE TRIGGER trg_queue_translations_updated_at BEFORE UPDATE ON queue_translations FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE booking_groups (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -623,6 +657,7 @@ CREATE TABLE notifications (
   event_type        TEXT NOT NULL,
   channel           notification_channel NOT NULL DEFAULT 'line_push',
   status            notification_status NOT NULL DEFAULT 'pending',
+  locale            TEXT NOT NULL DEFAULT 'ja' CHECK (locale IN ('ja','vi','en')),
   payload           JSONB NOT NULL DEFAULT '{}',
   retry_count       INT NOT NULL DEFAULT 0,
   attempt_count     INT NOT NULL DEFAULT 0,
@@ -788,6 +823,8 @@ CREATE INDEX idx_notif_org_recent ON notifications(organization_id, created_at D
   WHERE organization_id IS NOT NULL;
 CREATE INDEX idx_notif_due_line_outbox ON notifications(next_retry_at, created_at)
   WHERE channel = 'line_push' AND status = 'pending';
+CREATE INDEX idx_notifications_locale_due ON notifications(locale, next_retry_at, created_at)
+  WHERE status = 'pending';
 CREATE INDEX idx_notif_entry_event ON notifications(queue_entry_id, event_type)
   WHERE queue_entry_id IS NOT NULL;
 CREATE INDEX idx_notif_retry_due ON notifications(next_retry_at)

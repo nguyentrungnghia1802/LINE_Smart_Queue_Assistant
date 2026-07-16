@@ -35,10 +35,10 @@ export interface LineVerifiedProfile {
 export async function verifyLineIdToken(idToken: string): Promise<LineVerifiedProfile> {
   if (config.line.idTokenVerificationMode === 'mock') {
     if (config.nodeEnv === 'production') {
-      throw AppError.serviceUnavailable('本番環境ではLINE認証のモックを使用できません');
+      throw AppError.serviceUnavailable('Mock LINE authentication is not allowed in production');
     }
     if (idToken !== config.line.mockIdToken) {
-      throw AppError.unauthorized('LINE id_tokenの検証に失敗しました');
+      throw AppError.unauthorized('LINE ID token verification failed');
     }
     return {
       lineUserId: config.line.mockUserId,
@@ -59,12 +59,12 @@ export async function verifyLineIdToken(idToken: string): Promise<LineVerifiedPr
       body: body.toString(),
     });
   } catch {
-    throw AppError.serviceUnavailable('LINE認証サービスに接続できませんでした');
+    throw AppError.serviceUnavailable('Could not connect to the LINE authentication service');
   }
 
   // LINE returns 400 with { error, error_description } when the token is invalid
   if (!res.ok) {
-    throw AppError.unauthorized('LINE id_tokenの検証に失敗しました');
+    throw AppError.unauthorized('LINE ID token verification failed');
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

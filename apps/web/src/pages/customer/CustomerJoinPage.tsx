@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
+import { formatDateTime } from '../../i18n/format';
 import { get, post, put } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import type { LiffAuthStatus } from '../../types/liff';
@@ -33,6 +35,7 @@ interface OrgInfo {
   paymentInfo: string | null;
   latitude?: string | null;
   longitude?: string | null;
+  defaultLocale?: 'ja' | 'vi' | 'en';
 }
 
 interface QueueInfo {
@@ -84,10 +87,11 @@ export function CustomerJoinPage({
   liffAuthStatus = 'guest',
   liffAuthError = null,
 }: Readonly<CustomerJoinPageProps>) {
+  const { t, i18n } = useTranslation(['customer', 'common']);
   const { orgSlug, token } = useParams<{ orgSlug?: string; token?: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const isLiffMode = mode === 'liff';
   const isLineAuthenticated = !isLiffMode || liffAuthStatus === 'authenticated';
 
@@ -115,6 +119,16 @@ export function CustomerJoinPage({
     enabled: !!(orgSlug || token),
     staleTime: 30_000,
   });
+
+  useEffect(() => {
+    if (
+      !user?.preferredLocale &&
+      data?.org.defaultLocale &&
+      i18n.resolvedLanguage !== data.org.defaultLocale
+    ) {
+      void i18n.changeLanguage(data.org.defaultLocale);
+    }
+  }, [data?.org.defaultLocale, i18n, user?.preferredLocale]);
 
   const draftKeyPrefix = isLiffMode ? 'liff' : 'public';
   const draftKey = token ? `${draftKeyPrefix}:qr:${token}` : `${draftKeyPrefix}:q:${orgSlug ?? ''}`;
@@ -184,9 +198,14 @@ export function CustomerJoinPage({
     for (const item of items) {
       const product = data.products.find((p) => p.id === item.productId);
       if (!product || product.stock_quantity === null) continue;
-      if (product.stock_quantity <= 0) return `${product.name}は在庫切れです。`;
+      if (product.stock_quantity <= 0)
+        return t('booking.stockUnavailable', { ns: 'customer', name: product.name });
       if (item.quantity > product.stock_quantity) {
-        return `${product.name}は在庫${product.stock_quantity}点まで選択できます。`;
+        return t('booking.stockLimit', {
+          ns: 'customer',
+          name: product.name,
+          count: product.stock_quantity,
+        });
       }
     }
     return null;
@@ -260,7 +279,7 @@ export function CustomerJoinPage({
   function startPayment() {
     if (!data || checkoutItems.length === 0 || !currentCartSignature) return;
     if (!isLineAuthenticated) {
-      setError('LINE認証が完了してからお支払いへ進んでください。');
+      setError(t('booking.lineBeforePayment', { ns: 'customer' }));
       return;
     }
     const stockError = stockViolation();
@@ -291,20 +310,20 @@ export function CustomerJoinPage({
 
   async function requestCustomerLocation() {
     if (!isLiffMode) {
-      setLocationStatus('位置情報の共有にはLINE認証が必要です。');
+      setLocationStatus(t('booking.lineRequiredForLocation', { ns: 'customer' }));
       return;
     }
     if (!('geolocation' in navigator)) {
-      setLocationStatus('位置情報を利用できません。');
+      setLocationStatus(t('booking.locationUnavailable', { ns: 'customer' }));
       return;
     }
     try {
       await put('/api/v1/line/location-consent', { enabled: true });
     } catch {
-      setLocationStatus('位置情報の同意を保存できませんでした。');
+      setLocationStatus(t('booking.locationConsentFailed', { ns: 'customer' }));
       return;
     }
-    setLocationStatus('現在地を取得中...');
+    setLocationStatus(t('booking.locationLoading', { ns: 'customer' }));
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setCustomerLocation({
@@ -312,9 +331,9 @@ export function CustomerJoinPage({
           longitude: position.coords.longitude,
           accuracyMeters: Math.round(position.coords.accuracy),
         });
-        setLocationStatus('現在地を共有しました。');
+        setLocationStatus(t('booking.locationShared', { ns: 'customer' }));
       },
-      () => setLocationStatus('現在地を取得できませんでした。'),
+      () => setLocationStatus(t('booking.locationFailed', { ns: 'customer' })),
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 }
     );
   }
@@ -322,15 +341,15 @@ export function CustomerJoinPage({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (cartItems.length === 0) {
-      setError('商品またはサービスを1つ以上選択してください。');
+      setError(t('booking.selectItem', { ns: 'customer' }));
       return;
     }
     if (!canBook) {
-      setError('事前支払いが必要な商品があります。対象商品のお支払いを完了してください。');
+      setError(t('booking.prepaymentRequired', { ns: 'customer' }));
       return;
     }
     if (!isLineAuthenticated) {
-      setError('LINE認証が完了してから予約してください。');
+      setError(t('booking.lineBeforeBooking', { ns: 'customer' }));
       return;
     }
     const stockError = stockViolation();
@@ -387,7 +406,7 @@ export function CustomerJoinPage({
       setPaidFullCheckout(null);
       navigate(`${isLiffMode ? '/liff/tickets' : '/ticket'}/${result.queueEntry.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '注文に失敗しました。もう一度お試しください。');
+      setError(err instanceof Error ? err.message : t('booking.orderFailed', { ns: 'customer' }));
     } finally {
       setSubmitting(false);
     }
@@ -396,7 +415,7 @@ export function CustomerJoinPage({
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)]">
-        <p className="text-gray-500">読み込み中...</p>
+        <p className="text-gray-500">{t('states.loading', { ns: 'common' })}</p>
       </div>
     );
   }
@@ -404,7 +423,7 @@ export function CustomerJoinPage({
   if (isError || !data) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)] px-4">
-        <p className="text-red-600">店舗が見つかりません。QRコードをもう一度読み取ってください。</p>
+        <p className="text-red-600">{t('booking.storeNotFound', { ns: 'customer' })}</p>
       </div>
     );
   }
@@ -424,7 +443,7 @@ export function CustomerJoinPage({
           )}
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
-              受付ページ
+              {t('booking.receptionPage', { ns: 'customer' })}
             </p>
             <h1 className="truncate text-xl font-bold text-gray-950">{org.name}</h1>
             {org.address && <p className="truncate text-sm text-gray-500">{org.address}</p>}
@@ -435,7 +454,7 @@ export function CustomerJoinPage({
               onClick={() => navigate('/liff/home')}
               className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              ホーム
+              {t('nav.home', { ns: 'common' })}
             </button>
           ) : (
             isAuthenticated && (
@@ -444,7 +463,7 @@ export function CustomerJoinPage({
                 onClick={() => navigate('/customer')}
                 className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                ダッシュボード
+                {t('nav.dashboard', { ns: 'common' })}
               </button>
             )
           )}
@@ -458,28 +477,40 @@ export function CustomerJoinPage({
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-bold text-gray-950">{queue.name}</h2>
-                  <p className="mt-1 text-sm text-gray-500">オンライン受付中</p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {t('booking.online', { ns: 'customer' })}
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-center">
-                  <Metric label="待ち人数" value={`${queue.waitingCount}`} />
-                  <Metric label="目安" value={`${queue.avgWaitMinutes}分`} />
+                  <Metric
+                    label={t('labels.peopleAhead', { ns: 'common' })}
+                    value={`${queue.waitingCount}`}
+                  />
+                  <Metric
+                    label={t('labels.estimatedWait', { ns: 'common' })}
+                    value={t('units.minutes', { ns: 'common', count: queue.avgWaitMinutes })}
+                  />
                 </div>
               </div>
             </section>
           ) : (
             <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
-              現在受付中のキューはありません。
+              {t('booking.queueClosed', { ns: 'customer' })}
             </section>
           )}
 
           <section>
             <div className="mb-4 flex items-end justify-between">
               <div>
-                <h2 className="text-xl font-bold text-gray-950">商品 / サービス</h2>
-                <p className="mt-1 text-sm text-gray-500">必要な項目を選択してください。</p>
+                <h2 className="text-xl font-bold text-gray-950">
+                  {t('booking.productsTitle', { ns: 'customer' })}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  {t('booking.productsHint', { ns: 'customer' })}
+                </p>
               </div>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-500 shadow-sm">
-                {products.length} 件
+                {t('units.items', { ns: 'common', count: products.length })}
               </span>
             </div>
 
@@ -511,13 +542,14 @@ export function CustomerJoinPage({
               }`}
             >
               <h2 className="text-sm font-bold">
-                {liffAuthStatus === 'error' ? 'LINE認証が必要です' : 'LINE認証中'}
+                {liffAuthStatus === 'error'
+                  ? t('home.authRequired', { ns: 'customer' })
+                  : t('home.authenticating', { ns: 'customer' })}
               </h2>
               <p className="mt-1 text-xs leading-5">
                 {liffAuthStatus === 'error'
-                  ? (liffAuthError?.message ??
-                    'LINE認証を完了できませんでした。LINEからもう一度開いてください。')
-                  : '予約内容をLINEアカウントに紐づけています。'}
+                  ? (liffAuthError?.message ?? t('booking.lineAuthFailed', { ns: 'customer' }))
+                  : t('booking.linkingLine', { ns: 'customer' })}
               </p>
             </section>
           )}
@@ -526,11 +558,15 @@ export function CustomerJoinPage({
             <section className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-bold text-emerald-950">予約済み</h2>
-                  <p className="mt-1 text-xs text-emerald-800">同じ端末から追加予約できます。</p>
+                  <h2 className="text-sm font-bold text-emerald-950">
+                    {t('booking.booked', { ns: 'customer' })}
+                  </h2>
+                  <p className="mt-1 text-xs text-emerald-800">
+                    {t('booking.addBookingHint', { ns: 'customer' })}
+                  </p>
                 </div>
                 <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-emerald-700">
-                  {bookingGroup.records.length} 件
+                  {t('units.items', { ns: 'common', count: bookingGroup.records.length })}
                 </span>
               </div>
               <div className="mt-3 space-y-2">
@@ -541,7 +577,7 @@ export function CustomerJoinPage({
                     onClick={() => navigate(record.ticketPath)}
                     className="flex w-full items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-left text-xs text-gray-600 hover:bg-emerald-100/60"
                   >
-                    <span>{new Date(record.createdAt).toLocaleString('ja-JP')}</span>
+                    <span>{formatDateTime(record.createdAt, i18n.resolvedLanguage ?? 'ja')}</span>
                     <span className="font-bold text-gray-950">{formatJPY(record.subtotal)}</span>
                   </button>
                 ))}
@@ -550,29 +586,33 @@ export function CustomerJoinPage({
           )}
 
           <div>
-            <h2 className="text-lg font-bold text-gray-950">受付内容</h2>
-            <p className="mt-1 text-sm text-gray-500">選択内容とお客様情報を確認します。</p>
+            <h2 className="text-lg font-bold text-gray-950">
+              {t('booking.receptionDetails', { ns: 'customer' })}
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              {t('booking.receptionHint', { ns: 'customer' })}
+            </p>
           </div>
 
           <div className="space-y-3">
             <TextInput
-              label="お名前（任意）"
+              label={t('booking.nameOptional', { ns: 'customer' })}
               value={customerName}
               onChange={setCustomerName}
-              placeholder="例: 山田太郎"
+              placeholder={t('booking.namePlaceholder', { ns: 'customer' })}
             />
             <TextInput
-              label="電話番号（任意）"
+              label={t('booking.phoneOptional', { ns: 'customer' })}
               type="tel"
               value={customerPhone}
               onChange={setCustomerPhone}
-              placeholder="例: 0901234567"
+              placeholder={t('booking.phonePlaceholder', { ns: 'customer' })}
             />
           </div>
 
           <div className="rounded-xl bg-gray-50 p-4">
             {checkoutItems.length === 0 ? (
-              <p className="text-sm text-gray-500">まだ商品が選択されていません。</p>
+              <p className="text-sm text-gray-500">{t('booking.noItems', { ns: 'customer' })}</p>
             ) : (
               <div className="space-y-2">
                 {checkoutItems.map((item) => (
@@ -582,7 +622,9 @@ export function CustomerJoinPage({
                         {item.name} x {item.quantity}
                       </p>
                       {item.requiresPrepayment && (
-                        <p className="mt-0.5 text-xs text-amber-700">事前支払い対象</p>
+                        <p className="mt-0.5 text-xs text-amber-700">
+                          {t('booking.prepaymentItem', { ns: 'customer' })}
+                        </p>
                       )}
                     </div>
                     <p className="text-sm font-semibold text-gray-950">
@@ -593,7 +635,9 @@ export function CustomerJoinPage({
               </div>
             )}
             <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4">
-              <span className="text-sm font-medium text-gray-600">合計</span>
+              <span className="text-sm font-medium text-gray-600">
+                {t('labels.total', { ns: 'common' })}
+              </span>
               <span className="text-xl font-bold text-gray-950">{formatJPY(subtotal)}</span>
             </div>
           </div>
@@ -601,9 +645,11 @@ export function CustomerJoinPage({
           <section className="rounded-xl border border-gray-100 bg-gray-50 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-sm font-bold text-gray-950">現在地</h3>
+                <h3 className="text-sm font-bold text-gray-950">
+                  {t('booking.location', { ns: 'customer' })}
+                </h3>
                 <p className="mt-1 text-xs leading-5 text-gray-500">
-                  順番が近い時の距離アラートに利用します。継続的な追跡は行いません。
+                  {t('booking.locationHint', { ns: 'customer' })}
                 </p>
               </div>
               <button
@@ -611,7 +657,7 @@ export function CustomerJoinPage({
                 onClick={requestCustomerLocation}
                 className="shrink-0 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
               >
-                共有
+                {t('booking.share', { ns: 'customer' })}
               </button>
             </div>
             {locationStatus && <p className="mt-2 text-xs text-gray-500">{locationStatus}</p>}
@@ -621,14 +667,18 @@ export function CustomerJoinPage({
             <section className="rounded-xl border border-brand-100 bg-brand-50 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-bold text-brand-900">お支払い</h3>
+                  <h3 className="text-sm font-bold text-brand-900">
+                    {t('booking.payment', { ns: 'customer' })}
+                  </h3>
                   <p className="mt-1 text-xs leading-5 text-brand-800">
-                    事前支払い対象の商品・サービスがあります。
+                    {t('booking.paymentRequiredHint', { ns: 'customer' })}
                   </p>
                 </div>
                 {(isRequiredPaid || isFullyPaid) && (
                   <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-brand-700">
-                    {isFullyPaid ? '全額支払い済み' : '必須分支払い済み'}
+                    {isFullyPaid
+                      ? t('booking.fullyPaid', { ns: 'customer' })
+                      : t('booking.requiredPaid', { ns: 'customer' })}
                   </span>
                 )}
               </div>
@@ -636,7 +686,10 @@ export function CustomerJoinPage({
               <div className="mt-3 space-y-3">
                 {isFullyPaid || isRequiredPaid ? (
                   <p className="rounded-lg bg-white px-3 py-2 text-xs text-gray-600">
-                    決済番号: {(isFullyPaid ? paidFullCheckout : paidRequiredCheckout)?.code}
+                    {t('booking.paymentCode', {
+                      ns: 'customer',
+                      code: (isFullyPaid ? paidFullCheckout : paidRequiredCheckout)?.code,
+                    })}
                   </p>
                 ) : (
                   <>
@@ -646,10 +699,10 @@ export function CustomerJoinPage({
                       disabled={checkoutItems.length === 0 || !isLineAuthenticated}
                       className="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-50"
                     >
-                      事前支払いへ進む
+                      {t('booking.proceedPayment', { ns: 'customer' })}
                     </button>
                     <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-                      予約する前に、事前支払い対象分のお支払いを完了してください。支払い画面で全額支払いも選択できます。
+                      {t('booking.paymentInstruction', { ns: 'customer' })}
                     </p>
                   </>
                 )}
@@ -666,7 +719,11 @@ export function CustomerJoinPage({
             }
             className="w-full rounded-xl bg-gray-950 px-4 py-3 text-base font-bold text-white transition hover:bg-gray-800 disabled:opacity-50"
           >
-            {submitting ? '予約中...' : canBook ? '予約する' : '必須支払い後に予約'}
+            {submitting
+              ? t('booking.booking', { ns: 'customer' })
+              : canBook
+                ? t('booking.book', { ns: 'customer' })
+                : t('booking.prepaymentRequired', { ns: 'customer' })}
           </button>
         </form>
       </main>
@@ -687,6 +744,7 @@ function ProductCard({
   onIncrease: () => void;
   onQuantityChange: (quantity: number) => void;
 }>) {
+  const { t, i18n } = useTranslation(['customer', 'common']);
   const outOfStock = product.stock_quantity !== null && product.stock_quantity <= 0;
   const maxQuantity = product.stock_quantity === null ? 99 : Math.max(0, product.stock_quantity);
   const atMax = quantity >= maxQuantity;
@@ -713,7 +771,7 @@ function ProductCard({
           {outOfStock && (
             <div className="absolute inset-0 flex items-center justify-center bg-white/70">
               <span className="rounded-full bg-gray-950 px-2.5 py-1 text-xs font-bold text-white">
-                在庫なし
+                {t('booking.outOfStock', { ns: 'customer' })}
               </span>
             </div>
           )}
@@ -722,7 +780,9 @@ function ProductCard({
           <div className="flex items-start justify-between gap-3">
             <h3 className="line-clamp-2 font-bold text-gray-950">{product.name}</h3>
             <span className="shrink-0 rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
-              {product.product_type === 'service' ? 'サービス' : '商品'}
+              {product.product_type === 'service'
+                ? t('labels.service', { ns: 'common' })
+                : t('labels.product', { ns: 'common' })}
             </span>
           </div>
           {product.description && (
@@ -731,13 +791,15 @@ function ProductCard({
             </p>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-lg font-bold text-brand-700">{formatJPY(product.price)}</span>
+            <span className="text-lg font-bold text-brand-700">
+              {formatJPY(product.price, i18n.resolvedLanguage)}
+            </span>
             <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-500">
-              {product.service_time_minutes}分
+              {t('units.minutes', { ns: 'common', count: product.service_time_minutes })}
             </span>
             {product.requires_prepayment && (
               <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
-                事前支払い
+                {t('manager:products.prepayment')}
               </span>
             )}
           </div>
@@ -747,10 +809,10 @@ function ProductCard({
       <div className="mt-4 flex items-center justify-between gap-3">
         <p className="text-xs text-gray-500">
           {outOfStock
-            ? '在庫なし'
+            ? t('booking.outOfStock', { ns: 'customer' })
             : product.stock_quantity === null
-              ? '予約可能'
-              : `在庫 ${product.stock_quantity}`}
+              ? t('booking.available', { ns: 'customer' })
+              : t('booking.stock', { ns: 'customer', count: product.stock_quantity })}
         </p>
         <div className="flex items-center gap-2">
           <button
@@ -758,7 +820,7 @@ function ProductCard({
             onClick={onDecrease}
             disabled={quantity === 0 || outOfStock}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-30"
-            aria-label={`${product.name} を減らす`}
+            aria-label={t('booking.decreaseItem', { ns: 'customer', name: product.name })}
           >
             -
           </button>
@@ -770,14 +832,14 @@ function ProductCard({
             disabled={outOfStock}
             onChange={(event) => onQuantityChange(Number(event.target.value))}
             className="h-9 w-14 rounded-full border border-gray-200 bg-white text-center text-sm font-bold text-gray-950 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:bg-gray-100 disabled:text-gray-400"
-            aria-label={`${product.name} の数量`}
+            aria-label={t('booking.itemQuantity', { ns: 'customer', name: product.name })}
           />
           <button
             type="button"
             onClick={onIncrease}
             disabled={outOfStock || atMax}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-lg font-bold text-white hover:bg-brand-700 disabled:opacity-40"
-            aria-label={`${product.name} を追加`}
+            aria-label={t('booking.increaseItem', { ns: 'customer', name: product.name })}
           >
             +
           </button>

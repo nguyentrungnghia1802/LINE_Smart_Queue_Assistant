@@ -1,11 +1,14 @@
+import { useTranslation } from 'react-i18next';
 import { Link, Navigate, NavLink, Outlet } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
+import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
 import { AccountMenu } from '../../components/layout/AccountMenu';
 import { useAuthStore } from '../../store/authStore';
 
 export function ManagerLayout() {
+  const { t } = useTranslation('common');
   const { user, isAuthenticated } = useAuthStore();
 
   if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
@@ -16,7 +19,7 @@ export function ManagerLayout() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)]">
         <p className="rounded-2xl border border-white/80 bg-white p-8 text-gray-600 shadow-[var(--shadow-soft)]">
-          このページにアクセスする権限がありません。
+          {t('errors.FORBIDDEN')}
         </p>
       </div>
     );
@@ -40,21 +43,22 @@ export function ManagerLayout() {
           </Link>
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
             <NavLink to="/manager" end className={navClass}>
-              ダッシュボード
+              {t('nav.dashboard')}
             </NavLink>
             <NavLink to="/manager/products" className={navClass}>
-              商品
+              {t('nav.products')}
             </NavLink>
             <NavLink to="/manager/users" className={navClass}>
-              スタッフ
+              {t('nav.staff')}
             </NavLink>
             <NavLink to="/manager/qr" className={navClass}>
-              QR表示
+              {t('nav.qr')}
             </NavLink>
             <NavLink to="/manager/settings" className={navClass}>
-              設定
+              {t('nav.settings')}
             </NavLink>
           </nav>
+          <LanguageSwitcher compact />
           <AccountMenu />
         </div>
       </header>

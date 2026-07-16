@@ -35,4 +35,15 @@ export async function seed(client: PoolClient): Promise<void> {
     `,
     [QUEUES.COUNTER_A, QUEUES.VIP_LANE, ORG_ID]
   );
+  await client.query(
+    `INSERT INTO queue_translations (queue_id, locale, name, description) VALUES
+       ($1, 'ja', '受付カウンターA', '通常受付'),
+       ($1, 'vi', 'Quầy tiếp nhận A', 'Tiếp nhận thông thường'),
+       ($1, 'en', 'Reception Counter A', 'General reception'),
+       ($2, 'ja', '優先受付', '優先対応用の受付'),
+       ($2, 'vi', 'Quầy ưu tiên', 'Tiếp nhận ưu tiên'),
+       ($2, 'en', 'Priority Reception', 'Priority service reception')
+     ON CONFLICT (queue_id, locale) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description`,
+    [QUEUES.COUNTER_A, QUEUES.VIP_LANE]
+  );
 }

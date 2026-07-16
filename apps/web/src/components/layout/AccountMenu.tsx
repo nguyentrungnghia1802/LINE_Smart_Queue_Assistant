@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../store/authStore';
@@ -9,9 +10,10 @@ interface AccountMenuProps {
 
 export function AccountMenu({ compact = false }: Readonly<AccountMenuProps>) {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
   const { user, logout } = useAuthStore();
   const [open, setOpen] = useState(false);
-  const displayName = user?.displayName ?? user?.email ?? 'アカウント';
+  const displayName = user?.displayName ?? user?.email ?? t('nav.account');
 
   function handleOpenAccount() {
     setOpen(false);
@@ -74,14 +76,14 @@ export function AccountMenu({ compact = false }: Readonly<AccountMenuProps>) {
             onClick={handleOpenAccount}
             className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            情報を見る
+            {t('nav.account')}
           </button>
           <button
             type="button"
             onClick={handleLogout}
             className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-red-600 hover:bg-red-50"
           >
-            ログアウト
+            {t('actions.logout')}
           </button>
         </div>
       )}

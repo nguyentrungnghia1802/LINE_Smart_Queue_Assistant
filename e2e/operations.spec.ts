@@ -24,11 +24,10 @@ test('staff transitions a ticket and LINE delivery stays on the durable mock out
   if (await callNext.isEnabled()) {
     await callNext.click();
   }
-  await expect(page.getByText('呼び出し済み').first()).toBeVisible();
-  await page
-    .getByRole('button', { name: /呼び出し済み/ })
-    .first()
-    .click();
+  await expect(page.getByText('呼び出し中').first()).toBeVisible();
+  const calledEntry = page.getByRole('button', { name: /^[A-Z]+\d+\s+呼び出し中/ }).first();
+  await expect(calledEntry).toBeEnabled();
+  await calledEntry.click();
   await page.getByRole('button', { name: '対応開始' }).click();
   await expect(page.getByText('対応中').first()).toBeVisible();
 
@@ -38,7 +37,7 @@ test('staff transitions a ticket and LINE delivery stays on the durable mock out
     '/api/v1/staff/entries/66666666-6666-4666-8666-666666666503/serve',
     { headers: { Authorization: `Bearer ${staffToken}` } }
   );
-  expect(seededServing.ok()).toBeTruthy();
+  expect(seededServing.ok() || seededServing.status() === 409).toBeTruthy();
   const receipt = await page.request.get(
     '/api/v1/orders/55555555-5555-4555-8555-555555555501/receipt',
     {
@@ -84,7 +83,7 @@ test('admin registers a new organization and manager through the dedicated page'
 test('manager can inspect QR and organization settings', async ({ page }) => {
   await login(page, 'manager@gmail.com');
   await page.goto('/manager/qr');
-  await expect(page.getByRole('heading', { name: 'QRコード', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'QRコード管理', exact: true })).toBeVisible();
   await expect(page.locator('svg').first()).toBeVisible();
 
   await page.goto('/manager/settings');

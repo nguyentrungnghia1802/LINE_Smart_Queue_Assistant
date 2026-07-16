@@ -62,6 +62,7 @@ function buildTemplateFromOutbox(row: NotificationOutboxRow) {
     }),
     aheadCount: numberOrNull(payload.aheadCount),
     estimatedWaitSeconds: numberOrNull(payload.estimatedWaitSeconds),
+    locale: row.locale,
   });
 }
 

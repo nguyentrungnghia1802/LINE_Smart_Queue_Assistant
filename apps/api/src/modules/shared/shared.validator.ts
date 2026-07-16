@@ -19,7 +19,7 @@ export const JapanesePhoneSchema = z
   .max(20)
   .refine(
     (value) => /^(?:\+81|0)\d{9,10}$/.test(value.replace(/[\s()-]/g, '')),
-    '日本の電話番号を入力してください'
+    'Enter a valid Japanese phone number'
   );
 
 export type PaginationQuery = z.infer<typeof PaginationSchema>;

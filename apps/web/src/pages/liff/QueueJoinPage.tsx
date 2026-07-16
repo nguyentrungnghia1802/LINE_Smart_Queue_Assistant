@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -21,6 +22,7 @@ import { useJoinQueue, useQueueStatus } from '../../hooks/useQueueEntry';
  *   4b. isExisting ticket → same navigation (idempotent)
  */
 export function QueueJoinPage() {
+  const { t } = useTranslation(['customer', 'common']);
   const { queueId = '' } = useParams<{ queueId: string }>();
   const navigate = useNavigate();
   const { authStatus } = useLiffRuntime();
@@ -43,8 +45,8 @@ export function QueueJoinPage() {
     return (
       <EmptyState
         icon="❌"
-        title="リンクが無効です"
-        message="URLにキューIDがありません。元のリンクから開いてください。"
+        title={t('queueJoin.invalidTitle', { ns: 'customer' })}
+        message={t('queueJoin.invalidMessage', { ns: 'customer' })}
       />
     );
   }
@@ -63,7 +65,7 @@ export function QueueJoinPage() {
   if (isError || !statusData) {
     return (
       <ErrorState
-        message="キュー情報を読み込めませんでした。もう一度お試しください。"
+        message={t('queueJoin.loadFailed', { ns: 'customer' })}
         onRetry={() => void refetch()}
       />
     );
@@ -95,18 +97,28 @@ export function QueueJoinPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-3 divide-x divide-gray-100 text-center">
-          <StatCell label="待ち人数" value={String(waitingCount)} />
           <StatCell
-            label="待ち時間目安"
-            value={waitingCount === 0 ? '1分未満' : `約${waitMin}分`}
+            label={t('queueJoin.waitingPeople', { ns: 'customer' })}
+            value={String(waitingCount)}
           />
-          <StatCell label="平均対応" value={`${queue.avg_service_seconds}秒`} />
+          <StatCell
+            label={t('labels.estimatedWait', { ns: 'common' })}
+            value={
+              waitingCount === 0
+                ? t('queueJoin.lessThanMinute', { ns: 'customer' })
+                : t('units.approximateMinutes', { ns: 'common', count: waitMin })
+            }
+          />
+          <StatCell
+            label={t('queueJoin.averageService', { ns: 'customer' })}
+            value={t('units.seconds', { ns: 'common', count: queue.avg_service_seconds })}
+          />
         </div>
 
         {/* Capacity warning */}
         {queue.max_capacity !== null && waitingCount >= queue.max_capacity && (
           <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-            このキューは定員に達しています。
+            {t('queueJoin.full', { ns: 'customer' })}
           </p>
         )}
       </div>
@@ -114,13 +126,16 @@ export function QueueJoinPage() {
       {/* ── Notes input ─────────────────────────────────────────────────── */}
       <div>
         <label htmlFor="join-notes" className="block text-sm font-medium text-gray-700 mb-1">
-          メモ <span className="text-gray-400 font-normal">（任意）</span>
+          {t('queueJoin.memo', { ns: 'customer' })}{' '}
+          <span className="text-gray-400 font-normal">
+            {t('queueJoin.optional', { ns: 'customer' })}
+          </span>
         </label>
         <textarea
           id="join-notes"
           rows={2}
           maxLength={200}
-          placeholder="例: 予約名、配慮事項など"
+          placeholder={t('queueJoin.memoPlaceholder', { ns: 'customer' })}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-line-green resize-none"
@@ -135,12 +150,14 @@ export function QueueJoinPage() {
         className="w-full bg-line-green hover:opacity-90 active:scale-[0.98] disabled:opacity-50 text-white font-semibold py-4 rounded-xl text-lg transition-all"
         aria-busy={joinMutation.isPending}
       >
-        {joinMutation.isPending ? '参加しています…' : '順番待ちに参加'}
+        {joinMutation.isPending
+          ? t('queueJoin.joining', { ns: 'customer' })
+          : t('queueJoin.join', { ns: 'customer' })}
       </button>
 
       {authStatus !== 'authenticated' && (
         <p role="status" className="text-sm text-gray-500 text-center">
-          LINE認証が完了してから参加できます。
+          {t('queueJoin.authRequired', { ns: 'customer' })}
         </p>
       )}
 
@@ -149,14 +166,14 @@ export function QueueJoinPage() {
         <p role="alert" className="text-sm text-red-600 text-center">
           {joinMutation.error instanceof Error
             ? joinMutation.error.message
-            : '順番待ちに参加できませんでした。もう一度お試しください。'}
+            : t('queueJoin.joinFailed', { ns: 'customer' })}
         </p>
       )}
 
       {/* ── Closed notice ─────────────────────────────────────────────────── */}
       {!isQueueOpen && (
         <p className="text-sm text-gray-500 text-center">
-          現在、このキューは新規受付を停止しています。
+          {t('queueJoin.stopped', { ns: 'customer' })}
         </p>
       )}
     </div>

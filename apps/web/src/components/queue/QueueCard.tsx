@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import type { Queue } from '@line-queue/shared';
@@ -10,6 +11,7 @@ interface QueueCardProps {
 }
 
 export function QueueCard({ queue }: QueueCardProps) {
+  const { t } = useTranslation('common');
   return (
     <Link
       to={`/queues/${queue.id}`}
@@ -26,14 +28,15 @@ export function QueueCard({ queue }: QueueCardProps) {
 
       <div className="flex items-center gap-4 text-xs text-gray-400 mt-auto pt-3 border-t border-gray-100">
         <span>
-          現在:{' '}
+          {t('labels.current')}:{' '}
           <span className="font-medium text-gray-700">
             {formatTicketNumber(queue.currentNumber)}
           </span>
         </span>
         {queue.maxCapacity && (
           <span>
-            定員: <span className="font-medium text-gray-700">{queue.maxCapacity}</span>
+            {t('labels.capacity')}:{' '}
+            <span className="font-medium text-gray-700">{queue.maxCapacity}</span>
           </span>
         )}
       </div>

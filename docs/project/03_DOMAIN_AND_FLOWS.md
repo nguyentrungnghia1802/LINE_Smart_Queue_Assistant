@@ -106,7 +106,7 @@ Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently
 4. Customer selects products/services, optionally completes demo checkout for required prepayment, and creates the booking within the same LIFF flow.
 5. The backend uses server-verified identity, not browser profile data or public request body fields, to attach the LINE recipient.
 6. On success, LIFF navigates to `/liff/tickets/:entryId` and shows ticket code, status, people ahead, and ETA.
-7. Rich Menu opens `/liff/home` or `/liff/home` with mode/section query parameters. LIFF Home uses the authenticated LINE session to resolve the current active ticket, start booking from the configured default booking path, or show Japanese empty/usage states.
+7. Rich Menu opens `/liff/home` or `/liff/home` with mode/section query parameters. LIFF Home resolves the current active ticket and renders localized empty/usage states with Japanese fallback.
 
 Public `/qr/:token`, `/q/:orgSlug`, `/ticket/:entryId`, and public demo checkout remain fallback/browser-compatible routes. Guest trade-off: the order/ticket works, but LINE push is unavailable unless the ticket resolves to a linked `line_user_id`. For LINE-authenticated requests, `currentUserMiddleware` validates the JWT LINE claim against the active `line_accounts` row. The order and queue controllers pass both internal user ID and verified LINE user ID to their services, which store both on the queue entry inside the write transaction.
 
@@ -151,7 +151,7 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
 1. Staff authenticates and the API resolves active organization membership.
 2. `/staff/my-queue` selects an organization queue with waiting/called/serving activity (falling back to the first active queue) and returns its board and order details.
 3. Calling next atomically selects/transitions the next eligible waiting entry.
-4. The queue transition and LINE notification outbox row are written in the same database transaction; a worker sends the Japanese LINE message after commit.
+4. The queue transition and LINE outbox row, including resolved locale, are written in the same transaction; a worker sends the localized message after commit.
 5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful state change enqueues a LINE push intent when the ticket has a verified recipient.
 6. Staff updates order/payment status manually as needed.
 7. Receipt printing is available after the applicable payment success state.
@@ -175,7 +175,7 @@ PostgreSQL notifications outbox row (pending)
 Notification delivery worker -- claim due row with FOR UPDATE SKIP LOCKED
           |
           v
-lineNotificationService + Japanese Flex template + text fallback + LIFF ticket deep link
+lineNotificationService + localized Flex template + text fallback + LIFF ticket deep link
           |
           v
 ILineMessagingAdapter
@@ -183,7 +183,7 @@ ILineMessagingAdapter
     | token present     -> LINE /v2/bot/message/push
           |
        Flex success: mark sent + metric
-       Flex failure: try Japanese text fallback
+       Flex failure: try localized text fallback, then Japanese fallback
        final failure: schedule exponential retry or mark failed
 ```
 
@@ -219,7 +219,7 @@ The Rich Menu definition never points to `/liff/tickets/:entryId` because the en
 3. API calculates Haversine distance to organization coordinates.
 4. API stores a `customer_locations` snapshot.
 5. If over the current 1,000-meter threshold, API stores a pending idempotent `location_alert` without logging exact coordinates.
-6. A PostgreSQL-locked scheduler checks queue proximity, consent, LINE preferences, and the mock `TravelTimeProvider`, then enqueues a Japanese `location_warning` through the durable notification outbox.
+6. A PostgreSQL-locked scheduler checks queue proximity, consent, LINE preferences, and the mock `TravelTimeProvider`, then enqueues a locale-aware `location_warning` through the durable notification outbox.
 7. Alerts become sent-to-outbox, skipped, retry-pending, or failed. Snapshot cleanup anonymizes coordinates after `LOCATION_RETENTION_DAYS`; the LIFF settings page can revoke consent and delete data immediately.
 8. Planned worker compares queue timing/distance, sends LINE warning, and records sent/skipped/failed.
 
@@ -229,7 +229,7 @@ Step 6 is not implemented. There is no continuous tracking, and production requi
 
 Current ETA uses total service workload when available, otherwise people ahead multiplied by configured average service seconds. Confidence is heuristic. A 30-second job updates waiting entries.
 
-The PostgreSQL-locked forecasting job aggregates the previous eight weeks by organization-local weekday/hour, persists demand and measured service duration, and writes versioned wait forecasts and staffing recommendations. Confidence increases with sample size, every recommendation carries a Japanese explanation, and expired records are removed according to configuration. This baseline is a deterministic measured heuristic, not a trained ML model.
+The PostgreSQL-locked forecasting job aggregates the previous eight weeks by organization-local weekday/hour, persists demand and measured service duration, and writes versioned wait forecasts and staffing recommendations. Confidence increases with sample size, the API exposes locale-neutral numeric inputs for localized explanations in the UI, and expired records are removed according to configuration. This baseline is a deterministic measured heuristic, not a trained ML model.
 
 ## 12. Failure flows
 

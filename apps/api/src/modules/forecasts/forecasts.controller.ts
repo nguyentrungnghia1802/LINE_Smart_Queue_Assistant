@@ -7,7 +7,7 @@ import { sendSuccess } from '../../utils/response';
 import { forecastsService } from './forecasts.service';
 
 function organizationId(req: Request) {
-  if (!req.user?.organizationId) throw AppError.badRequest('組織が設定されていません');
+  if (!req.user?.organizationId) throw AppError.badRequest('Organization is not configured');
   return req.user.organizationId;
 }
 

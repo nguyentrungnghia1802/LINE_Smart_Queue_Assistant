@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 interface CalledBannerProps {
   ticketDisplay: string;
   onDismiss?: () => void;
@@ -10,6 +12,7 @@ interface CalledBannerProps {
  * Accessibility: role="alert" ensures screen-readers announce it immediately.
  */
 export function CalledBanner({ ticketDisplay, onDismiss }: Readonly<CalledBannerProps>) {
+  const { t } = useTranslation(['customer', 'common']);
   return (
     <div
       role="alert"
@@ -23,16 +26,18 @@ export function CalledBanner({ ticketDisplay, onDismiss }: Readonly<CalledBanner
       </span>
 
       <div className="flex-1">
-        <p className="font-bold text-sm leading-snug">受付番号 {ticketDisplay} の順番です</p>
+        <p className="font-bold text-sm leading-snug">
+          {t('ticket.calledTitle', { ns: 'customer', ticket: ticketDisplay })}
+        </p>
         <p className="text-xs mt-0.5 opacity-80">
-          呼び出し済みです。カウンターまでお越しください。
+          {t('ticket.calledInstruction', { ns: 'customer' })}
         </p>
       </div>
 
       {onDismiss && (
         <button
           type="button"
-          aria-label="閉じる"
+          aria-label={t('actions.close', { ns: 'common' })}
           onClick={onDismiss}
           className="shrink-0 text-amber-900 hover:text-amber-950 text-lg leading-none"
         >

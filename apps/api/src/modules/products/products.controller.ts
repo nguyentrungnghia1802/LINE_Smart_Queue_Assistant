@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 
 import type { ProductRow } from '../../db/repositories/products.repository';
+import { localeFromAcceptLanguage, normalizeLocale } from '../../i18n/locale';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
@@ -11,12 +12,16 @@ import { CreateProductDto, UpdateProductDto } from './products.validator';
 export const listProducts = asyncHandler(async (req: Request, res: Response) => {
   const orgId = req.query.orgId as string | undefined;
   const orgSlug = req.query.orgSlug as string | undefined;
+  const locale =
+    normalizeLocale(req.query.locale) ??
+    localeFromAcceptLanguage(req.get('accept-language')) ??
+    'ja';
 
   let products: ProductRow[];
   if (orgSlug) {
-    products = await productsService.getByOrgSlug(orgSlug);
+    products = await productsService.getByOrgSlug(orgSlug, locale);
   } else if (orgId) {
-    products = await productsService.getByOrg(orgId);
+    products = await productsService.getByOrg(orgId, locale);
   } else {
     products = [];
   }

@@ -1,5 +1,7 @@
 import { PoolClient } from 'pg';
 
+import type { SupportedLocale } from '@line-queue/shared';
+
 import { BaseRepository } from './base.repository';
 
 // ── Row types (shape returned directly from PostgreSQL) ────────────────────────
@@ -11,6 +13,7 @@ export interface UserRow {
   password_hash: string | null;
   role: string;
   is_active: boolean;
+  preferred_locale?: SupportedLocale | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -144,7 +147,7 @@ export class UsersRepository extends BaseRepository {
    */
   async updateProfile(
     id: string,
-    data: Partial<{ displayName: string; email: string }>
+    data: Partial<{ displayName: string; email: string; preferredLocale: SupportedLocale | null }>
   ): Promise<UserRow | null> {
     const fields: string[] = [];
     const values: unknown[] = [];
@@ -156,6 +159,10 @@ export class UsersRepository extends BaseRepository {
     if (data.email !== undefined) {
       fields.push(`email = $${i++}`);
       values.push(data.email);
+    }
+    if (data.preferredLocale !== undefined) {
+      fields.push(`preferred_locale = $${i++}`);
+      values.push(data.preferredLocale);
     }
     if (fields.length === 0) return this.findById(id);
     values.push(id);
