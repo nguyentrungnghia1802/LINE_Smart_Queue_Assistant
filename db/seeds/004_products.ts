@@ -78,5 +78,11 @@ export async function seed(client: PoolClient): Promise<void> {
         stock,
       ]
     );
+    await client.query(
+      `INSERT INTO product_translations (product_id, locale, name, description)
+       VALUES ($1, 'ja', $2, $3)
+       ON CONFLICT (product_id, locale) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description`,
+      [id, name, description]
+    );
   }
 }

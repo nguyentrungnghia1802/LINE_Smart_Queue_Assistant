@@ -1,11 +1,14 @@
+import { useTranslation } from 'react-i18next';
 import { Link, Navigate, NavLink, Outlet } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
+import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
 import { AccountMenu } from '../../components/layout/AccountMenu';
 import { useAuthStore } from '../../store/authStore';
 
 export function AdminLayout() {
+  const { t } = useTranslation('common');
   const { user, isAuthenticated } = useAuthStore();
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -13,7 +16,7 @@ export function AdminLayout() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)]">
         <div className="rounded-2xl border border-white/80 bg-white p-8 text-center shadow-[var(--shadow-soft)]">
-          <p className="text-gray-700 font-medium">管理者ページにアクセスする権限がありません。</p>
+          <p className="text-gray-700 font-medium">{t('errors.FORBIDDEN')}</p>
         </div>
       </div>
     );
@@ -32,17 +35,18 @@ export function AdminLayout() {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-950 text-sm text-white">
               LQ
             </span>
-            <span>管理者パネル</span>
+            <span>{t('nav.admin')}</span>
           </Link>
           <nav className="flex items-center gap-1">
             <NavLink to="/admin" end className={navClass}>
-              ダッシュボード
+              {t('nav.dashboard')}
             </NavLink>
             <NavLink to="/admin/orgs" className={navClass}>
-              組織
+              {t('nav.organizations')}
             </NavLink>
           </nav>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            <LanguageSwitcher compact />
             <AccountMenu />
           </div>
         </div>

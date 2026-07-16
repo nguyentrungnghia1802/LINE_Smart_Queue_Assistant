@@ -1,5 +1,7 @@
 import { PoolClient } from 'pg';
 
+import type { SupportedLocale } from '@line-queue/shared';
+
 import { BaseRepository } from './base.repository';
 
 // ── Row types ──────────────────────────────────────────────────────────────────
@@ -11,6 +13,7 @@ export interface OrganizationRow {
   line_channel_id: string | null;
   line_oa_basic_id: string | null;
   timezone: string;
+  default_locale: SupportedLocale;
   settings: Record<string, unknown>;
   logo_url: string | null;
   phone: string | null;
@@ -53,6 +56,7 @@ export interface CreateOrganizationParams {
   addressLine2?: string | null;
   paymentInfo?: string | null;
   timezone?: string;
+  defaultLocale?: SupportedLocale;
   lineChannelId?: string;
   lineOaBasicId?: string;
   settings?: Record<string, unknown>;
@@ -91,15 +95,28 @@ export class OrganizationsRepository extends BaseRepository {
     );
   }
 
+  async findLocalizedById(id: string, locale: SupportedLocale): Promise<OrganizationRow | null> {
+    return this.queryOne<OrganizationRow>(
+      `SELECT o.*,
+              COALESCE(requested.name, tenant_default.name, japanese.name, o.name) AS name
+       FROM organizations o
+       LEFT JOIN organization_translations requested ON requested.organization_id = o.id AND requested.locale = $2
+       LEFT JOIN organization_translations tenant_default ON tenant_default.organization_id = o.id AND tenant_default.locale = o.default_locale
+       LEFT JOIN organization_translations japanese ON japanese.organization_id = o.id AND japanese.locale = 'ja'
+       WHERE o.id = $1 AND o.is_active = TRUE`,
+      [id, locale]
+    );
+  }
+
   async create(params: CreateOrganizationParams, client?: PoolClient): Promise<OrganizationRow> {
     const sql = `
       INSERT INTO organizations
         (
           name, slug, public_qr_token, logo_url, phone, address, payment_info,
-          timezone, line_channel_id, line_oa_basic_id, settings, postal_code,
+          timezone, default_locale, line_channel_id, line_oa_basic_id, settings, postal_code,
           prefecture, city, address_line1, address_line2
         )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *
     `;
     const args = [
@@ -111,6 +128,7 @@ export class OrganizationsRepository extends BaseRepository {
       params.address ?? null,
       params.paymentInfo ?? null,
       params.timezone ?? 'Asia/Tokyo',
+      params.defaultLocale ?? 'ja',
       params.lineChannelId ?? null,
       params.lineOaBasicId ?? null,
       JSON.stringify(params.settings ?? {}),
@@ -123,7 +141,16 @@ export class OrganizationsRepository extends BaseRepository {
     const rows = client
       ? await this.queryTx<OrganizationRow>(client, sql, args)
       : await this.query<OrganizationRow>(sql, args);
-    return this.firstOrThrow(rows, 'organizations.create');
+    const organization = this.firstOrThrow(rows, 'organizations.create');
+    const translationSql = `
+      INSERT INTO organization_translations (organization_id, locale, name)
+      VALUES ($1,$2,$3)
+      ON CONFLICT (organization_id, locale) DO UPDATE SET name = EXCLUDED.name
+    `;
+    const translationArgs = [organization.id, organization.default_locale, organization.name];
+    if (client) await this.queryTx(client, translationSql, translationArgs);
+    else await this.query(translationSql, translationArgs);
+    return organization;
   }
 
   // ── Members ─────────────────────────────────────────────────────────────────
@@ -194,6 +221,7 @@ export class OrganizationsRepository extends BaseRepository {
       city: string | null;
       addressLine1: string | null;
       addressLine2: string | null;
+      defaultLocale: SupportedLocale;
       latitude: number | null;
       longitude: number | null;
       paymentInfo: string | null;
@@ -215,6 +243,7 @@ export class OrganizationsRepository extends BaseRepository {
       city: 'city',
       addressLine1: 'address_line1',
       addressLine2: 'address_line2',
+      defaultLocale: 'default_locale',
       latitude: 'latitude',
       longitude: 'longitude',
       paymentInfo: 'payment_info',
@@ -233,7 +262,16 @@ export class OrganizationsRepository extends BaseRepository {
       `UPDATE organizations SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
       values
     );
-    return rows[0] ?? null;
+    const organization = rows[0] ?? null;
+    if (organization && data.name !== undefined) {
+      await this.query(
+        `INSERT INTO organization_translations (organization_id, locale, name)
+         VALUES ($1,$2,$3)
+         ON CONFLICT (organization_id, locale) DO UPDATE SET name = EXCLUDED.name`,
+        [organization.id, organization.default_locale, organization.name]
+      );
+    }
+    return organization;
   }
 
   async deactivate(id: string): Promise<void> {

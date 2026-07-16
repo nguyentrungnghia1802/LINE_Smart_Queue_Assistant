@@ -1,19 +1,22 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
 import { useAuthStore } from '../../store/authStore';
+import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
 
 import { AccountMenu } from './AccountMenu';
 
 const NAV_LINKS = [
-  { to: '/app', label: 'ダッシュボード', end: true },
-  { to: '/app/queues', label: 'キュー' },
+  { to: '/app', labelKey: 'nav.dashboard', end: true },
+  { to: '/app/queues', labelKey: 'nav.queue' },
 ];
 
 export function RootLayout() {
   const { user } = useAuthStore();
+  const { t } = useTranslation('common');
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -30,7 +33,7 @@ export function RootLayout() {
 
           {/* Desktop nav */}
           <nav className="hidden sm:flex items-center gap-1">
-            {NAV_LINKS.map(({ to, label, end }) => (
+            {NAV_LINKS.map(({ to, labelKey, end }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -43,7 +46,7 @@ export function RootLayout() {
                   }`
                 }
               >
-                {label}
+                {t(labelKey)}
               </NavLink>
             ))}
             {user?.role === UserRole.ADMIN && (
@@ -57,12 +60,15 @@ export function RootLayout() {
                   }`
                 }
               >
-                管理者
+                {t('nav.dashboard')}
               </NavLink>
             )}
           </nav>
 
           <div className="flex items-center gap-3">
+            <div className="hidden md:block">
+              <LanguageSwitcher compact />
+            </div>
             <div className="hidden sm:block">
               <AccountMenu />
             </div>
@@ -71,7 +77,7 @@ export function RootLayout() {
             <button
               className="rounded-md p-2 text-gray-600 hover:bg-gray-100 sm:hidden"
               onClick={() => setMenuOpen((v) => !v)}
-              aria-label="メニューを切り替え"
+              aria-label={t('accessibility.toggleMenu')}
             >
               {menuOpen ? '✕' : '☰'}
             </button>
@@ -81,7 +87,7 @@ export function RootLayout() {
         {/* Mobile dropdown */}
         {menuOpen && (
           <div className="space-y-1 border-t border-gray-100 bg-white px-4 py-3 sm:hidden">
-            {NAV_LINKS.map(({ to, label, end }) => (
+            {NAV_LINKS.map(({ to, labelKey, end }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -93,7 +99,7 @@ export function RootLayout() {
                   }`
                 }
               >
-                {label}
+                {t(labelKey)}
               </NavLink>
             ))}
             {user?.role === UserRole.ADMIN && (
@@ -106,10 +112,13 @@ export function RootLayout() {
                   }`
                 }
               >
-                管理者
+                {t('nav.dashboard')}
               </NavLink>
             )}
             <div className="mt-2 border-t border-gray-100 pt-2">
+              <div className="mb-2 px-3">
+                <LanguageSwitcher />
+              </div>
               <AccountMenu compact />
             </div>
           </div>

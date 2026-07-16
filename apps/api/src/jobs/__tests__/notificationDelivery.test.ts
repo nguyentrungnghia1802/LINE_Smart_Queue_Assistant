@@ -27,6 +27,7 @@ function makeRow(override: Partial<NotificationOutboxRow> = {}): NotificationOut
     channel: 'line_push',
     status: 'processing',
     payload: { ticketCode: 'A005', aheadCount: 0, estimatedWaitSeconds: 0 },
+    locale: 'ja',
     retry_count: 1,
     attempt_count: 1,
     max_attempts: 3,

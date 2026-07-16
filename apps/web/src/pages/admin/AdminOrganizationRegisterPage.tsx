@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
+import type { SupportedLocale } from '@line-queue/shared';
 import { API_BASE_PATH } from '@line-queue/shared';
 
 import { post } from '../../services/apiClient';
@@ -23,6 +25,7 @@ interface OrgForm {
   phone: string;
   address: string;
   paymentInfo: string;
+  defaultLocale: SupportedLocale;
 }
 
 interface ManagerForm {
@@ -43,11 +46,13 @@ const emptyOrgForm: OrgForm = {
   phone: '',
   address: '',
   paymentInfo: '',
+  defaultLocale: 'ja',
 };
 
 const emptyManagerForm: ManagerForm = { displayName: '', email: '', password: '' };
 
 export function AdminOrganizationRegisterPage() {
+  const { t } = useTranslation(['admin', 'common']);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [orgForm, setOrgForm] = useState<OrgForm>(emptyOrgForm);
@@ -65,7 +70,8 @@ export function AdminOrganizationRegisterPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin-orgs'] });
       navigate(`/admin/orgs/${result.organization.id}`);
     },
-    onError: (err) => setError(err instanceof Error ? err.message : '登録に失敗しました。'),
+    onError: (err) =>
+      setError(err instanceof Error ? err.message : t('organizations.registerFailed')),
   });
 
   async function handleLogoChange(file: File | undefined) {
@@ -77,7 +83,7 @@ export function AdminOrganizationRegisterPage() {
       const asset = await uploadImage(dataUrl, 'organization_logo');
       setOrgForm((value) => ({ ...value, logoUrl: asset.public_url }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : '画像を処理できませんでした。');
+      setError(err instanceof Error ? err.message : t('organizations.imageFailed'));
     } finally {
       setLogoBusy(false);
     }
@@ -93,13 +99,11 @@ export function AdminOrganizationRegisterPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">組織登録</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            組織情報とマネージャーアカウントを同時に登録します。
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('organizations.registerTitle')}</h1>
+          <p className="mt-1 text-sm text-gray-500">{t('organizations.registerDescription')}</p>
         </div>
         <Link to="/admin/orgs" className="text-sm font-medium text-brand-700 hover:text-brand-800">
-          組織一覧へ戻る
+          {t('organizations.backToList')}
         </Link>
       </div>
 
@@ -107,33 +111,52 @@ export function AdminOrganizationRegisterPage() {
 
       <form onSubmit={submit} className="space-y-6">
         <section className="rounded-lg border border-gray-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-gray-900">組織情報</h2>
+          <h2 className="text-sm font-semibold text-gray-900">
+            {t('organizations.organizationInfo')}
+          </h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <TextInput
-              label="組織名"
+              label={t('organizations.name')}
               value={orgForm.name}
               onChange={(name) => setOrgForm((value) => ({ ...value, name }))}
               required
             />
+            <label className="text-sm font-medium text-gray-700">
+              {t('organizations.defaultLocale', { ns: 'admin' })}
+              <select
+                value={orgForm.defaultLocale}
+                onChange={(event) =>
+                  setOrgForm((value) => ({
+                    ...value,
+                    defaultLocale: event.target.value as SupportedLocale,
+                  }))
+                }
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="ja">{t('language.ja', { ns: 'common' })}</option>
+                <option value="vi">{t('language.vi', { ns: 'common' })}</option>
+                <option value="en">{t('language.en', { ns: 'common' })}</option>
+              </select>
+            </label>
             <TextInput
-              label="スラッグ"
+              label={t('organizations.slug')}
               value={orgForm.slug}
               onChange={(slug) => setOrgForm((value) => ({ ...value, slug }))}
               pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?"
               required
             />
             <TextInput
-              label="電話番号"
+              label={t('labels.phone', { ns: 'common' })}
               value={orgForm.phone}
               onChange={(phone) => setOrgForm((value) => ({ ...value, phone }))}
             />
             <TextInput
-              label="住所"
+              label={t('labels.address', { ns: 'common' })}
               value={orgForm.address}
               onChange={(address) => setOrgForm((value) => ({ ...value, address }))}
             />
             <TextInput
-              label="支払い情報"
+              label={t('organizations.paymentInfo')}
               value={orgForm.paymentInfo}
               onChange={(paymentInfo) => setOrgForm((value) => ({ ...value, paymentInfo }))}
               className="md:col-span-2"
@@ -145,17 +168,19 @@ export function AdminOrganizationRegisterPage() {
               {orgForm.logoUrl ? (
                 <img
                   src={orgForm.logoUrl}
-                  alt="ロゴプレビュー"
+                  alt={t('organizations.logoPreview')}
                   className="h-full w-full object-cover"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">
-                  ロゴ
+                  {t('organizations.logo')}
                 </div>
               )}
             </div>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-gray-600">ロゴ画像</span>
+              <span className="mb-1 block text-xs font-medium text-gray-600">
+                {t('organizations.logoImage')}
+              </span>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
@@ -163,17 +188,21 @@ export function AdminOrganizationRegisterPage() {
                 className="block w-full text-sm text-gray-700 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200"
               />
               <p className="mt-2 text-xs text-gray-500">
-                {logoBusy ? '画像を圧縮中...' : '画像はアップロード時に自動で圧縮されます。'}
+                {logoBusy
+                  ? t('organizations.compressingImage')
+                  : t('organizations.imageCompressionHint')}
               </p>
             </label>
           </div>
         </section>
 
         <section className="rounded-lg border border-gray-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-gray-900">マネージャーアカウント</h2>
+          <h2 className="text-sm font-semibold text-gray-900">
+            {t('organizations.managerAccount')}
+          </h2>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             <TextInput
-              label="表示名"
+              label={t('labels.displayName', { ns: 'common' })}
               value={managerForm.displayName}
               onChange={(displayName) => setManagerForm((value) => ({ ...value, displayName }))}
               required
@@ -187,7 +216,7 @@ export function AdminOrganizationRegisterPage() {
               required
             />
             <TextInput
-              label="パスワード"
+              label={t('labels.password', { ns: 'common' })}
               type="password"
               value={managerForm.password}
               onChange={(password) => setManagerForm((value) => ({ ...value, password }))}
@@ -202,7 +231,7 @@ export function AdminOrganizationRegisterPage() {
             disabled={registerOrg.isPending || logoBusy}
             className="rounded-md bg-brand-600 px-5 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
           >
-            組織を登録
+            {t('organizations.register')}
           </button>
         </div>
       </form>
@@ -250,5 +279,6 @@ function orgPayload(form: OrgForm) {
     phone: form.phone.trim() || null,
     address: form.address.trim() || null,
     paymentInfo: form.paymentInfo.trim() || null,
+    defaultLocale: form.defaultLocale,
   };
 }

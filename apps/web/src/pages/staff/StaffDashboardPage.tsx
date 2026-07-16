@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
+import { i18n } from '../../i18n';
+import { formatCurrency as formatLocalizedCurrency, formatDateTime } from '../../i18n/format';
 import { get, patch, post } from '../../services/apiClient';
 import type { BookingGroup } from '../../services/bookingGroups.api';
 import { useAuthStore } from '../../store/authStore';
@@ -50,10 +53,10 @@ interface MyQueueOverview {
 }
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
-  pending: '処理待ち',
-  processing: '処理中',
-  completed: '完了',
-  cancelled: 'キャンセル済み',
+  pending: 'states.pending',
+  processing: 'states.processing',
+  completed: 'states.completed',
+  cancelled: 'states.cancelled',
 };
 
 const ORDER_STATUS_COLORS: Record<string, string> = {
@@ -73,20 +76,16 @@ const QUEUE_STATUS_COLORS: Record<string, string> = {
 };
 
 const QUEUE_STATUS_LABELS: Record<string, string> = {
-  waiting: '待機中',
-  called: '呼び出し済み',
-  serving: '対応中',
-  completed: '完了',
-  cancelled: 'キャンセル済み',
-  no_show: '不在',
+  waiting: 'states.waiting',
+  called: 'states.called',
+  serving: 'states.serving',
+  completed: 'states.completed',
+  cancelled: 'states.cancelled',
+  no_show: 'states.noShow',
 };
 
 function formatCurrency(n: string | number) {
-  return new Intl.NumberFormat('ja-JP', {
-    style: 'currency',
-    currency: 'JPY',
-    maximumFractionDigits: 0,
-  }).format(Number(n));
+  return formatLocalizedCurrency(Number(n), i18n.resolvedLanguage ?? 'ja');
 }
 
 function printReceipt(order: Order, ticketCode: string) {
@@ -106,7 +105,7 @@ function printReceipt(order: Order, ticketCode: string) {
   win.document.write(`
     <html>
       <head>
-        <title>領収書 ${order.order_number}</title>
+        <title>${i18n.t('staff:dashboard.printReceipt')} ${order.order_number}</title>
         <style>
           body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 24px; color: #111827; }
           h1 { font-size: 20px; margin: 0 0 8px; }
@@ -119,21 +118,21 @@ function printReceipt(order: Order, ticketCode: string) {
         </style>
       </head>
       <body>
-        <h1>領収書</h1>
+        <h1>${i18n.t('staff:dashboard.printReceipt')}</h1>
         <div class="meta">
-          注文番号: ${order.order_number}<br />
-          受付番号: ${ticketCode}<br />
-          顧客: ${order.customer_name ?? 'ゲスト顧客'}<br />
-          発行日時: ${new Date().toLocaleString('ja-JP')}
+          ${i18n.t('staff:dashboard.receiptOrderNumber')}: ${order.order_number}<br />
+          ${i18n.t('staff:dashboard.receiptTicketNumber')}: ${ticketCode}<br />
+          ${i18n.t('staff:dashboard.receiptCustomer')}: ${order.customer_name ?? i18n.t('staff:dashboard.guest')}<br />
+          ${i18n.t('common:labels.status')}: ${formatDateTime(new Date(), i18n.resolvedLanguage ?? 'ja')}
         </div>
         <table>
           <thead>
-            <tr><th>商品</th><th class="right">数量</th><th class="right">単価</th><th class="right">小計</th></tr>
+            <tr><th>${i18n.t('common:labels.product')}</th><th class="right">${i18n.t('common:labels.quantity')}</th><th class="right">${i18n.t('staff:dashboard.receiptUnitPrice')}</th><th class="right">${i18n.t('staff:dashboard.receiptSubtotal')}</th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
-        <div class="total">合計 ${formatCurrency(order.subtotal)}</div>
-        <span class="paid">支払い済み</span>
+        <div class="total">${i18n.t('common:labels.total')} ${formatCurrency(order.subtotal)}</div>
+        <span class="paid">${i18n.t('common:states.paid')}</span>
       </body>
     </html>
   `);
@@ -143,6 +142,7 @@ function printReceipt(order: Order, ticketCode: string) {
 }
 
 export function StaffDashboardPage() {
+  const { t } = useTranslation(['staff', 'common']);
   const { user } = useAuthStore();
   const orgId = user?.organizationId;
   const queryClient = useQueryClient();
@@ -230,8 +230,10 @@ export function StaffDashboardPage() {
         <div className="space-y-2 border-b border-gray-100 px-2 py-3 sm:px-4">
           <div className="flex items-center justify-center sm:justify-between">
             <h2 className="text-center text-xs font-semibold text-gray-700 sm:text-left sm:text-sm">
-              <span className="hidden sm:inline">{queueData?.queueName ?? 'キュー'}</span>
-              <span className="sm:hidden">待ち</span>
+              <span className="hidden sm:inline">
+                {queueData?.queueName ?? t('dashboard.queueFallback')}
+              </span>
+              <span className="sm:hidden">{t('dashboard.waitingShort')}</span>
               <span className="mt-1 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-600 px-1.5 text-xs text-white sm:ml-2 sm:mt-0 sm:h-5 sm:min-w-5">
                 {queueData?.waitingCount ?? 0}
               </span>
@@ -247,17 +249,25 @@ export function StaffDashboardPage() {
             className="w-full rounded-xl bg-brand-600 px-2 py-2 text-xs font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
           >
             <span className="hidden sm:inline">
-              {callNextMutation.isPending ? '呼び出し中...' : '次の番号を呼び出す'}
+              {callNextMutation.isPending
+                ? t('dashboard.calling', { ns: 'staff' })
+                : t('dashboard.callNext', { ns: 'staff' })}
             </span>
-            <span className="sm:hidden">{callNextMutation.isPending ? '...' : '呼出'}</span>
+            <span className="sm:hidden">
+              {callNextMutation.isPending ? '...' : t('dashboard.callShort')}
+            </span>
           </button>
         </div>
         <div className="flex-1 overflow-y-auto">
           {isLoading && (
-            <p className="text-gray-400 text-sm px-4 py-6 text-center">読み込み中...</p>
+            <p className="text-gray-400 text-sm px-4 py-6 text-center">
+              {t('states.loading', { ns: 'common' })}
+            </p>
           )}
           {!isLoading && allEntries.length === 0 && (
-            <p className="text-gray-400 text-sm px-4 py-6 text-center">顧客はいません。</p>
+            <p className="text-gray-400 text-sm px-4 py-6 text-center">
+              {t('dashboard.noCustomers')}
+            </p>
           )}
           {allEntries.map((entry) => {
             const ord = entry.order;
@@ -279,7 +289,9 @@ export function StaffDashboardPage() {
                     className={`rounded-full px-1.5 py-0.5 text-[10px] sm:px-2 sm:text-xs ${QUEUE_STATUS_COLORS[entry.status] ?? 'bg-gray-100 text-gray-500'}`}
                   >
                     <span className="hidden sm:inline">
-                      {QUEUE_STATUS_LABELS[entry.status] ?? entry.status}
+                      {QUEUE_STATUS_LABELS[entry.status]
+                        ? t(QUEUE_STATUS_LABELS[entry.status], { ns: 'common' })
+                        : entry.status}
                     </span>
                     <span className="sm:hidden">{entry.status.slice(0, 1).toUpperCase()}</span>
                   </span>
@@ -287,14 +299,16 @@ export function StaffDashboardPage() {
                 {ord ? (
                   <div className="hidden sm:block">
                     <p className="text-sm text-gray-500 mt-0.5 truncate">
-                      {ord.customer_name ?? 'ゲスト顧客'}
+                      {ord.customer_name ?? t('dashboard.guest', { ns: 'staff' })}
                     </p>
                     <p className="text-sm font-medium text-gray-700 mt-0.5">
                       {formatCurrency(ord.subtotal)}
                     </p>
                   </div>
                 ) : (
-                  <p className="mt-0.5 hidden text-xs text-gray-400 sm:block">注文なし</p>
+                  <p className="mt-0.5 hidden text-xs text-gray-400 sm:block">
+                    {t('dashboard.noOrder')}
+                  </p>
                 )}
               </button>
             );
@@ -306,7 +320,7 @@ export function StaffDashboardPage() {
       <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-6">
         {!selected ? (
           <div className="flex items-center justify-center h-full text-gray-400">
-            受付番号を選択して詳細を表示
+            {t('dashboard.selectTicket')}
           </div>
         ) : (
           <div className="w-full space-y-5">
@@ -314,7 +328,9 @@ export function StaffDashboardPage() {
             <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)] sm:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">受付番号</p>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">
+                    {t('labels.ticketCode', { ns: 'common' })}
+                  </p>
                   <p className="font-mono text-3xl font-bold text-gray-900 sm:text-4xl">
                     {selected.ticket_code}
                   </p>
@@ -323,13 +339,17 @@ export function StaffDashboardPage() {
                   <span
                     className={`text-sm px-3 py-1 rounded-full font-medium ${QUEUE_STATUS_COLORS[selected.status] ?? 'bg-gray-100 text-gray-500'}`}
                   >
-                    {QUEUE_STATUS_LABELS[selected.status] ?? selected.status}
+                    {QUEUE_STATUS_LABELS[selected.status]
+                      ? t(QUEUE_STATUS_LABELS[selected.status], { ns: 'common' })
+                      : selected.status}
                   </span>
                   {selected.order && (
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full ${selected.order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}
                     >
-                      {selected.order.payment_status === 'paid' ? '支払い済み' : '未払い'}
+                      {selected.order.payment_status === 'paid'
+                        ? t('states.paid', { ns: 'common' })
+                        : t('states.unpaid', { ns: 'common' })}
                     </span>
                   )}
                 </div>
@@ -343,16 +363,16 @@ export function StaffDashboardPage() {
                   <div className="grid gap-3 rounded-2xl border border-white/80 bg-white p-4 text-sm text-gray-600 shadow-[var(--shadow-soft)] sm:grid-cols-2 sm:p-5">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                        顧客
+                        {t('dashboard.customer')}
                       </p>
                       <p className="mt-1 font-bold text-gray-900">
-                        {selected.order.customer_name ?? 'ゲスト顧客'}
+                        {selected.order.customer_name ?? t('dashboard.guest', { ns: 'staff' })}
                       </p>
                     </div>
                     {selected.order.customer_phone && (
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                          電話
+                          {t('labels.phone', { ns: 'common' })}
                         </p>
                         <p className="mt-1 font-bold text-gray-900">
                           {selected.order.customer_phone}
@@ -367,16 +387,18 @@ export function StaffDashboardPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                          関連予約
+                          {t('dashboard.relatedBookingsLabel')}
                         </p>
                         <p className="mt-1 text-sm font-bold text-gray-900">
                           {relatedBookings.isLoading
-                            ? '読み込み中…'
-                            : `${relatedBookings.data?.orders.length ?? 0}件の予約`}
+                            ? t('states.loading', { ns: 'common' })
+                            : t('dashboard.relatedBookings', {
+                                count: relatedBookings.data?.orders.length ?? 0,
+                              })}
                         </p>
                       </div>
                       <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
-                        グループ
+                        {t('dashboard.group')}
                       </span>
                     </div>
                     {relatedBookings.data && (
@@ -387,7 +409,9 @@ export function StaffDashboardPage() {
                             className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-700"
                           >
                             {order.order_number} ·{' '}
-                            {ORDER_STATUS_LABELS[order.status] ?? order.status}
+                            {ORDER_STATUS_LABELS[order.status]
+                              ? t(ORDER_STATUS_LABELS[order.status], { ns: 'common' })
+                              : order.status}
                           </span>
                         ))}
                       </div>
@@ -403,12 +427,14 @@ export function StaffDashboardPage() {
                       <div className="overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[var(--shadow-soft)]">
                         <div className="flex flex-col gap-2 border-b border-gray-100 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                           <span className="text-xs font-medium uppercase text-gray-500">
-                            注文 {order.order_number}
+                            {t('dashboard.order', { number: order.order_number })}
                           </span>
                           <span
                             className={`w-fit rounded-full px-2 py-0.5 text-xs ${ORDER_STATUS_COLORS[order.status] ?? 'bg-gray-100 text-gray-500'}`}
                           >
-                            {ORDER_STATUS_LABELS[order.status] ?? order.status}
+                            {ORDER_STATUS_LABELS[order.status]
+                              ? t(ORDER_STATUS_LABELS[order.status], { ns: 'common' })
+                              : order.status}
                           </span>
                         </div>
                         <div className="grid gap-3 p-4 xl:grid-cols-2">
@@ -435,18 +461,21 @@ export function StaffDashboardPage() {
                                   </p>
                                   {item.payment_status === 'paid' && (
                                     <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">
-                                      支払い済み
+                                      {t('states.paid', { ns: 'common' })}
                                     </span>
                                   )}
                                 </div>
                                 <p className="mt-1 text-xs text-gray-500">
-                                  {item.service_time_minutes}分 ·{' '}
-                                  {formatCurrency(item.product_price)} x {item.quantity}
+                                  {t('units.minutes', {
+                                    ns: 'common',
+                                    count: item.service_time_minutes,
+                                  })}{' '}
+                                  · {formatCurrency(item.product_price)} x {item.quantity}
                                 </p>
                               </div>
                               <div className="col-span-2 flex items-center justify-between border-t border-gray-100 pt-3 sm:col-span-1 sm:block sm:border-t-0 sm:pt-0 sm:text-right xl:col-span-2 xl:flex xl:border-t xl:pt-3">
                                 <span className="text-xs font-semibold text-gray-400 xl:inline">
-                                  小計
+                                  {t('dashboard.subtotal')}
                                 </span>
                                 <span className="font-bold text-gray-950">
                                   {formatCurrency(item.subtotal)}
@@ -456,7 +485,9 @@ export function StaffDashboardPage() {
                           ))}
                         </div>
                         <div className="flex items-center justify-between border-t border-gray-100 px-4 py-4">
-                          <span className="font-semibold text-gray-700">合計</span>
+                          <span className="font-semibold text-gray-700">
+                            {t('labels.total', { ns: 'common' })}
+                          </span>
                           <span className="text-lg font-bold text-gray-900">
                             {formatCurrency(order.subtotal)}
                           </span>
@@ -466,7 +497,7 @@ export function StaffDashboardPage() {
                   })()
                 ) : (
                   <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-400 text-sm">
-                    この受付番号に紐づく注文はありません。
+                    {t('dashboard.noLinkedOrder')}
                   </div>
                 )}
               </div>
@@ -475,7 +506,7 @@ export function StaffDashboardPage() {
                 {selected.order && (
                   <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      会計
+                      {t('dashboard.checkout')}
                     </p>
                     <p className="mt-2 text-3xl font-black text-gray-950">
                       {formatCurrency(selected.order.subtotal)}
@@ -488,14 +519,18 @@ export function StaffDashboardPage() {
                             : 'bg-orange-100 text-orange-700'
                         }`}
                       >
-                        {selected.order.payment_status === 'paid' ? '支払い済み' : '未払い'}
+                        {selected.order.payment_status === 'paid'
+                          ? t('states.paid', { ns: 'common' })
+                          : t('states.unpaid', { ns: 'common' })}
                       </span>
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-bold ${
                           ORDER_STATUS_COLORS[selected.order.status] ?? 'bg-gray-100 text-gray-500'
                         }`}
                       >
-                        {ORDER_STATUS_LABELS[selected.order.status] ?? selected.order.status}
+                        {ORDER_STATUS_LABELS[selected.order.status]
+                          ? t(ORDER_STATUS_LABELS[selected.order.status], { ns: 'common' })
+                          : selected.order.status}
                       </span>
                     </div>
                   </div>
@@ -504,7 +539,7 @@ export function StaffDashboardPage() {
                 {/* Queue action buttons */}
                 <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                    受付操作
+                    {t('dashboard.ticketActions')}
                   </p>
                   <div className="mt-4 grid gap-2">
                     {selected.status === 'called' && (
@@ -514,14 +549,14 @@ export function StaffDashboardPage() {
                           disabled={serveMutation.isPending}
                           className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                         >
-                          対応開始
+                          {t('dashboard.startService')}
                         </button>
                         <button
                           onClick={() => noShowMutation.mutate(selected.id)}
                           disabled={noShowMutation.isPending}
                           className="rounded-xl bg-orange-100 px-4 py-2.5 text-sm font-medium text-orange-700 hover:bg-orange-200 disabled:opacity-50"
                         >
-                          不在
+                          {t('dashboard.noShow')}
                         </button>
                       </>
                     )}
@@ -531,19 +566,19 @@ export function StaffDashboardPage() {
                         disabled={completeMutation.isPending}
                         className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
                       >
-                        完了
+                        {t('dashboard.complete')}
                       </button>
                     )}
                     {['waiting', 'called'].includes(selected.status) && (
                       <button
                         onClick={() => {
-                          if (confirm('この受付番号をキャンセルしますか？'))
+                          if (confirm(t('dashboard.cancelTicketConfirm')))
                             cancelEntryMutation.mutate(selected.id);
                         }}
                         disabled={cancelEntryMutation.isPending}
                         className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 disabled:opacity-50"
                       >
-                        受付をキャンセル
+                        {t('dashboard.cancelTicket')}
                       </button>
                     )}
                   </div>
@@ -555,7 +590,7 @@ export function StaffDashboardPage() {
                     return (
                       <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                          注文操作
+                          {t('dashboard.orderActions')}
                         </p>
                         {['pending', 'processing'].includes(order.status) && (
                           <div className="mt-4 grid gap-2">
@@ -572,30 +607,32 @@ export function StaffDashboardPage() {
                               }
                               className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:bg-gray-100 disabled:text-gray-500"
                             >
-                              {order.payment_status === 'paid' ? '支払い済み' : '支払い済みにする'}
+                              {order.payment_status === 'paid'
+                                ? t('states.paid', { ns: 'common' })
+                                : t('dashboard.markPaid', { ns: 'staff' })}
                             </button>
                             {order.payment_status === 'paid' && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (confirm('全額返金として記録しますか？')) {
+                                  if (confirm(t('dashboard.refundConfirm'))) {
                                     paymentMutation.mutate({
                                       id: order.id,
                                       paymentStatus: 'refunded',
-                                      reason: 'スタッフによる全額返金',
+                                      reason: t('dashboard.refundReason'),
                                     });
                                   }
                                 }}
                                 disabled={paymentMutation.isPending}
                                 className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
                               >
-                                返金を記録
+                                {t('dashboard.refund')}
                               </button>
                             )}
                             <button
                               type="button"
                               onClick={() => {
-                                if (confirm('この注文をキャンセルしますか？'))
+                                if (confirm(t('dashboard.cancelOrderConfirm')))
                                   statusMutation.mutate({
                                     id: order.id,
                                     status: 'cancelled',
@@ -604,7 +641,7 @@ export function StaffDashboardPage() {
                               disabled={statusMutation.isPending}
                               className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 disabled:opacity-50"
                             >
-                              注文をキャンセル
+                              {t('dashboard.cancelOrder')}
                             </button>
                           </div>
                         )}
@@ -615,7 +652,7 @@ export function StaffDashboardPage() {
                             disabled={receiptMutation.isPending}
                             className="mt-4 w-full rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
                           >
-                            領収書を印刷
+                            {t('dashboard.printReceipt', { ns: 'staff' })}
                           </button>
                         )}
                       </div>

@@ -1,3 +1,5 @@
+import type { SupportedLocale } from '@line-queue/shared';
+
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
 import { metricsService } from '../../utils/metrics';
@@ -5,8 +7,8 @@ import { metricsService } from '../../utils/metrics';
 import { CreateQueueDto, UpdateQueueDto, UpdateQueueStatusDto } from './queues.validator';
 
 export const queuesService = {
-  async listQueues(orgId: string) {
-    return queuesRepository.findActiveByOrg(orgId);
+  async listQueues(orgId: string, locale: SupportedLocale = 'ja') {
+    return queuesRepository.findActiveByOrg(orgId, locale);
   },
 
   async getQueue(id: string, orgId: string) {

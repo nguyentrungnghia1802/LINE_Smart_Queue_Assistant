@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
@@ -7,6 +8,7 @@ import { post } from '../services/apiClient';
 import { useAuthStore } from '../store/authStore';
 
 export function RegisterPage() {
+  const { t } = useTranslation(['auth', 'common']);
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
 
@@ -35,7 +37,7 @@ export function RegisterPage() {
       });
       navigate('/customer', { replace: true });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '登録に失敗しました';
+      const msg = err instanceof Error ? err.message : t('register.failed', { ns: 'auth' });
       setError(msg);
     } finally {
       setLoading(false);
@@ -47,10 +49,10 @@ export function RegisterPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <span className="text-5xl">🟢</span>
-          <h1 className="mt-4 text-2xl font-bold text-gray-900">顧客登録</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            受付状況を確認するためのアカウントを作成します
-          </p>
+          <h1 className="mt-4 text-2xl font-bold text-gray-900">
+            {t('register.title', { ns: 'auth' })}
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">{t('register.subtitle', { ns: 'auth' })}</p>
         </div>
 
         <form
@@ -58,7 +60,9 @@ export function RegisterPage() {
           className="bg-white rounded-[var(--radius-card)] border border-gray-200 shadow-sm p-8 space-y-4"
         >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">表示名</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('labels.displayName', { ns: 'common' })}
+            </label>
             <input
               type="text"
               required
@@ -80,7 +84,9 @@ export function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">電話番号（任意）</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('register.phoneOptional', { ns: 'auth' })}
+            </label>
             <input
               type="tel"
               value={phone}
@@ -90,7 +96,9 @@ export function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">パスワード</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('labels.password', { ns: 'common' })}
+            </label>
             <input
               type="password"
               required
@@ -108,13 +116,15 @@ export function RegisterPage() {
             disabled={loading}
             className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-sm transition-colors"
           >
-            {loading ? '登録しています…' : '登録'}
+            {loading
+              ? t('register.submitting', { ns: 'auth' })
+              : t('register.submit', { ns: 'auth' })}
           </button>
 
           <p className="text-sm text-gray-500 text-center pt-2">
-            すでにアカウントをお持ちの場合{' '}
+            {t('register.hasAccount', { ns: 'auth' })}{' '}
             <Link to="/login" className="text-brand-600 hover:text-brand-700 font-medium">
-              ログイン
+              {t('actions.login', { ns: 'common' })}
             </Link>
           </p>
         </form>

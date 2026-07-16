@@ -1,0 +1,31 @@
+export const auth = {
+  login: {
+    title: 'Đăng nhập',
+    subtitle: 'Nhập thông tin tài khoản của bạn.',
+    submit: 'Đăng nhập',
+    submitting: 'Đang đăng nhập…',
+    invalid: 'Email hoặc mật khẩu không chính xác.',
+    intro: 'Quản lý tiếp nhận, lựa chọn sản phẩm, gọi lượt và thông báo LINE trong một hệ thống.',
+    noAccount: 'Chưa có tài khoản?',
+    customerRegister: 'Đăng ký khách hàng',
+    onlineReception: 'Tiếp nhận trực tuyến',
+    notificationIntegration: 'Tích hợp thông báo',
+    paymentDemo: 'Thanh toán demo',
+  },
+  register: {
+    title: 'Đăng ký tài khoản',
+    subtitle: 'Tạo tài khoản để theo dõi trạng thái lượt.',
+    submit: 'Đăng ký',
+    submitting: 'Đang đăng ký…',
+    failed: 'Đăng ký thất bại.',
+    hasAccount: 'Đã có tài khoản?',
+    phoneOptional: 'Số điện thoại (không bắt buộc)',
+  },
+  account: {
+    title: 'Thông tin tài khoản',
+    subtitle: 'Xem thông tin người dùng đang đăng nhập.',
+    back: 'Quay lại tổng quan',
+    organizationId: 'ID tổ chức',
+    userId: 'ID người dùng',
+  },
+} as const;

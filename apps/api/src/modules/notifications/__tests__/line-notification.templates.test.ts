@@ -99,4 +99,32 @@ describe('line-notification.templates', () => {
     expect(text).toContain('前の人数: なし');
     expect(text).toContain('受付状況: https://queue.example.com/liff/tickets/entry-123');
   });
+
+  it.each([
+    ['vi', 'Đã đến lượt của bạn', 'Mở thông tin lượt'],
+    ['en', 'It is your turn', 'Open ticket'],
+  ] as const)('localizes Flex and text fallback for %s', (locale, headline, buttonLabel) => {
+    const notification = buildTicketNotification({
+      eventType: 'called',
+      ticketCode: 'A019',
+      ticketUrl: 'https://queue.example.com/liff/tickets/entry-123',
+      aheadCount: 0,
+      estimatedWaitSeconds: 0,
+      locale,
+    });
+
+    expect(notification.textMessage).toContain(headline);
+    expect(notification.flexMessage.contents).toMatchObject({
+      footer: { contents: [{ action: { label: buttonLabel } }] },
+    });
+  });
+
+  it('uses Japanese as the default locale', () => {
+    const notification = buildTicketNotification({
+      eventType: 'called',
+      ticketCode: 'A019',
+      ticketUrl: 'https://queue.example.com/ticket',
+    });
+    expect(notification.textMessage).toContain('順番になりました');
+  });
 });

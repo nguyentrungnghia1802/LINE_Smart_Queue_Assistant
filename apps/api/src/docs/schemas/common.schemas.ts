@@ -31,6 +31,8 @@ export const commonSchemas = {
           message: {
             type: 'string',
             example: 'Request validation failed',
+            description:
+              'Human-readable diagnostic text. Clients must branch and translate by error.code, never by this message.',
           },
           details: {
             description: 'Zod flatten() output on 422; arbitrary debug data on 500 (dev only).',

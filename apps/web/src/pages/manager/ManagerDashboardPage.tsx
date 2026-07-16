@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
+import { formatCurrency as formatLocalizedCurrency } from '../../i18n/format';
 import { get } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
 
@@ -62,18 +64,6 @@ interface StaffingRecommendation {
   generated_at: string;
 }
 
-function formatCurrency(n: number) {
-  return new Intl.NumberFormat('ja-JP', {
-    style: 'currency',
-    currency: 'JPY',
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
-function formatMinutes(seconds: number) {
-  return `${Math.ceil(seconds / 60)} 分`;
-}
-
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
@@ -85,6 +75,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
 }
 
 export function ManagerDashboardPage() {
+  const { t, i18n } = useTranslation(['manager', 'common', 'staff']);
   const { user } = useAuthStore();
   const orgId = user?.organizationId;
 
@@ -106,8 +97,13 @@ export function ManagerDashboardPage() {
   });
 
   if (isLoading || !data) {
-    return <div className="text-gray-400 text-sm">読み込み中...</div>;
+    return <div className="text-gray-400 text-sm">{t('states.loading', { ns: 'common' })}</div>;
   }
+
+  const formatMoney = (value: number) =>
+    formatLocalizedCurrency(value, i18n.resolvedLanguage ?? 'ja');
+  const formatMinutes = (seconds: number) =>
+    t('units.minutes', { ns: 'common', count: Math.ceil(seconds / 60) });
 
   const maxRevenue = Math.max(...data.dailyRevenue.map((d) => d.revenue), 1);
   const cancellationRate = Math.round(data.cancellationRate * 100);
@@ -119,7 +115,7 @@ export function ManagerDashboardPage() {
   );
   const peakSlot =
     data.dailyRevenue.length === 0
-      ? 'データ待ち'
+      ? t('dashboard.pendingData', { ns: 'manager' })
       : data.dailyRevenue
           .reduce((best, day) => (day.orders > best.orders ? day : best))
           .date.slice(5);
@@ -127,70 +123,94 @@ export function ManagerDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">管理</p>
-        <h1 className="mt-2 text-3xl font-bold text-gray-950">ダッシュボード</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
+          {t('dashboard.section', { ns: 'manager' })}
+        </p>
+        <h1 className="mt-2 text-3xl font-bold text-gray-950">
+          {t('dashboard.title', { ns: 'manager' })}
+        </h1>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="売上合計" value={formatCurrency(data.totalRevenue)} />
-        <StatCard label="注文合計" value={String(data.totalOrders)} />
-        <StatCard label="完了した注文" value={String(data.completedOrders)} />
-        <StatCard label="キャンセル注文" value={String(data.cancelledOrders)} />
-        <StatCard label="キャンセル率" value={`${cancellationRate}%`} />
+        <StatCard label={t('dashboard.totalRevenue')} value={formatMoney(data.totalRevenue)} />
+        <StatCard label={t('dashboard.totalOrders')} value={String(data.totalOrders)} />
+        <StatCard label={t('dashboard.completedOrders')} value={String(data.completedOrders)} />
+        <StatCard label={t('dashboard.cancelledOrders')} value={String(data.cancelledOrders)} />
+        <StatCard label={t('dashboard.cancellationRate')} value={`${cancellationRate}%`} />
         <StatCard
-          label="処理中の注文"
+          label={t('dashboard.processingOrders')}
           value={String(data.pendingOrders)}
-          sub={`${data.totalProducts} 商品/サービス`}
+          sub={t('dashboard.productCount', { count: data.totalProducts })}
         />
-        <StatCard label="待機中の顧客" value={String(data.activeQueueEntries)} />
-        <StatCard label="平均ETA" value={formatMinutes(data.averageEtaSeconds)} />
+        <StatCard label={t('dashboard.waitingCustomers')} value={String(data.activeQueueEntries)} />
+        <StatCard label={t('dashboard.averageEta')} value={formatMinutes(data.averageEtaSeconds)} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
-            実績ベース予測
+            {t('dashboard.performanceForecast')}
           </p>
-          <h2 className="mt-2 text-lg font-bold text-gray-950">待ち時間の目安</h2>
+          <h2 className="mt-2 text-lg font-bold text-gray-950">{t('dashboard.waitEstimate')}</h2>
           <p className="mt-4 text-3xl font-bold text-gray-950">
-            {waitForecast ? formatMinutes(waitForecast.forecasted_wait_seconds) : 'データ待ち'}
+            {waitForecast
+              ? formatMinutes(waitForecast.forecasted_wait_seconds)
+              : t('dashboard.pendingData')}
           </p>
           <p className="mt-2 text-sm text-gray-500">
-            {waitForecast?.explanation ?? '次回の集計後に表示します。'}
+            {waitForecast
+              ? t('dashboard.waitExplanation', {
+                  queueDepth: waitForecast.queue_depth,
+                  staffCount: waitForecast.active_staff_count,
+                })
+              : t('dashboard.pendingAggregation')}
           </p>
           {waitForecast && (
             <p className="mt-2 text-xs text-gray-400">
-              信頼度 {Math.round(Number(waitForecast.confidence) * 100)}% ·{' '}
-              {waitForecast.model_version}
+              {t('dashboard.confidence', {
+                value: Math.round(Number(waitForecast.confidence) * 100),
+              })}{' '}
+              · {waitForecast.model_version}
             </p>
           )}
         </div>
         <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
-            シフト提案
+            {t('dashboard.shiftSuggestion')}
           </p>
-          <h2 className="mt-2 text-lg font-bold text-gray-950">推奨スタッフ数</h2>
+          <h2 className="mt-2 text-lg font-bold text-gray-950">
+            {t('dashboard.recommendedStaff')}
+          </h2>
           <p className="mt-4 text-3xl font-bold text-gray-950">
-            {recommendedSlot ? `${recommendedSlot.recommended_staff_count} 名` : 'データ待ち'}
+            {recommendedSlot
+              ? t('units.people', { ns: 'common', count: recommendedSlot.recommended_staff_count })
+              : t('dashboard.pendingData')}
           </p>
           <p className="mt-2 text-sm text-gray-500">
-            {recommendedSlot?.explanation ?? '次回の集計後に表示します。'}
+            {recommendedSlot
+              ? t('dashboard.staffingExplanation', {
+                  day: recommendedSlot.day_of_week,
+                  hour: recommendedSlot.hour_of_day,
+                })
+              : t('dashboard.pendingAggregation')}
           </p>
         </div>
         <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">分析</p>
-          <h2 className="mt-2 text-lg font-bold text-gray-950">混雑傾向</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
+            {t('dashboard.analytics')}
+          </p>
+          <h2 className="mt-2 text-lg font-bold text-gray-950">{t('dashboard.congestionTrend')}</h2>
           <p className="mt-4 text-3xl font-bold text-gray-950">{peakSlot}</p>
-          <p className="mt-2 text-sm text-gray-500">直近7日間で注文数が多い日</p>
+          <p className="mt-2 text-sm text-gray-500">{t('dashboard.busiestDay')}</p>
         </div>
       </div>
 
       {/* Revenue chart */}
       <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-        <h2 className="mb-4 font-bold text-gray-950">直近7日間の売上</h2>
+        <h2 className="mb-4 font-bold text-gray-950">{t('dashboard.salesLastSevenDays')}</h2>
         {data.dailyRevenue.length === 0 ? (
-          <p className="text-sm text-gray-400">データがありません</p>
+          <p className="text-sm text-gray-400">{t('states.empty', { ns: 'common' })}</p>
         ) : (
           <div className="flex items-end gap-2 h-32">
             {data.dailyRevenue.map((d) => (
@@ -198,7 +218,7 @@ export function ManagerDashboardPage() {
                 <div
                   className="w-full bg-brand-500 rounded-t"
                   style={{ height: `${Math.round((d.revenue / maxRevenue) * 100)}%`, minHeight: 4 }}
-                  title={formatCurrency(d.revenue)}
+                  title={formatMoney(d.revenue)}
                 />
                 <span className="text-[10px] text-gray-400 truncate w-full text-center">
                   {d.date.slice(5)}
@@ -211,16 +231,16 @@ export function ManagerDashboardPage() {
 
       {/* Top products */}
       <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-        <h2 className="mb-3 font-bold text-gray-950">商品 / サービス Top 5</h2>
+        <h2 className="mb-3 font-bold text-gray-950">{t('dashboard.topProducts')}</h2>
         {data.topProducts.length === 0 ? (
-          <p className="text-sm text-gray-400">データがありません</p>
+          <p className="text-sm text-gray-400">{t('states.empty', { ns: 'common' })}</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b border-gray-100">
-                <th className="pb-2 font-medium">商品</th>
-                <th className="pb-2 font-medium text-right">販売数</th>
-                <th className="pb-2 font-medium text-right">売上</th>
+                <th className="pb-2 font-medium">{t('labels.product', { ns: 'common' })}</th>
+                <th className="pb-2 font-medium text-right">{t('dashboard.salesCount')}</th>
+                <th className="pb-2 font-medium text-right">{t('dashboard.revenue')}</th>
               </tr>
             </thead>
             <tbody>
@@ -228,7 +248,7 @@ export function ManagerDashboardPage() {
                 <tr key={i} className="border-b border-gray-50">
                   <td className="py-2 text-gray-800">{p.product_name}</td>
                   <td className="py-2 text-right text-gray-600">{p.total_sold}</td>
-                  <td className="py-2 text-right text-gray-800">{formatCurrency(p.revenue)}</td>
+                  <td className="py-2 text-right text-gray-800">{formatMoney(p.revenue)}</td>
                 </tr>
               ))}
             </tbody>
@@ -238,27 +258,31 @@ export function ManagerDashboardPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="overflow-hidden rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-          <h2 className="mb-3 font-bold text-gray-950">最近の注文</h2>
+          <h2 className="mb-3 font-bold text-gray-950">{t('dashboard.recentOrders')}</h2>
           {data.recentOrders.length === 0 ? (
-            <p className="text-sm text-gray-400">データがありません</p>
+            <p className="text-sm text-gray-400">{t('states.empty', { ns: 'common' })}</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">
-                  <th className="pb-2 font-medium">注文番号</th>
-                  <th className="pb-2 font-medium">顧客</th>
-                  <th className="pb-2 font-medium text-right">合計</th>
-                  <th className="pb-2 font-medium text-right">ステータス</th>
+                  <th className="pb-2 font-medium">{t('dashboard.orderNumber')}</th>
+                  <th className="pb-2 font-medium">{t('dashboard.customer')}</th>
+                  <th className="pb-2 font-medium text-right">
+                    {t('labels.total', { ns: 'common' })}
+                  </th>
+                  <th className="pb-2 font-medium text-right">
+                    {t('labels.status', { ns: 'common' })}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {data.recentOrders.map((order) => (
                   <tr key={order.id} className="border-b border-gray-50">
                     <td className="py-2 text-gray-800">{order.order_number}</td>
-                    <td className="py-2 text-gray-600">{order.customer_name ?? 'ゲスト顧客'}</td>
-                    <td className="py-2 text-right text-gray-800">
-                      {formatCurrency(order.subtotal)}
+                    <td className="py-2 text-gray-600">
+                      {order.customer_name ?? t('dashboard.guest', { ns: 'staff' })}
                     </td>
+                    <td className="py-2 text-right text-gray-800">{formatMoney(order.subtotal)}</td>
                     <td className="py-2 text-right text-gray-500">{order.status}</td>
                   </tr>
                 ))}
@@ -268,17 +292,19 @@ export function ManagerDashboardPage() {
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-          <h2 className="mb-3 font-bold text-gray-950">最近のキュー活動</h2>
+          <h2 className="mb-3 font-bold text-gray-950">{t('dashboard.recentQueueActivity')}</h2>
           {data.recentQueueActivities.length === 0 ? (
-            <p className="text-sm text-gray-400">データがありません</p>
+            <p className="text-sm text-gray-400">{t('states.empty', { ns: 'common' })}</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">
-                  <th className="pb-2 font-medium">番号</th>
-                  <th className="pb-2 font-medium">キュー</th>
-                  <th className="pb-2 font-medium">注文</th>
-                  <th className="pb-2 font-medium text-right">ステータス</th>
+                  <th className="pb-2 font-medium">{t('dashboard.ticketNumber')}</th>
+                  <th className="pb-2 font-medium">{t('dashboard.queue')}</th>
+                  <th className="pb-2 font-medium">{t('dashboard.orderNumber')}</th>
+                  <th className="pb-2 font-medium text-right">
+                    {t('labels.status', { ns: 'common' })}
+                  </th>
                 </tr>
               </thead>
               <tbody>

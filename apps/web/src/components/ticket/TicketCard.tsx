@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 import type { TicketPositionResult } from '../../types';
 import { StatusBadge } from '../ui/StatusBadge';
 
@@ -13,6 +15,7 @@ interface TicketCardProps {
  * Highlights called tickets with an amber ring.
  */
 export function TicketCard({ ticket, onClick }: Readonly<TicketCardProps>) {
+  const { t } = useTranslation(['customer', 'common']);
   const { entry, aheadCount, estimatedWaitSeconds } = ticket;
   const statusKey = entry.status as unknown as string;
   const waitMin = Math.ceil(estimatedWaitSeconds / 60);
@@ -25,7 +28,11 @@ export function TicketCard({ ticket, onClick }: Readonly<TicketCardProps>) {
       className={`w-full text-left bg-white rounded-(--radius-card) border shadow-sm hover:shadow-md transition-shadow p-5 ${
         isCalled ? 'border-amber-300 ring-2 ring-amber-200' : 'border-gray-200'
       }`}
-      aria-label={`受付番号 ${entry.ticket_code}、ステータス: ${statusKey}`}
+      aria-label={t('ticket.cardAria', {
+        ns: 'customer',
+        ticket: entry.ticket_code,
+        status: t(`states.${statusKey}`, { ns: 'common', defaultValue: statusKey }),
+      })}
     >
       <div className="flex items-start justify-between gap-3">
         {/* Ticket number */}
@@ -37,7 +44,7 @@ export function TicketCard({ ticket, onClick }: Readonly<TicketCardProps>) {
           >
             {entry.ticket_code}
           </p>
-          <p className="text-xs text-gray-400 mt-1">受付番号</p>
+          <p className="text-xs text-gray-400 mt-1">{t('labels.ticketCode', { ns: 'common' })}</p>
         </div>
 
         <StatusBadge status={statusKey} />
@@ -46,19 +53,15 @@ export function TicketCard({ ticket, onClick }: Readonly<TicketCardProps>) {
       {/* ETA + position — only relevant while waiting */}
       {statusKey === 'waiting' && (
         <div className="mt-4 flex items-center gap-4 text-sm text-gray-600">
-          <span>
-            前に<span className="font-medium text-gray-900">{aheadCount}</span>名
-          </span>
-          <span>
-            約<span className="font-medium text-gray-900">{waitMin}</span>分
-          </span>
+          <span>{t('units.people', { ns: 'common', count: aheadCount })}</span>
+          <span>{t('units.approximateMinutes', { ns: 'common', count: waitMin })}</span>
         </div>
       )}
 
       {/* Called prompt */}
       {isCalled && (
         <p className="mt-3 text-xs font-semibold text-amber-700">
-          詳細を確認してカウンターへお越しください
+          {t('ticket.detailsInstruction', { ns: 'customer' })}
         </p>
       )}
     </button>

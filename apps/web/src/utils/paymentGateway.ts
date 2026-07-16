@@ -3,8 +3,8 @@ export type PaymentProvider = 'demo' | 'stripe' | 'komoju' | 'paypay';
 
 export interface PaymentGatewayMethod {
   id: string;
-  label: string;
-  description: string;
+  labelKey: string;
+  descriptionKey: string;
   provider: PaymentProvider;
   externalMethod?: string;
 }
@@ -18,36 +18,36 @@ const ENABLE_EXTERNAL_PAYMENT =
 export const PAYMENT_METHODS: PaymentGatewayMethod[] = [
   {
     id: 'credit_card',
-    label: 'クレジットカード',
-    description: 'Stripe / KOMOJU 接続準備済み',
+    labelKey: 'payment.methods.creditCard.label',
+    descriptionKey: 'payment.methods.creditCard.description',
     provider: 'stripe',
     externalMethod: 'card',
   },
   {
     id: 'paypay',
-    label: 'PayPay',
-    description: 'PayPay決済リンク接続準備済み',
+    labelKey: 'payment.methods.paypay.label',
+    descriptionKey: 'payment.methods.paypay.description',
     provider: 'paypay',
     externalMethod: 'paypay',
   },
   {
     id: 'rakuten_pay',
-    label: '楽天ペイ',
-    description: '楽天ペイ接続準備済み',
+    labelKey: 'payment.methods.rakuten.label',
+    descriptionKey: 'payment.methods.rakuten.description',
     provider: 'komoju',
     externalMethod: 'rakuten_pay',
   },
   {
     id: 'line_pay',
-    label: 'LINE Pay',
-    description: 'LINE連携決済の接続枠',
+    labelKey: 'payment.methods.linePay.label',
+    descriptionKey: 'payment.methods.linePay.description',
     provider: 'komoju',
     externalMethod: 'line_pay',
   },
   {
     id: 'konbini',
-    label: 'コンビニ払い',
-    description: 'KOMOJU等の番号発行に対応予定',
+    labelKey: 'payment.methods.konbini.label',
+    descriptionKey: 'payment.methods.konbini.description',
     provider: 'komoju',
     externalMethod: 'konbini',
   },

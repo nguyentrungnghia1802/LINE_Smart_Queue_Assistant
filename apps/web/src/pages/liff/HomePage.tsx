@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { CalledBanner } from '../../components/ui/CalledBanner';
@@ -10,15 +11,7 @@ import { useMyTickets } from '../../hooks/useQueueEntry';
 import type { TicketPositionResult } from '../../types';
 
 // ── Step data — defined outside component to avoid re-creation ───────────────
-const STEPS = [
-  {
-    title: 'QRコードまたはリンクを開く',
-    desc: '店頭QR、LINEメッセージ、直接URLから開始できます。',
-  },
-  { title: '順番待ちに参加する', desc: '受付番号はすぐに発行されます。' },
-  { title: '待ち時間を確認する', desc: '自分の順番と目安時間をリアルタイムで確認できます。' },
-  { title: '呼び出し後に戻る', desc: '順番になるとLINEメッセージで通知されます。' },
-];
+const STEP_NUMBERS = [1, 2, 3, 4] as const;
 
 /**
  * LIFF Home — first screen the user lands on.
@@ -26,6 +19,7 @@ const STEPS = [
  * URL: /liff/home
  */
 export function HomePage() {
+  const { t } = useTranslation('customer');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [homeNotice, setHomeNotice] = useState('');
@@ -51,7 +45,7 @@ export function HomePage() {
       navigate(defaultBookingPath);
       return;
     }
-    setHomeNotice('予約を開始するには、店舗のQRコードを読み取ってください。');
+    setHomeNotice(t('home.scanPrompt'));
   }
 
   useEffect(() => {
@@ -63,7 +57,7 @@ export function HomePage() {
       if (defaultBookingPath) {
         navigate(defaultBookingPath, { replace: true });
       } else {
-        setHomeNotice('予約を開始するには、店舗のQRコードを読み取ってください。');
+        setHomeNotice(t('home.scanPrompt'));
       }
       return;
     }
@@ -71,7 +65,7 @@ export function HomePage() {
     if (mode === 'ticket') {
       setSearchParams({}, { replace: true });
       if (!tickets || tickets.length === 0) {
-        setHomeNotice('現在有効な受付番号はありません。');
+        setHomeNotice(t('home.noTicket'));
       } else if (tickets.length === 1) {
         navigate(`/liff/tickets/${tickets[0].entry.id}`, { replace: true });
       } else {
@@ -85,6 +79,7 @@ export function HomePage() {
     navigate,
     searchParams,
     setSearchParams,
+    t,
     tickets,
   ]);
 
@@ -158,6 +153,7 @@ function ProfileSection({
   isLoading,
   onLogin,
 }: Readonly<ProfileSectionProps>) {
+  const { t } = useTranslation(['customer', 'common']);
   if (isLoading && !isInitialized) {
     return <ProfileSkeleton />;
   }
@@ -179,7 +175,7 @@ function ProfileSection({
         )}
         <div>
           <p className="font-semibold text-gray-900 leading-tight">{profile.displayName}</p>
-          <p className="text-xs text-gray-500">LINEアカウント</p>
+          <p className="text-xs text-gray-500">{t('home.lineAccount', { ns: 'customer' })}</p>
         </div>
       </div>
     );
@@ -188,15 +184,17 @@ function ProfileSection({
   return (
     <div className="bg-line-green/10 rounded-(--radius-card) p-4 flex items-center justify-between">
       <div>
-        <p className="text-sm font-medium text-gray-800">LINEでログイン</p>
-        <p className="text-xs text-gray-500 mt-0.5">受付番号を確認できます</p>
+        <p className="text-sm font-medium text-gray-800">
+          {t('home.lineLogin', { ns: 'customer' })}
+        </p>
+        <p className="text-xs text-gray-500 mt-0.5">{t('home.loginHint', { ns: 'customer' })}</p>
       </div>
       <button
         type="button"
         onClick={onLogin}
         className="bg-line-green text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
       >
-        ログイン
+        {t('actions.login', { ns: 'common' })}
       </button>
     </div>
   );
@@ -225,13 +223,18 @@ function ActiveTicketsSection({
   onViewAll,
   onOpenTicket,
 }: Readonly<ActiveTicketsSectionProps>) {
+  const { t } = useTranslation(['customer', 'common']);
   function renderContent() {
     if (!isAuthReady) {
       return (
         <EmptyState
           icon="🎫"
-          title={authStatus === 'error' ? 'LINE認証が必要です' : 'LINE認証中です'}
-          message="受付番号をLINEアカウントに紐づけるため、認証完了後に表示します。"
+          title={
+            authStatus === 'error'
+              ? t('home.authRequired', { ns: 'customer' })
+              : t('home.authenticating', { ns: 'customer' })
+          }
+          message={t('home.authHint', { ns: 'customer' })}
         />
       );
     }
@@ -239,14 +242,14 @@ function ActiveTicketsSection({
       return <TicketCardSkeleton />;
     }
     if (isError) {
-      return <ErrorState message="受付番号を読み込めませんでした。" onRetry={onRetry} />;
+      return <ErrorState message={t('home.loadFailed', { ns: 'customer' })} onRetry={onRetry} />;
     }
     if (activeCount === 0) {
       return (
         <EmptyState
           icon="🎫"
-          title="有効な受付番号はありません"
-          message="予約する場合は「予約する」から店舗の受付ページへ進んでください。"
+          title={t('home.noTicket', { ns: 'customer' })}
+          message={t('home.noTicketDescription', { ns: 'customer' })}
         />
       );
     }
@@ -259,13 +262,17 @@ function ActiveTicketsSection({
         >
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs text-gray-400 font-semibold">現在の受付番号</p>
+              <p className="text-xs text-gray-400 font-semibold">
+                {t('home.currentTicket', { ns: 'customer' })}
+              </p>
               <p className="mt-1 text-4xl font-extrabold text-gray-900 leading-none">
                 {primaryTicket.entry.ticket_code}
               </p>
               <p className="mt-2 text-sm text-gray-500">
-                前の人数:{' '}
-                {primaryTicket.aheadCount === 0 ? 'なし' : `${primaryTicket.aheadCount}名`}
+                {t('labels.peopleAhead', { ns: 'common' })}:{' '}
+                {primaryTicket.aheadCount === 0
+                  ? t('units.none', { ns: 'common' })
+                  : t('units.people', { ns: 'common', count: primaryTicket.aheadCount })}
               </p>
             </div>
             <span className="text-line-green text-2xl" aria-hidden="true">
@@ -275,7 +282,7 @@ function ActiveTicketsSection({
         </button>
       );
     }
-    const label = '有効な受付番号';
+    const label = t('home.activeTicket', { ns: 'customer' });
     return (
       <button
         type="button"
@@ -296,9 +303,9 @@ function ActiveTicketsSection({
   }
 
   return (
-    <section aria-label="有効な受付番号">
+    <section aria-label={t('home.activeTicket', { ns: 'customer' })}>
       <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
-        有効な受付
+        {t('home.activeTicket', { ns: 'customer' })}
       </h2>
       {renderContent()}
     </section>
@@ -314,43 +321,47 @@ function QuickActions({
   onViewTickets: () => void;
   onViewHistory: () => void;
 }>) {
+  const { t } = useTranslation('customer');
   return (
-    <section aria-label="クイックアクション" className="grid grid-cols-2 gap-3">
+    <section aria-label={t('home.quickActions')} className="grid grid-cols-2 gap-3">
       <button
         type="button"
         onClick={onStartBooking}
         className="rounded-(--radius-card) bg-line-green px-4 py-4 text-left text-white shadow-sm transition hover:opacity-90"
       >
-        <span className="block text-sm font-bold">予約する</span>
-        <span className="mt-1 block text-xs text-white/80">新しい受付を開始</span>
+        <span className="block text-sm font-bold">{t('home.startBooking')}</span>
+        <span className="mt-1 block text-xs text-white/80">{t('home.newBooking')}</span>
       </button>
       <button
         type="button"
         onClick={onViewTickets}
         className="rounded-(--radius-card) border border-gray-200 bg-white px-4 py-4 text-left text-gray-900 shadow-sm transition hover:bg-gray-50"
       >
-        <span className="block text-sm font-bold">現在の受付</span>
-        <span className="mt-1 block text-xs text-gray-500">受付番号を確認</span>
+        <span className="block text-sm font-bold">{t('home.currentTicket')}</span>
+        <span className="mt-1 block text-xs text-gray-500">{t('home.checkTicket')}</span>
       </button>
       <button
         type="button"
         onClick={onViewHistory}
         className="col-span-2 rounded-(--radius-card) border border-gray-200 bg-white px-4 py-3 text-left text-gray-900 shadow-sm transition hover:bg-gray-50"
       >
-        <span className="block text-sm font-bold">予約履歴</span>
-        <span className="mt-1 block text-xs text-gray-500">過去の注文と受付番号を確認</span>
+        <span className="block text-sm font-bold">{t('home.bookingHistory')}</span>
+        <span className="mt-1 block text-xs text-gray-500">{t('home.checkHistory')}</span>
       </button>
     </section>
   );
 }
 
 function HowItWorksSection() {
+  const { t } = useTranslation('customer');
   return (
-    <section aria-label="使い方">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">使い方</h2>
+    <section aria-label={t('home.guide')}>
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+        {t('home.guide')}
+      </h2>
       <div className="bg-white rounded-(--radius-card) border border-gray-200 p-4 space-y-3">
-        {STEPS.map((step, i) => (
-          <div key={step.title} className="flex items-start gap-3">
+        {STEP_NUMBERS.map((step, i) => (
+          <div key={step} className="flex items-start gap-3">
             <span
               className="shrink-0 h-7 w-7 rounded-full bg-line-green/15 text-line-green font-bold text-sm flex items-center justify-center"
               aria-hidden="true"
@@ -358,8 +369,8 @@ function HowItWorksSection() {
               {i + 1}
             </span>
             <div>
-              <p className="text-sm font-medium text-gray-800">{step.title}</p>
-              <p className="text-xs text-gray-500">{step.desc}</p>
+              <p className="text-sm font-medium text-gray-800">{t(`home.step${step}Title`)}</p>
+              <p className="text-xs text-gray-500">{t(`home.step${step}Description`)}</p>
             </div>
           </div>
         ))}

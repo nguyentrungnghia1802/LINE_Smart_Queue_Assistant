@@ -61,10 +61,12 @@ For a real production environment, use managed PostgreSQL/object storage, TLS in
 2. Build immutable API/web images from a reviewed commit.
 3. Run lint, typecheck, tests, build, and contract/migration checks.
 4. Apply additive migrations with a production-safe role.
+   Migration `000013` backfills Japanese translation rows and adds user, organization, and durable notification locale snapshots; verify row counts before enabling language selection.
 5. Deploy API and verify `/health` plus `/ready`.
 6. Deploy web with correct public environment values.
 7. Run `npm run line:rich-menu:sync` only after the intended LINE credentials, LIFF ID, web origin, and Rich Menu image are configured.
 8. Smoke test login, public org/QR, LIFF Home/Rich Menu navigation, booking, staff call, LINE sandbox, and payment mode.
+   Run at least one browser/LIFF smoke in each supported locale (`ja`, `vi`, `en`) and confirm a Japanese fallback when an unsupported browser locale is used.
 9. Monitor errors, latency, DB connections, job execution, stock/payment anomalies, and notification failures.
 10. Record release in `CHANGELOG.md`.
 

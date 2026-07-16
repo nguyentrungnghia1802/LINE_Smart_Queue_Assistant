@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { del, get, put } from '../../services/apiClient';
 
@@ -16,6 +17,7 @@ interface LocationConsent {
 }
 
 export function PreferencesPage() {
+  const { t } = useTranslation(['customer', 'common']);
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState('');
   const preferences = useQuery({
@@ -36,22 +38,30 @@ export function PreferencesPage() {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['line-preferences'] });
-      setNotice('通知設定を保存しました。');
+      setNotice(t('preferences.saved', { ns: 'customer' }));
     },
   });
   const deleteLocation = useMutation({
     mutationFn: () => del<{ deletedSnapshots: number }>('/api/v1/line/location-data'),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['location-consent'] });
-      setNotice('位置情報の共有を停止し、保存データを削除しました。');
+      setNotice(t('preferences.locationDeleted', { ns: 'customer' }));
     },
   });
 
   if (preferences.isLoading || location.isLoading) {
-    return <p className="py-12 text-center text-sm text-gray-500">設定を読み込んでいます…</p>;
+    return (
+      <p className="py-12 text-center text-sm text-gray-500">
+        {t('states.loading', { ns: 'common' })}
+      </p>
+    );
   }
   if (!preferences.data) {
-    return <p className="py-12 text-center text-sm text-red-600">設定を読み込めませんでした。</p>;
+    return (
+      <p className="py-12 text-center text-sm text-red-600">
+        {t('preferences.loadFailed', { ns: 'customer' })}
+      </p>
+    );
   }
 
   const data = preferences.data;
@@ -62,38 +72,44 @@ export function PreferencesPage() {
   return (
     <div className="mx-auto max-w-md space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-950">通知・プライバシー設定</h1>
-        <p className="mt-1 text-sm text-gray-500">LINE通知と位置情報をいつでも変更できます。</p>
+        <h1 className="text-xl font-bold text-gray-950">
+          {t('preferences.pageTitle', { ns: 'customer' })}
+        </h1>
+        <p className="mt-1 text-sm text-gray-500">
+          {t('preferences.description', { ns: 'customer' })}
+        </p>
       </div>
       {notice && (
         <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">{notice}</p>
       )}
       <section className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white px-4">
         <Toggle
-          label="LINE通知"
+          label={t('preferences.line', { ns: 'customer' })}
           checked={data.notification_enabled}
           onChange={(v) => change('notification_enabled', v)}
         />
         <Toggle
-          label="順番が近い通知"
+          label={t('preferences.approaching', { ns: 'customer' })}
           checked={data.approaching_enabled}
           onChange={(v) => change('approaching_enabled', v)}
         />
         <Toggle
-          label="呼び出し通知"
+          label={t('preferences.called', { ns: 'customer' })}
           checked={data.called_enabled}
           onChange={(v) => change('called_enabled', v)}
         />
         <Toggle
-          label="完了・キャンセル通知"
+          label={t('preferences.lifecycle', { ns: 'customer' })}
           checked={data.lifecycle_enabled}
           onChange={(v) => change('lifecycle_enabled', v)}
         />
       </section>
       <section className="rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="font-semibold text-gray-900">位置情報</h2>
+        <h2 className="font-semibold text-gray-900">
+          {t('preferences.location', { ns: 'customer' })}
+        </h2>
         <p className="mt-1 text-sm leading-6 text-gray-500">
-          予約時に共有した一時的な位置情報のみを使用し、継続的な追跡は行いません。
+          {t('preferences.locationDescription', { ns: 'customer' })}
         </p>
         <button
           type="button"
@@ -101,7 +117,7 @@ export function PreferencesPage() {
           disabled={deleteLocation.isPending || !location.data?.enabled}
           className="mt-4 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 disabled:opacity-40"
         >
-          共有を停止してデータを削除
+          {t('preferences.deleteLocation', { ns: 'customer' })}
         </button>
       </section>
     </div>
