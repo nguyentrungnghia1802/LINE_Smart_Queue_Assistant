@@ -10,49 +10,40 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 
 1. Rotate any previously exposed LINE/JWT/provider credential and enable secret scanning.
 2. Select and integrate a real Japan PSP adapter, including merchant secrets, refund execution, settlement reconciliation, and provider operations.
-3. Complete inventory lifecycle: reserve, consume, release on cancellation, expire, and reconcile exactly once.
-4. Add operational visibility and manual handling for failed notification outbox rows.
-5. Enforce strict queue capacity and order number uniqueness under concurrency.
-6. Add all automated tests and clean migration smoke tests to CI.
-7. Correct Japan production configuration: timezone, JPY seed/demo data, addresses, legal/payment copy.
+3. Build a dashboard over the implemented notification operations API and delivery metrics.
+4. Complete native Japanese and legal/payment copy review.
 
 ### P1: Complete requested product capabilities
 
 1. Add LINE consent/preferences, richer post-follow experience, production Rich Menu asset/E2E verification, and organization channel configuration strategy.
-2. Implement the location-alert worker with queue timing, travel-time provider boundary, consent, retention, and deletion controls.
-3. Build booking-group retrieval and staff/customer views while keeping each order/ticket independent.
-4. Reconcile manual order payment with item/transaction records and restrict receipt printing to valid states.
-5. Persist wait forecasts and build a measured heuristic baseline from service history.
-6. Aggregate demand/service history and expose staffing recommendations by weekday/hour with confidence/explanation.
-7. Complete Swagger/OpenAPI coverage and API contract tests.
-8. Move logo/product image uploads to object storage with signed upload, compression, scanning, and lifecycle rules.
+2. Complete legal review and connect an approved travel-time provider to the implemented privacy-aware location worker boundary.
+3. Connect the implemented audited reconciliation/refund boundary to a real PSP and settlement process.
+4. Calibrate the measured forecast/staffing heuristic with production history and accuracy reporting.
+5. Expand detailed OpenAPI component schemas as new integrations require generated clients; full runtime operation coverage and drift tests are implemented.
+6. Connect the implemented media boundary to object storage with signed upload, scanning, CDN policy, and orphan reconciliation.
 
 ### P2: Reliability, UX, and scale
 
-1. Add browser E2E tests for QR booking, payment return, staff flow, admin registration, QR print, and mobile layouts.
+1. Expand browser E2E from the implemented critical-flow baseline to visual regression, accessibility, QR print-dialog, and failure-injection coverage.
 2. Add realtime queue updates through SSE or WebSocket only after measuring polling limitations.
-3. Separate scheduler worker or add distributed locks before multiple API replicas.
+3. Consider a separate scheduler worker after measuring the implemented PostgreSQL advisory-lock design.
 4. Add observability dashboards, SLOs, tracing, centralized logs, and provider/webhook alerts.
 5. Run staged load tests and optimize indexes/queries from measured bottlenecks.
-6. Add organization business hours, holidays, exception days, and local-time counter resets.
-7. Expand accessibility and Japanese copy review with native-user testing.
+6. Expand accessibility and Japanese copy review with native-user testing.
 
 ## 2. Technical debt and risks
 
-| ID     | Issue                                                          | Impact                                     | Planned control                                 |
-| ------ | -------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------- |
-| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places | Incorrect assumptions/contracts            | Align shared types and add serialization tests  |
-| TD-002 | Notification failed-row operations are not exposed             | Harder support/replay after delivery limit | Admin/operator view and audited replay controls |
-| TD-003 | Cancellation does not restore stock                            | Inventory leakage                          | Transactional release service and tests         |
-| TD-004 | Manual payment patch updates summary only                      | Order/item/transaction mismatch            | Reconciliation state machine                    |
-| TD-005 | Queue capacity check is optimistic                             | Over-capacity under race                   | Lock queue/capacity row in transaction          |
-| TD-006 | Order number derived from count                                | Collision under concurrency                | Per-org sequence/counter plus unique constraint |
-| TD-007 | Forecast/staffing tables have no producers                     | Feature can be overstated                  | Label schema-only until pipeline/API/UI exist   |
-| TD-008 | Location alerts are inserted but never sent                    | False product expectation                  | Worker, consent, delivery status, tests         |
-| TD-009 | Swagger is partial                                             | Client/agent contract drift                | Complete generated OpenAPI and CI diff          |
-| TD-010 | CI does not run tests/migrations                               | Regressions can merge                      | Add test DB and required checks                 |
-| TD-011 | Metrics reset per process and `/metrics` is public in app      | Weak operations/security                   | Scrape/protect endpoint and expand metrics      |
-| TD-012 | Daily counter uses UTC                                         | Wrong local business day                   | Organization timezone-aware reset               |
+| ID     | Issue                                                          | Impact                                 | Planned control                                 |
+| ------ | -------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------- |
+| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places | Incorrect assumptions/contracts        | Align shared types and add serialization tests  |
+| TD-002 | Notification operations have API but no dashboard              | Support workflow remains technical     | Manager/admin operations dashboard              |
+| TD-003 | Inventory lifecycle needs production load validation           | Rare race behavior may be undiscovered | Staged concurrent integration/load tests        |
+| TD-004 | Real PSP settlement/refund execution is absent                 | Demo-only external payment operations  | Provider adapter and settlement runbook         |
+| TD-007 | Forecast heuristic lacks production calibration                | Confidence may not reflect real error  | Measure prediction error before model upgrades  |
+| TD-008 | Location uses a mock travel-time provider                      | Real travel estimates are unavailable  | Approved provider adapter and legal review      |
+| TD-009 | Some OpenAPI operations use generic request/response schemas   | Generated clients have weaker typing   | Incrementally model detailed component schemas  |
+| TD-011 | Metrics reset per process and `/metrics` is public in app      | Weak operations/security               | Scrape/protect endpoint and expand metrics      |
+| TD-012 | Native Japanese/legal copy review is pending                   | Customer wording may be unsuitable     | Native review before external production launch |
 
 ## 3. Decision record format
 
@@ -104,9 +95,9 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 **Context:** ETA scans and reminders are modest and Redis is not currently required.
 
-**Decision:** Run overlap-protected interval jobs in the API process for one-instance deployments.
+**Decision:** Run interval jobs in the API process. Notification delivery uses row claims; other logical jobs use session-level PostgreSQL advisory locks and durable `scheduler_job_runs` health records.
 
-**Consequences:** No separate worker dependency; before multiple replicas, introduce one scheduler owner, distributed locks, or a durable job queue.
+**Consequences:** Multiple API replicas do not execute the same logical job concurrently, and PostgreSQL releases session locks when a worker disconnects. A dedicated worker remains an operational scaling option, not a correctness prerequisite for the current jobs.
 
 ## ADR-006: Demo-first payment behind a provider boundary
 
@@ -204,7 +195,7 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 - Is one LINE Official Account shared by the platform, or configured per organization?
 - What legally approved location consent, retention period, and deletion UX apply?
 - How should grouped repeat bookings appear in staff workload and customer history?
-- What queue/order status combination permits receipt printing and stock consumption?
+- Receipt printing requires a completed, fully paid order; stock consumption occurs when service is completed.
 - What SLOs define acceptable booking latency, notification delay, and availability?
 - Should platform admin metrics include staff/user counts only, and which aggregate tenant health fields are allowed?
 

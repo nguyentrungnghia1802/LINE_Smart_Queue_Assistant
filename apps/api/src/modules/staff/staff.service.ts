@@ -9,6 +9,7 @@ import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
+import { inventoryService } from '../inventory/inventory.service';
 import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { queueService } from '../queue/queue.service';
@@ -182,6 +183,18 @@ export const staffService = {
 
     const cancelled = await withTransaction(async (client) => {
       const updated = await queueEntriesRepository.markCancelled(entryId, client);
+      if (updated.order_id) {
+        await inventoryService.releaseOrder(
+          updated.order_id,
+          client,
+          'staff_cancelled',
+          actorUserId
+        );
+        await client.query(
+          `UPDATE orders SET status = 'cancelled' WHERE id = $1 AND status IN ('pending','processing')`,
+          [updated.order_id]
+        );
+      }
       await queueNotificationService.notifyTicketCancelled(
         updated,
         { organizationId: queue.organization_id },
@@ -205,9 +218,20 @@ export const staffService = {
   async getMyQueueOverview(organizationId: string): Promise<EnrichedQueueOverview | null> {
     const queues = await queuesRepository.findActiveByOrg(organizationId);
     if (queues.length === 0) return null;
-    const queue = queues[0];
-
-    const overview = await this.getQueueOverview(queue.id, organizationId);
+    const overviews = await Promise.all(
+      queues.map(async (queue) => ({
+        queue,
+        overview: await this.getQueueOverview(queue.id, organizationId),
+      }))
+    );
+    const selected =
+      overviews.find(
+        ({ overview }) =>
+          overview.waitingCount > 0 ||
+          overview.calledEntry !== null ||
+          overview.servingEntry !== null
+      ) ?? overviews[0];
+    const { queue, overview } = selected;
 
     const enrichEntry = async (entry: QueueEntryRow | null): Promise<EntryWithOrder | null> => {
       if (!entry) return null;

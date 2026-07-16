@@ -107,7 +107,8 @@ CREATE TYPE notification_type AS ENUM (
   'queue_served',
   'queue_no_show',
   'payment_required',
-  'payment_received'
+  'payment_received',
+  'location_warning'
 );
 
 CREATE TYPE notification_channel AS ENUM (
@@ -156,7 +157,12 @@ CREATE TABLE organizations (
   payment_info      TEXT,
   line_channel_id   TEXT,
   line_oa_basic_id  TEXT,
-  timezone          TEXT NOT NULL DEFAULT 'Asia/Bangkok',
+  timezone          TEXT NOT NULL DEFAULT 'Asia/Tokyo',
+  postal_code       TEXT,
+  prefecture        TEXT,
+  city              TEXT,
+  address_line1     TEXT,
+  address_line2     TEXT,
   settings          JSONB NOT NULL DEFAULT '{}',
   is_active         BOOLEAN NOT NULL DEFAULT TRUE,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -167,12 +173,42 @@ CREATE TABLE organizations (
   CONSTRAINT organizations_public_qr_token_format
     CHECK (public_qr_token ~ '^[A-Za-z0-9_-]{8,128}$'),
   CONSTRAINT organizations_latitude_range CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
-  CONSTRAINT organizations_longitude_range CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180)
+  CONSTRAINT organizations_longitude_range CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180),
+  CONSTRAINT organizations_postal_code_format CHECK (postal_code IS NULL OR postal_code ~ '^[0-9]{3}-?[0-9]{4}$')
 );
 
 CREATE TRIGGER trg_organizations_updated_at
 BEFORE UPDATE ON organizations
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE organization_business_hours (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  weekday SMALLINT NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+  is_closed BOOLEAN NOT NULL DEFAULT FALSE,
+  opens_at TIME,
+  closes_at TIME,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (organization_id, weekday),
+  CHECK ((is_closed AND opens_at IS NULL AND closes_at IS NULL) OR (NOT is_closed AND opens_at IS NOT NULL AND closes_at IS NOT NULL AND opens_at < closes_at))
+);
+CREATE TRIGGER trg_organization_business_hours_updated_at BEFORE UPDATE ON organization_business_hours FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE organization_exception_days (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  exception_date DATE NOT NULL,
+  is_closed BOOLEAN NOT NULL DEFAULT TRUE,
+  opens_at TIME,
+  closes_at TIME,
+  reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (organization_id, exception_date),
+  CHECK ((is_closed AND opens_at IS NULL AND closes_at IS NULL) OR (NOT is_closed AND opens_at IS NOT NULL AND closes_at IS NOT NULL AND opens_at < closes_at))
+);
+CREATE TRIGGER trg_organization_exception_days_updated_at BEFORE UPDATE ON organization_exception_days FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE users (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -214,6 +250,23 @@ CREATE TABLE line_accounts (
 
   CONSTRAINT line_accounts_user_id_unique UNIQUE (user_id)
 );
+
+CREATE TABLE media_assets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+  owner_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  storage_provider TEXT NOT NULL CHECK (storage_provider IN ('local','mock','object')),
+  storage_key TEXT NOT NULL UNIQUE,
+  public_url TEXT NOT NULL,
+  purpose TEXT NOT NULL CHECK (purpose IN ('organization_logo','product_image')),
+  content_type TEXT NOT NULL CHECK (content_type IN ('image/webp','image/png','image/jpeg')),
+  byte_size INT NOT NULL CHECK (byte_size > 0),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','deleted')),
+  deleted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TRIGGER trg_media_assets_updated_at BEFORE UPDATE ON media_assets FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- -----------------------------------------------------------------------------
 -- 4. Catalog / queue / order tables
@@ -512,7 +565,9 @@ CREATE TABLE wait_time_forecasts (
   confidence                 NUMERIC(5,4) NOT NULL DEFAULT 0.5000,
   model_version              TEXT NOT NULL DEFAULT 'heuristic-v1',
   features                   JSONB NOT NULL DEFAULT '{}',
+  explanation                TEXT,
   generated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at                 TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 days'),
 
   CONSTRAINT wait_time_forecasts_wait_non_negative CHECK (forecasted_wait_seconds >= 0),
   CONSTRAINT wait_time_forecasts_queue_depth_non_negative CHECK (queue_depth >= 0),
@@ -528,12 +583,30 @@ CREATE TABLE staffing_recommendations (
   confidence                 NUMERIC(5,4) NOT NULL DEFAULT 0.5000,
   model_version              TEXT NOT NULL DEFAULT 'heuristic-v1',
   features                   JSONB NOT NULL DEFAULT '{}',
+  explanation                TEXT,
   generated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at                 TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 days'),
 
   CONSTRAINT staffing_recommendations_day_range CHECK (day_of_week BETWEEN 0 AND 6),
   CONSTRAINT staffing_recommendations_hour_range CHECK (hour_of_day BETWEEN 0 AND 23),
   CONSTRAINT staffing_recommendations_staff_positive CHECK (recommended_staff_count > 0),
   CONSTRAINT staffing_recommendations_confidence_range CHECK (confidence BETWEEN 0 AND 1)
+);
+
+CREATE TABLE queue_hourly_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+  hour_of_day INT NOT NULL CHECK (hour_of_day BETWEEN 0 AND 23),
+  sample_start TIMESTAMPTZ NOT NULL,
+  sample_end TIMESTAMPTZ NOT NULL,
+  arrival_count INT NOT NULL DEFAULT 0 CHECK (arrival_count >= 0),
+  completion_count INT NOT NULL DEFAULT 0 CHECK (completion_count >= 0),
+  average_wait_seconds INT CHECK (average_wait_seconds IS NULL OR average_wait_seconds >= 0),
+  average_service_seconds INT CHECK (average_service_seconds IS NULL OR average_service_seconds >= 0),
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 days'),
+  CHECK (sample_start < sample_end)
 );
 
 -- -----------------------------------------------------------------------------
@@ -689,12 +762,23 @@ CREATE INDEX idx_qe_called_timeout ON queue_entries(queue_id, called_at)
   WHERE status = 'called';
 
 CREATE INDEX idx_booking_groups_org_updated ON booking_groups(organization_id, updated_at DESC);
+CREATE INDEX idx_media_assets_org_active ON media_assets(organization_id, created_at DESC) WHERE status = 'active';
+CREATE INDEX idx_media_assets_owner_active ON media_assets(owner_user_id, created_at DESC) WHERE status = 'active';
+CREATE INDEX idx_booking_groups_customer_updated ON booking_groups(customer_user_id, updated_at DESC) WHERE customer_user_id IS NOT NULL;
+CREATE INDEX idx_booking_groups_line_updated ON booking_groups(customer_line_user_id, updated_at DESC) WHERE customer_line_user_id IS NOT NULL;
+CREATE INDEX idx_organization_exception_days_lookup ON organization_exception_days(organization_id, exception_date);
 CREATE INDEX idx_customer_locations_entry ON customer_locations(queue_entry_id) WHERE queue_entry_id IS NOT NULL;
 CREATE INDEX idx_customer_locations_org_captured ON customer_locations(organization_id, captured_at DESC);
 CREATE INDEX idx_location_alerts_pending ON location_alerts(organization_id, due_at)
   WHERE status = 'pending';
 CREATE INDEX idx_wait_time_forecasts_org_generated ON wait_time_forecasts(organization_id, generated_at DESC);
 CREATE INDEX idx_staffing_recommendations_org_slot ON staffing_recommendations(organization_id, day_of_week, hour_of_day);
+CREATE INDEX idx_queue_hourly_metrics_slot ON queue_hourly_metrics(organization_id, day_of_week, hour_of_day, generated_at DESC);
+CREATE INDEX idx_queue_hourly_metrics_expiry ON queue_hourly_metrics(expires_at);
+CREATE INDEX idx_wait_time_forecasts_queue_latest ON wait_time_forecasts(organization_id, queue_id, generated_at DESC);
+CREATE INDEX idx_wait_time_forecasts_expiry ON wait_time_forecasts(expires_at);
+CREATE INDEX idx_staffing_recommendations_latest ON staffing_recommendations(organization_id, day_of_week, hour_of_day, generated_at DESC);
+CREATE INDEX idx_staffing_recommendations_expiry ON staffing_recommendations(expires_at);
 
 CREATE INDEX idx_notif_pending ON notifications(created_at)
   WHERE status = 'pending';
@@ -732,5 +816,152 @@ CREATE INDEX idx_audit_actor ON audit_logs(actor_id, created_at DESC)
 CREATE INDEX idx_audit_org ON audit_logs(organization_id, created_at DESC)
   WHERE organization_id IS NOT NULL;
 CREATE INDEX idx_audit_resource ON audit_logs(resource_type, resource_id, created_at DESC);
+
+-- Operational correctness additions (migration 000007)
+ALTER TABLE organizations ALTER COLUMN timezone SET DEFAULT 'Asia/Tokyo';
+
+CREATE TABLE organization_counters (
+  organization_id UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
+  next_order_number BIGINT NOT NULL DEFAULT 1,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT organization_counters_order_positive CHECK (next_order_number > 0)
+);
+
+ALTER TABLE queues ADD COLUMN counter_business_date DATE;
+ALTER TABLE queue_entries ADD COLUMN business_date DATE NOT NULL DEFAULT (CURRENT_DATE);
+ALTER TABLE queue_entries
+  DROP CONSTRAINT queue_entries_ticket_unique,
+  DROP CONSTRAINT queue_entries_ticket_code_unique,
+  ADD CONSTRAINT queue_entries_daily_ticket_unique UNIQUE (queue_id, business_date, ticket_number),
+  ADD CONSTRAINT queue_entries_daily_code_unique UNIQUE (queue_id, business_date, ticket_code);
+ALTER TABLE queue_entries ALTER COLUMN business_date DROP DEFAULT;
+
+ALTER TABLE orders ADD COLUMN expires_at TIMESTAMPTZ;
+ALTER TABLE inventory_reservations
+  ADD COLUMN consumed_at TIMESTAMPTZ,
+  ADD COLUMN released_at TIMESTAMPTZ,
+  ADD COLUMN expired_at TIMESTAMPTZ,
+  ADD COLUMN release_reason TEXT;
+
+CREATE UNIQUE INDEX idx_inventory_reservations_order_product
+  ON inventory_reservations(order_id, product_id) WHERE order_id IS NOT NULL;
+CREATE INDEX idx_inventory_reservations_expiry
+  ON inventory_reservations(expires_at) WHERE status = 'reserved' AND expires_at IS NOT NULL;
+
+CREATE TABLE inventory_reservation_events (
+  id BIGSERIAL PRIMARY KEY,
+  reservation_id UUID NOT NULL REFERENCES inventory_reservations(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
+  from_status TEXT,
+  to_status TEXT NOT NULL,
+  quantity INT NOT NULL,
+  reason TEXT,
+  actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT inventory_reservation_events_status CHECK (to_status IN ('reserved', 'consumed', 'released', 'expired')),
+  CONSTRAINT inventory_reservation_events_quantity_positive CHECK (quantity > 0)
+);
+CREATE INDEX idx_inventory_events_order ON inventory_reservation_events(order_id, created_at DESC);
+CREATE INDEX idx_inventory_events_reservation ON inventory_reservation_events(reservation_id, created_at DESC);
+
+CREATE TABLE scheduler_job_runs (
+  job_name TEXT PRIMARY KEY,
+  owner_id TEXT,
+  status TEXT NOT NULL DEFAULT 'idle',
+  started_at TIMESTAMPTZ,
+  finished_at TIMESTAMPTZ,
+  last_success_at TIMESTAMPTZ,
+  last_error TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT scheduler_job_runs_status CHECK (status IN ('idle', 'running', 'succeeded', 'failed'))
+);
+
+-- Payment reconciliation additions (migration 000008)
+ALTER TABLE payment_transactions
+  ADD COLUMN refunded_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  ADD COLUMN last_provider_event_at TIMESTAMPTZ,
+  ADD CONSTRAINT payment_transactions_refunded_amount_valid CHECK (refunded_amount >= 0 AND refunded_amount <= amount);
+ALTER TABLE orders
+  ADD COLUMN refunded_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  ADD CONSTRAINT orders_refunded_amount_valid CHECK (refunded_amount >= 0 AND refunded_amount <= subtotal);
+ALTER TABLE order_items
+  ADD COLUMN refunded_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  ADD CONSTRAINT order_items_refunded_amount_valid CHECK (refunded_amount >= 0 AND refunded_amount <= prepaid_amount);
+
+CREATE TABLE payment_reconciliation_operations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  payment_transaction_id UUID REFERENCES payment_transactions(id) ON DELETE SET NULL,
+  order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+  actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  source TEXT NOT NULL,
+  operation_type TEXT NOT NULL,
+  from_status TEXT,
+  to_status TEXT,
+  amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  reason TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT payment_reconciliation_source_valid CHECK (source IN ('webhook','manual','reconciliation','demo')),
+  CONSTRAINT payment_reconciliation_amount_non_negative CHECK (amount >= 0)
+);
+CREATE INDEX idx_payment_reconciliation_order ON payment_reconciliation_operations(order_id, created_at DESC);
+CREATE INDEX idx_payment_reconciliation_transaction ON payment_reconciliation_operations(payment_transaction_id, created_at DESC);
+CREATE INDEX idx_payment_reconciliation_org ON payment_reconciliation_operations(organization_id, created_at DESC);
+
+-- Notification consent and location privacy additions (migration 000009)
+CREATE TABLE line_notification_preferences (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  line_user_id TEXT NOT NULL UNIQUE,
+  follow_state TEXT NOT NULL DEFAULT 'unknown',
+  notification_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  approaching_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  called_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  lifecycle_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  consented_at TIMESTAMPTZ,
+  consent_source TEXT,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT line_preferences_follow_state CHECK (follow_state IN ('unknown','followed','unfollowed')),
+  CONSTRAINT line_preferences_consent_source CHECK (consent_source IS NULL OR consent_source IN ('line_follow','liff_settings','legacy_link'))
+);
+CREATE TRIGGER trg_line_notification_preferences_updated_at BEFORE UPDATE ON line_notification_preferences FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+ALTER TABLE notifications
+  ADD COLUMN manual_retry_count INT NOT NULL DEFAULT 0,
+  ADD COLUMN operator_note TEXT,
+  ADD CONSTRAINT notifications_manual_retry_non_negative CHECK (manual_retry_count >= 0);
+CREATE TABLE customer_location_consents (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  consented_at TIMESTAMPTZ,
+  consent_source TEXT,
+  revoked_at TIMESTAMPTZ,
+  deletion_requested_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT location_consent_source CHECK (consent_source IS NULL OR consent_source IN ('liff_booking','liff_settings'))
+);
+CREATE TRIGGER trg_customer_location_consents_updated_at BEFORE UPDATE ON customer_location_consents FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+ALTER TABLE customer_locations
+  ADD COLUMN consent_user_id UUID REFERENCES customer_location_consents(user_id) ON DELETE SET NULL,
+  ADD COLUMN expires_at TIMESTAMPTZ,
+  ADD COLUMN anonymized_at TIMESTAMPTZ,
+  ADD COLUMN deleted_at TIMESTAMPTZ,
+  ALTER COLUMN latitude DROP NOT NULL,
+  ALTER COLUMN longitude DROP NOT NULL;
+ALTER TABLE location_alerts
+  ADD COLUMN event_key TEXT NOT NULL UNIQUE,
+  ADD COLUMN attempt_count INT NOT NULL DEFAULT 0,
+  ADD COLUMN next_retry_at TIMESTAMPTZ,
+  ADD COLUMN processing_started_at TIMESTAMPTZ,
+  ADD COLUMN last_error TEXT,
+  ADD CONSTRAINT location_alerts_attempt_non_negative CHECK (attempt_count >= 0);
+CREATE INDEX idx_line_preferences_delivery ON line_notification_preferences(line_user_id) WHERE notification_enabled = TRUE AND follow_state = 'followed';
+CREATE INDEX idx_customer_locations_expiry ON customer_locations(expires_at) WHERE deleted_at IS NULL;
+CREATE INDEX idx_location_alerts_delivery_due ON location_alerts(next_retry_at, due_at) WHERE status = 'pending';
 
 COMMIT;

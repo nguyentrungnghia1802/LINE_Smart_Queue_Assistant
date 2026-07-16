@@ -179,6 +179,21 @@ describe('notificationDelivery job', () => {
     expect(repository.markSent).toHaveBeenCalledTimes(1);
   });
 
+  it('cancels a claimed notification when consent was revoked before delivery', async () => {
+    const repository = makeRepository();
+    repository.canDeliver = jest.fn().mockResolvedValue(false);
+    repository.cancel = jest.fn().mockResolvedValue(undefined);
+    const adapter = new MockLineAdapter();
+
+    await deliverOutboxNotification(makeRow(), { repository, adapter, now });
+
+    expect(repository.cancel).toHaveBeenCalledWith(
+      'notification-001',
+      'Notification preference disabled'
+    );
+    expect(adapter.pushCalls).toHaveLength(0);
+  });
+
   it('calculates exponential retry delay from the claimed attempt count', () => {
     expect(calculateNextRetryAt(1, now(), 30)).toEqual(new Date('2024-01-01T10:00:30Z'));
     expect(calculateNextRetryAt(3, now(), 30)).toEqual(new Date('2024-01-01T10:02:00Z'));

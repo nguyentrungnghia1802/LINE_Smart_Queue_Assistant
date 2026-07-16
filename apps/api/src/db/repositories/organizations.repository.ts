@@ -15,6 +15,11 @@ export interface OrganizationRow {
   logo_url: string | null;
   phone: string | null;
   address: string | null;
+  postal_code: string | null;
+  prefecture: string | null;
+  city: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
   latitude?: string | null;
   longitude?: string | null;
   payment_info: string | null;
@@ -41,6 +46,11 @@ export interface CreateOrganizationParams {
   logoUrl?: string | null;
   phone?: string | null;
   address?: string | null;
+  postalCode?: string | null;
+  prefecture?: string | null;
+  city?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
   paymentInfo?: string | null;
   timezone?: string;
   lineChannelId?: string;
@@ -86,9 +96,10 @@ export class OrganizationsRepository extends BaseRepository {
       INSERT INTO organizations
         (
           name, slug, public_qr_token, logo_url, phone, address, payment_info,
-          timezone, line_channel_id, line_oa_basic_id, settings
+          timezone, line_channel_id, line_oa_basic_id, settings, postal_code,
+          prefecture, city, address_line1, address_line2
         )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `;
     const args = [
@@ -99,10 +110,15 @@ export class OrganizationsRepository extends BaseRepository {
       params.phone ?? null,
       params.address ?? null,
       params.paymentInfo ?? null,
-      params.timezone ?? 'Asia/Bangkok',
+      params.timezone ?? 'Asia/Tokyo',
       params.lineChannelId ?? null,
       params.lineOaBasicId ?? null,
       JSON.stringify(params.settings ?? {}),
+      params.postalCode ?? null,
+      params.prefecture ?? null,
+      params.city ?? null,
+      params.addressLine1 ?? null,
+      params.addressLine2 ?? null,
     ];
     const rows = client
       ? await this.queryTx<OrganizationRow>(client, sql, args)
@@ -173,6 +189,11 @@ export class OrganizationsRepository extends BaseRepository {
       logoUrl: string | null;
       phone: string | null;
       address: string | null;
+      postalCode: string | null;
+      prefecture: string | null;
+      city: string | null;
+      addressLine1: string | null;
+      addressLine2: string | null;
       latitude: number | null;
       longitude: number | null;
       paymentInfo: string | null;
@@ -189,6 +210,11 @@ export class OrganizationsRepository extends BaseRepository {
       logoUrl: 'logo_url',
       phone: 'phone',
       address: 'address',
+      postalCode: 'postal_code',
+      prefecture: 'prefecture',
+      city: 'city',
+      addressLine1: 'address_line1',
+      addressLine2: 'address_line2',
       latitude: 'latitude',
       longitude: 'longitude',
       paymentInfo: 'payment_info',
@@ -215,6 +241,78 @@ export class OrganizationsRepository extends BaseRepository {
       'UPDATE organizations SET is_active = FALSE, updated_at = NOW() WHERE id = $1',
       [id]
     );
+  }
+
+  async getBusinessCalendar(organizationId: string) {
+    const [weeklyHours, exceptionDays] = await Promise.all([
+      this.query<{
+        weekday: number;
+        is_closed: boolean;
+        opens_at: string | null;
+        closes_at: string | null;
+      }>(
+        `SELECT weekday, is_closed, opens_at::text, closes_at::text
+         FROM organization_business_hours WHERE organization_id = $1 ORDER BY weekday`,
+        [organizationId]
+      ),
+      this.query<{
+        exception_date: string;
+        is_closed: boolean;
+        opens_at: string | null;
+        closes_at: string | null;
+        reason: string | null;
+      }>(
+        `SELECT exception_date::text, is_closed, opens_at::text, closes_at::text, reason
+         FROM organization_exception_days
+         WHERE organization_id = $1 AND exception_date >= CURRENT_DATE
+         ORDER BY exception_date LIMIT 100`,
+        [organizationId]
+      ),
+    ]);
+    return { weeklyHours, exceptionDays };
+  }
+
+  async replaceBusinessCalendar(
+    organizationId: string,
+    calendar: {
+      weeklyHours: Array<{
+        weekday: number;
+        isClosed: boolean;
+        opensAt: string | null;
+        closesAt: string | null;
+      }>;
+      exceptionDays: Array<{
+        date: string;
+        isClosed: boolean;
+        opensAt: string | null;
+        closesAt: string | null;
+        reason: string | null;
+      }>;
+    },
+    client: PoolClient
+  ) {
+    await client.query('DELETE FROM organization_business_hours WHERE organization_id = $1', [
+      organizationId,
+    ]);
+    for (const item of calendar.weeklyHours) {
+      await client.query(
+        `INSERT INTO organization_business_hours
+           (organization_id, weekday, is_closed, opens_at, closes_at)
+         VALUES ($1,$2,$3,$4,$5)`,
+        [organizationId, item.weekday, item.isClosed, item.opensAt, item.closesAt]
+      );
+    }
+    await client.query('DELETE FROM organization_exception_days WHERE organization_id = $1', [
+      organizationId,
+    ]);
+    for (const item of calendar.exceptionDays) {
+      await client.query(
+        `INSERT INTO organization_exception_days
+           (organization_id, exception_date, is_closed, opens_at, closes_at, reason)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [organizationId, item.date, item.isClosed, item.opensAt, item.closesAt, item.reason]
+      );
+    }
   }
 }
 

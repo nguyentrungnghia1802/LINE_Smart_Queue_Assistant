@@ -88,9 +88,13 @@ Order and ticket states are related but separate. A queue completion should not 
 
 Order/item summary values include `unpaid` and `paid`; provider transaction values use the Phase 6 state machine: `pending`, `authorized`, `paid`, `failed`, `cancelled`, and `refunded`. Public create-order validation accepts only a server-created payment `transactionId`; it does not accept browser-supplied amount, status, method code, or covered product IDs.
 
+Webhook transitions are serialized by locking the payment transaction. Duplicate provider events are ignored by `(provider, event_id)`, older events and regressive transitions are recorded as ignored reconciliation operations, and provider payload fields with secret/card/token-shaped keys are redacted before persistence. Partial refunds keep the transaction/order paid while recording cumulative `refunded_amount`; a full refund transitions to `refunded`. Staff manual paid/refund operations require an idempotency key and create an audited reconciliation row. Receipt data is available only when the order is both `completed` and fully `paid`.
+
 Per-item state determines prepaid coverage. The order header is `paid` only when every selected item is paid. Required-only checkout leaves the overall order `unpaid` until remaining balance is collected.
 
 ### Inventory reservation
+
+Finite stock is decremented and a `reserved` reservation is inserted in the same order transaction. Fulfillment transitions it to `consumed` without changing stock. Cancellation or no-show transitions it to `released` and restores stock. The expiry worker transitions due rows to `expired`, restores stock, and cancels the pending order/ticket. Every transition is conditional on `status = 'reserved'` and writes `inventory_reservation_events`, preventing double release or consume.
 
 Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently decrements `products.stock_quantity` and writes `reserved`; transitions and stock restoration are not yet fully implemented.
 
@@ -136,15 +140,16 @@ Production invariant: a browser return cannot establish payment. Only the server
 1. Browser creates a stable local device key and a booking-group UUID.
 2. First reservation creates an independent order/ticket and optionally the server booking group.
 3. A later reservation creates another independent order/ticket using the same group ID.
-4. Browser history groups the records for convenience; staff can eventually retrieve the group server-side.
-5. Cancellation, queue state, item/payment records, and receipts remain per order.
+4. The authenticated customer history API resolves the group by internal user identity, supports pagination across devices, and returns each order/ticket independently.
+5. Tenant staff may inspect a related group from the staff workspace; customer ownership and staff organization scope are enforced server-side.
+6. Cancellation, queue state, item/payment records, and receipts remain per order.
 
-Current limitation: no dedicated group retrieval/management API is exposed, so the end-to-end server experience is partial.
+Anonymous browser drafts may still use a local grouping key, but cross-device history requires authenticated LINE/system identity.
 
 ## 7. Staff queue flow
 
 1. Staff authenticates and the API resolves active organization membership.
-2. `/staff/my-queue` returns the organization queue board and selected order details.
+2. `/staff/my-queue` selects an organization queue with waiting/called/serving activity (falling back to the first active queue) and returns its board and order details.
 3. Calling next atomically selects/transitions the next eligible waiting entry.
 4. The queue transition and LINE notification outbox row are written in the same database transaction; a worker sends the Japanese LINE message after commit.
 5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful state change enqueues a LINE push intent when the ticket has a verified recipient.
@@ -209,12 +214,14 @@ The Rich Menu definition never points to `/liff/tickets/:entryId` because the en
 
 ## 10. Location warning flow
 
-1. Customer explicitly grants browser geolocation permission.
+1. An authenticated LIFF customer explicitly enables location sharing; anonymous request bodies cannot establish consent or LINE identity.
 2. Booking request carries latitude, longitude, and optional accuracy.
 3. API calculates Haversine distance to organization coordinates.
 4. API stores a `customer_locations` snapshot.
-5. If over the current 1,000-meter threshold, API stores a pending `location_alert`.
-6. Planned worker compares queue timing/distance, sends LINE warning, and records sent/skipped/failed.
+5. If over the current 1,000-meter threshold, API stores a pending idempotent `location_alert` without logging exact coordinates.
+6. A PostgreSQL-locked scheduler checks queue proximity, consent, LINE preferences, and the mock `TravelTimeProvider`, then enqueues a Japanese `location_warning` through the durable notification outbox.
+7. Alerts become sent-to-outbox, skipped, retry-pending, or failed. Snapshot cleanup anonymizes coordinates after `LOCATION_RETENTION_DAYS`; the LIFF settings page can revoke consent and delete data immediately.
+8. Planned worker compares queue timing/distance, sends LINE warning, and records sent/skipped/failed.
 
 Step 6 is not implemented. There is no continuous tracking, and production requires consent/retention controls.
 
@@ -222,7 +229,7 @@ Step 6 is not implemented. There is no continuous tracking, and production requi
 
 Current ETA uses total service workload when available, otherwise people ahead multiplied by configured average service seconds. Confidence is heuristic. A 30-second job updates waiting entries.
 
-`wait_time_forecasts` and `staffing_recommendations` are target output tables. No current job trains a model, aggregates hourly history, writes these tables, or exposes recommendations. “AI” should therefore be described as planned/heuristic, not a deployed predictive model.
+The PostgreSQL-locked forecasting job aggregates the previous eight weeks by organization-local weekday/hour, persists demand and measured service duration, and writes versioned wait forecasts and staffing recommendations. Confidence increases with sample size, every recommendation carries a Japanese explanation, and expired records are removed according to configuration. This baseline is a deterministic measured heuristic, not a trained ML model.
 
 ## 12. Failure flows
 

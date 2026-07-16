@@ -1,5 +1,4 @@
 import { pool } from '../db/client';
-import { queuesRepository } from '../db/repositories/queues.repository';
 import { logger } from '../utils/logger';
 
 /**
@@ -15,16 +14,18 @@ export async function runCounterReset(): Promise<void> {
   logger.info('counterReset job: starting');
 
   try {
-    const result = await pool.query<{ id: string }>(`SELECT id FROM queues WHERE is_active = TRUE`);
-
-    const ids = result.rows.map((r) => r.id);
-    logger.info({ queueCount: ids.length }, 'counterReset job: queues to reset');
-
-    for (const id of ids) {
-      await queuesRepository.resetDailyCounter(id);
-    }
-
-    logger.info({ reset: ids.length }, 'counterReset job: done');
+    const result = await pool.query(
+      `UPDATE queues q
+       SET daily_ticket_counter = 0,
+           counter_business_date = (NOW() AT TIME ZONE o.timezone)::date,
+           last_counter_reset_at = NOW()
+       FROM organizations o
+       WHERE q.organization_id = o.id
+         AND q.is_active = TRUE
+         AND q.counter_business_date IS DISTINCT FROM (NOW() AT TIME ZONE o.timezone)::date
+       RETURNING q.id`
+    );
+    logger.info({ reset: result.rowCount ?? 0 }, 'counterReset job: done');
   } catch (err) {
     logger.error({ err }, 'counterReset job: failed');
     throw err;

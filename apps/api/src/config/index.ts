@@ -33,6 +33,13 @@ export const config = {
     liffId: process.env.LINE_LIFF_ID ?? process.env.VITE_LIFF_ID ?? '',
     /** Local PNG/JPEG image used by the explicit Rich Menu sync command. */
     richMenuImagePath: process.env.LINE_RICH_MENU_IMAGE_PATH ?? '',
+    /** Explicit local/E2E escape hatch. Mock verification is rejected in production. */
+    idTokenVerificationMode: (process.env.LINE_ID_TOKEN_VERIFICATION_MODE ?? 'line') as
+      | 'line'
+      | 'mock',
+    mockIdToken: process.env.LINE_ID_TOKEN_MOCK_VALUE ?? 'mock-liff-id-token',
+    mockUserId: process.env.LINE_ID_TOKEN_MOCK_USER_ID ?? 'mock-user-001',
+    mockDisplayName: process.env.LINE_ID_TOKEN_MOCK_DISPLAY_NAME ?? 'ローカルテストユーザー',
   },
 
   notifications: {
@@ -55,6 +62,41 @@ export const config = {
       process.env.DEMO_PAYMENT_WEBHOOK_SECRET ?? process.env.JWT_SECRET ?? 'demo-payment-secret',
     externalRedirectBaseUrl: process.env.PAYMENT_EXTERNAL_REDIRECT_BASE_URL ?? '',
     maxWebhookAgeSeconds: Number.parseInt(process.env.PAYMENT_WEBHOOK_MAX_AGE_SECONDS ?? '300', 10),
+  },
+
+  inventory: {
+    reservationTtlMinutes: Number.parseInt(
+      process.env.INVENTORY_RESERVATION_TTL_MINUTES ?? '1440',
+      10
+    ),
+    expiryBatchSize: Number.parseInt(process.env.INVENTORY_EXPIRY_BATCH_SIZE ?? '100', 10),
+    expiryWorkerIntervalMs: Number.parseInt(
+      process.env.INVENTORY_EXPIRY_WORKER_INTERVAL_MS ?? '60000',
+      10
+    ),
+  },
+
+  location: {
+    retentionDays: Number.parseInt(process.env.LOCATION_RETENTION_DAYS ?? '30', 10),
+    alertBatchSize: Number.parseInt(process.env.LOCATION_ALERT_BATCH_SIZE ?? '50', 10),
+    maxAttempts: Number.parseInt(process.env.LOCATION_ALERT_MAX_ATTEMPTS ?? '5', 10),
+    cleanupBatchSize: Number.parseInt(process.env.LOCATION_CLEANUP_BATCH_SIZE ?? '500', 10),
+    workerIntervalMs: Number.parseInt(process.env.LOCATION_WORKER_INTERVAL_MS ?? '60000', 10),
+    cleanupIntervalMs: Number.parseInt(process.env.LOCATION_CLEANUP_INTERVAL_MS ?? '3600000', 10),
+  },
+
+  forecasts: {
+    retentionDays: Number.parseInt(process.env.FORECAST_RETENTION_DAYS ?? '90', 10),
+    intervalMs: Number.parseInt(process.env.FORECAST_WORKER_INTERVAL_MS ?? '3600000', 10),
+  },
+
+  media: {
+    mode: (process.env.MEDIA_STORAGE_MODE ??
+      (process.env.NODE_ENV === 'test' ? 'mock' : 'local')) as 'local' | 'mock',
+    localDir: path.resolve(__dirname, process.env.MEDIA_LOCAL_DIR ?? '../../../../var/media'),
+    publicBaseUrl: process.env.MEDIA_PUBLIC_BASE_URL ?? '/media',
+    maxOriginalBytes: Number.parseInt(process.env.MEDIA_MAX_ORIGINAL_BYTES ?? '5242880', 10),
+    requestBodyLimit: process.env.MEDIA_REQUEST_BODY_LIMIT ?? '8mb',
   },
 
   cors: {

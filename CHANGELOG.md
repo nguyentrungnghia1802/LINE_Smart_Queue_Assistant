@@ -4,6 +4,20 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ## Unreleased
 
+### Production hardening
+
+- Completed atomic inventory reservation lifecycle and queue/counter concurrency controls.
+- Added audited payment reconciliation, replay/out-of-order webhook guards, partial/full refund accounting, and receipt eligibility checks.
+- Added tenant-scoped notification operations, LINE preferences, privacy-aware location alerts, and retention cleanup.
+- Added authenticated cross-device booking history, tenant staff related-booking views, Japan address fields, weekly hours, exception days, and Japan-localized seed data.
+- Added measured heuristic wait forecasts and staffing recommendations with hourly aggregates, confidence, explanations, retention, manager APIs, dashboard output, and a PostgreSQL-locked scheduler job.
+- Added a media storage boundary with validated/compressed image uploads, local and mock providers, an object-storage-compatible interface, metadata tracking, deletion, and URL-based organization/product forms.
+- Added complete runtime OpenAPI operation coverage with auth, pagination, standard envelopes, validator metadata, specification validation, and route-drift contract tests.
+- Added Playwright desktop/mobile coverage for LIFF mock login, demo payment, booking/ticket, staff/outbox, receipt, admin registration, manager QR/settings, and responsive layouts.
+- Fixed demo payment enum updates, multi-queue staff selection, repeatable seed counters/business dates, and Japanese fallback errors/demo identities found by browser testing.
+- Unified root database commands on canonical `node-pg-migrate`, added clean migration/idempotent seed CI smoke tests, critical coverage thresholds, dependency and secret scanning, and full mock E2E quality gates.
+- Added advisory scheduler lock contention, reacquisition, failure sanitization, unlock, and session-release tests.
+
 ### LINE Messaging
 
 - Added a safe token verification and optional direct test-message command.
@@ -18,6 +32,7 @@ All notable project changes should be recorded here. This file tracks delivered 
 - Consolidated overlapping project documents into ten canonical sources of truth.
 - Added repository instructions for coding agents and contributors.
 - Separated historical proposal, presentation, demo, load-test, and release artifacts from current documentation.
+- Added workstream-level production readiness and physical LINE device E2E checklists that explicitly separate automated verification from external acceptance.
 
 ## 0.0.1 - Current baseline
 

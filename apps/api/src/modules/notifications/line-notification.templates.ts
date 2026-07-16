@@ -12,7 +12,8 @@ export type TicketNotificationEventType =
   | 'serving'
   | 'completed'
   | 'cancelled'
-  | 'no_show';
+  | 'no_show'
+  | 'location_warning';
 
 export interface TicketNotificationInput {
   eventType: TicketNotificationEventType;
@@ -79,6 +80,12 @@ const EVENT_COPY: Record<
     status: '不在',
     guidance: 'お手数ですが、必要な場合はスタッフへお声がけください。',
     accentColor: '#EA580C',
+  },
+  location_warning: {
+    headline: '店舗までの距離をご確認ください',
+    status: '移動のご案内',
+    guidance: '順番が近づいています。余裕をもって店舗へお戻りください。',
+    accentColor: '#0F766E',
   },
 };
 

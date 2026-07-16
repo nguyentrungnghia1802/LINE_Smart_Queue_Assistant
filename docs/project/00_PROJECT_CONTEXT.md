@@ -34,12 +34,13 @@ The project is a working local/demo modular monolith, not yet a production-compl
 | Organization/admin        | Implemented                                         | Admin list, detail, registration, manager assignment, update, soft deactivation                                                                                                                                                                                                                                  |
 | Catalog and QR booking    | Implemented                                         | Products/services, stock display, quantity selection, organization slug/token entry, and LIFF-first customer booking                                                                                                                                                                                             |
 | Queue and staff operation | Implemented                                         | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                                                                                                                                                                                                                |
-| Orders and inventory      | Implemented with gaps                               | Atomic creation and finite stock decrement; cancellation does not yet restore stock                                                                                                                                                                                                                              |
+| Orders and inventory      | Operational lifecycle implemented                   | Atomic reserve/decrement, consume on fulfillment, release/restore on cancellation or no-show, expiry worker, transition history, and idempotent guarded transitions                                                                                                                                              |
 | Payment                   | Phase 6 foundation implemented                      | Server-created payment intents, demo provider, signed demo completion, provider abstraction, payment state machine, webhook idempotency log, and reconciliation exist; no real PSP account is connected yet                                                                                                      |
 | LINE                      | Phase 5 code implemented; real-device setup pending | LIFF login verifies ID tokens, LIFF booking stores linked LINE recipients, webhook events are signature-checked, lifecycle push uses durable PostgreSQL outbox delivery with Flex Messages, text fallback and ticket deeplinks, and Rich Menu sync/LIFF Home navigation exist; LINE Console/E2E is still pending |
-| Location alerts           | Data path only                                      | Location and pending alerts can be stored; no job sends those alerts                                                                                                                                                                                                                                             |
-| ETA                       | Heuristic implemented                               | Position/workload calculation and 30-second updater; forecast history is not populated                                                                                                                                                                                                                           |
-| Staffing recommendation   | Schema only                                         | Table exists; no analyzer, API, scheduler, or dashboard producer                                                                                                                                                                                                                                                 |
+| Location alerts           | Privacy-aware mock-provider flow implemented        | Explicit verified-user consent, one-time snapshot, distance alert worker, durable LINE enqueue, retry state, configurable retention and deletion exist; no paid travel-time provider is connected                                                                                                                |
+| Booking history           | Implemented                                         | Authenticated server-side group history is paginated across devices; customers and tenant staff can inspect independent orders/tickets without merging payment, cancellation, or receipt state                                                                                                                   |
+| ETA                       | Measured heuristic implemented                      | Position/workload calculation, 30-second updater, persisted forecast history, version/confidence/explanation, retention, and manager API/dashboard                                                                                                                                                               |
+| Staffing recommendation   | Measured heuristic baseline implemented             | Eight-week weekday/hour demand and service-duration aggregates produce explainable staffing suggestions; this is deliberately not described as ML                                                                                                                                                                |
 | Deployment                | Local/Compose ready                                 | Docker and health checks exist; production infrastructure and secret management are environment-specific                                                                                                                                                                                                         |
 
 ## 5. Implemented features
@@ -64,20 +65,22 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - LINE webhook signature verification and basic follow, unfollow, and message command handling.
 - Scheduled ETA refresh, approaching-turn scan, called-message retry scan, durable notification delivery, and daily counter reset.
 - Rate limits, request IDs, structured logging, basic Prometheus text metrics, health/readiness endpoints, and audit logs.
+- Playwright browser coverage for LIFF mock authentication, required-item demo payment, booking/ticket redirect, staff transitions, durable mock notification delivery, receipt access, admin registration, manager QR/settings, and desktop/mobile overflow checks.
 - Database structures for booking groups, location snapshots/alerts, forecast history, and staffing recommendations.
+- Japan-oriented organization addresses, `Asia/Tokyo` defaults, normalized weekly hours, and exception-day configuration.
 
 ## 6. Incomplete features
 
 - Real PSP integration: signed provider requests, hosted checkout, provider-specific callback verification, refund execution, and encrypted merchant secrets.
-- LINE production controls: notification preferences, production Rich Menu asset/E2E verification, advanced notification replay/dead-letter operations UI, delivery reporting dashboard, and multi-organization channel configuration.
-- Location alert execution: no scheduler consumes `location_alerts`; no retention/deletion workflow is implemented.
-- Forecasting and staffing analysis: schema exists, but no data pipeline or user-facing API populates it.
-- Inventory lifecycle: cancellation and expiry do not release reservations or restore `stock_quantity`.
-- Payment consistency: manual staff payment updates are still separate from provider refund/settlement lifecycle.
-- Full OpenAPI coverage and contract tests; the current Swagger source covers only part of the API.
-- Browser end-to-end tests and production-scale concurrency tests.
-- Multi-instance coordination for non-notification scheduler ownership and strict queue-capacity enforcement.
-- Production media storage; logos are currently saved as URLs or compressed data URLs.
+- LINE operator APIs and customer preferences are implemented; production Rich Menu asset/E2E verification, an operator dashboard, and multi-organization channel configuration remain pending.
+- Location alert execution uses a deterministic mock travel-time provider. Legal review of consent/retention copy and any real provider integration remain pending.
+- Forecasting uses a measured heuristic baseline rather than an ML model; production calibration and longer-term accuracy evaluation remain pending.
+- Inventory lifecycle is implemented; production load testing and operator reconciliation UI remain pending.
+- Payment reconciliation keeps transaction, order, and item summaries aligned with audited manual operations, replay-safe webhook transitions, partial/full refund amounts, and guarded receipt access. Real PSP refund execution remains pending.
+- Expand generic OpenAPI operation entries into detailed component schemas where provider/client generation requires stronger typing; runtime route coverage and contract drift tests are complete.
+- Production-scale concurrency and browser/device acceptance tests against real LINE and provider environments.
+- Production stress testing for the implemented scheduler ownership, queue-capacity, call-next, and counter locks.
+- Real object storage, malware scanning, CDN policy, and orphan reconciliation; validated images currently use the local/mock media adapter while legacy data URLs remain readable.
 
 ## 7. Out of scope for the current baseline
 
@@ -102,12 +105,11 @@ The project is a working local/demo modular monolith, not yet a production-compl
 ## 9. Known problems and risks
 
 - `packages/shared` contains legacy enum/value descriptions that do not fully match PostgreSQL values; DB migrations and runtime mappers currently take precedence.
-- The seed organization still uses Vietnamese sample address/currency data even though the product UI targets Japan.
-- Queue capacity is checked optimistically before the join transaction and can be exceeded under concurrent load.
-- Order numbering uses an organization order count and can collide under concurrent creation unless protected by a stronger sequence/constraint strategy.
+- Demo organization, catalog, queue names, address, timezone, and currency are localized for Japan; native-language and legal-copy review remains required.
+- Queue capacity, call-next, daily ticket numbering, and organization order numbering use transactional row locks/counters; production stress testing remains pending.
 - Anonymous public booking cannot receive LINE notifications unless the session is linked to LINE and the queue entry stores a verified linked `line_user_id`; production customer entry should therefore use the LIFF-first flow.
-- LINE follow/unfollow currently toggles link state, but does not yet provide user-facing notification preferences or a full consent management UI.
-- Location data is sensitive personal data and needs explicit consent, retention, and deletion policies before production use.
+- One Messaging API channel is still shared by the deployment; multi-organization LINE channels are not implemented.
+- Location data is snapshot-only with configurable retention and deletion, but the production retention period and consent wording still require legal approval.
 - The checked-in `.env.example` previously contained a secret-shaped value; credentials must be rotated if that value was ever real.
 
 ## 10. Documentation map
@@ -125,3 +127,5 @@ The project is a working local/demo modular monolith, not yet a production-compl
 | `09_ROADMAP_AND_DECISIONS.md`     | Priorities, risks, technical debt, accepted ADRs            |
 
 Historical files under `docs/archive` are evidence of earlier plans, not current product truth.
+
+Production release evidence is tracked with `docs/checklists/PRODUCTION_READINESS.md`. LINE Console and physical-device acceptance use the independent `docs/checklists/LINE_REAL_DEVICE_E2E.md`; they remain pending until executed against real staging configuration.

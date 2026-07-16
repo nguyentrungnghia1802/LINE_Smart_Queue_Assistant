@@ -5,10 +5,16 @@
 - Runtime endpoint truth: `apps/api/src/routes` and `apps/api/src/modules/**/**.routes.ts`
 - Request validation truth: module `*.validator.ts` files
 - Response helpers: `apps/api/src/utils/response.ts`
-- Interactive partial Swagger: `GET /api/docs` outside production
-- Raw partial Swagger JSON: `GET /api/docs.json` outside production
+- Interactive Swagger: `GET /api/docs` outside production
+- Raw OpenAPI JSON: `GET /api/docs.json` outside production
+- Runtime coverage guard: `npm run openapi:check`
 
-Swagger coverage is not yet complete enough to be the sole contract source.
+The OpenAPI catalog covers every mounted `/api/v1` route and records bearer auth,
+pagination, standard success/error envelopes, path parameters, and the runtime Zod
+validator name. High-value queue, payment, notification, and LINE operations also
+publish detailed component schemas. Express routes and Zod validators remain the
+executable source of truth; the contract test fails when a route is added or removed
+without updating the catalog.
 
 ## 2. Base URLs and authentication
 
@@ -198,6 +204,30 @@ In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has compl
 
 Payment intent creation accepts `orgSlug`, selected `items`, `scope`, `provider`, `method`, `currency`, optional `returnUrl`, and optional `cartSignature`. The API reloads products and computes amount/coverage. Demo mode returns a `demoToken`; the browser must send it to `/payments/demo/complete`, and the server verifies it before marking the transaction paid. Future PSPs must update the same transaction state machine through signed webhooks or server-side verification.
 
+Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatus: paid | refunded`, optional refund `amount` and `reason`, and an `Idempotency-Key` header. Every accepted operation writes an audited reconciliation row. `GET /api/v1/orders/:id/receipt` is staff/manager/admin only and returns receipt source data only for a completed, fully paid order.
+
+### Booking groups and organization calendar
+
+| Method | Path                                     | Access                     | Purpose                                                       |
+| ------ | ---------------------------------------- | -------------------------- | ------------------------------------------------------------- |
+| GET    | `/api/v1/booking-groups/me?page=&limit=` | Authenticated customer     | Paginated cross-device history for the current internal user  |
+| GET    | `/api/v1/booking-groups/:id`             | Owner, tenant staff, admin | Independent orders/items/tickets in one related booking group |
+| GET    | `/api/v1/orgs/my-org/business-calendar`  | Manager/admin              | Weekly hours and upcoming holiday/exception dates             |
+| PUT    | `/api/v1/orgs/my-org/business-calendar`  | Manager/admin              | Atomically replace validated tenant calendar and write audit  |
+| GET    | `/api/v1/forecasts/wait`                 | Manager/admin              | Latest per-queue measured wait forecast with confidence       |
+| GET    | `/api/v1/forecasts/staffing`             | Manager/admin              | Latest weekday/hour staffing baseline with explanation        |
+
+Booking-group requests never accept a customer or LINE user ID as authority. Customer scope comes from the verified system JWT; staff scope comes from active tenant membership. Payment, cancellation, receipt, and ticket status remain independent for every order in the response.
+
+### Media
+
+| Method | Path                | Access        | Purpose                                                        |
+| ------ | ------------------- | ------------- | -------------------------------------------------------------- |
+| POST   | `/api/v1/media`     | Manager/admin | Validate, compress to WebP, store, and register an image asset |
+| DELETE | `/api/v1/media/:id` | Tenant/admin  | Delete storage object and mark its metadata deleted            |
+
+The upload request currently carries a browser-compressed data URL for compatibility, but the service validates decoded bytes and image metadata, caps input pixels/bytes, creates a safe generated key, and stores only the returned URL in organization/product records. The local and mock providers are implemented; a real object-storage client remains external configuration.
+
 ### Users and staff management
 
 | Method | Path                                 | Access        | Purpose                                      |
@@ -214,10 +244,16 @@ Payment intent creation accepts `orgSlug`, selected `items`, `scope`, `provider`
 
 ### LINE and notifications
 
-| Method | Path                    | Access                            | Purpose                                       |
-| ------ | ----------------------- | --------------------------------- | --------------------------------------------- |
-| POST   | `/api/v1/line/webhook`  | LINE signed webhook, strict limit | Verify signature and process supported events |
-| GET    | `/api/v1/notifications` | Authenticated                     | List notifications with validated query       |
+| Method  | Path                                          | Access                            | Purpose                                                           |
+| ------- | --------------------------------------------- | --------------------------------- | ----------------------------------------------------------------- |
+| POST    | `/api/v1/line/webhook`                        | LINE signed webhook, strict limit | Verify signature and process supported events                     |
+| GET     | `/api/v1/notifications`                       | Authenticated                     | List notifications with validated query                           |
+| GET/PUT | `/api/v1/line/preferences`                    | Authenticated linked customer     | Read/update LINE notification consent and event preferences       |
+| GET/PUT | `/api/v1/line/location-consent`               | Authenticated customer            | Read/update location snapshot consent                             |
+| DELETE  | `/api/v1/line/location-data`                  | Authenticated customer            | Revoke consent and anonymize stored snapshots                     |
+| GET     | `/api/v1/notifications/operations`            | Manager/admin                     | Tenant-scoped delivery operations list with masked LINE recipient |
+| POST    | `/api/v1/notifications/operations/:id/retry`  | Manager/admin                     | Audited explicit retry for failed/cancelled delivery              |
+| POST    | `/api/v1/notifications/operations/:id/cancel` | Manager/admin                     | Audited cancellation for unsent delivery                          |
 
 ### Health, docs, and metrics
 

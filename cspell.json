@@ -45,7 +45,9 @@
     "bundler",
     "sourcemap",
     "serverless",
-    "healthcheck"
+    "healthcheck",
+    "deeplinks",
+    "worktree"
   ],
   "ignorePaths": [
     "node_modules/**",

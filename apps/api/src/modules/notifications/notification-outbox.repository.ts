@@ -4,6 +4,7 @@ import { config } from '../../config';
 import { BaseRepository } from '../../db/repositories/base.repository';
 
 import type { TicketNotificationEventType } from './line-notification.templates';
+import { notificationPreferencesRepository } from './notification-preferences.repository';
 
 export type NotificationDeliveryStatus = 'pending' | 'processing' | 'sent' | 'failed' | 'cancelled';
 
@@ -51,6 +52,7 @@ const LEGACY_TYPE_BY_EVENT: Record<TicketNotificationEventType, string> = {
   completed: 'queue_served',
   cancelled: 'queue_cancelled',
   no_show: 'queue_no_show',
+  location_warning: 'location_warning',
 };
 
 export function buildQueueNotificationEventKey(
@@ -69,7 +71,7 @@ export class NotificationOutboxRepository extends BaseRepository {
   async enqueue(
     params: EnqueueNotificationParams,
     client?: PoolClient
-  ): Promise<NotificationOutboxRow> {
+  ): Promise<NotificationOutboxRow | null> {
     const sql = `
       INSERT INTO notifications
         (
@@ -77,7 +79,18 @@ export class NotificationOutboxRepository extends BaseRepository {
           event_key, event_type, channel, status, payload, max_attempts,
           next_retry_at
         )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,'line_push','pending',$8,$9,NOW())
+      SELECT $1,$2,$3,$4,$5,$6,$7,'line_push','pending',$8,$9,NOW()
+      WHERE EXISTS (
+        SELECT 1 FROM line_notification_preferences p
+        WHERE p.line_user_id = $4
+          AND p.follow_state = 'followed'
+          AND p.notification_enabled = TRUE
+          AND CASE
+            WHEN $7 = 'eta_warning' THEN p.approaching_enabled
+            WHEN $7 = 'called' THEN p.called_enabled
+            ELSE p.lifecycle_enabled
+          END
+      )
       ON CONFLICT (event_key) DO UPDATE
         SET updated_at = notifications.updated_at
       RETURNING *
@@ -96,7 +109,7 @@ export class NotificationOutboxRepository extends BaseRepository {
     const rows = client
       ? await this.queryTx<NotificationOutboxRow>(client, sql, args)
       : await this.query<NotificationOutboxRow>(sql, args);
-    return this.firstOrThrow(rows, 'notificationOutbox.enqueue');
+    return rows[0] ?? null;
   }
 
   async claimDue(limit: number, client?: PoolClient): Promise<NotificationOutboxRow[]> {
@@ -200,6 +213,37 @@ export class NotificationOutboxRepository extends BaseRepository {
     } else {
       await this.query(sql, args);
     }
+  }
+
+  async cancel(id: string, note?: string): Promise<void> {
+    await this.query(
+      `UPDATE notifications
+       SET status = 'cancelled', next_retry_at = NULL, processing_started_at = NULL,
+           operator_note = COALESCE($2, operator_note), updated_at = NOW()
+       WHERE id = $1 AND status IN ('pending','processing','failed')`,
+      [id, note ?? null]
+    );
+  }
+
+  async canDeliver(row: NotificationOutboxRow): Promise<boolean> {
+    return notificationPreferencesRepository.canDeliver(row.line_user_id ?? '', row.event_type);
+  }
+
+  async deliveryMetrics() {
+    const rows = await this.query<{
+      pending: string;
+      retrying: string;
+      failed: string;
+      latency_seconds: string;
+    }>(
+      `SELECT
+         COUNT(*) FILTER (WHERE status IN ('pending','processing')) AS pending,
+         COUNT(*) FILTER (WHERE status = 'pending' AND attempt_count > 0) AS retrying,
+         COUNT(*) FILTER (WHERE status = 'failed') AS failed,
+         COALESCE(AVG(EXTRACT(EPOCH FROM (sent_at - created_at))) FILTER (WHERE sent_at IS NOT NULL), 0) AS latency_seconds
+       FROM notifications`
+    );
+    return rows[0];
   }
 }
 

@@ -47,6 +47,9 @@ jest.mock('../../../db/client', () => ({
 const mockFindQueueById = queuesRepository.findById as jest.MockedFunction<
   typeof queuesRepository.findById
 >;
+const mockLockQueueById = queuesRepository.lockById as jest.MockedFunction<
+  typeof queuesRepository.lockById
+>;
 const mockCountWaiting = queuesRepository.countWaiting as jest.MockedFunction<
   typeof queuesRepository.countWaiting
 >;
@@ -168,13 +171,15 @@ beforeEach(() => {
 describe('queueService.joinQueue', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockLockQueueById.mockResolvedValue(openQueue);
+    mockCountWaiting.mockResolvedValue(0);
   });
 
   it('creates a new ticket and returns position info', async () => {
     mockFindQueueById.mockResolvedValue(openQueue);
     mockFindActiveByUser.mockResolvedValue(null);
     mockFindActiveByLineUser.mockResolvedValue(null);
-    mockIncrementCounter.mockResolvedValue(6);
+    mockIncrementCounter.mockResolvedValue({ ticketNumber: 6, businessDate: '2026-07-16' });
     mockCreateEntry.mockResolvedValue(waitingEntry);
     mockGetWaitingPosition.mockResolvedValue(2);
     mockTx();
@@ -201,7 +206,7 @@ describe('queueService.joinQueue', () => {
     mockFindQueueById.mockResolvedValue(openQueue); // prefix = 'A'
     mockFindActiveByUser.mockResolvedValue(null);
     mockFindActiveByLineUser.mockResolvedValue(null);
-    mockIncrementCounter.mockResolvedValue(7);
+    mockIncrementCounter.mockResolvedValue({ ticketNumber: 7, businessDate: '2026-07-16' });
     mockCreateEntry.mockResolvedValue({ ...waitingEntry, ticket_code: 'A007' });
     mockGetWaitingPosition.mockResolvedValue(0);
     mockTx();
@@ -251,9 +256,11 @@ describe('queueService.joinQueue', () => {
   it('throws 409 when the queue is at full capacity', async () => {
     const fullQueue: QueueRow = { ...openQueue, max_capacity: 5 };
     mockFindQueueById.mockResolvedValue(fullQueue);
+    mockLockQueueById.mockResolvedValue(fullQueue);
     mockFindActiveByUser.mockResolvedValue(null);
     mockFindActiveByLineUser.mockResolvedValue(null);
     mockCountWaiting.mockResolvedValue(5);
+    mockTx();
 
     await expect(
       queueService.joinQueue({ queueId: QUEUE_ID, userId: USER_ID })

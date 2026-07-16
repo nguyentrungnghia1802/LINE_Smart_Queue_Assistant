@@ -9,11 +9,7 @@ module.exports = {
     ...base.env,
     browser: true,
   },
-  extends: [
-    ...base.extends,
-    'plugin:react/recommended',
-    'plugin:react-hooks/recommended',
-  ],
+  extends: [...base.extends, 'plugin:react/recommended', 'plugin:react-hooks/recommended'],
   plugins: [...(base.plugins ?? []), 'react', 'react-hooks', 'react-refresh'],
   settings: {
     react: { version: 'detect' },

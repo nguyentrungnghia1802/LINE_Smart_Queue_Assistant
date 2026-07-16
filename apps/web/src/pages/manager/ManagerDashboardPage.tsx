@@ -38,6 +38,30 @@ interface StatsData {
   }>;
 }
 
+interface WaitForecast {
+  id: string;
+  queue_id: string;
+  queue_name: string;
+  forecasted_wait_seconds: number;
+  queue_depth: number;
+  active_staff_count: number;
+  confidence: string;
+  model_version: string;
+  explanation: string;
+  generated_at: string;
+}
+
+interface StaffingRecommendation {
+  id: string;
+  day_of_week: number;
+  hour_of_day: number;
+  recommended_staff_count: number;
+  confidence: string;
+  model_version: string;
+  explanation: string;
+  generated_at: string;
+}
+
 function formatCurrency(n: number) {
   return new Intl.NumberFormat('ja-JP', {
     style: 'currency',
@@ -48,21 +72,6 @@ function formatCurrency(n: number) {
 
 function formatMinutes(seconds: number) {
   return `${Math.ceil(seconds / 60)} 分`;
-}
-
-function predictWaitSeconds(data: StatsData) {
-  const loadFactor = Math.max(data.activeQueueEntries, data.currentQueueDepth, data.pendingOrders);
-  const base = data.averageEtaSeconds || 300;
-  return Math.max(180, Math.round(base + loadFactor * 90));
-}
-
-function recommendStaffCount(data: StatsData) {
-  const recentOrderAverage =
-    data.dailyRevenue.length === 0
-      ? data.pendingOrders
-      : data.dailyRevenue.reduce((sum, day) => sum + day.orders, 0) / data.dailyRevenue.length;
-  const pressure = data.pendingOrders + data.activeQueueEntries + recentOrderAverage / 2;
-  return Math.max(1, Math.min(12, Math.ceil(pressure / 5)));
 }
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -85,6 +94,16 @@ export function ManagerDashboardPage() {
     enabled: !!orgId,
     refetchInterval: 30_000,
   });
+  const forecasts = useQuery<WaitForecast[]>({
+    queryKey: ['wait-forecasts', orgId],
+    queryFn: () => get<WaitForecast[]>('/api/v1/forecasts/wait'),
+    enabled: !!orgId,
+  });
+  const staffing = useQuery<StaffingRecommendation[]>({
+    queryKey: ['staffing-recommendations', orgId],
+    queryFn: () => get<StaffingRecommendation[]>('/api/v1/forecasts/staffing'),
+    enabled: !!orgId,
+  });
 
   if (isLoading || !data) {
     return <div className="text-gray-400 text-sm">読み込み中...</div>;
@@ -92,8 +111,12 @@ export function ManagerDashboardPage() {
 
   const maxRevenue = Math.max(...data.dailyRevenue.map((d) => d.revenue), 1);
   const cancellationRate = Math.round(data.cancellationRate * 100);
-  const predictedWaitSeconds = predictWaitSeconds(data);
-  const recommendedStaffCount = recommendStaffCount(data);
+  const waitForecast = forecasts.data?.[0];
+  const recommendedSlot = staffing.data?.reduce<StaffingRecommendation | undefined>(
+    (best, item) =>
+      !best || item.recommended_staff_count > best.recommended_staff_count ? item : best,
+    undefined
+  );
   const peakSlot =
     data.dailyRevenue.length === 0
       ? 'データ待ち'
@@ -126,20 +149,34 @@ export function ManagerDashboardPage() {
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">AI予測</p>
-          <h2 className="mt-2 text-lg font-bold text-gray-950">待ち時間予測</h2>
-          <p className="mt-4 text-3xl font-bold text-gray-950">
-            {formatMinutes(predictedWaitSeconds)}
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
+            実績ベース予測
           </p>
-          <p className="mt-2 text-sm text-gray-500">現在の待機数と処理中注文をもとに算出</p>
+          <h2 className="mt-2 text-lg font-bold text-gray-950">待ち時間の目安</h2>
+          <p className="mt-4 text-3xl font-bold text-gray-950">
+            {waitForecast ? formatMinutes(waitForecast.forecasted_wait_seconds) : 'データ待ち'}
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            {waitForecast?.explanation ?? '次回の集計後に表示します。'}
+          </p>
+          {waitForecast && (
+            <p className="mt-2 text-xs text-gray-400">
+              信頼度 {Math.round(Number(waitForecast.confidence) * 100)}% ·{' '}
+              {waitForecast.model_version}
+            </p>
+          )}
         </div>
         <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
             シフト提案
           </p>
           <h2 className="mt-2 text-lg font-bold text-gray-950">推奨スタッフ数</h2>
-          <p className="mt-4 text-3xl font-bold text-gray-950">{recommendedStaffCount} 名</p>
-          <p className="mt-2 text-sm text-gray-500">直近注文量と現在のキュー負荷を反映</p>
+          <p className="mt-4 text-3xl font-bold text-gray-950">
+            {recommendedSlot ? `${recommendedSlot.recommended_staff_count} 名` : 'データ待ち'}
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            {recommendedSlot?.explanation ?? '次回の集計後に表示します。'}
+          </p>
         </div>
         <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">分析</p>

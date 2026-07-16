@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { get, patch, post } from '../../services/apiClient';
+import type { BookingGroup } from '../../services/bookingGroups.api';
 import { useAuthStore } from '../../store/authStore';
 
 interface OrderItem {
@@ -19,6 +20,7 @@ interface OrderItem {
 
 interface Order {
   id: string;
+  booking_group_id?: string | null;
   order_number: string;
   customer_name: string | null;
   customer_phone: string | null;
@@ -162,6 +164,12 @@ export function StaffDashboardPage() {
   ];
 
   const selectedEntry = allEntries.find((e) => e.id === selectedEntryId) ?? allEntries[0] ?? null;
+  const relatedBookings = useQuery<BookingGroup>({
+    queryKey: ['staff-booking-group', selectedEntry?.order?.booking_group_id],
+    queryFn: () =>
+      get<BookingGroup>(`/api/v1/booking-groups/${selectedEntry?.order?.booking_group_id}`),
+    enabled: Boolean(selectedEntry?.order?.booking_group_id),
+  });
 
   const invalidateQueue = () =>
     queryClient.invalidateQueries({ queryKey: ['staff-my-queue', orgId] });
@@ -195,9 +203,20 @@ export function StaffDashboardPage() {
     onSuccess: invalidateQueue,
   });
   const paymentMutation = useMutation({
-    mutationFn: ({ id, paymentStatus }: { id: string; paymentStatus: string }) =>
-      patch(`/api/v1/orders/${id}/payment`, { paymentStatus }),
+    mutationFn: ({
+      id,
+      paymentStatus,
+      reason,
+    }: {
+      id: string;
+      paymentStatus: string;
+      reason?: string;
+    }) => patch(`/api/v1/orders/${id}/payment`, { paymentStatus, reason }),
     onSuccess: invalidateQueue,
+  });
+  const receiptMutation = useMutation({
+    mutationFn: (id: string) => get<Order>(`/api/v1/orders/${id}/receipt`),
+    onSuccess: (order) => printReceipt(order, selectedEntry?.ticket_code ?? ''),
   });
 
   const isLoading = queueLoading;
@@ -338,6 +357,39 @@ export function StaffDashboardPage() {
                         <p className="mt-1 font-bold text-gray-900">
                           {selected.order.customer_phone}
                         </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {selected.order?.booking_group_id && (
+                  <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)] sm:p-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                          関連予約
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-gray-900">
+                          {relatedBookings.isLoading
+                            ? '読み込み中…'
+                            : `${relatedBookings.data?.orders.length ?? 0}件の予約`}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
+                        グループ
+                      </span>
+                    </div>
+                    {relatedBookings.data && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {relatedBookings.data.orders.map((order) => (
+                          <span
+                            key={order.id}
+                            className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-700"
+                          >
+                            {order.order_number} ·{' '}
+                            {ORDER_STATUS_LABELS[order.status] ?? order.status}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -512,21 +564,34 @@ export function StaffDashboardPage() {
                               onClick={() =>
                                 paymentMutation.mutate({
                                   id: order.id,
-                                  paymentStatus:
-                                    order.payment_status === 'paid' ? 'unpaid' : 'paid',
+                                  paymentStatus: 'paid',
                                 })
                               }
-                              disabled={paymentMutation.isPending}
-                              className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${
-                                order.payment_status === 'paid'
-                                  ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                  : 'bg-green-600 text-white hover:bg-green-700'
-                              } disabled:opacity-50`}
+                              disabled={
+                                paymentMutation.isPending || order.payment_status === 'paid'
+                              }
+                              className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:bg-gray-100 disabled:text-gray-500"
                             >
-                              {order.payment_status === 'paid'
-                                ? '支払いを取り消す'
-                                : '支払い済みにする'}
+                              {order.payment_status === 'paid' ? '支払い済み' : '支払い済みにする'}
                             </button>
+                            {order.payment_status === 'paid' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm('全額返金として記録しますか？')) {
+                                    paymentMutation.mutate({
+                                      id: order.id,
+                                      paymentStatus: 'refunded',
+                                      reason: 'スタッフによる全額返金',
+                                    });
+                                  }
+                                }}
+                                disabled={paymentMutation.isPending}
+                                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                返金を記録
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => {
@@ -543,10 +608,11 @@ export function StaffDashboardPage() {
                             </button>
                           </div>
                         )}
-                        {order.payment_status === 'paid' && (
+                        {order.payment_status === 'paid' && order.status === 'completed' && (
                           <button
                             type="button"
-                            onClick={() => printReceipt(order, selected.ticket_code)}
+                            onClick={() => receiptMutation.mutate(order.id)}
+                            disabled={receiptMutation.isPending}
                             className="mt-4 w-full rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
                           >
                             領収書を印刷

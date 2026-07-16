@@ -86,11 +86,11 @@ npm run db:seed:reset
 npm run db:reset
 ```
 
-- Canonical schema migrations use `node-pg-migrate` through the `apps/api` workspace and read `db/migrations/node-pg-migrate`.
-- Root `db:migrate:*` commands currently use the legacy SQL runner in `scripts/migrate.mjs`; keep them in validation until the runners are unified, but they only read `db/migrations/*.sql`.
+- Canonical schema migrations use `node-pg-migrate`, read `db/migrations/node-pg-migrate`, and are exposed consistently through both root and `apps/api` workspace commands.
 - `db:seed:reset` truncates/reseeds demo data.
-- `db:reset` rebuilds local/dev schema and destroys data.
-- Root migration rollback/redo commands are intentionally unavailable to prevent mixed runner state.
+- `db:reset`/`db:reset:local` destroy and rebuild only a local/dev schema, then migrate and seed it.
+- `scripts/migrate.mjs` remains only as the local reset helper. Its historical SQL apply mode requires the explicit `ALLOW_LEGACY_SQL_MIGRATIONS=true` opt-in and must not be used for normal deployments.
+- Historical numeric migration names can produce non-blocking timestamp-order warnings from `node-pg-migrate`; never rename already-applied migrations to silence them.
 
 ## 6. LINE Rich Menu sync
 
@@ -122,7 +122,7 @@ Public demo paths:
 - QR token: `demo-queue-lab-2026`
 - Customer page: `http://localhost:5173/qr/demo-queue-lab-2026`
 
-Seed organization address/currency content is legacy demo data and is not representative of the final Japan configuration.
+Seed organization, customer, product, address, currency, and timezone data use the Japanese demo baseline.
 
 ## 8. Validation commands
 
@@ -133,7 +133,9 @@ npm run test
 npm run test:coverage
 npm run build
 npm run format:check
+npm run openapi:check
 npm run spell:check
+npm run e2e:all
 ```
 
 Target one workspace:
@@ -145,18 +147,16 @@ npm run test:watch -w apps/api
 npm run test:ui -w apps/web
 ```
 
-At the 2026-07-15 baseline, the repository contains 30 API test files and 4 web test files. Counts are informational and will change.
-
 ## 9. Test strategy
 
-| Layer                          | Tool                                         | Focus                                                                                  |
-| ------------------------------ | -------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Pure unit                      | Jest/Vitest                                  | ETA, policy, helpers, adapters, validators                                             |
-| Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB | Transactions, tenant checks, state transitions, stock/payment behavior                 |
-| Route/API                      | Supertest                                    | Middleware, status/envelope, request validation                                        |
-| Component                      | Testing Library/Vitest                       | Render states and critical interactions                                                |
-| Browser E2E                    | Not established                              | Required for booking/payment return, role navigation, receipt/QR, responsive workflows |
-| Load                           | Historical guide archived                    | Recreate against staging once SLOs and data isolation are defined                      |
+| Layer                          | Tool                                         | Focus                                                                                       |
+| ------------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Pure unit                      | Jest/Vitest                                  | ETA, policy, helpers, adapters, validators                                                  |
+| Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB | Transactions, tenant checks, state transitions, stock/payment behavior                      |
+| Route/API                      | Supertest                                    | Middleware, status/envelope, request validation                                             |
+| Component                      | Testing Library/Vitest                       | Render states and critical interactions                                                     |
+| Browser E2E                    | Playwright + isolated mock LINE/API ports    | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows |
+| Load                           | Historical guide archived                    | Recreate against staging once SLOs and data isolation are defined                           |
 
 Critical regression scenarios:
 
@@ -169,6 +169,19 @@ Critical regression scenarios:
 - LIFF Home authentication, active-ticket/no-ticket states, Rich Menu route resolution, and Rich Menu sync idempotency/mock behavior.
 - Organization registration transaction and duplicate email/slug.
 - Mobile staff rail/detail layout and public QR/ticket pages.
+
+Playwright uses API/web ports `4100`/`5174`, a unique mock LINE user for each run,
+the demo payment provider, and the mock LINE messaging adapter. Prepare a migrated,
+seeded local database, install Chromium once, and run:
+
+```bash
+npm run e2e:install
+npm run db:seed
+npm run e2e:all
+```
+
+`LINE_ID_TOKEN_VERIFICATION_MODE=mock` is an explicit local/CI setting and is
+rejected when `NODE_ENV=production`. Browser E2E never contacts LINE or a PSP.
 
 ## 10. Manual LINE verification
 

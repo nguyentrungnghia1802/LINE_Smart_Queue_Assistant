@@ -1,5 +1,6 @@
 import type { PoolClient } from 'pg';
 
+import { config } from '../../config';
 import { pool } from '../../db/client';
 import { ordersRepository } from '../../db/repositories/orders.repository';
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
@@ -10,8 +11,11 @@ import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
 import { productCatalogCache } from '../../utils/cache';
 import { etaService } from '../eta/eta.service';
+import { inventoryService } from '../inventory/inventory.service';
+import { locationRepository } from '../location/location.repository';
 import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
+import { paymentsService } from '../payments/payments.service';
 
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
 
@@ -168,20 +172,37 @@ export const ordersService = {
     try {
       await client.query('BEGIN');
 
-      // Increment ticket counter
-      const ticketNumber = await queuesRepository.incrementAndGetCounter(queue.id, client);
+      const lockedQueue = await queuesRepository.lockById(queue.id, client);
+      if (!lockedQueue || lockedQueue.status !== 'open') {
+        throw AppError.conflict('Queue is not accepting entries');
+      }
+      if (lockedQueue.max_capacity !== null) {
+        const activeCount = await queuesRepository.countWaiting(queue.id, client);
+        if (activeCount >= lockedQueue.max_capacity) {
+          throw AppError.conflict('Queue is at full capacity');
+        }
+      }
+
+      const { ticketNumber, businessDate } = await queuesRepository.incrementAndGetCounter(
+        queue.id,
+        client
+      );
       const ticketCode = `${queue.prefix ?? ''}${String(ticketNumber).padStart(3, '0')}`;
 
       if (dto.bookingGroupId) {
-        await ordersRepository.ensureBookingGroup(
+        const bookingGroupAccepted = await ordersRepository.ensureBookingGroup(
           {
             id: dto.bookingGroupId,
             organizationId: org.id,
             customerUserId: actorUserId,
+            customerLineUserId: actor?.lineUserId,
             localDeviceKey: dto.localDeviceKey,
           },
           client
         );
+        if (!bookingGroupAccepted) {
+          throw AppError.conflict('Booking group belongs to another organization');
+        }
       }
 
       // Create queue entry (link to user if authenticated)
@@ -190,21 +211,15 @@ export const ordersService = {
           queueId: queue.id,
           ticketNumber,
           ticketCode,
+          businessDate,
           userId: actorUserId,
           lineUserId: actor?.lineUserId,
         },
         client
       );
 
-      // Count orders for this org to get order number
-      const { rows: countRows } = await client.query<{ count: string }>(
-        `SELECT COUNT(*) FROM orders WHERE organization_id = $1`,
-        [org.id]
-      );
-      const orderNum = formatOrderNumber(
-        queue.prefix ?? 'O',
-        Number.parseInt(countRows[0].count, 10) + 1
-      );
+      const nextOrderNumber = await ordersRepository.nextOrderNumber(org.id, client);
+      const orderNum = formatOrderNumber(queue.prefix ?? 'O', nextOrderNumber);
 
       // Create order (within transaction) — include customer linkage fields
       const order = await ordersRepository.create(
@@ -213,6 +228,7 @@ export const ordersService = {
           orderNumber: orderNum,
           customerName: dto.customerName,
           customerUserId: actorUserId,
+          customerLineUserId: actor?.lineUserId,
           customerPhone: dto.customerPhone,
           subtotal,
           bookingGroupId: dto.bookingGroupId,
@@ -235,6 +251,12 @@ export const ordersService = {
       const linkedOrder = { ...order, queue_entry_id: linkedEntry.id };
 
       if (dto.customerLocation) {
+        if (!actorUserId || !actor?.lineUserId) {
+          throw AppError.forbidden('Verified LINE authentication is required for location sharing');
+        }
+        if (!(await locationRepository.isEnabled(actorUserId, client))) {
+          throw AppError.forbidden('Location consent is required');
+        }
         const orgWithLocation = org as typeof org & {
           latitude?: string | number | null;
           longitude?: string | number | null;
@@ -259,6 +281,8 @@ export const ordersService = {
             longitude: dto.customerLocation.longitude,
             accuracyMeters: dto.customerLocation.accuracyMeters,
             distanceToOrgMeters,
+            consentUserId: actorUserId,
+            expiresAt: new Date(Date.now() + config.location.retentionDays * 86_400_000),
           },
           client
         );
@@ -307,20 +331,13 @@ export const ordersService = {
         );
 
         if (product.stock_quantity !== null) {
-          const { rows } = await client.query<{ id: string }>(
-            `UPDATE products
-             SET stock_quantity = stock_quantity - $1
-             WHERE id = $2 AND stock_quantity >= $1
-             RETURNING id`,
-            [quantity, product.id]
-          );
-          if (!rows[0]) throw AppError.conflict(`Insufficient stock for "${product.name}"`);
-          await ordersRepository.reserveInventory(
+          await inventoryService.reserveFiniteProduct(
             {
               organizationId: org.id,
               orderId: order.id,
               productId: product.id,
               quantity,
+              actorId: actorUserId,
             },
             client
           );
@@ -363,13 +380,34 @@ export const ordersService = {
     return updated;
   },
 
-  async updatePayment(id: string, orgId: string, dto: UpdateOrderPaymentDto) {
+  async updatePayment(
+    id: string,
+    orgId: string,
+    dto: UpdateOrderPaymentDto,
+    actorId: string,
+    idempotencyKey: string
+  ) {
     const order = await ordersRepository.findById(id);
     if (!order) throw AppError.notFound('Order not found');
     if (order.organization_id !== orgId) throw AppError.forbidden();
-    const updated = await ordersRepository.updatePayment(id, dto.paymentStatus);
-    if (!updated) throw AppError.notFound('Order not found');
-    return updated;
+    await paymentsService.manualReconcileOrder({
+      orderId: id,
+      organizationId: orgId,
+      actorId,
+      status: dto.paymentStatus,
+      amount: dto.amount,
+      reason: dto.reason,
+      idempotencyKey,
+    });
+    return this.getById(id, orgId);
+  },
+
+  async getReceipt(id: string, orgId: string) {
+    const order = await this.getById(id, orgId);
+    if (order.status !== 'completed' || order.payment_status !== 'paid') {
+      throw AppError.conflict('Receipt is available only for completed and fully paid orders');
+    }
+    return order;
   },
 
   /**
@@ -405,6 +443,7 @@ export const ordersService = {
       await client.query('BEGIN');
       const updated = await ordersRepository.updateStatus(orderId, 'cancelled', client);
       if (!updated) throw AppError.notFound('Order not found');
+      await inventoryService.releaseOrder(orderId, client, 'order_cancelled', resolvedActor.userId);
 
       if (order.queue_entry_id) {
         const linkedEntry = await queueEntriesRepository.findById(order.queue_entry_id, client);

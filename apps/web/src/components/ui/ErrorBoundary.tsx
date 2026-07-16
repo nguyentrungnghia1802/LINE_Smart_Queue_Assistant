@@ -46,7 +46,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="min-h-dvh flex items-center justify-center p-6 bg-gray-50">
           <ErrorState
             title="Something went wrong"
-            message="An unexpected error occurred. You can try reloading the page."
+            message="予期しないエラーが発生しました。ページを再読み込みしてお試しください。"
             onRetry={this.reset}
             retryLabel="Try again"
           />

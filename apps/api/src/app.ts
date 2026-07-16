@@ -52,13 +52,16 @@ export function createApp(): Application {
   // http.IncomingMessage type; the runtime object IS the Express Request.
   app.use(
     express.json({
-      limit: '1mb',
+      limit: config.media.requestBodyLimit,
       verify: (req, _res, buf) => {
         (req as { rawBody?: Buffer }).rawBody = buf;
       },
     })
   );
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  if (config.media.mode === 'local') {
+    app.use('/media', express.static(config.media.localDir, { immutable: true, maxAge: '30d' }));
+  }
 
   // ── 6. API docs (swagger-ui) — non-production only ───────────────────────────
   if (config.nodeEnv !== 'production') {
