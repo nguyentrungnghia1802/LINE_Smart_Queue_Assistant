@@ -25,7 +25,7 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 
 ### P2: Reliability, UX, and scale
 
-1. Add browser E2E tests for QR booking, payment return, staff flow, admin registration, QR print, and mobile layouts.
+1. Expand browser E2E from the implemented critical-flow baseline to visual regression, accessibility, QR print-dialog, and failure-injection coverage.
 2. Add realtime queue updates through SSE or WebSocket only after measuring polling limitations.
 3. Consider a separate scheduler worker after measuring the implemented PostgreSQL advisory-lock design.
 4. Add observability dashboards, SLOs, tracing, centralized logs, and provider/webhook alerts.

@@ -65,6 +65,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - LINE webhook signature verification and basic follow, unfollow, and message command handling.
 - Scheduled ETA refresh, approaching-turn scan, called-message retry scan, durable notification delivery, and daily counter reset.
 - Rate limits, request IDs, structured logging, basic Prometheus text metrics, health/readiness endpoints, and audit logs.
+- Playwright browser coverage for LIFF mock authentication, required-item demo payment, booking/ticket redirect, staff transitions, durable mock notification delivery, receipt access, admin registration, manager QR/settings, and desktop/mobile overflow checks.
 - Database structures for booking groups, location snapshots/alerts, forecast history, and staffing recommendations.
 - Japan-oriented organization addresses, `Asia/Tokyo` defaults, normalized weekly hours, and exception-day configuration.
 
@@ -77,7 +78,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Inventory lifecycle is implemented; production load testing and operator reconciliation UI remain pending.
 - Payment reconciliation keeps transaction, order, and item summaries aligned with audited manual operations, replay-safe webhook transitions, partial/full refund amounts, and guarded receipt access. Real PSP refund execution remains pending.
 - Expand generic OpenAPI operation entries into detailed component schemas where provider/client generation requires stronger typing; runtime route coverage and contract drift tests are complete.
-- Browser end-to-end tests and production-scale concurrency tests.
+- Production-scale concurrency and browser/device acceptance tests against real LINE and provider environments.
 - Production stress testing for the implemented scheduler ownership, queue-capacity, call-next, and counter locks.
 - Real object storage, malware scanning, CDN policy, and orphan reconciliation; validated images currently use the local/mock media adapter while legacy data URLs remain readable.
 

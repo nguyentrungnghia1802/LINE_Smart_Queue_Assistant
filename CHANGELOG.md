@@ -13,6 +13,8 @@ All notable project changes should be recorded here. This file tracks delivered 
 - Added measured heuristic wait forecasts and staffing recommendations with hourly aggregates, confidence, explanations, retention, manager APIs, dashboard output, and a PostgreSQL-locked scheduler job.
 - Added a media storage boundary with validated/compressed image uploads, local and mock providers, an object-storage-compatible interface, metadata tracking, deletion, and URL-based organization/product forms.
 - Added complete runtime OpenAPI operation coverage with auth, pagination, standard envelopes, validator metadata, specification validation, and route-drift contract tests.
+- Added Playwright desktop/mobile coverage for LIFF mock login, demo payment, booking/ticket, staff/outbox, receipt, admin registration, manager QR/settings, and responsive layouts.
+- Fixed demo payment enum updates, multi-queue staff selection, repeatable seed counters/business dates, and Japanese fallback errors/demo identities found by browser testing.
 
 ### LINE Messaging
 
