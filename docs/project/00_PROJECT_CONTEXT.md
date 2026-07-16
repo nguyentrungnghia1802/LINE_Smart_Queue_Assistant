@@ -21,7 +21,7 @@ Physical queues make customers wait near a counter with little visibility. Busin
 - Reduce time customers must physically wait at the business.
 - Use the customer's LINE identity and LINE chat for high-visibility queue notifications.
 - Keep queue, order, payment, inventory, and tenant data consistent.
-- Give each role a focused, responsive Japanese interface.
+- Give each role a focused, responsive interface in Japanese, Vietnamese, and English, with Japanese as default.
 - Support multiple organizations with strict tenant isolation.
 - Provide an upgrade path from demo payment and heuristic ETA to production providers and forecasting.
 
@@ -48,19 +48,19 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Email/password authentication for admin, manager, staff, and customer roles.
 - LINE LIFF login with server-side ID-token verification and linked `line_accounts` records.
 - LINE-first QR entry by organization slug or stable generated token, with public fallback routes.
-- Separate Japanese portals for customer, staff, manager, and admin workflows.
+- Localized customer, staff, manager, and admin portals with persisted language selection.
 - Organization registration with a Gmail manager and compressed logo data URL/URL support.
 - Product/service CRUD, prepayment flag, service duration, finite or unlimited stock, and active state.
 - Queue CRUD, opening state, capacity configuration, ticket prefix/counter, skip/no-show controls, and ETA configuration.
 - Atomic order, queue-entry, order-item, payment-transaction, inventory-reservation, and optional location writes.
 - Per-item payment status and full-order payment status for required-only or all-item checkout.
-- Server-side payment intent boundary with demo provider, Japanese payment method UI, webhook callback, return status, and reconciliation hooks.
+- Server-side payment intent boundary with demo provider, localized payment method UI, webhook callback, return status, and reconciliation hooks.
 - Staff order details, item images, manual payment/status controls, queue actions, and receipt printing.
 - LINE push for booking-created, approaching, called, serving, cancelled, completed, and no-show ticket events on queue entries that contain a verified linked LINE user ID.
-- Centralized Japanese LINE Flex Message templates with text fallback for ticket lifecycle notifications.
+- Centralized Japanese, Vietnamese, and English LINE Flex Message and text fallback templates for ticket lifecycle notifications, with Japanese as the final locale fallback.
 - Durable LINE notification outbox/delivery log in PostgreSQL with unique event keys, worker claim, retry/backoff, sent/failed state, and mock-mode delivery.
 - LINE notification ticket deeplinks that open `/liff/tickets/:entryId`.
-- LIFF Home at `/liff/home` as the common customer entry point from Rich Menu, including active-ticket resolution, ticket opening, booking start, and Japanese empty states.
+- LIFF Home at `/liff/home` as the common customer entry point from Rich Menu, including active-ticket resolution, ticket opening, booking start, and localized empty states.
 - Central Rich Menu definition for `ホーム`, `予約する`, `現在の受付`, and `利用案内`, plus an explicit idempotent `npm run line:rich-menu:sync` command with mock mode.
 - LINE webhook signature verification and basic follow, unfollow, and message command handling.
 - Scheduled ETA refresh, approaching-turn scan, called-message retry scan, durable notification delivery, and daily counter reset.
@@ -99,7 +99,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - The API is a single Express process with in-process scheduled jobs.
 - Public routes must work without authentication, but LINE push requires a verified linked identity.
 - Database migrations are the executable schema source of truth.
-- Japanese is required for all visible application copy; technical code and documentation are English.
+- Visible application copy is translated for `ja`, `vi`, and `en`; Japanese is the default/fallback, while technical code and documentation are English.
 - Vite environment variables are public at build time; secrets stay on the API side.
 
 ## 9. Known problems and risks

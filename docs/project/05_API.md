@@ -61,6 +61,8 @@ Error:
 
 Common status semantics: `200` success, `201` created, `204` no content, `400` business input error, `401` unauthenticated, `403` forbidden/tenant mismatch, `404` not found, `409` state/stock conflict, `422` Zod validation, `429` rate limit, `500` unexpected error, `503` dependency/readiness failure.
 
+Clients branch on `error.code` and localize it. `error.message` is diagnostic text, not a display-text contract. Locale-aware reads accept `Accept-Language`; supported values are `ja`, `vi`, and `en`.
+
 ## 4. Endpoint inventory
 
 ### Authentication
@@ -233,7 +235,7 @@ The upload request currently carries a browser-compressed data URL for compatibi
 | Method | Path                                 | Access        | Purpose                                      |
 | ------ | ------------------------------------ | ------------- | -------------------------------------------- |
 | GET    | `/api/v1/users`                      | Manager/admin | List users by tenant/role query              |
-| PATCH  | `/api/v1/users/me`                   | Authenticated | Update own profile                           |
+| PATCH  | `/api/v1/users/me`                   | Authenticated | Update own profile and `preferredLocale`     |
 | POST   | `/api/v1/users/staff`                | Manager/admin | Create tenant staff                          |
 | PATCH  | `/api/v1/users/staff/:userId/status` | Manager/admin | Change staff active state                    |
 | PATCH  | `/api/v1/users/staff/:userId`        | Manager/admin | Update staff                                 |

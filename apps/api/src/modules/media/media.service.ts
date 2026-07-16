@@ -31,10 +31,10 @@ export class MediaService {
   ) {
     const organizationId = this.resolveOrganization(input.organizationId, actor);
     const match = /^data:image\/(png|jpe?g|webp);base64,([a-z0-9+/=]+)$/i.exec(input.dataUrl);
-    if (!match) throw AppError.badRequest('PNG、JPEG、WebP画像を選択してください');
+    if (!match) throw AppError.badRequest('Select a PNG, JPEG, or WebP image');
     const original = Buffer.from(match[2], 'base64');
     if (original.length === 0 || original.length > this.maxOriginalBytes) {
-      throw AppError.badRequest('画像ファイルのサイズが上限を超えています');
+      throw AppError.badRequest('The image exceeds the maximum file size');
     }
 
     let metadata: sharp.Metadata;
@@ -44,14 +44,14 @@ export class MediaService {
         limitInputPixels: 40_000_000,
       }).metadata();
     } catch {
-      throw AppError.badRequest('画像ファイルを読み込めませんでした');
+      throw AppError.badRequest('The image could not be read');
     }
     if (
       !metadata.format ||
       !['jpeg', 'png', 'webp'].includes(metadata.format) ||
       (metadata.pages ?? 1) > 1
     ) {
-      throw AppError.badRequest('対応していない画像形式です');
+      throw AppError.badRequest('The image format is not supported');
     }
 
     let body: Buffer;
@@ -62,7 +62,7 @@ export class MediaService {
         .webp({ quality: 82, effort: 4 })
         .toBuffer();
     } catch {
-      throw AppError.badRequest('画像ファイルを変換できませんでした');
+      throw AppError.badRequest('The image could not be converted');
     }
     const date = new Date().toISOString().slice(0, 10);
     const key = `${input.purpose}/${date}/${randomUUID()}.webp`;
@@ -88,7 +88,7 @@ export class MediaService {
     const asset = await this.repository.findById(id);
     if (!asset) throw AppError.notFound('Media asset');
     if (actor.role !== 'admin' && asset.organization_id !== actor.organizationId) {
-      throw AppError.forbidden('別の組織の画像は削除できません');
+      throw AppError.forbidden('Images owned by another organization cannot be deleted');
     }
     if (asset.status === 'deleted') return;
     await this.storage.delete(asset.storage_key);
@@ -97,9 +97,9 @@ export class MediaService {
 
   private resolveOrganization(requested: string | null | undefined, actor: AuthUser) {
     if (actor.role === 'admin') return requested ?? null;
-    if (!actor.organizationId) throw AppError.forbidden('組織が設定されていません');
+    if (!actor.organizationId) throw AppError.forbidden('Organization is not configured');
     if (requested && requested !== actor.organizationId) {
-      throw AppError.forbidden('別の組織には画像を登録できません');
+      throw AppError.forbidden('Images cannot be registered for another organization');
     }
     return actor.organizationId;
   }

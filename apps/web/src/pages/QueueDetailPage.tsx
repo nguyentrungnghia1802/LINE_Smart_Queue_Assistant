@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
 import { QueueStatusBadge } from '../components/queue/QueueStatusBadge';
@@ -5,6 +6,7 @@ import { Spinner } from '../components/ui/Spinner';
 import { useQueue } from '../hooks/useQueues';
 
 export function QueueDetailPage() {
+  const { t } = useTranslation(['manager', 'common']);
   const { id } = useParams<{ id: string }>();
   const { data: queue, isLoading, isError } = useQueue(id ?? '');
 
@@ -19,9 +21,9 @@ export function QueueDetailPage() {
   if (isError || !queue) {
     return (
       <div className="text-center py-16">
-        <p className="text-gray-500 mb-4">キューが見つかりません。</p>
+        <p className="text-gray-500 mb-4">{t('queue.notFound')}</p>
         <Link to="/queues" className="text-brand-600 hover:underline text-sm">
-          ← キューへ戻る
+          ← {t('queue.backToQueues')}
         </Link>
       </div>
     );
@@ -31,7 +33,7 @@ export function QueueDetailPage() {
     <div>
       <div className="flex items-center gap-3 mb-2">
         <Link to="/queues" className="text-gray-400 hover:text-gray-600 text-sm">
-          ← キュー
+          ← {t('nav.queue', { ns: 'common' })}
         </Link>
       </div>
 
@@ -48,27 +50,32 @@ export function QueueDetailPage() {
           to={`/staff/queues/${id}`}
           className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
-          📋 キューを管理
+          📋 {t('queue.manage')}
         </Link>
         <Link
           to={`/queues/${id}/display`}
           className="inline-flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
-          📺 QRを表示
+          📺 {t('queue.showQr')}
         </Link>
         <Link
           to={`/queues/${id}/settings`}
           className="inline-flex items-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
-          ⚙️ 設定
+          ⚙️ {t('nav.settings', { ns: 'common' })}
         </Link>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <DetailCard label="現在の番号" value={String(queue.currentNumber)} />
-        {queue.maxCapacity && <DetailCard label="最大定員" value={String(queue.maxCapacity)} />}
+        <DetailCard label={t('queue.currentNumber')} value={String(queue.currentNumber)} />
+        {queue.maxCapacity && (
+          <DetailCard label={t('queue.capacity')} value={String(queue.maxCapacity)} />
+        )}
         {queue.avgServiceTimeMinutes && (
-          <DetailCard label="平均対応時間（分）" value={String(queue.avgServiceTimeMinutes)} />
+          <DetailCard
+            label={t('queue.averageService')}
+            value={String(queue.avgServiceTimeMinutes)}
+          />
         )}
       </div>
     </div>

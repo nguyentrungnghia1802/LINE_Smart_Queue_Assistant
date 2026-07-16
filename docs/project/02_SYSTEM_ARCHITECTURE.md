@@ -26,7 +26,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 
 | Container/process | Technology                                  | Responsibility                                                                         |
 | ----------------- | ------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `web`             | React/Vite in dev, nginx static SPA in prod | Routes, Japanese UI, browser state, API calls, LIFF adapter                            |
+| `web`             | React/Vite in dev, nginx static SPA in prod | Routes, i18next UI, browser state, API calls, LIFF adapter                             |
 | `api`             | Node/Express                                | HTTP contracts, auth, business services, SQL repositories, LINE adapter, scheduler     |
 | Media adapter     | Local/mock plus object-compatible interface | Validates and compresses image ingress; isolates persistence transport                 |
 | `postgres`        | PostgreSQL 16                               | Tenant, identity, queue, order, inventory, payment, notification, audit, forecast data |
@@ -116,6 +116,8 @@ Authenticated order and direct queue creation copy only `req.user.lineUserId`, w
 - API-to-PostgreSQL uses parameterized `pg` queries and explicit transactions for multi-row writes.
 - Queue/order services never call LINE directly. They enqueue durable notification intents in PostgreSQL through `QueueNotificationService` and `NotificationOutboxRepository` inside the same business transaction as the queue/order state change.
 - API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`; queue lifecycle copy, Flex Message payloads, text fallbacks, and ticket deep links are centralized in `line-notification.templates.ts` and sent by the notification delivery worker through `lineNotificationService`.
+- Frontend resources are split by locale/domain. Locale resolution is user preference, organization default, browser/LIFF, then Japanese; API errors are translated by stable code.
+- LINE copy is split into `ja`, `vi`, and `en` backend templates. The outbox stores the resolved customer locale at enqueue time.
 - Rich Menu management is separate from runtime startup. `rich-menu.definition.ts` owns the Japanese menu actions and LIFF routes, `rich-menu.adapter.ts` owns LINE transport, `rich-menu.sync.service.ts` owns idempotent create/reuse/replace behavior, and `npm run line:rich-menu:sync` performs the explicit synchronization. Uploading Rich Menu images uses LINE's data API host, while create/list/default/delete use the Messaging API host.
 - Payment originates as a server-created intent. Browser return is a UX signal; demo completion and future PSP callbacks are verified server-side before an order can consume the transaction.
 

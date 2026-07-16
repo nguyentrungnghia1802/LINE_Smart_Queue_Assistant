@@ -1,3 +1,5 @@
+import type { SupportedLocale } from '@line-queue/shared';
+
 import { auditLogRepository } from '../../db/repositories/audit-log.repository';
 import { productsRepository } from '../../db/repositories/products.repository';
 import { AppError } from '../../utils/AppError';
@@ -11,12 +13,12 @@ interface AuditContext {
 }
 
 export const productsService = {
-  async getByOrg(orgId: string) {
-    return productsRepository.findByOrg(orgId);
+  async getByOrg(orgId: string, locale: SupportedLocale = 'ja') {
+    return productsRepository.findByOrg(orgId, locale);
   },
 
-  async getByOrgSlug(slug: string) {
-    return productsRepository.findByOrgSlug(slug);
+  async getByOrgSlug(slug: string, locale: SupportedLocale = 'ja') {
+    return productsRepository.findByOrgSlug(slug, locale);
   },
 
   async getById(id: string) {

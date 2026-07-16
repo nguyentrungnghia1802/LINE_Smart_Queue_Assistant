@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 
+import { localeFromAcceptLanguage } from '../../i18n/locale';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendCreated, sendNoContent, sendSuccess } from '../../utils/response';
@@ -14,7 +15,12 @@ import { CreateQueueDto, UpdateQueueDto, UpdateQueueStatusDto } from './queues.v
 export const listQueues = asyncHandler(async (req: Request, res: Response) => {
   const orgId = req.user?.organizationId;
   if (!orgId) throw AppError.forbidden('User has no organization');
-  const queues = await queuesService.listQueues(orgId);
+  const locale =
+    req.user?.preferredLocale ??
+    req.user?.organizationLocale ??
+    localeFromAcceptLanguage(req.get('accept-language')) ??
+    'ja';
+  const queues = await queuesService.listQueues(orgId, locale);
   sendSuccess(res, queues);
 });
 

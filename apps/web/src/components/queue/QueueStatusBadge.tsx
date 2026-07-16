@@ -1,16 +1,18 @@
+import { useTranslation } from 'react-i18next';
+
 import { QueueStatus } from '@line-queue/shared';
 
-const STATUS_CONFIG: Record<QueueStatus, { label: string; className: string }> = {
+const STATUS_CONFIG: Record<QueueStatus, { labelKey: string; className: string }> = {
   [QueueStatus.ACTIVE]: {
-    label: '稼働中',
+    labelKey: 'states.active',
     className: 'bg-green-100 text-green-800',
   },
   [QueueStatus.PAUSED]: {
-    label: '一時停止',
+    labelKey: 'states.paused',
     className: 'bg-yellow-100 text-yellow-800',
   },
   [QueueStatus.CLOSED]: {
-    label: '終了',
+    labelKey: 'states.closed',
     className: 'bg-gray-100 text-gray-600',
   },
 };
@@ -20,13 +22,14 @@ interface QueueStatusBadgeProps {
 }
 
 export function QueueStatusBadge({ status }: QueueStatusBadgeProps) {
-  const { label, className } = STATUS_CONFIG[status] ?? STATUS_CONFIG[QueueStatus.CLOSED];
+  const { t } = useTranslation('common');
+  const { labelKey, className } = STATUS_CONFIG[status] ?? STATUS_CONFIG[QueueStatus.CLOSED];
 
   return (
     <span
       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${className}`}
     >
-      {label}
+      {t(labelKey)}
     </span>
   );
 }

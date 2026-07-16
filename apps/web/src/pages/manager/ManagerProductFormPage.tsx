@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { get, patch, post } from '../../services/apiClient';
@@ -48,6 +49,7 @@ const empty: FormState = {
 };
 
 export function ManagerProductFormPage() {
+  const { t } = useTranslation(['manager', 'common']);
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
@@ -67,9 +69,7 @@ export function ManagerProductFormPage() {
       const asset = await uploadImage(dataUrl, 'product_image');
       setForm((value) => ({ ...value, imageUrl: asset.public_url }));
     } catch (uploadError) {
-      setError(
-        uploadError instanceof Error ? uploadError.message : '画像をアップロードできませんでした。'
-      );
+      setError(uploadError instanceof Error ? uploadError.message : t('products.uploadFailed'));
     } finally {
       setImageBusy(false);
     }
@@ -105,7 +105,7 @@ export function ManagerProductFormPage() {
       void queryClient.invalidateQueries({ queryKey: ['products', orgId] });
       navigate('/manager/products');
     },
-    onError: () => setError('エラーが発生しました。もう一度お試しください。'),
+    onError: () => setError(t('products.saveFailed')),
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -139,14 +139,16 @@ export function ManagerProductFormPage() {
 
   return (
     <div className="max-w-lg space-y-4">
-      <h1 className="text-xl font-bold text-gray-900">{isEdit ? '商品を編集' : '商品を追加'}</h1>
+      <h1 className="text-xl font-bold text-gray-900">
+        {isEdit ? t('products.formEdit') : t('products.create')}
+      </h1>
 
       <form
         onSubmit={handleSubmit}
         className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
       >
         {field(
-          '商品名 *',
+          t('products.nameRequired'),
           <input
             className={inputCls}
             required
@@ -155,7 +157,7 @@ export function ManagerProductFormPage() {
           />
         )}
         {field(
-          '種類 *',
+          t('products.typeRequired'),
           <select
             className={inputCls}
             value={form.productType}
@@ -163,12 +165,12 @@ export function ManagerProductFormPage() {
               setForm((f) => ({ ...f, productType: e.target.value as 'product' | 'service' }))
             }
           >
-            <option value="service">サービス (Service)</option>
-            <option value="product">商品 (Product)</option>
+            <option value="service">{t('labels.service', { ns: 'common' })}</option>
+            <option value="product">{t('labels.product', { ns: 'common' })}</option>
           </select>
         )}
         {field(
-          '説明',
+          t('labels.description', { ns: 'common' }),
           <textarea
             className={inputCls}
             rows={3}
@@ -177,12 +179,12 @@ export function ManagerProductFormPage() {
           />
         )}
         {field(
-          '商品画像',
+          t('products.image'),
           <div className="space-y-2">
             {form.imageUrl && (
               <img
                 src={form.imageUrl}
-                alt="商品プレビュー"
+                alt={t('products.preview')}
                 className="h-32 w-full rounded-lg object-cover"
               />
             )}
@@ -194,12 +196,12 @@ export function ManagerProductFormPage() {
               className={inputCls}
             />
             <p className="text-xs text-gray-500">
-              {imageBusy ? '画像を処理しています…' : 'PNG、JPEG、WebP（最大5MB）'}
+              {imageBusy ? t('settings.processingImage') : t('products.imageHint')}
             </p>
           </div>
         )}
         {field(
-          '価格（円）*',
+          t('products.priceYenRequired'),
           <input
             className={inputCls}
             type="number"
@@ -210,7 +212,7 @@ export function ManagerProductFormPage() {
           />
         )}
         {field(
-          '対応時間（分）*',
+          t('products.serviceTimeRequired'),
           <input
             className={inputCls}
             type="number"
@@ -221,7 +223,7 @@ export function ManagerProductFormPage() {
           />
         )}
         {field(
-          '最大待ち時間（分）',
+          t('products.maxWait'),
           <input
             className={inputCls}
             type="number"
@@ -231,7 +233,7 @@ export function ManagerProductFormPage() {
           />
         )}
         {field(
-          '在庫（空欄 = 無制限）',
+          t('products.stockOptional'),
           <input
             className={inputCls}
             type="number"
@@ -246,7 +248,7 @@ export function ManagerProductFormPage() {
             checked={form.requiresPrepayment}
             onChange={(e) => setForm((f) => ({ ...f, requiresPrepayment: e.target.checked }))}
           />
-          事前支払いを必須にする
+          {t('products.requirePrepayment')}
         </label>
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input
@@ -254,7 +256,7 @@ export function ManagerProductFormPage() {
             checked={form.isActive}
             onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
           />
-          有効
+          {t('products.enabled')}
         </label>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
@@ -265,14 +267,16 @@ export function ManagerProductFormPage() {
             onClick={() => navigate('/manager/products')}
             className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
           >
-            キャンセル
+            {t('actions.cancel', { ns: 'common' })}
           </button>
           <button
             type="submit"
             disabled={mutation.isPending}
             className="px-6 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
           >
-            {mutation.isPending ? '保存中...' : '保存'}
+            {mutation.isPending
+              ? t('actions.saving', { ns: 'common' })
+              : t('actions.save', { ns: 'common' })}
           </button>
         </div>
       </form>

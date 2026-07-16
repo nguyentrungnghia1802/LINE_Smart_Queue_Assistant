@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { i18n } from '../i18n';
 import { isLiffMockMode, liffAdapter } from '../services/liff';
 import { useAuthStore } from '../store/authStore';
 import type { LiffAuthStatus, LiffContext, LiffInitStatus, LiffProfile } from '../types/liff';
@@ -43,9 +44,7 @@ export function useLiff(): LiffContext {
   useEffect(() => {
     // In real mode a LIFF ID is mandatory; fail fast with a clear message.
     if (!isLiffMockMode && !LIFF_ID) {
-      setError(
-        new Error('LINEアプリの設定が完了していません。しばらくしてからもう一度お試しください。')
-      );
+      setError(new Error(i18n.t('common:clientErrors.liffNotConfigured')));
       setInitStatus('error');
       return;
     }
@@ -104,7 +103,7 @@ export function useLiff(): LiffContext {
                 }
               }
             } else if (!cancelled) {
-              const nextError = new Error('LINE ID tokenを取得できませんでした。');
+              const nextError = new Error(i18n.t('common:clientErrors.idTokenMissing'));
               setAuthError(nextError);
               setAuthStatus('error');
             }

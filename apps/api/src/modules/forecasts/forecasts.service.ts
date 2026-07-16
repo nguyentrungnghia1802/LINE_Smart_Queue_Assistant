@@ -12,8 +12,8 @@ export function buildStaffingRecommendation(slot: HistoricalSlot) {
   const confidence = Number(Math.min(0.9, 0.2 + sampleSize / 50).toFixed(4));
   const explanation =
     sampleSize === 0
-      ? '過去8週間の実績がないため、最低配置人数を提案しています。'
-      : `過去8週間の同じ曜日・時間帯の受付${slot.arrival_count}件と平均対応時間${Math.ceil(serviceSeconds / 60)}分から算出しています。`;
+      ? 'No observations were available in the prior eight weeks; using the minimum staffing baseline.'
+      : `Calculated from ${slot.arrival_count} arrivals in the matching weekday/hour over eight weeks and an average service time of ${Math.ceil(serviceSeconds / 60)} minutes.`;
   return { recommendedStaff, confidence, explanation };
 }
 
@@ -26,7 +26,7 @@ export function buildWaitForecast(queue: CurrentQueueLoad) {
   return {
     forecastedWaitSeconds,
     confidence,
-    explanation: `現在の待機${queue.queue_depth}組、稼働スタッフ${queue.active_staff_count}名、平均対応時間${Math.ceil(queue.average_service_seconds / 60)}分から算出しています。`,
+    explanation: `Calculated from ${queue.queue_depth} waiting parties, ${queue.active_staff_count} active staff, and an average service time of ${Math.ceil(queue.average_service_seconds / 60)} minutes.`,
   };
 }
 

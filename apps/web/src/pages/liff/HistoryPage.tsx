@@ -1,29 +1,32 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { formatCurrency, formatDateTime } from '../../i18n/format';
 import { bookingGroupsApi } from '../../services/bookingGroups.api';
 
 const ORDER_STATUS: Record<string, string> = {
-  pending: '受付済み',
-  processing: '対応中',
-  completed: '完了',
-  cancelled: 'キャンセル',
+  pending: 'states.pending',
+  processing: 'states.processing',
+  completed: 'states.completed',
+  cancelled: 'states.cancelled',
 };
 
 const PAYMENT_STATUS: Record<string, string> = {
-  unpaid: '未払い',
-  pending: '支払い確認中',
-  authorized: '承認済み',
-  paid: '支払い済み',
-  failed: '支払い失敗',
-  cancelled: '支払い取消',
-  refunded: '返金済み',
+  unpaid: 'states.unpaid',
+  pending: 'states.pending',
+  authorized: 'states.pending',
+  paid: 'states.paid',
+  failed: 'states.failed',
+  cancelled: 'states.cancelled',
+  refunded: 'states.refunded',
 };
 
 export function HistoryPage() {
+  const { t, i18n } = useTranslation(['customer', 'common']);
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const history = useQuery({
@@ -32,12 +35,16 @@ export function HistoryPage() {
   });
 
   if (history.isLoading) {
-    return <p className="py-12 text-center text-sm text-gray-500">履歴を読み込んでいます…</p>;
+    return (
+      <p className="py-12 text-center text-sm text-gray-500">
+        {t('states.loading', { ns: 'common' })}
+      </p>
+    );
   }
   if (history.isError) {
     return (
       <ErrorState
-        message="予約履歴を読み込めませんでした。"
+        message={t('history.loadFailed', { ns: 'customer' })}
         onRetry={() => void history.refetch()}
       />
     );
@@ -46,9 +53,9 @@ export function HistoryPage() {
     return (
       <div className="max-w-md mx-auto">
         <EmptyState
-          icon="履歴"
-          title="予約履歴はまだありません"
-          message="予約が完了すると、端末を変えてもLINEアカウントから確認できます。"
+          icon={t('history.icon', { ns: 'customer' })}
+          title={t('history.empty', { ns: 'customer' })}
+          message={t('history.description', { ns: 'customer' })}
         />
       </div>
     );
@@ -57,10 +64,10 @@ export function HistoryPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-gray-950">予約履歴</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          注文と受付番号は、それぞれ個別の状態で表示されます。
-        </p>
+        <h1 className="text-xl font-bold text-gray-950">
+          {t('history.title', { ns: 'customer' })}
+        </h1>
+        <p className="mt-1 text-sm text-gray-500">{t('history.statusHint', { ns: 'customer' })}</p>
       </div>
 
       {history.data.items.map((group) => (
@@ -72,14 +79,12 @@ export function HistoryPage() {
             <div>
               <h2 className="font-semibold text-gray-900">{group.organization_name}</h2>
               <p className="text-xs text-gray-500">
-                {new Intl.DateTimeFormat('ja-JP', {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                  timeZone: 'Asia/Tokyo',
-                }).format(new Date(group.created_at))}
+                {formatDateTime(group.created_at, i18n.resolvedLanguage ?? 'ja')}
               </p>
             </div>
-            <span className="text-xs font-medium text-gray-500">{group.orders.length}件</span>
+            <span className="text-xs font-medium text-gray-500">
+              {t('units.items', { ns: 'common', count: group.orders.length })}
+            </span>
           </div>
 
           <div className="divide-y divide-gray-100">
@@ -87,15 +92,21 @@ export function HistoryPage() {
               <article key={order.id} className="p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="text-xs text-gray-500">注文番号</p>
+                    <p className="text-xs text-gray-500">
+                      {t('history.orderNumber', { ns: 'customer' })}
+                    </p>
                     <p className="font-mono font-bold text-gray-900">{order.order_number}</p>
                   </div>
                   <div className="text-right text-xs">
                     <p className="font-semibold text-gray-700">
-                      {ORDER_STATUS[order.status] ?? order.status}
+                      {ORDER_STATUS[order.status]
+                        ? t(ORDER_STATUS[order.status], { ns: 'common' })
+                        : order.status}
                     </p>
                     <p className="text-gray-500">
-                      {PAYMENT_STATUS[order.payment_status] ?? order.payment_status}
+                      {PAYMENT_STATUS[order.payment_status]
+                        ? t(PAYMENT_STATUS[order.payment_status], { ns: 'common' })
+                        : order.payment_status}
                     </p>
                   </div>
                 </div>
@@ -106,22 +117,14 @@ export function HistoryPage() {
                         {item.product_name} × {item.quantity}
                       </span>
                       <span>
-                        {new Intl.NumberFormat('ja-JP', {
-                          style: 'currency',
-                          currency: 'JPY',
-                          maximumFractionDigits: 0,
-                        }).format(Number(item.subtotal))}
+                        {formatCurrency(Number(item.subtotal), i18n.resolvedLanguage ?? 'ja')}
                       </span>
                     </li>
                   ))}
                 </ul>
                 <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
                   <strong className="text-sm text-gray-900">
-                    {new Intl.NumberFormat('ja-JP', {
-                      style: 'currency',
-                      currency: 'JPY',
-                      maximumFractionDigits: 0,
-                    }).format(Number(order.subtotal))}
+                    {formatCurrency(Number(order.subtotal), i18n.resolvedLanguage ?? 'ja')}
                   </strong>
                   {order.ticket && (
                     <button
@@ -129,7 +132,10 @@ export function HistoryPage() {
                       onClick={() => navigate(`/liff/tickets/${order.ticket?.id}`)}
                       className="rounded-md bg-line-green px-3 py-2 text-xs font-bold text-white"
                     >
-                      受付番号 {order.ticket.ticket_code} を開く
+                      {t('history.openTicket', {
+                        ns: 'customer',
+                        ticket: order.ticket.ticket_code,
+                      })}
                     </button>
                   )}
                 </div>
@@ -140,14 +146,17 @@ export function HistoryPage() {
       ))}
 
       {history.data.meta.totalPages > 1 && (
-        <nav aria-label="履歴ページ" className="flex items-center justify-between">
+        <nav
+          aria-label={t('history.pageLabel', { ns: 'customer' })}
+          className="flex items-center justify-between"
+        >
           <button
             type="button"
             disabled={page === 1}
             onClick={() => setPage((value) => value - 1)}
             className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm disabled:opacity-40"
           >
-            前へ
+            {t('history.previous', { ns: 'customer' })}
           </button>
           <span className="text-sm text-gray-500">
             {page} / {history.data.meta.totalPages}
@@ -158,7 +167,7 @@ export function HistoryPage() {
             onClick={() => setPage((value) => value + 1)}
             className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm disabled:opacity-40"
           >
-            次へ
+            {t('history.next', { ns: 'customer' })}
           </button>
         </nav>
       )}

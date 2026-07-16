@@ -1,0 +1,31 @@
+export const auth = {
+  login: {
+    title: 'ログイン',
+    subtitle: 'アカウント情報を入力してください。',
+    submit: 'ログイン',
+    submitting: 'ログインしています…',
+    invalid: 'メールアドレスまたはパスワードが正しくありません。',
+    intro: '受付、商品選択、スタッフ呼び出し、LINE通知までを一つの画面で管理します。',
+    noAccount: 'アカウントをお持ちでない場合',
+    customerRegister: '顧客登録',
+    onlineReception: 'オンライン受付',
+    notificationIntegration: '通知連携',
+    paymentDemo: '決済デモ',
+  },
+  register: {
+    title: 'アカウント登録',
+    subtitle: '受付状況を確認するためのアカウントを作成します。',
+    submit: '登録',
+    submitting: '登録しています…',
+    failed: '登録に失敗しました。',
+    hasAccount: 'すでにアカウントをお持ちの場合',
+    phoneOptional: '電話番号（任意）',
+  },
+  account: {
+    title: 'アカウント情報',
+    subtitle: 'ログイン中のユーザー情報を確認できます。',
+    back: 'ダッシュボードへ戻る',
+    organizationId: '組織ID',
+    userId: 'ユーザーID',
+  },
+} as const;

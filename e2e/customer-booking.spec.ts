@@ -15,9 +15,9 @@ test('LIFF mock authenticates, pays required items, books, and opens the ticket'
 
   await page.getByRole('button', { name: '事前支払いへ進む' }).click();
   await expect(page).toHaveURL(/\/liff\/checkout\/demo\//);
-  await expect(page.getByRole('heading', { name: 'お支払い' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'オンライン決済' })).toBeVisible();
   await expect(page.getByRole('button', { name: '必須分のみ' })).toBeVisible();
-  await page.getByRole('button', { name: /クレジットカードで支払う/ }).click();
+  await page.getByRole('button', { name: 'クレジットカード', exact: true }).click();
 
   await expect(page).toHaveURL(/\/liff\/qr\/demo-queue-lab-2026$/);
   await expect(page.getByText('必須分支払い済み')).toBeVisible();

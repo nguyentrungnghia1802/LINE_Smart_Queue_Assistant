@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
 import { Spinner } from '../components/ui/Spinner';
@@ -57,6 +58,7 @@ function ActionBtn({
 // ── Walk-in modal ─────────────────────────────────────────────────────────────
 
 function WalkInModal({ queueId, onClose }: { queueId: string; onClose: () => void }) {
+  const { t } = useTranslation(['staff', 'common', 'customer']);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -71,7 +73,7 @@ function WalkInModal({ queueId, onClose }: { queueId: string; onClose: () => voi
       qc.invalidateQueries({ queryKey: ['staff-queue', queueId] });
       onClose();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : 'エラーが発生しました。');
+      setErr(e instanceof Error ? e.message : t('errors.UNKNOWN', { ns: 'common' }));
     } finally {
       setSaving(false);
     }
@@ -80,17 +82,19 @@ function WalkInModal({ queueId, onClose }: { queueId: string; onClose: () => voi
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">ウォークイン顧客を追加</h2>
+        <h2 className="text-lg font-bold text-gray-900 mb-4">{t('dashboard.walkInAdd')}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">顧客名</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('dashboard.customerName')}
+            </label>
             <input
               type="text"
               required
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例: 山田太郎"
+              placeholder={t('booking.namePlaceholder', { ns: 'customer' })}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
@@ -101,14 +105,14 @@ function WalkInModal({ queueId, onClose }: { queueId: string; onClose: () => voi
               onClick={onClose}
               className="flex-1 border border-gray-300 text-gray-700 font-medium py-2 rounded-lg text-sm hover:bg-gray-50"
             >
-              キャンセル
+              {t('actions.cancel', { ns: 'common' })}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="flex-1 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-sm"
             >
-              {saving ? '追加中...' : 'キューに追加'}
+              {saving ? t('dashboard.adding') : t('dashboard.addToQueue')}
             </button>
           </div>
         </form>
@@ -120,6 +124,7 @@ function WalkInModal({ queueId, onClose }: { queueId: string; onClose: () => voi
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function StaffQueuePage() {
+  const { t } = useTranslation(['staff', 'common']);
   const { queueId = '' } = useParams<{ queueId: string }>();
   const [showWalkIn, setShowWalkIn] = useState(false);
 
@@ -142,9 +147,9 @@ export function StaffQueuePage() {
   if (isError || !overview) {
     return (
       <div className="text-center py-16">
-        <p className="text-gray-500 mb-4">キューデータを読み込めませんでした。</p>
+        <p className="text-gray-500 mb-4">{t('dashboard.queueLoadFailed')}</p>
         <Link to="/queues" className="text-brand-600 hover:underline text-sm">
-          ← 戻る
+          ← {t('actions.back', { ns: 'common' })}
         </Link>
       </div>
     );
@@ -165,13 +170,15 @@ export function StaffQueuePage() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-2">
           <Link to="/queues" className="text-gray-400 hover:text-gray-600 text-sm">
-            ← キュー
+            ← {t('nav.queue', { ns: 'common' })}
           </Link>
         </div>
         <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{overview.queueName}</h1>
-            <p className="text-sm text-gray-500 mt-0.5">{overview.waitingCount} 人待ち</p>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {t('dashboard.waitingCount', { count: overview.waitingCount })}
+            </p>
           </div>
           <div className="flex gap-2">
             <Link
@@ -195,13 +202,13 @@ export function StaffQueuePage() {
             {(({ id, ...rest }) => (
               <>
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  対応中
+                  {t('states.serving', { ns: 'common' })}
                 </h2>
                 <EntryCard
                   entry={{ id, ...rest }}
                   actions={
                     <ActionBtn
-                      label="完了"
+                      label={t('dashboard.complete')}
                       variant="primary"
                       disabled={isBusy}
                       onClick={() => complete.mutate(id)}
@@ -219,20 +226,20 @@ export function StaffQueuePage() {
             {(({ id, ...rest }) => (
               <>
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  呼び出し済み
+                  {t('dashboard.calledStatus')}
                 </h2>
                 <EntryCard
                   entry={{ id, ...rest }}
                   actions={
                     <>
                       <ActionBtn
-                        label="対応"
+                        label={t('dashboard.serve')}
                         variant="primary"
                         disabled={isBusy}
                         onClick={() => serve.mutate(id)}
                       />
                       <ActionBtn
-                        label="不在"
+                        label={t('dashboard.noShow')}
                         variant="danger"
                         disabled={isBusy}
                         onClick={() => noShow.mutate(id)}
@@ -253,7 +260,7 @@ export function StaffQueuePage() {
               disabled={isBusy}
               onClick={() => callNext.mutate()}
             >
-              次の番号を呼び出す
+              {t('dashboard.callNext')}
             </button>
           </div>
         )}
@@ -261,10 +268,12 @@ export function StaffQueuePage() {
         {/* Waiting list */}
         <section>
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            待機中 ({overview.waitingCount})
+            {t('states.waiting', { ns: 'common' })} ({overview.waitingCount})
           </h2>
           {overview.waitingEntries.length === 0 ? (
-            <p className="text-gray-400 text-sm py-8 text-center">待機中の顧客はいません。</p>
+            <p className="text-gray-400 text-sm py-8 text-center">
+              {t('dashboard.noWaitingCustomers')}
+            </p>
           ) : (
             <div className="space-y-3">
               {overview.waitingEntries.map((entry) => (
@@ -273,7 +282,7 @@ export function StaffQueuePage() {
                   entry={entry}
                   actions={
                     <ActionBtn
-                      label="キャンセル"
+                      label={t('actions.cancel', { ns: 'common' })}
                       variant="danger"
                       disabled={isBusy}
                       onClick={() => cancel.mutate(entry.id)}

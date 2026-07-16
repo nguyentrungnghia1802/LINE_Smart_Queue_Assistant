@@ -16,6 +16,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 10. `000010_booking_history_japan_calendar.js`
 11. `000011_forecasting_baseline.js`
 12. `000012_media_storage.js`
+13. `000013_internationalization.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -44,15 +45,18 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 
 ### Identity and tenancy
 
-| Table                         | Key purpose                                                          | Important constraints                                                               |
-| ----------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `organizations`               | Tenant, slug/token, Japan address, branding, location, LINE/settings | Unique slug/token; postal/coordinate checks; `Asia/Tokyo` default; soft active flag |
-| `organization_business_hours` | Weekly local opening schedule                                        | Unique tenant/weekday; closed/open time consistency                                 |
-| `organization_exception_days` | Holidays and exceptional opening/closure dates                       | Unique tenant/date; closed/open time consistency                                    |
-| `users`                       | Platform identity, role, password/profile                            | Unique optional email; active flag                                                  |
-| `organization_members`        | Tenant manager/staff authorization                                   | Unique organization/user pair; cascading tenant/user delete                         |
-| `line_accounts`               | One linked LINE identity per user                                    | Unique `line_user_id` and `user_id`                                                 |
-| `media_assets`                | Stored image key, URL, ownership and deletion state                  | Unique key; provider/purpose/type/size/status checks                                |
+| Table                         | Key purpose                                                                  | Important constraints                                                       |
+| ----------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `organizations`               | Tenant, slug/token, locale, Japan address, branding, location, LINE/settings | Unique slug/token; `default_locale`; `Asia/Tokyo` default; soft active flag |
+| `organization_business_hours` | Weekly local opening schedule                                                | Unique tenant/weekday; closed/open time consistency                         |
+| `organization_exception_days` | Holidays and exceptional opening/closure dates                               | Unique tenant/date; closed/open time consistency                            |
+| `users`                       | Platform identity, role, password/profile, preferred locale                  | Unique optional email; nullable `preferred_locale`; active flag             |
+| `organization_members`        | Tenant manager/staff authorization                                           | Unique organization/user pair; cascading tenant/user delete                 |
+| `line_accounts`               | One linked LINE identity per user                                            | Unique `line_user_id` and `user_id`                                         |
+| `organization_translations`   | Localized organization names                                                 | Composite organization/locale key; cascade delete                           |
+| `product_translations`        | Localized product names/descriptions                                         | Composite product/locale key; cascade delete                                |
+| `queue_translations`          | Localized queue names/descriptions                                           | Composite queue/locale key; cascade delete                                  |
+| `media_assets`                | Stored image key, URL, ownership and deletion state                          | Unique key; provider/purpose/type/size/status checks                        |
 
 ### Catalog, queue, and orders
 
@@ -80,7 +84,7 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 | `wait_time_forecasts`           | Forecast output history                           | Nonnegative wait/depth; confidence 0..1                                                     |
 | `staffing_recommendations`      | Hourly staffing output                            | weekday 0..6, hour 0..23, positive staff, confidence 0..1                                   |
 | `queue_hourly_metrics`          | Retained eight-week demand/service aggregate      | Tenant slot indexes, nonnegative counts/durations, bounded weekday/hour, expiry             |
-| `notifications`                 | Durable LINE outbox and delivery log              | Unique event key, tenant/entry/user/LINE references, pending/processing/retry indexes       |
+| `notifications`                 | Durable localized LINE outbox and delivery log    | Unique event key, resolved locale, tenant/entry/user/LINE references, delivery indexes      |
 | `penalty_records`               | No-show/late/cancel/manual policy record          | User/LINE/tenant lookup indexes                                                             |
 | `queue_histories`               | Queue transition/event history                    | Tenant/queue/entry/actor indexes                                                            |
 | `audit_logs`                    | Administrative/system audit trail                 | Actor, tenant, resource indexes and JSON changes                                            |

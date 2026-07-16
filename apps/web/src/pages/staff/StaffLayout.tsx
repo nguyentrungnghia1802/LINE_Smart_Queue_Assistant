@@ -1,11 +1,14 @@
+import { useTranslation } from 'react-i18next';
 import { Link, Navigate, NavLink, Outlet } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
+import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
 import { AccountMenu } from '../../components/layout/AccountMenu';
 import { useAuthStore } from '../../store/authStore';
 
 export function StaffLayout() {
+  const { t } = useTranslation('common');
   const { user, isAuthenticated } = useAuthStore();
 
   if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
@@ -17,7 +20,7 @@ export function StaffLayout() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)]">
         <p className="rounded-2xl border border-white/80 bg-white p-8 text-gray-600 shadow-[var(--shadow-soft)]">
-          このページにアクセスする権限がありません。
+          {t('errors.FORBIDDEN')}
         </p>
       </div>
     );
@@ -40,12 +43,13 @@ export function StaffLayout() {
           </Link>
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
             <NavLink to="/staff" end className={navClass}>
-              注文
+              {t('nav.orders')}
             </NavLink>
             <NavLink to="/staff/products" className={navClass}>
-              商品
+              {t('nav.products')}
             </NavLink>
           </nav>
+          <LanguageSwitcher compact />
           <AccountMenu />
         </div>
       </header>

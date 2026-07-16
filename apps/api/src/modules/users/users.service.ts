@@ -17,7 +17,10 @@ export const usersService = {
     return usersRepository.findByOrgAndRole(orgId, role);
   },
 
-  async updateMyProfile(userId: string, data: { displayName?: string; email?: string }) {
+  async updateMyProfile(
+    userId: string,
+    data: { displayName?: string; email?: string; preferredLocale?: 'ja' | 'vi' | 'en' | null }
+  ) {
     const existing = await usersRepository.findById(userId);
     if (!existing) throw AppError.notFound(`User ${userId} not found`);
     const updated = await usersRepository.updateProfile(userId, data);

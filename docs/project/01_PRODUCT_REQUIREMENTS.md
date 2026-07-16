@@ -33,6 +33,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | FR-AUTH-002 | Authenticate a customer from a LINE LIFF ID token after server verification | Implemented |
 | FR-AUTH-003 | Link one LINE account to one platform user and preserve the LINE user ID    | Implemented |
 | FR-AUTH-004 | Allow the authenticated user to view/update supported profile fields        | Implemented |
+| FR-AUTH-005 | Persist preferred locale with organization/client/Japanese fallback         | Implemented |
 | FR-AUTH-005 | Keep public QR booking available without mandatory account login            | Implemented |
 | FR-AUTH-006 | Automatically initialize LIFF login and exchange ID token for system JWT    | Implemented |
 
@@ -50,14 +51,14 @@ The platform role does not replace tenant membership. Staff and manager operatio
 
 ### Catalog and inventory
 
-| ID         | Requirement                                                                                                   | Status                                  |
-| ---------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| FR-CAT-001 | Manager creates, edits, deactivates, and deletes products/services                                            | Implemented                             |
-| FR-CAT-002 | Catalog stores Japanese name/description, image, type, JPY price, duration, prepayment requirement, and stock | Implemented                             |
-| FR-CAT-003 | `NULL` stock means unlimited; zero stock is unavailable                                                       | Implemented                             |
-| FR-CAT-004 | Customer cannot choose inactive/out-of-stock products or quantity above stock                                 | Implemented in UI and transaction guard |
-| FR-CAT-005 | Finite stock is changed atomically when the order succeeds                                                    | Implemented                             |
-| FR-CAT-006 | Cancellation/expiry restores or releases finite stock exactly once                                            | Implemented                             |
+| ID         | Requirement                                                                                                       | Status                                  |
+| ---------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| FR-CAT-001 | Manager creates, edits, deactivates, and deletes products/services                                                | Implemented                             |
+| FR-CAT-002 | Catalog stores translatable name/description, image, type, JPY price, duration, prepayment requirement, and stock | Implemented                             |
+| FR-CAT-003 | `NULL` stock means unlimited; zero stock is unavailable                                                           | Implemented                             |
+| FR-CAT-004 | Customer cannot choose inactive/out-of-stock products or quantity above stock                                     | Implemented in UI and transaction guard |
+| FR-CAT-005 | Finite stock is changed atomically when the order succeeds                                                        | Implemented                             |
+| FR-CAT-006 | Cancellation/expiry restores or releases finite stock exactly once                                                | Implemented                             |
 
 ### Booking, ordering, and payment
 
@@ -152,11 +153,11 @@ The platform role does not replace tenant membership. Staff and manager operatio
 4. Full checkout marks every item and the order paid from one verified payment transaction.
 5. Concurrent finite-stock orders cannot reduce stock below zero; a failed order leaves no partial ticket/order/item rows.
 6. Staff actions cannot access an entry/order in another organization.
-7. Staff state changes for a LINE-linked customer send Japanese queue messages without reverting queue state on delivery failure.
+7. Staff state changes for a LINE-linked customer send locale-aware queue messages without reverting queue state on delivery failure.
 8. LINE ticket notifications contain the system name, ticket code, status, people ahead, ETA, next action, and a LIFF ticket button; text fallback remains available.
 9. Rich Menu buttons open `/liff/home`, booking start, current ticket resolution, and usage guidance without hard-coded entry IDs.
 10. Admin organization registration creates the organization, manager user, and active membership together.
-11. All primary pages remain usable at mobile and desktop widths and all visible copy is Japanese.
+11. All primary pages remain usable at mobile and desktop widths; copy uses `ja`, `vi`, or `en` resources with Japanese fallback.
 12. Health/readiness clearly distinguish a live process from a usable database connection.
 
 ## 6. Non-functional requirements
@@ -167,7 +168,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 - Accessibility: semantic controls, keyboard operation, visible focus, sufficient contrast, reduced-motion support.
 - Privacy: minimize LINE/location/payment payloads and define retention/deletion/audit rules.
 - Observability: structured request logs, request IDs, health/readiness, metrics, notification/payment audit without secrets.
-- Localization: Japanese application copy and Japan-oriented JPY formatting/timezone configuration.
+- Localization: Japanese default plus Vietnamese/English copy and locale-aware Intl formatting with Japan-oriented defaults.
 
 ## 7. Error behavior
 
@@ -175,4 +176,4 @@ The platform role does not replace tenant membership. Staff and manager operatio
 - Missing authentication returns `401`; insufficient role/tenant ownership returns `403`.
 - Missing resources return `404`; state/stock/idempotency conflicts return `409` where applicable.
 - Third-party delivery failure is logged and retried according to its workflow; it must not expose provider secrets.
-- The UI preserves safe customer input after recoverable errors and shows Japanese recovery actions.
+- The UI preserves safe customer input after recoverable errors and shows localized recovery actions with Japanese fallback.

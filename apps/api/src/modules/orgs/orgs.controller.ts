@@ -4,6 +4,7 @@ import { organizationsRepository } from '../../db/repositories/organizations.rep
 import { productsRepository } from '../../db/repositories/products.repository';
 import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
+import { resolveLocale } from '../../i18n/locale';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
@@ -13,13 +14,19 @@ import { BusinessCalendarDto, UpdateOrgSettingsDto } from './orgs.validator';
 
 // ── Shared helper ─────────────────────────────────────────────────────────────
 
-async function buildOrgResponse(orgId: string) {
-  const org = await organizationsRepository.findById(orgId);
+async function buildOrgResponse(orgId: string, clientLocale?: string) {
+  const baseOrg = await organizationsRepository.findById(orgId);
+  if (!baseOrg) throw AppError.notFound('Organization not found');
+  const locale = resolveLocale({
+    organizationLocale: baseOrg.default_locale,
+    clientLocale,
+  });
+  const org = await organizationsRepository.findLocalizedById(orgId, locale);
   if (!org) throw AppError.notFound('Organization not found');
 
   const [queues, products] = await Promise.all([
-    queuesRepository.findActiveByOrg(org.id),
-    productsRepository.findByOrg(org.id),
+    queuesRepository.findActiveByOrg(org.id, locale),
+    productsRepository.findByOrg(org.id, locale),
   ]);
 
   const queue = queues[0] ?? null;
@@ -49,6 +56,8 @@ async function buildOrgResponse(orgId: string) {
       longitude: org.longitude,
       paymentInfo: org.payment_info,
       publicQrToken: org.public_qr_token,
+      defaultLocale: org.default_locale,
+      locale,
     },
     queue: queue
       ? { id: queue.id, name: queue.name, prefix: queue.prefix, waitingCount, avgWaitMinutes }
@@ -63,7 +72,7 @@ export const getOrgBySlug = asyncHandler(async (req: Request, res: Response) => 
   const { slug } = req.params;
   const org = await organizationsRepository.findBySlug(slug);
   if (!org) throw AppError.notFound('Organization not found');
-  const result = await buildOrgResponse(org.id);
+  const result = await buildOrgResponse(org.id, req.get('accept-language'));
   sendSuccess(res, result);
 });
 
@@ -71,7 +80,7 @@ export const getOrgByToken = asyncHandler(async (req: Request, res: Response) =>
   const { token } = req.params;
   const org = await organizationsRepository.findByPublicToken(token);
   if (!org) throw AppError.notFound('Organization not found');
-  const result = await buildOrgResponse(org.id);
+  const result = await buildOrgResponse(org.id, req.get('accept-language'));
   sendSuccess(res, result);
 });
 
@@ -111,6 +120,7 @@ export const getManagerOrg = asyncHandler(async (req: Request, res: Response) =>
     settings: org.settings,
     publicQrToken: org.public_qr_token,
     joinUrl,
+    defaultLocale: org.default_locale,
   });
 });
 
@@ -153,17 +163,18 @@ export const updateManagerOrg = asyncHandler(async (req: Request, res: Response)
     settings: org.settings,
     publicQrToken: org.public_qr_token,
     joinUrl,
+    defaultLocale: org.default_locale,
   });
 });
 
 export const getManagerBusinessCalendar = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.user?.organizationId) throw AppError.badRequest('組織が設定されていません');
+  if (!req.user?.organizationId) throw AppError.badRequest('Organization is not configured');
   sendSuccess(res, await orgsService.getBusinessCalendar(req.user.organizationId));
 });
 
 export const updateManagerBusinessCalendar = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user?.organizationId || !req.user.id) {
-    throw AppError.badRequest('組織が設定されていません');
+    throw AppError.badRequest('Organization is not configured');
   }
   sendSuccess(
     res,

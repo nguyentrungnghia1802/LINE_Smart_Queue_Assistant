@@ -17,7 +17,8 @@ describe('measured forecasting heuristic', () => {
 
     expect(result.recommendedStaff).toBe(7);
     expect(result.confidence).toBe(0.9);
-    expect(result.explanation).toContain('過去8週間');
+    expect(result.explanation).toContain('80 arrivals');
+    expect(result.explanation).toContain('30 minutes');
   });
 
   it('uses a conservative baseline when no history exists', () => {
@@ -33,7 +34,7 @@ describe('measured forecasting heuristic', () => {
     });
 
     expect(result).toMatchObject({ recommendedStaff: 1, confidence: 0.2 });
-    expect(result.explanation).toContain('実績がない');
+    expect(result.explanation).toContain('No observations');
   });
 
   it('reduces current wait by active staff and reports confidence from sample size', () => {
@@ -49,6 +50,6 @@ describe('measured forecasting heuristic', () => {
 
     expect(result.forecastedWaitSeconds).toBe(1800);
     expect(result.confidence).toBe(0.8);
-    expect(result.explanation).toContain('稼働スタッフ3名');
+    expect(result.explanation).toContain('3 active staff');
   });
 });

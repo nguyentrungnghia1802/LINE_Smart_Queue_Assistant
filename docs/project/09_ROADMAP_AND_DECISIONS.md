@@ -121,13 +121,23 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 ## ADR-008: Japanese product UI, English engineering artifacts
 
-**Status:** Accepted
+**Status:** Superseded by ADR-015
 
 **Context:** The product serves Japanese users while the codebase and tooling use international engineering conventions.
 
 **Decision:** All visible UI/messages are Japanese. Identifiers, code comments, logs, and canonical technical docs are English.
 
 **Consequences:** UI changes require Japanese copy review; seed/demo data must be localized before external demos.
+
+## ADR-015: Three-locale product UI with Japanese fallback
+
+**Status:** Accepted
+
+**Context:** The product now serves Japanese, Vietnamese, and English users while retaining Japan as the default market.
+
+**Decision:** Use i18next resources split by locale/domain on the frontend and separate locale templates for LINE messages. Resolve locale in this order: user preference, organization default, browser/LIFF language, Japanese. Persist locale on the durable notification row. Store tenant content translations in relational translation tables, not language-suffixed columns. Engineering artifacts remain English.
+
+**Consequences:** Every visible-copy change must update all three resources. API clients translate stable error codes. Japanese remains the deterministic fallback when a resource or locale is unavailable.
 
 ## ADR-009: Browser storage is draft state, never authority
 
@@ -167,7 +177,7 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 **Decision:** Build ticket notification copy, Flex payloads, text fallback, and LIFF deeplinks in the notification templates/service layer. Queue/order services trigger notification intents only after successful state changes and never call the LINE SDK directly.
 
-**Consequences:** Customer-visible LINE content remains centralized and Japanese. A Flex send failure retries as text; final delivery failure is logged/metriced and never rolls back queue/order state.
+**Consequences:** Customer-visible LINE content remains centralized in Japanese, Vietnamese, and English templates with Japanese fallback. A Flex send failure retries as text; final delivery failure is logged/metriced and never rolls back queue/order state.
 
 ## ADR-013: Rich Menu sync is explicit and idempotent
 

@@ -1,5 +1,7 @@
 import { PoolClient } from 'pg';
 
+import type { SupportedLocale } from '@line-queue/shared';
+
 import { queueConfigCache } from '../../utils/cache';
 
 import { BaseRepository } from './base.repository';
@@ -77,12 +79,22 @@ export class QueuesRepository extends BaseRepository {
    * All open (or paused/disaster_mode) queues for an org — used by LIFF home.
    * Hits idx_queues_org_active.
    */
-  async findActiveByOrg(organizationId: string): Promise<QueueRow[]> {
+  async findActiveByOrg(
+    organizationId: string,
+    locale: SupportedLocale = 'ja'
+  ): Promise<QueueRow[]> {
     return this.query<QueueRow>(
-      `SELECT * FROM queues
-       WHERE organization_id = $1 AND is_active = TRUE
-       ORDER BY name`,
-      [organizationId]
+      `SELECT q.*,
+              COALESCE(requested.name, tenant_default.name, japanese.name, q.name) AS name,
+              COALESCE(requested.description, tenant_default.description, japanese.description, q.description) AS description
+       FROM queues q
+       JOIN organizations o ON o.id = q.organization_id
+       LEFT JOIN queue_translations requested ON requested.queue_id = q.id AND requested.locale = $2
+       LEFT JOIN queue_translations tenant_default ON tenant_default.queue_id = q.id AND tenant_default.locale = o.default_locale
+       LEFT JOIN queue_translations japanese ON japanese.queue_id = q.id AND japanese.locale = 'ja'
+       WHERE q.organization_id = $1 AND q.is_active = TRUE
+       ORDER BY q.name`,
+      [organizationId, locale]
     );
   }
 
@@ -110,7 +122,14 @@ export class QueuesRepository extends BaseRepository {
       params.closesAt ?? null,
       JSON.stringify(params.settings ?? {}),
     ]);
-    return this.firstOrThrow(rows, 'queues.create');
+    const queue = this.firstOrThrow(rows, 'queues.create');
+    await this.query(
+      `INSERT INTO queue_translations (queue_id, locale, name, description)
+       VALUES ($1,'ja',$2,$3)
+       ON CONFLICT (queue_id, locale) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description`,
+      [queue.id, queue.name, queue.description]
+    );
+    return queue;
   }
 
   /** All queues (active and inactive) for an org — used by admin views. */
@@ -162,7 +181,17 @@ export class QueuesRepository extends BaseRepository {
       `UPDATE queues SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${idx} RETURNING *`,
       values
     );
-    if (updated) queueConfigCache.set(`queue:${id}`, updated, 30_000);
+    if (updated) {
+      queueConfigCache.set(`queue:${id}`, updated, 30_000);
+      if (params.name !== undefined || params.description !== undefined) {
+        await this.query(
+          `INSERT INTO queue_translations (queue_id, locale, name, description)
+           VALUES ($1,'ja',$2,$3)
+           ON CONFLICT (queue_id, locale) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description`,
+          [updated.id, updated.name, updated.description]
+        );
+      }
+    }
     return updated;
   }
 
