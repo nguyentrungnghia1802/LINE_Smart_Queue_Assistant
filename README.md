@@ -101,6 +101,8 @@ Read the canonical documents in this order:
 9. [Deployment and Operations](docs/project/08_DEPLOYMENT_AND_OPERATIONS.md)
 10. [Roadmap and Decisions](docs/project/09_ROADMAP_AND_DECISIONS.md)
 
+Release acceptance uses the [Production Readiness Checklist](docs/checklists/PRODUCTION_READINESS.md) and the separate [LINE Real-Device E2E Checklist](docs/checklists/LINE_REAL_DEVICE_E2E.md). Mock tests do not satisfy the physical-device checklist.
+
 `docs/archive` contains historical artifacts only. It is not a source of truth unless a task explicitly investigates project history.
 
 ## Source-of-truth order
