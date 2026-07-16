@@ -43,11 +43,17 @@ module.exports = {
     '@typescript-eslint/no-non-null-assertion': 'warn',
     // ── General ───────────────────────────────────────────────────────────────
     'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
-    'eqeqeq': ['error', 'always'],
+    eqeqeq: ['error', 'always'],
     'prefer-const': 'error',
     'no-var': 'error',
   },
   overrides: [
+    {
+      files: ['**/*.js', '**/*.cjs'],
+      rules: {
+        '@typescript-eslint/no-var-requires': 'off',
+      },
+    },
     {
       // Relax rules for test files
       files: ['**/*.test.ts', '**/*.spec.ts', '**/__tests__/**/*.ts'],

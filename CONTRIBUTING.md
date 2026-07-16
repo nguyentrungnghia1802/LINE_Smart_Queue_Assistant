@@ -38,18 +38,18 @@ All feature branches **must** follow this pattern:
 <type>/<short-description>
 ```
 
-| Type        | When to use                            | Example                        |
-|-------------|----------------------------------------|--------------------------------|
-| `feat`      | A new feature                          | `feat/add-queue-management`    |
-| `fix`       | A bug fix                              | `fix/ticket-status-transition` |
-| `hotfix`    | Urgent production fix                  | `hotfix/cors-header-missing`   |
-| `chore`     | Maintenance (deps, config, tooling)    | `chore/update-deps`            |
-| `refactor`  | Code restructure without behavior change | `refactor/extract-service`   |
-| `test`      | Adding or updating tests               | `test/queue-service-unit`      |
-| `docs`      | Documentation only                     | `docs/api-endpoints`           |
-| `ci`        | CI/CD pipeline changes                 | `ci/add-docker-publish`        |
-| `release`   | Release preparation                    | `release/1.2.0`                |
-| `perf`      | Performance improvement                | `perf/reduce-db-queries`       |
+| Type       | When to use                              | Example                        |
+| ---------- | ---------------------------------------- | ------------------------------ |
+| `feat`     | A new feature                            | `feat/add-queue-management`    |
+| `fix`      | A bug fix                                | `fix/ticket-status-transition` |
+| `hotfix`   | Urgent production fix                    | `hotfix/cors-header-missing`   |
+| `chore`    | Maintenance (deps, config, tooling)      | `chore/update-deps`            |
+| `refactor` | Code restructure without behavior change | `refactor/extract-service`     |
+| `test`     | Adding or updating tests                 | `test/queue-service-unit`      |
+| `docs`     | Documentation only                       | `docs/api-endpoints`           |
+| `ci`       | CI/CD pipeline changes                   | `ci/add-docker-publish`        |
+| `release`  | Release preparation                      | `release/1.2.0`                |
+| `perf`     | Performance improvement                  | `perf/reduce-db-queries`       |
 
 > The `pre-push` hook enforces this convention automatically.
 > Protected branches (`main`, `master`, `develop`) are exempt.
@@ -72,28 +72,28 @@ This project uses **Conventional Commits** enforced by `commitlint`.
 
 ### Rules
 
-| Field     | Rule                                                             |
-|-----------|------------------------------------------------------------------|
-| `type`    | Required. One of the types listed below. Lowercase.              |
-| `scope`   | Optional. Lowercase. E.g. `api`, `web`, `shared`, `docker`.     |
-| `subject` | Required. Lowercase start. No period. Max 100 chars.             |
+| Field     | Rule                                                                |
+| --------- | ------------------------------------------------------------------- |
+| `type`    | Required. One of the types listed below. Lowercase.                 |
+| `scope`   | Optional. Lowercase. E.g. `api`, `web`, `shared`, `docker`.         |
+| `subject` | Required. Lowercase start. No period. Max 100 chars.                |
 | `body`    | Optional. Wrap at 200 chars. Separate from subject with blank line. |
 
 ### Allowed types
 
-| Type       | Description                                         |
-|------------|-----------------------------------------------------|
-| `feat`     | A new feature (triggers MINOR bump in semver)       |
-| `fix`      | A bug fix (triggers PATCH bump)                     |
-| `chore`    | Maintenance — no production code change             |
+| Type       | Description                                             |
+| ---------- | ------------------------------------------------------- |
+| `feat`     | A new feature (triggers MINOR bump in semver)           |
+| `fix`      | A bug fix (triggers PATCH bump)                         |
+| `chore`    | Maintenance — no production code change                 |
 | `refactor` | Code change that neither fixes a bug nor adds a feature |
-| `test`     | Adding or updating tests                            |
-| `docs`     | Documentation only                                  |
-| `ci`       | CI/CD configuration                                 |
-| `perf`     | Performance improvement                             |
-| `style`    | Formatting, whitespace (no logic change)            |
-| `build`    | Build system or external dependencies               |
-| `revert`   | Reverts a previous commit                           |
+| `test`     | Adding or updating tests                                |
+| `docs`     | Documentation only                                      |
+| `ci`       | CI/CD configuration                                     |
+| `perf`     | Performance improvement                                 |
+| `style`    | Formatting, whitespace (no logic change)                |
+| `build`    | Build system or external dependencies                   |
+| `revert`   | Reverts a previous commit                               |
 
 ### Examples
 
@@ -117,13 +117,14 @@ git commit -m "fix: fixed the bug."       # trailing period
 
 ### Automatic (via Git hooks)
 
-| Hook          | Trigger            | Action                                  |
-|---------------|--------------------|-----------------------------------------|
-| `pre-commit`  | `git commit`       | Runs `lint-staged` on staged files      |
-| `commit-msg`  | `git commit`       | Validates commit message with commitlint |
-| `pre-push`    | `git push`         | Validates branch name convention        |
+| Hook         | Trigger      | Action                                   |
+| ------------ | ------------ | ---------------------------------------- |
+| `pre-commit` | `git commit` | Runs `lint-staged` on staged files       |
+| `commit-msg` | `git commit` | Validates commit message with commitlint |
+| `pre-push`   | `git push`   | Validates branch name convention         |
 
 **`lint-staged` runs per file type:**
+
 - `*.ts` / `*.tsx` → ESLint (`--fix`) + Prettier
 - `*.js` / `*.mjs` → ESLint (`--fix`) + Prettier
 - `*.json` / `*.md` / `*.yml` → Prettier
