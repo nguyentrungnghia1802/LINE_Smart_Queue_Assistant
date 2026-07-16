@@ -33,6 +33,19 @@ export interface LineVerifiedProfile {
  * @throws {AppError} 503 if the LINE verify call itself fails (network error).
  */
 export async function verifyLineIdToken(idToken: string): Promise<LineVerifiedProfile> {
+  if (config.line.idTokenVerificationMode === 'mock') {
+    if (config.nodeEnv === 'production') {
+      throw AppError.serviceUnavailable('本番環境ではLINE認証のモックを使用できません');
+    }
+    if (idToken !== config.line.mockIdToken) {
+      throw AppError.unauthorized('LINE id_tokenの検証に失敗しました');
+    }
+    return {
+      lineUserId: config.line.mockUserId,
+      displayName: config.line.mockDisplayName,
+    };
+  }
+
   const body = new URLSearchParams({
     id_token: idToken,
     client_id: config.line.channelId,

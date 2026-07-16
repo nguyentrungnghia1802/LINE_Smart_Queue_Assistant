@@ -22,10 +22,8 @@
  * notificationDelivery (configurable, default 15 s)
  *   Claims due LINE notification outbox records and sends them after commit.
  *
- * counterReset  (checked hourly, fires once per UTC calendar day at 00:xx)
- *   Resets daily_ticket_counter for all active queues.  Runs at most once
- *   per day per process — `lastResetUtcDay` tracks the last reset to prevent
- *   duplicate firings within the same midnight hour.
+ * counterReset  (hourly)
+ *   Resets counters whose organization-local business date changed.
  *
  * ── Scheduler approach ────────────────────────────────────────────────────────
  * Polling via `setInterval` was chosen over a dedicated queue library because:
@@ -42,9 +40,13 @@ import { logger } from '../utils/logger';
 
 import { runCounterReset } from './counterReset.job';
 import { runEtaUpdater } from './etaUpdater.job';
+import { runForecasting } from './forecasting.job';
+import { runInventoryExpiry } from './inventoryExpiry.job';
 import { JobRunner } from './jobRunner';
+import { runLocationAlerts, runLocationCleanup } from './locationAlert.job';
 import { runNotificationDelivery } from './notificationDelivery.job';
 import { scanCalledRenotify, scanEtaWarnings } from './notificationScan.job';
+import { withAdvisoryJobLock } from './scheduler-lock';
 
 // ── Interval constants ────────────────────────────────────────────────────────
 
@@ -57,18 +59,10 @@ const ETA_WARNING_INTERVAL_MS = 30_000;
 /** How often to re-check called entries for failed notifications (ms). */
 const CALLED_RENOTIFY_INTERVAL_MS = 60_000;
 
-/** How often the counter-reset guard checks the clock (ms). Fires once per day. */
+/** How often organization-local business dates are checked. */
 const COUNTER_RESET_CHECK_INTERVAL_MS = 60 * 60_000; // 1 h
 
 // ── Internal state ────────────────────────────────────────────────────────────
-
-/**
- * UTC day-of-week (0–6) of the last counter reset.
- * Initialised to -1 so the first run at midnight always fires.
- * Using day-of-week is sufficient for MVP (resets more than 7 days apart are
- * never a concern for a single-instance process).
- */
-let lastResetUtcDay = -1;
 
 const runner = new JobRunner();
 let running = false;
@@ -95,17 +89,32 @@ export const scheduler = {
       .schedule({
         name: 'etaUpdater',
         intervalMs: ETA_UPDATER_INTERVAL_MS,
-        run: runEtaUpdater,
+        run: async () => void (await withAdvisoryJobLock('etaUpdater', runEtaUpdater)),
       })
       .schedule({
         name: 'etaWarning',
         intervalMs: ETA_WARNING_INTERVAL_MS,
-        run: scanEtaWarnings,
+        run: async () => void (await withAdvisoryJobLock('etaWarning', scanEtaWarnings)),
       })
       .schedule({
         name: 'calledRenotify',
         intervalMs: CALLED_RENOTIFY_INTERVAL_MS,
-        run: scanCalledRenotify,
+        run: async () => void (await withAdvisoryJobLock('calledRenotify', scanCalledRenotify)),
+      })
+      .schedule({
+        name: 'inventoryExpiry',
+        intervalMs: config.inventory.expiryWorkerIntervalMs,
+        run: async () => void (await withAdvisoryJobLock('inventoryExpiry', runInventoryExpiry)),
+      })
+      .schedule({
+        name: 'locationAlerts',
+        intervalMs: config.location.workerIntervalMs,
+        run: async () => void (await withAdvisoryJobLock('locationAlerts', runLocationAlerts)),
+      })
+      .schedule({
+        name: 'locationCleanup',
+        intervalMs: config.location.cleanupIntervalMs,
+        run: async () => void (await withAdvisoryJobLock('locationCleanup', runLocationCleanup)),
       })
       .schedule({
         name: 'notificationDelivery',
@@ -115,14 +124,12 @@ export const scheduler = {
       .schedule({
         name: 'counterReset',
         intervalMs: COUNTER_RESET_CHECK_INTERVAL_MS,
-        run: async () => {
-          const now = new Date();
-          // Only fire in the UTC midnight hour and at most once per calendar day.
-          if (now.getUTCHours() === 0 && now.getUTCDay() !== lastResetUtcDay) {
-            lastResetUtcDay = now.getUTCDay();
-            await runCounterReset();
-          }
-        },
+        run: async () => void (await withAdvisoryJobLock('counterReset', runCounterReset)),
+      })
+      .schedule({
+        name: 'forecasting',
+        intervalMs: config.forecasts.intervalMs,
+        run: async () => void (await withAdvisoryJobLock('forecasting', runForecasting)),
       });
 
     logger.info({ jobs: runner.count }, 'scheduler: started');

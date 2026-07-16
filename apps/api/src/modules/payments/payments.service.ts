@@ -66,6 +66,54 @@ function paymentTimestamp(status: PaymentState) {
   };
 }
 
+const ALLOWED_TRANSITIONS: Record<PaymentState, ReadonlySet<PaymentState>> = {
+  pending: new Set(['pending', 'authorized', 'paid', 'failed', 'cancelled']),
+  authorized: new Set(['authorized', 'paid', 'failed', 'cancelled']),
+  paid: new Set(['paid', 'refunded']),
+  failed: new Set(['failed', 'paid']),
+  cancelled: new Set(['cancelled', 'paid']),
+  refunded: new Set(['refunded']),
+};
+
+export function canApplyPaymentEvent(
+  current: PaymentState,
+  next: PaymentState,
+  previousEventAt?: Date | null,
+  eventAt?: Date
+): boolean {
+  if (!ALLOWED_TRANSITIONS[current].has(next)) return false;
+  return !previousEventAt || !eventAt || eventAt >= previousEventAt;
+}
+
+export function resolveRefundState(
+  transactionAmount: number,
+  requestedRefundedAmount?: number
+): { status: PaymentState; refundedAmount: number } {
+  const refundedAmount = Math.min(transactionAmount, requestedRefundedAmount ?? transactionAmount);
+  return {
+    status: refundedAmount < transactionAmount ? 'paid' : 'refunded',
+    refundedAmount,
+  };
+}
+
+function safeProviderPayload(value: unknown, depth = 0): unknown {
+  if (depth > 5) return '[truncated]';
+  if (Array.isArray(value))
+    return value.slice(0, 50).map((item) => safeProviderPayload(item, depth + 1));
+  if (!value || typeof value !== 'object') {
+    return typeof value === 'string' ? value.slice(0, 1000) : value;
+  }
+  const result: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (/token|secret|authorization|password|card|credential/i.test(key)) {
+      result[key] = '[redacted]';
+    } else {
+      result[key] = safeProviderPayload(item, depth + 1);
+    }
+  }
+  return result;
+}
+
 export const paymentsService = {
   async createIntent(dto: CreatePaymentIntentDto) {
     const org = await organizationsRepository.findBySlug(dto.orgSlug);
@@ -207,6 +255,8 @@ export const paymentsService = {
       transactionId: string;
       providerIntentId?: string;
       status: PaymentState;
+      occurredAt?: Date;
+      refundedAmount?: number;
       rawPayload: Record<string, unknown>;
     },
     signatureValid = true
@@ -214,8 +264,12 @@ export const paymentsService = {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const transaction = await paymentTransactionsRepository.findById(event.transactionId, client);
+      const transaction = await paymentTransactionsRepository.findByIdForUpdate(
+        event.transactionId,
+        client
+      );
       if (!transaction) throw AppError.notFound('Payment transaction');
+      const safePayload = safeProviderPayload(event.rawPayload) as Record<string, unknown>;
 
       const { inserted } = await paymentTransactionsRepository.insertWebhookEvent(
         {
@@ -224,7 +278,7 @@ export const paymentsService = {
           eventType: event.eventType,
           paymentTransactionId: transaction.id,
           signatureValid,
-          rawPayload: event.rawPayload,
+          rawPayload: safePayload,
         },
         client
       );
@@ -234,12 +288,63 @@ export const paymentsService = {
         return { duplicate: true, transaction: this.toPublicTransaction(transaction) };
       }
 
+      const eventAt = event.occurredAt ?? new Date();
+      const previousEventAt = transaction.last_provider_event_at
+        ? new Date(transaction.last_provider_event_at)
+        : null;
+      const requestedStatus = event.status;
+      const transitionAllowed =
+        ALLOWED_TRANSITIONS[transaction.status as PaymentState].has(requestedStatus);
+      const outOfOrder = previousEventAt !== null && eventAt < previousEventAt;
+
+      if (!transitionAllowed || outOfOrder) {
+        await paymentTransactionsRepository.recordReconciliation(
+          {
+            organizationId: transaction.organization_id,
+            transactionId: transaction.id,
+            orderId: transaction.order_id,
+            source: providerId === 'demo' ? 'demo' : 'webhook',
+            operationType: outOfOrder ? 'ignored_out_of_order' : 'ignored_transition',
+            fromStatus: transaction.status,
+            toStatus: requestedStatus,
+            idempotencyKey: `webhook:${providerId}:${event.eventId}`,
+          },
+          client
+        );
+        await paymentTransactionsRepository.markWebhookProcessed(
+          providerId,
+          event.eventId,
+          'processed',
+          undefined,
+          client
+        );
+        await client.query('COMMIT');
+        return {
+          duplicate: false,
+          ignored: true,
+          transaction: this.toPublicTransaction(transaction),
+        };
+      }
+
+      const transactionAmount = amountNumber(transaction.amount);
+      const currentRefunded = amountNumber(transaction.refunded_amount ?? 0);
+      const requestedRefunded =
+        requestedStatus === 'refunded'
+          ? Math.min(transactionAmount, event.refundedAmount ?? transactionAmount)
+          : currentRefunded;
+      const effectiveStatus: PaymentState =
+        requestedStatus === 'refunded' && requestedRefunded < transactionAmount
+          ? 'paid'
+          : requestedStatus;
+
       const updated = await paymentTransactionsRepository.updateStatus(
         transaction.id,
         {
-          status: event.status,
+          status: effectiveStatus,
           providerIntentId: event.providerIntentId,
-          rawPayload: event.rawPayload,
+          rawPayload: safePayload,
+          refundedAmount: requestedRefunded,
+          providerEventAt: eventAt,
         },
         client
       );
@@ -247,6 +352,24 @@ export const paymentsService = {
       if (updated?.order_id) {
         await this.reconcileTransactionInClient(updated, client);
       }
+
+      await paymentTransactionsRepository.recordReconciliation(
+        {
+          organizationId: transaction.organization_id,
+          transactionId: transaction.id,
+          orderId: transaction.order_id,
+          source: providerId === 'demo' ? 'demo' : 'webhook',
+          operationType:
+            requestedStatus === 'refunded' && effectiveStatus === 'paid'
+              ? 'partial_refund'
+              : 'state_transition',
+          fromStatus: transaction.status,
+          toStatus: effectiveStatus,
+          amount: requestedStatus === 'refunded' ? requestedRefunded : transactionAmount,
+          idempotencyKey: `webhook:${providerId}:${event.eventId}`,
+        },
+        client
+      );
 
       await paymentTransactionsRepository.markWebhookProcessed(
         providerId,
@@ -282,6 +405,97 @@ export const paymentsService = {
     }
   },
 
+  async manualReconcileOrder(params: {
+    orderId: string;
+    organizationId: string;
+    actorId: string;
+    status: 'paid' | 'refunded';
+    amount?: number;
+    reason?: string;
+    idempotencyKey: string;
+  }) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const orderResult = await client.query<{
+        id: string;
+        organization_id: string;
+        subtotal: string;
+      }>(`SELECT id, organization_id, subtotal FROM orders WHERE id = $1 FOR UPDATE`, [
+        params.orderId,
+      ]);
+      const order = orderResult.rows[0];
+      if (!order) throw AppError.notFound('Order');
+      if (order.organization_id !== params.organizationId) throw AppError.forbidden();
+
+      let transaction = await paymentTransactionsRepository.findLatestByOrder(order.id, client);
+      if (!transaction) {
+        if (params.status !== 'paid') {
+          throw AppError.conflict('A paid transaction is required before refund');
+        }
+        transaction = await paymentTransactionsRepository.createManual(
+          {
+            organizationId: order.organization_id,
+            orderId: order.id,
+            amount: amountNumber(order.subtotal),
+            method: 'cash_or_terminal',
+          },
+          client
+        );
+      }
+
+      const total = amountNumber(transaction.amount);
+      const currentRefunded = amountNumber(transaction.refunded_amount ?? 0);
+      const refundAmount =
+        params.status === 'refunded'
+          ? Math.min(total, Math.max(currentRefunded, params.amount ?? total))
+          : currentRefunded;
+      const effectiveStatus: PaymentState =
+        params.status === 'refunded' && refundAmount < total ? 'paid' : params.status;
+      const inserted = await paymentTransactionsRepository.recordReconciliation(
+        {
+          organizationId: order.organization_id,
+          transactionId: transaction.id,
+          orderId: order.id,
+          actorId: params.actorId,
+          source: 'manual',
+          operationType:
+            params.status === 'refunded' && effectiveStatus === 'paid'
+              ? 'partial_refund'
+              : 'manual_state_transition',
+          fromStatus: transaction.status,
+          toStatus: effectiveStatus,
+          amount: params.status === 'refunded' ? refundAmount : total,
+          idempotencyKey: params.idempotencyKey,
+          reason: params.reason,
+        },
+        client
+      );
+      if (!inserted) {
+        await client.query('COMMIT');
+        return this.toPublicTransaction(transaction);
+      }
+
+      const updated = await paymentTransactionsRepository.updateStatus(
+        transaction.id,
+        {
+          status: effectiveStatus,
+          refundedAmount: refundAmount,
+          rawPayload: { source: 'staff_manual' },
+        },
+        client
+      );
+      if (updated) await this.reconcileTransactionInClient(updated, client);
+      await client.query('COMMIT');
+      return this.toPublicTransaction(updated ?? transaction);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  },
+
   async reconcileTransactionInClient(
     transaction: PaymentTransactionRow,
     client: import('pg').PoolClient
@@ -290,6 +504,7 @@ export const paymentsService = {
     const metadata = metadataFromTransaction(transaction);
     const coveredProductIds = new Set(metadata.coveredProductIds ?? []);
     const paid = transaction.status === 'paid';
+    const refundedAmount = amountNumber(transaction.refunded_amount ?? 0);
 
     await client.query(
       `UPDATE order_items
@@ -304,6 +519,43 @@ export const paymentsService = {
       await client.query(`UPDATE orders SET payment_status = 'paid' WHERE id = $1`, [
         transaction.order_id,
       ]);
+    }
+
+    if (refundedAmount > 0) {
+      const { rows } = await client.query<{
+        id: string;
+        prepaid_amount: string;
+      }>(
+        `SELECT id, prepaid_amount
+         FROM order_items
+         WHERE order_id = $1 AND payment_transaction_id = $2
+         ORDER BY id
+         FOR UPDATE`,
+        [transaction.order_id, transaction.id]
+      );
+      let remaining = refundedAmount;
+      for (const item of rows) {
+        const prepaid = amountNumber(item.prepaid_amount);
+        const allocation = Math.min(prepaid, remaining);
+        remaining -= allocation;
+        await client.query(
+          `UPDATE order_items
+           SET refunded_amount = $2,
+               payment_status = CASE WHEN $2 >= prepaid_amount THEN 'refunded' ELSE 'paid' END
+           WHERE id = $1`,
+          [item.id, allocation]
+        );
+      }
+      await client.query(
+        `UPDATE orders
+         SET refunded_amount = $2,
+             payment_status = CASE
+               WHEN $2 >= subtotal AND $3 = 'all_items' THEN 'refunded'
+               ELSE 'paid'
+             END
+         WHERE id = $1`,
+        [transaction.order_id, refundedAmount, metadata.scope ?? 'required_items']
+      );
     }
   },
 
@@ -321,6 +573,7 @@ export const paymentsService = {
       scope: metadata.scope,
       coveredProductIds: metadata.coveredProductIds ?? [],
       paidAt: transaction.paid_at,
+      refundedAmount: amountNumber(transaction.refunded_amount ?? 0),
       updatedAt: transaction.updated_at,
     };
   },

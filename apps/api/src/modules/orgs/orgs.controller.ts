@@ -9,7 +9,7 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 
 import { orgsService } from './orgs.service';
-import { UpdateOrgSettingsDto } from './orgs.validator';
+import { BusinessCalendarDto, UpdateOrgSettingsDto } from './orgs.validator';
 
 // ── Shared helper ─────────────────────────────────────────────────────────────
 
@@ -40,6 +40,11 @@ async function buildOrgResponse(orgId: string) {
       logoUrl: org.logo_url,
       phone: org.phone,
       address: org.address,
+      postalCode: org.postal_code,
+      prefecture: org.prefecture,
+      city: org.city,
+      addressLine1: org.address_line1,
+      addressLine2: org.address_line2,
       latitude: org.latitude,
       longitude: org.longitude,
       paymentInfo: org.payment_info,
@@ -95,6 +100,11 @@ export const getManagerOrg = asyncHandler(async (req: Request, res: Response) =>
     logoUrl: org.logo_url,
     phone: org.phone,
     address: org.address,
+    postalCode: org.postal_code,
+    prefecture: org.prefecture,
+    city: org.city,
+    addressLine1: org.address_line1,
+    addressLine2: org.address_line2,
     latitude: org.latitude,
     longitude: org.longitude,
     paymentInfo: org.payment_info,
@@ -132,6 +142,11 @@ export const updateManagerOrg = asyncHandler(async (req: Request, res: Response)
     logoUrl: org.logo_url,
     phone: org.phone,
     address: org.address,
+    postalCode: org.postal_code,
+    prefecture: org.prefecture,
+    city: org.city,
+    addressLine1: org.address_line1,
+    addressLine2: org.address_line2,
     latitude: org.latitude,
     longitude: org.longitude,
     paymentInfo: org.payment_info,
@@ -139,4 +154,23 @@ export const updateManagerOrg = asyncHandler(async (req: Request, res: Response)
     publicQrToken: org.public_qr_token,
     joinUrl,
   });
+});
+
+export const getManagerBusinessCalendar = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user?.organizationId) throw AppError.badRequest('組織が設定されていません');
+  sendSuccess(res, await orgsService.getBusinessCalendar(req.user.organizationId));
+});
+
+export const updateManagerBusinessCalendar = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user?.organizationId || !req.user.id) {
+    throw AppError.badRequest('組織が設定されていません');
+  }
+  sendSuccess(
+    res,
+    await orgsService.updateBusinessCalendar(
+      req.user.organizationId,
+      req.body as BusinessCalendarDto,
+      { actorUserId: req.user.id, ipAddress: req.ip, userAgent: req.get('user-agent') }
+    )
+  );
 });

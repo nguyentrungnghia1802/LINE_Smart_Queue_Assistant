@@ -14,6 +14,7 @@ export interface OrderRow {
   status: string;
   subtotal: string;
   payment_status: string;
+  refunded_amount?: string;
   payment_code: string | null;
   notes: string | null;
   created_at: Date;
@@ -29,8 +30,8 @@ export interface CustomerLocationRow {
   queue_entry_id: string | null;
   customer_user_id: string | null;
   local_device_key: string | null;
-  latitude: string;
-  longitude: string;
+  latitude: string | null;
+  longitude: string | null;
   accuracy_meters: number | null;
   distance_to_org_meters: number | null;
   captured_at: Date;
@@ -64,6 +65,7 @@ export interface OrderItemRow {
   subtotal: string;
   payment_status?: string;
   prepaid_amount?: string;
+  refunded_amount?: string;
   payment_transaction_id?: string | null;
   requires_prepayment_snapshot?: boolean;
   created_at: Date;
@@ -90,6 +92,8 @@ export interface PaymentTransactionRow {
   failed_at?: Date | null;
   cancelled_at?: Date | null;
   refunded_at: Date | null;
+  refunded_amount?: string;
+  last_provider_event_at?: Date | null;
   last_verified_at?: Date | null;
   last_error?: string | null;
   created_at: Date;
@@ -101,6 +105,19 @@ export interface OrderWithItems extends OrderRow {
 }
 
 export const ordersRepository = {
+  async nextOrderNumber(organizationId: string, client: PoolClient): Promise<number> {
+    const { rows } = await client.query<{ value: string }>(
+      `INSERT INTO organization_counters (organization_id, next_order_number)
+       VALUES ($1, 2)
+       ON CONFLICT (organization_id) DO UPDATE
+       SET next_order_number = organization_counters.next_order_number + 1,
+           updated_at = NOW()
+       RETURNING (next_order_number - 1)::text AS value`,
+      [organizationId]
+    );
+    return Number(rows[0].value);
+  },
+
   async findByOrg(orgId: string, status?: string): Promise<OrderWithItems[]> {
     const statusClause = status ? `AND o.status = $2` : '';
     const params: unknown[] = status ? [orgId, status] : [orgId];
@@ -217,6 +234,7 @@ export const ordersRepository = {
       organizationId: string;
       orderNumber: string;
       bookingGroupId?: string;
+      customerLineUserId?: string;
       customerName?: string;
       customerUserId?: string;
       customerPhone?: string;
@@ -230,15 +248,16 @@ export const ordersRepository = {
     const executor = client ?? pool;
     const { rows } = await executor.query<OrderRow>(
       `INSERT INTO orders
-       (organization_id, order_number, customer_name, customer_user_id,
+       (organization_id, order_number, customer_name, customer_user_id, customer_line_user_id,
           customer_phone, subtotal, payment_status, payment_code, notes, booking_group_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *, NULL::uuid AS queue_entry_id`,
       [
         data.organizationId,
         data.orderNumber,
         data.customerName ?? null,
         data.customerUserId ?? null,
+        data.customerLineUserId ?? null,
         data.customerPhone ?? null,
         data.subtotal,
         data.paymentStatus ?? 'unpaid',
@@ -255,20 +274,31 @@ export const ordersRepository = {
       id: string;
       organizationId: string;
       customerUserId?: string;
+      customerLineUserId?: string;
       localDeviceKey?: string;
     },
     client?: PoolClient
-  ): Promise<void> {
+  ): Promise<boolean> {
     const executor = client ?? pool;
-    await executor.query(
-      `INSERT INTO booking_groups (id, organization_id, customer_user_id, local_device_key)
-       VALUES ($1,$2,$3,$4)
+    const result = await executor.query(
+      `INSERT INTO booking_groups
+         (id, organization_id, customer_user_id, customer_line_user_id, local_device_key)
+       VALUES ($1,$2,$3,$4,$5)
        ON CONFLICT (id) DO UPDATE
        SET updated_at = NOW(),
            customer_user_id = COALESCE(booking_groups.customer_user_id, EXCLUDED.customer_user_id),
-           local_device_key = COALESCE(booking_groups.local_device_key, EXCLUDED.local_device_key)`,
-      [data.id, data.organizationId, data.customerUserId ?? null, data.localDeviceKey ?? null]
+           customer_line_user_id = COALESCE(booking_groups.customer_line_user_id, EXCLUDED.customer_line_user_id),
+           local_device_key = COALESCE(booking_groups.local_device_key, EXCLUDED.local_device_key)
+       WHERE booking_groups.organization_id = EXCLUDED.organization_id`,
+      [
+        data.id,
+        data.organizationId,
+        data.customerUserId ?? null,
+        data.customerLineUserId ?? null,
+        data.localDeviceKey ?? null,
+      ]
     );
+    return (result.rowCount ?? 0) > 0;
   },
 
   async createItem(
@@ -380,6 +410,8 @@ export const ordersRepository = {
       longitude: number;
       accuracyMeters?: number;
       distanceToOrgMeters?: number | null;
+      consentUserId: string;
+      expiresAt: Date;
     },
     client?: PoolClient
   ): Promise<CustomerLocationRow> {
@@ -388,9 +420,10 @@ export const ordersRepository = {
       `INSERT INTO customer_locations
          (
            organization_id, queue_entry_id, customer_user_id, local_device_key,
-           latitude, longitude, accuracy_meters, distance_to_org_meters
+           latitude, longitude, accuracy_meters, distance_to_org_meters,
+           consent_user_id, expires_at
          )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        RETURNING *`,
       [
         data.organizationId,
@@ -401,6 +434,8 @@ export const ordersRepository = {
         data.longitude,
         data.accuracyMeters ?? null,
         data.distanceToOrgMeters ?? null,
+        data.consentUserId,
+        data.expiresAt,
       ]
     );
     return rows[0];
@@ -423,9 +458,9 @@ export const ordersRepository = {
       `INSERT INTO location_alerts
          (
            organization_id, queue_entry_id, customer_location_id, distance_to_org_meters,
-           threshold_meters, due_at, raw_payload
+           threshold_meters, due_at, raw_payload, event_key
          )
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
        RETURNING *`,
       [
         data.organizationId,
@@ -435,6 +470,7 @@ export const ordersRepository = {
         data.thresholdMeters,
         data.dueAt ?? null,
         JSON.stringify(data.rawPayload ?? {}),
+        `location_alert:${data.queueEntryId}:far_before_turn`,
       ]
     );
     return rows[0];

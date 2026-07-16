@@ -1,10 +1,39 @@
 import { Router } from 'express';
 
 import { strictRateLimiter } from '../../middlewares';
+import { requireAuth } from '../../middlewares/requireAuth.middleware';
+import { validate } from '../../middlewares/validate.middleware';
+import {
+  deleteLocationData,
+  getLocationConsent,
+  updateLocationConsent,
+} from '../location/location.controller';
+import { UpdateLocationConsentSchema } from '../location/location.validator';
+import {
+  getNotificationPreferences,
+  updateNotificationPreferences,
+} from '../notifications/notification-preferences.controller';
+import { UpdateNotificationPreferencesSchema } from '../notifications/notification-preferences.validator';
 
 import { handleWebhook } from './line.controller';
 
 export const lineRouter = Router();
+
+lineRouter.get('/preferences', requireAuth, getNotificationPreferences);
+lineRouter.put(
+  '/preferences',
+  requireAuth,
+  validate(UpdateNotificationPreferencesSchema),
+  updateNotificationPreferences
+);
+lineRouter.get('/location-consent', requireAuth, getLocationConsent);
+lineRouter.put(
+  '/location-consent',
+  requireAuth,
+  validate(UpdateLocationConsentSchema),
+  updateLocationConsent
+);
+lineRouter.delete('/location-data', requireAuth, deleteLocationData);
 
 /**
  * POST /api/v1/line/webhook

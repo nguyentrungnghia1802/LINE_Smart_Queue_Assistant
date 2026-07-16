@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { JapanesePhoneSchema } from '../shared/shared.validator';
+
 export const AdminOrgIdParamSchema = z.object({
   orgId: z.string().uuid(),
 });
@@ -29,8 +31,17 @@ export const CreateOrganizationSchema = z.object({
   name: z.string().min(1).max(160),
   slug: z.string().regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/),
   logoUrl: LogoUrlSchema.nullable().optional(),
-  phone: z.string().max(50).nullable().optional(),
+  phone: JapanesePhoneSchema.nullable().optional(),
   address: z.string().max(500).nullable().optional(),
+  postalCode: z
+    .string()
+    .regex(/^[0-9]{3}-?[0-9]{4}$/)
+    .nullable()
+    .optional(),
+  prefecture: z.string().max(20).nullable().optional(),
+  city: z.string().max(100).nullable().optional(),
+  addressLine1: z.string().max(200).nullable().optional(),
+  addressLine2: z.string().max(200).nullable().optional(),
   paymentInfo: z.string().max(1000).nullable().optional(),
 });
 

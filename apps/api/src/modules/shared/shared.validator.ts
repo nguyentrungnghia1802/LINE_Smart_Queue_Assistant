@@ -13,5 +13,14 @@ export const UUIDParamSchema = z.object({
   id: UUIDSchema,
 });
 
+export const JapanesePhoneSchema = z
+  .string()
+  .trim()
+  .max(20)
+  .refine(
+    (value) => /^(?:\+81|0)\d{9,10}$/.test(value.replace(/[\s()-]/g, '')),
+    '日本の電話番号を入力してください'
+  );
+
 export type PaginationQuery = z.infer<typeof PaginationSchema>;
 export type UUIDParam = z.infer<typeof UUIDParamSchema>;

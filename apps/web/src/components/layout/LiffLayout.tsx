@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/liff/home', label: 'ホーム', icon: HomeIcon },
   { to: '/liff/tickets', label: '受付番号', icon: TicketsIcon },
   { to: '/liff/history', label: '履歴', icon: HistoryIcon },
+  { to: '/liff/preferences', label: '設定', icon: SettingsIcon },
 ] as const;
 
 /**
@@ -134,6 +135,23 @@ function HistoryIcon({ active }: Readonly<{ active: boolean }>) {
       <polyline points="12 8 12 12 14 14" />
       <path d="M3.05 11a9 9 0 1 0 .5-4.5" />
       <polyline points="3 3 3 9 9 9" />
+    </svg>
+  );
+}
+
+function SettingsIcon({ active }: Readonly<{ active: boolean }>) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={`h-5 w-5 ${active ? 'stroke-line-green' : 'stroke-gray-400'}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" />
     </svg>
   );
 }

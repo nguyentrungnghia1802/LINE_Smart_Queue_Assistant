@@ -56,6 +56,13 @@ jest.mock('../../../config', () => ({
     cors: { origin: 'http://localhost:5173' },
     jwt: { secret: 'test-jwt-secret', expiresIn: '7d' },
     database: { url: '' },
+    media: {
+      mode: 'mock',
+      localDir: '',
+      publicBaseUrl: '/media',
+      maxOriginalBytes: 5242880,
+      requestBodyLimit: '8mb',
+    },
     port: 4000,
     host: '0.0.0.0',
   },

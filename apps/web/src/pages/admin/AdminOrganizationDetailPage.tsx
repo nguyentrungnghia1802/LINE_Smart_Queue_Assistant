@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { API_BASE_PATH } from '@line-queue/shared';
 
 import { del, get, patch, post } from '../../services/apiClient';
+import { uploadImage } from '../../services/media.api';
 import { compressLogoFile } from '../../utils/compressLogoFile';
 
 import type { OrgRow } from './AdminOrganizationsPage';
@@ -140,8 +141,9 @@ export function AdminOrganizationDetailPage() {
     setError('');
     setLogoBusy(true);
     try {
-      const logoUrl = await compressLogoFile(file);
-      setOrgForm((value) => ({ ...value, logoUrl }));
+      const dataUrl = await compressLogoFile(file);
+      const asset = await uploadImage(dataUrl, 'organization_logo', orgId);
+      setOrgForm((value) => ({ ...value, logoUrl: asset.public_url }));
     } catch (err) {
       setError(err instanceof Error ? err.message : '画像を処理できませんでした。');
     } finally {

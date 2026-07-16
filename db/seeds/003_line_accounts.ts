@@ -1,12 +1,13 @@
 import type { PoolClient } from 'pg';
+
 import { USERS } from './_ids';
 
 const lineAccounts = [
-  [USERS.CUSTOMER_1, 'UdemoCustomer1', 'Customer Demo'],
-  [USERS.CUSTOMER_2, 'UdemoCustomer2', 'Customer Two'],
-  [USERS.CUSTOMER_3, 'UdemoCustomer3', 'Customer Three'],
-  [USERS.CUSTOMER_4, 'UdemoCustomer4', 'Customer Four'],
-  [USERS.CUSTOMER_5, 'UdemoCustomer5', 'Customer Five'],
+  [USERS.CUSTOMER_1, 'UdemoCustomer1', '山田 太郎'],
+  [USERS.CUSTOMER_2, 'UdemoCustomer2', '佐藤 花子'],
+  [USERS.CUSTOMER_3, 'UdemoCustomer3', '鈴木 一郎'],
+  [USERS.CUSTOMER_4, 'UdemoCustomer4', '高橋 美咲'],
+  [USERS.CUSTOMER_5, 'UdemoCustomer5', '田中 健太'],
 ] as const;
 
 export async function seed(client: PoolClient): Promise<void> {
@@ -23,7 +24,7 @@ export async function seed(client: PoolClient): Promise<void> {
           is_linked = TRUE,
           last_synced_at = NOW();
       `,
-      [userId, lineUserId, displayName],
+      [userId, lineUserId, displayName]
     );
   }
 }

@@ -1,6 +1,14 @@
 node_modules
 dist
 build
+out
+.output
 coverage
 .nyc_output
+test-results
+playwright-report
+blob-report
+var/media
 *.tsbuildinfo
+db/migrations/
+apps/api/tmp-jest-results.json

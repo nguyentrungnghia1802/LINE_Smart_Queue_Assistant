@@ -42,9 +42,10 @@ export async function seed(client: PoolClient): Promise<void> {
           retry_count, attempt_count, next_retry_at, error_message, sent_at, delivered_at
         )
         VALUES (
-          $1, $2, $3, $4, $5::notification_type,
-          CONCAT('seed:', $2::text, ':', $5::text), $5, $6::notification_channel, $7::notification_status,
-          jsonb_build_object('seed', true, 'message', $5),
+          $1::uuid, $2::uuid, $3::uuid, $4::text, $5::notification_type,
+          CONCAT('seed:', ($2::uuid)::text, ':', ($5::notification_type)::text),
+          ($5::notification_type)::text, $6::notification_channel, $7::notification_status,
+          jsonb_build_object('seed', true, 'message', ($5::notification_type)::text),
           $8,
           $8,
           CASE WHEN $7 = 'failed' THEN NOW() + INTERVAL '5 minutes' ELSE NULL END,

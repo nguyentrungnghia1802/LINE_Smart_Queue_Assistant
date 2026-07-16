@@ -84,7 +84,7 @@ Current metrics are process-local and reset on restart. Notification delivery co
 
 ## 6. Scheduled jobs operations
 
-Jobs run inside each API process. At one replica this is simple. Notification delivery itself claims due rows with PostgreSQL row locks, so two workers should not send the same claimed row. Stale `processing` rows are reclaimable after `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS` to survive worker crashes. Other scans can still run on every replica; unique notification event keys protect LINE lifecycle messages from duplicate enqueue, but the platform should still move to an explicit single worker or coordinated scheduler before horizontal production scale.
+Jobs run inside each API process. Notification delivery claims due rows with PostgreSQL row locks, and stale `processing` rows are reclaimable after `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS`. Other logical jobs, including forecasting, use session-level PostgreSQL advisory locks and record safe scheduler health. A dedicated worker may still be useful at larger scale, but is not required for correctness of the current job set.
 
 Before scaling horizontally, use one of:
 
@@ -92,13 +92,15 @@ Before scaling horizontally, use one of:
 - PostgreSQL advisory locks/leader election;
 - durable queue such as BullMQ with Redis when justified.
 
-The daily counter reset currently follows UTC midnight rather than each organization timezone. Treat this as a production blocker for Japan-local daily numbering.
+Daily counters are checked hourly and reset when the organization-local date changes. Keep organization timezone configuration accurate and monitor `scheduler_job_runs` for missed cycles.
 
 ## 7. Backup and recovery
 
 ### Backup
 
 Use encrypted PostgreSQL logical/managed backups with access controls and off-host retention. Include migration version, application commit, deployment configuration references, and object-storage media when introduced.
+
+Local development media is written under `MEDIA_LOCAL_DIR` and served from `MEDIA_PUBLIC_BASE_URL`. It is not a production durability boundary. Production deployment must provide and verify an object-storage client, backups/lifecycle, CDN/access policy, malware scanning if required, and orphan cleanup before switching away from local storage.
 
 Example logical backup:
 
@@ -166,17 +168,16 @@ Disable affected product, inspect order and inventory-reservation history, recon
 
 ## 10. CI/CD current state and target
 
-The GitHub Actions workflow currently installs dependencies, builds shared code, lints, typechecks, and builds workspaces. It does not run the test suite or migration smoke test. Production CI should add:
+GitHub Actions provides two required quality surfaces:
 
-- API/web tests and coverage thresholds for critical modules;
-- clean PostgreSQL migration/seed smoke test;
-- dependency/container/security scanning;
-- secret scanning;
-- immutable image publication and provenance;
-- staging deployment plus smoke/E2E gates;
-- manual approval and rollback metadata for production.
+- full-history Gitleaks secret scanning;
+- dependency audit, format, lint, typecheck, OpenAPI drift validation, API coverage thresholds, web/shared tests, clean PostgreSQL migration/status, repeated seed smoke, build, and mock-integration Playwright desktop/mobile E2E.
+
+CI uses PostgreSQL 16 and does not receive real LINE, PSP, or customer credentials. Remaining production delivery work is container/image scanning, immutable image publication and provenance, staging deployment against sandbox integrations, manual production approval, and rollback metadata.
 
 ## 11. Production readiness checklist
+
+The canonical executable release gate is `docs/checklists/PRODUCTION_READINESS.md`. Physical LINE client acceptance is intentionally separate in `docs/checklists/LINE_REAL_DEVICE_E2E.md` and must not be inferred from mock CI.
 
 - Real secrets rotated and managed outside Git.
 - HTTPS, secure domain/CORS, rate/edge protection, and restricted metrics/docs.

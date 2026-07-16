@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { get, patch, post } from '../../services/apiClient';
+import { uploadImage } from '../../services/media.api';
 import { useAuthStore } from '../../store/authStore';
+import { compressLogoFile } from '../../utils/compressLogoFile';
 
 interface ProductRow {
   id: string;
@@ -54,6 +56,24 @@ export function ManagerProductFormPage() {
   const orgId = user?.organizationId;
   const [form, setForm] = useState<FormState>(empty);
   const [error, setError] = useState('');
+  const [imageBusy, setImageBusy] = useState(false);
+
+  async function handleImage(file: File | undefined) {
+    if (!file) return;
+    setImageBusy(true);
+    setError('');
+    try {
+      const dataUrl = await compressLogoFile(file);
+      const asset = await uploadImage(dataUrl, 'product_image');
+      setForm((value) => ({ ...value, imageUrl: asset.public_url }));
+    } catch (uploadError) {
+      setError(
+        uploadError instanceof Error ? uploadError.message : '画像をアップロードできませんでした。'
+      );
+    } finally {
+      setImageBusy(false);
+    }
+  }
 
   const { data: existing } = useQuery<ProductRow>({
     queryKey: ['product', id],
@@ -157,16 +177,29 @@ export function ManagerProductFormPage() {
           />
         )}
         {field(
-          '画像URL',
-          <input
-            className={inputCls}
-            type="url"
-            value={form.imageUrl}
-            onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-          />
+          '商品画像',
+          <div className="space-y-2">
+            {form.imageUrl && (
+              <img
+                src={form.imageUrl}
+                alt="商品プレビュー"
+                className="h-32 w-full rounded-lg object-cover"
+              />
+            )}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              disabled={imageBusy}
+              onChange={(e) => void handleImage(e.target.files?.[0])}
+              className={inputCls}
+            />
+            <p className="text-xs text-gray-500">
+              {imageBusy ? '画像を処理しています…' : 'PNG、JPEG、WebP（最大5MB）'}
+            </p>
+          </div>
         )}
         {field(
-          '価格 (₫) *',
+          '価格（円）*',
           <input
             className={inputCls}
             type="number"

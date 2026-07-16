@@ -15,6 +15,7 @@ import { HistoryPage } from './pages/liff/HistoryPage';
 import { HomePage } from './pages/liff/HomePage';
 import { LiffInitPage } from './pages/liff/LiffInitPage';
 import { MyTicketsPage } from './pages/liff/MyTicketsPage';
+import { PreferencesPage } from './pages/liff/PreferencesPage';
 import { QueueJoinPage } from './pages/liff/QueueJoinPage';
 import { TicketStatusPage } from './pages/liff/TicketStatusPage';
 import { LoginPage } from './pages/LoginPage';
@@ -110,6 +111,7 @@ export const router = createBrowserRouter([
       { path: 'tickets', element: <MyTicketsPage /> },
       { path: 'tickets/:entryId', element: <TicketStatusPage /> },
       { path: 'history', element: <HistoryPage /> },
+      { path: 'preferences', element: <PreferencesPage /> },
     ],
   },
 

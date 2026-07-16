@@ -4,17 +4,17 @@ import type { PoolClient } from 'pg';
 import { DEMO_PASSWORD, ORG_ID, USERS } from './_ids';
 
 const demoUsers = [
-  [USERS.ADMIN_1, 'Admin Demo', 'admin@gmail.com', '0900000000', 'admin'],
-  [USERS.MANAGER_1, 'Manager Demo', 'manager@gmail.com', '0900000001', 'manager'],
-  [USERS.MANAGER_2, 'Manager Two', 'manager2@gmail.com', '0900000002', 'manager'],
-  [USERS.STAFF_1, 'Staff Demo', 'staff@gmail.com', '0900000011', 'staff'],
-  [USERS.STAFF_2, 'Staff Two', 'staff2@gmail.com', '0900000012', 'staff'],
-  [USERS.STAFF_3, 'Staff Three', 'staff3@gmail.com', '0900000013', 'staff'],
-  [USERS.CUSTOMER_1, 'Customer Demo', 'customer@gmail.com', '0900000031', 'customer'],
-  [USERS.CUSTOMER_2, 'Customer Two', 'customer2@gmail.com', '0900000032', 'customer'],
-  [USERS.CUSTOMER_3, 'Customer Three', 'customer3@gmail.com', '0900000033', 'customer'],
-  [USERS.CUSTOMER_4, 'Customer Four', 'customer4@gmail.com', '0900000034', 'customer'],
-  [USERS.CUSTOMER_5, 'Customer Five', 'customer5@gmail.com', '0900000035', 'customer'],
+  [USERS.ADMIN_1, '管理者デモ', 'admin@gmail.com', '0900000000', 'admin'],
+  [USERS.MANAGER_1, 'マネージャーデモ', 'manager@gmail.com', '0900000001', 'manager'],
+  [USERS.MANAGER_2, 'マネージャー二郎', 'manager2@gmail.com', '0900000002', 'manager'],
+  [USERS.STAFF_1, 'スタッフデモ', 'staff@gmail.com', '0900000011', 'staff'],
+  [USERS.STAFF_2, 'スタッフ二郎', 'staff2@gmail.com', '0900000012', 'staff'],
+  [USERS.STAFF_3, 'スタッフ三郎', 'staff3@gmail.com', '0900000013', 'staff'],
+  [USERS.CUSTOMER_1, '山田 太郎', 'customer@gmail.com', '0900000031', 'customer'],
+  [USERS.CUSTOMER_2, '佐藤 花子', 'customer2@gmail.com', '0900000032', 'customer'],
+  [USERS.CUSTOMER_3, '鈴木 一郎', 'customer3@gmail.com', '0900000033', 'customer'],
+  [USERS.CUSTOMER_4, '高橋 美咲', 'customer4@gmail.com', '0900000034', 'customer'],
+  [USERS.CUSTOMER_5, '田中 健太', 'customer5@gmail.com', '0900000035', 'customer'],
 ] as const;
 
 const members = [
