@@ -22,7 +22,7 @@ export const notificationSchemas = {
       { $ref: '#/components/schemas/BaseEntity' },
       {
         type: 'object',
-        required: ['type', 'channel', 'status', 'payload', 'retryCount'],
+        required: ['type', 'channel', 'status', 'payload', 'retryCount', 'locale'],
         properties: {
           type: {
             type: 'string',
@@ -43,6 +43,7 @@ export const notificationSchemas = {
           queueId: { type: 'string', format: 'uuid', nullable: true },
           sentAt: { type: 'string', format: 'date-time', nullable: true },
           retryCount: { type: 'integer', example: 0 },
+          locale: { type: 'string', enum: ['ja', 'vi', 'en'], default: 'ja' },
         },
       },
     ],

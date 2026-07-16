@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import type { UserRole } from '@line-queue/shared';
+import type { SupportedLocale, UserRole } from '@line-queue/shared';
 
 import { post } from '../services/apiClient';
 
@@ -11,6 +11,8 @@ export interface AuthUser {
   displayName?: string;
   role: UserRole;
   organizationId?: string;
+  preferredLocale?: SupportedLocale | null;
+  organizationLocale?: SupportedLocale;
 }
 
 interface AuthState {

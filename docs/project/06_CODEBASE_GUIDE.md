@@ -123,16 +123,17 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 
 1. Place it in the correct role/domain page folder.
 2. Reuse the role layout/navigation and shared components.
-3. Keep all visible copy Japanese.
-4. Handle loading, empty, error, disabled, success, and retry states.
-5. Use responsive constraints; staff side queue remains a left rail that compacts on small screens.
-6. Use semantic controls and existing icon library/style conventions.
-7. Add API methods/hooks outside the page and component tests for risky behavior.
-8. Verify desktop and mobile routes in a browser.
+3. Put visible copy in domain resources under `apps/web/src/i18n/locales/<locale>`; do not hard-code display text in components.
+4. Keep backend LINE copy in `modules/notifications/templates/<locale>.ts`.
+5. Handle loading, empty, error, disabled, success, and retry states.
+6. Use responsive constraints; staff side queue remains a left rail that compacts on small screens.
+7. Use semantic controls and existing icon library/style conventions.
+8. Add API methods/hooks outside the page and component tests for risky behavior.
+9. Verify desktop and mobile routes in a browser.
 
 ## 9. Error, logging, and transactions
 
-- Throw operational `AppError` values for expected failures; unknown errors become generic `500` responses.
+- Throw operational `AppError` values with stable codes; frontend display copy is resolved from the code, not the backend message.
 - Include request/tenant/resource IDs in structured logs, never tokens, passwords, payment secrets, or precise location unnecessarily.
 - Keep third-party failure after-commit when failure must not roll back domain state, such as LINE delivery.
 - Keep commercial/stock writes inside one transaction when partial state would be invalid.

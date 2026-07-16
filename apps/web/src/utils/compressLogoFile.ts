@@ -4,7 +4,7 @@ const MAX_DATA_URL_BYTES = 850_000;
 
 export async function compressLogoFile(file: File): Promise<string> {
   if (!file.type.startsWith('image/')) {
-    throw new Error('画像ファイルを選択してください。');
+    throw new Error(i18n.t('common:clientErrors.imageRequired'));
   }
 
   const image = await loadImage(file);
@@ -17,7 +17,7 @@ export async function compressLogoFile(file: File): Promise<string> {
   canvas.height = height;
 
   const context = canvas.getContext('2d');
-  if (!context) throw new Error('画像を処理できませんでした。');
+  if (!context) throw new Error(i18n.t('common:clientErrors.imageProcessFailed'));
 
   context.fillStyle = '#ffffff';
   context.fillRect(0, 0, width, height);
@@ -27,7 +27,7 @@ export async function compressLogoFile(file: File): Promise<string> {
   const dataUrl = await blobToDataUrl(blob);
 
   if (new Blob([dataUrl]).size > MAX_DATA_URL_BYTES) {
-    throw new Error('画像サイズが大きすぎます。より小さい画像を選択してください。');
+    throw new Error(i18n.t('common:clientErrors.imageTooLarge'));
   }
 
   return dataUrl;
@@ -44,7 +44,7 @@ function loadImage(file: File): Promise<HTMLImageElement> {
     };
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error('画像を読み込めませんでした。'));
+      reject(new Error(i18n.t('common:clientErrors.imageLoadFailed')));
     };
     image.src = objectUrl;
   });
@@ -55,7 +55,7 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
     canvas.toBlob(
       (blob) => {
         if (blob) resolve(blob);
-        else reject(new Error('画像を圧縮できませんでした。'));
+        else reject(new Error(i18n.t('common:clientErrors.imageCompressFailed')));
       },
       'image/jpeg',
       LOGO_QUALITY
@@ -67,7 +67,8 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('画像を変換できませんでした。'));
+    reader.onerror = () => reject(new Error(i18n.t('common:clientErrors.imageConvertFailed')));
     reader.readAsDataURL(blob);
   });
 }
+import { i18n } from '../i18n';

@@ -19,6 +19,7 @@ The repository is an npm-workspaces monorepo. The application is functional as a
 
 - Node.js 20+, npm 10+, TypeScript 5
 - React 18, React Router 7, Vite 8, Tailwind CSS 4, TanStack Query, Zustand
+- i18next/react-i18next with Japanese default plus Vietnamese and English resources
 - Express 4, Zod, PostgreSQL 16, `pg`
 - LINE LIFF for customer identity and LINE Messaging API for chat notifications
 - Jest/Supertest for API tests and Vitest/Testing Library for web tests
@@ -69,6 +70,8 @@ LINE Login/LIFF and the Messaging API solve different problems and are both requ
 - The Messaging API sends queue messages into the customer's LINE chat and controls notification sound through LINE's normal notification settings.
 
 Without a linked LINE identity, public QR booking still works, but LINE push notifications cannot be delivered.
+
+The language switcher persists an authenticated user's preference. Locale resolution is user preference, organization default, browser/LIFF language, then Japanese. LINE notification locale is captured in the durable outbox so retries remain consistent.
 
 After configuring the Messaging API token in the ignored `.env`, verify that it belongs to the intended Official Account:
 

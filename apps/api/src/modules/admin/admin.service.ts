@@ -26,6 +26,7 @@ export const adminService = {
 
     return organizationsRepository.create({
       name: dto.name,
+      defaultLocale: dto.defaultLocale,
       slug: dto.slug,
       publicQrToken: `org-${randomUUID()}`,
       logoUrl: dto.logoUrl ?? null,
@@ -51,6 +52,7 @@ export const adminService = {
       const org = await organizationsRepository.create(
         {
           name: dto.organization.name,
+          defaultLocale: dto.organization.defaultLocale,
           slug: dto.organization.slug,
           publicQrToken: `org-${randomUUID()}`,
           logoUrl: dto.organization.logoUrl ?? null,

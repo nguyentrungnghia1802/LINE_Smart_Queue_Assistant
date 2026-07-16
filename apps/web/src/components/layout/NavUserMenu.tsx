@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../store/authStore';
@@ -9,6 +10,7 @@ interface NavUserMenuProps {
 
 export function NavUserMenu({ compact = false }: Readonly<NavUserMenuProps>) {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
   const { user, logout } = useAuthStore();
   const [open, setOpen] = useState(false);
 
@@ -22,14 +24,14 @@ export function NavUserMenu({ compact = false }: Readonly<NavUserMenuProps>) {
     navigate('/login', { replace: true });
   }
 
-  const displayName = user?.displayName ?? user?.email ?? 'アカウント';
+  const displayName = user?.displayName ?? user?.email ?? t('nav.account');
   const initial = displayName.trim().slice(0, 1).toUpperCase() || 'A';
   const roleLabel = user?.role ?? 'guest';
 
   return (
     <div className="flex items-center gap-2">
       <button type="button" onClick={undefined} className="hidden">
-        戻る
+        {t('actions.back')}
       </button>
 
       <div className="relative">
@@ -78,14 +80,14 @@ export function NavUserMenu({ compact = false }: Readonly<NavUserMenuProps>) {
               onClick={handleOpenAccount}
               className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
             >
-              情報を見る
+              {t('nav.account')}
             </button>
             <button
               type="button"
               onClick={handleLogout}
               className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-red-600 hover:bg-red-50"
             >
-              ログアウト
+              {t('actions.logout')}
             </button>
           </div>
         )}

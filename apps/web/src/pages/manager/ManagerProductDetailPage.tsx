@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { formatCurrency } from '../../i18n/format';
 import { del, get } from '../../services/apiClient';
 
 interface ProductRow {
@@ -18,6 +20,7 @@ interface ProductRow {
 }
 
 export function ManagerProductDetailPage() {
+  const { t, i18n } = useTranslation(['manager', 'common']);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -36,7 +39,8 @@ export function ManagerProductDetailPage() {
     },
   });
 
-  if (isLoading || !product) return <div className="text-gray-400 text-sm">読み込み中...</div>;
+  if (isLoading || !product)
+    return <div className="text-gray-400 text-sm">{t('states.loading', { ns: 'common' })}</div>;
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -46,7 +50,7 @@ export function ManagerProductDetailPage() {
             to="/manager/products"
             className="text-sm font-medium text-brand-700 hover:underline"
           >
-            ← 一覧
+            ← {t('products.title')}
           </Link>
           <h1 className="mt-2 text-3xl font-bold text-gray-950">{product.name}</h1>
         </div>
@@ -55,7 +59,7 @@ export function ManagerProductDetailPage() {
             to={`/manager/products/${id}/edit`}
             className="rounded-xl bg-gray-950 px-4 py-2 text-sm font-bold text-white hover:bg-gray-800"
           >
-            編集
+            {t('actions.edit', { ns: 'common' })}
           </Link>
         </div>
       </div>
@@ -74,23 +78,40 @@ export function ManagerProductDetailPage() {
           <table className="w-full text-sm">
             <tbody className="divide-y divide-gray-100">
               {[
-                ['種類', product.product_type === 'service' ? 'サービス' : '商品'],
                 [
-                  '価格',
-                  new Intl.NumberFormat('ja-JP', {
-                    style: 'currency',
-                    currency: 'JPY',
-                    maximumFractionDigits: 0,
-                  }).format(Number(product.price)),
+                  t('products.type'),
+                  product.product_type === 'service'
+                    ? t('labels.service', { ns: 'common' })
+                    : t('labels.product', { ns: 'common' }),
                 ],
-                ['対応時間', `${product.service_time_minutes} 分`],
-                ['最大待ち時間', product.max_wait_minutes ? `${product.max_wait_minutes} 分` : '—'],
-                ['事前支払い', product.requires_prepayment ? 'はい' : 'いいえ'],
                 [
-                  '在庫',
-                  product.stock_quantity !== null ? String(product.stock_quantity) : '無制限',
+                  t('labels.price', { ns: 'common' }),
+                  formatCurrency(Number(product.price), i18n.resolvedLanguage ?? 'ja'),
                 ],
-                ['ステータス', product.is_active ? '有効' : '非表示'],
+                [
+                  t('products.serviceTime'),
+                  t('units.minutes', { ns: 'common', count: product.service_time_minutes }),
+                ],
+                [
+                  t('products.maxWaitLabel'),
+                  product.max_wait_minutes
+                    ? t('units.minutes', { ns: 'common', count: product.max_wait_minutes })
+                    : '—',
+                ],
+                [
+                  t('products.prepayment'),
+                  product.requires_prepayment ? t('products.yes') : t('products.no'),
+                ],
+                [
+                  t('products.stock'),
+                  product.stock_quantity !== null
+                    ? String(product.stock_quantity)
+                    : t('units.unlimited', { ns: 'common' }),
+                ],
+                [
+                  t('labels.status', { ns: 'common' }),
+                  product.is_active ? t('products.enabled') : t('products.hidden'),
+                ],
               ].map(([label, value]) => (
                 <tr key={label}>
                   <td className="py-2 pr-4 text-gray-500 font-medium w-40">{label}</td>
@@ -108,11 +129,11 @@ export function ManagerProductDetailPage() {
           <div className="flex gap-3 pt-4">
             <button
               onClick={() => {
-                if (confirm('この商品を削除しますか？')) deleteMutation.mutate();
+                if (confirm(t('products.deleteConfirm'))) deleteMutation.mutate();
               }}
               className="rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100"
             >
-              削除
+              {t('actions.delete', { ns: 'common' })}
             </button>
           </div>
         </section>

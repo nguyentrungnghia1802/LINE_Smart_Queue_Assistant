@@ -46,6 +46,7 @@ export const notificationOperationsService = {
         organizationId: row.organization_id,
         queueEntryId: row.queue_entry_id,
         eventType: row.event_type,
+        locale: row.locale,
         status: row.status,
         attemptCount: row.attempt_count,
         maxAttempts: row.max_attempts,

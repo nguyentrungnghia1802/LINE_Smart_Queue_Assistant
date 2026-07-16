@@ -52,6 +52,8 @@ describe('NotificationOutboxRepository', () => {
     const [sql, params] = mockQuery.mock.calls[0];
     expect(sql).toContain('ON CONFLICT (event_key)');
     expect(sql).toContain("SELECT $1,$2,$3,$4,$5,$6,$7,'line_push','pending',$8,$9,NOW()");
+    expect(sql).toContain('SELECT preferred_locale FROM users');
+    expect(sql).toContain('SELECT default_locale FROM organizations');
     expect(sql).toContain('line_notification_preferences');
     expect(params).toContain('queue_entry:entry-001:called');
     expect(params).toContain('U_test_001');

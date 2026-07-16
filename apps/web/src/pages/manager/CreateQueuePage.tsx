@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { post } from '../../services/apiClient';
@@ -10,6 +11,7 @@ interface QueueRow {
 }
 
 export function CreateQueuePage() {
+  const { t } = useTranslation(['manager', 'common']);
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [saving, setSaving] = useState(false);
@@ -30,7 +32,7 @@ export function CreateQueuePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user?.organizationId) {
-      setError('所属組織がありません。');
+      setError(t('queue.organizationMissing'));
       return;
     }
     setError('');
@@ -48,7 +50,7 @@ export function CreateQueuePage() {
       });
       navigate(`/queues/${queue.id}`);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'キューの作成中にエラーが発生しました。');
+      setError(err instanceof Error ? err.message : t('queue.createFailed'));
     } finally {
       setSaving(false);
     }
@@ -58,31 +60,31 @@ export function CreateQueuePage() {
     <div className="max-w-lg mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <Link to="/queues" className="text-gray-400 hover:text-gray-600 text-sm">
-          ← キュー
+          ← {t('nav.queue', { ns: 'common' })}
         </Link>
         <span className="text-gray-300">/</span>
-        <h1 className="text-xl font-bold text-gray-900">新しいキューを作成</h1>
+        <h1 className="text-xl font-bold text-gray-900">{t('queue.createTitle')}</h1>
       </div>
 
       <form
         onSubmit={handleSubmit}
         className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5"
       >
-        <Field label="キュー名 *" required>
+        <Field label={t('queue.nameRequired')} required>
           <input
             required
             type="text"
-            placeholder="例: 一般受付"
+            placeholder={t('queue.namePlaceholder')}
             value={form.name}
             onChange={(e) => set('name', e.target.value)}
             className={inputCls}
           />
         </Field>
 
-        <Field label="説明">
+        <Field label={t('labels.description', { ns: 'common' })}>
           <textarea
             rows={2}
-            placeholder="キューの短い説明"
+            placeholder={t('queue.descriptionPlaceholder')}
             value={form.description}
             onChange={(e) => set('description', e.target.value)}
             className={inputCls}
@@ -90,21 +92,21 @@ export function CreateQueuePage() {
         </Field>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="受付番号のプレフィックス">
+          <Field label={t('queue.prefix')}>
             <input
               type="text"
-              placeholder="例: A"
+              placeholder="A"
               maxLength={10}
               value={form.prefix}
               onChange={(e) => set('prefix', e.target.value)}
               className={inputCls}
             />
           </Field>
-          <Field label="最大定員">
+          <Field label={t('queue.capacity')}>
             <input
               type="number"
               min="1"
-              placeholder="無制限"
+              placeholder={t('units.unlimited', { ns: 'common' })}
               value={form.maxCapacity}
               onChange={(e) => set('maxCapacity', e.target.value)}
               className={inputCls}
@@ -113,21 +115,21 @@ export function CreateQueuePage() {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="平均対応時間（分）">
+          <Field label={t('queue.averageService')}>
             <input
               type="number"
               min="1"
-              placeholder="例: 15"
+              placeholder="15"
               value={form.avgServiceTimeMinutes}
               onChange={(e) => set('avgServiceTimeMinutes', e.target.value)}
               className={inputCls}
             />
           </Field>
-          <Field label="呼び出し後の自動キャンセル（分）">
+          <Field label={t('queue.autoCancel')}>
             <input
               type="number"
               min="1"
-              placeholder="例: 10"
+              placeholder="10"
               value={form.autoNoShowMinutes}
               onChange={(e) => set('autoNoShowMinutes', e.target.value)}
               className={inputCls}
@@ -142,14 +144,14 @@ export function CreateQueuePage() {
             to="/queues"
             className="flex-1 text-center border border-gray-300 text-gray-700 font-medium py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors"
           >
-            キャンセル
+            {t('actions.cancel', { ns: 'common' })}
           </Link>
           <button
             type="submit"
             disabled={saving}
             className="flex-1 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-sm transition-colors"
           >
-            {saving ? '作成中...' : 'キューを作成'}
+            {saving ? t('queue.creating') : t('queue.create')}
           </button>
         </div>
       </form>

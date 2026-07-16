@@ -1,15 +1,17 @@
+import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
 
 import { LiffRuntimeProvider } from '../../contexts/LiffRuntimeContext';
 import { useLiff } from '../../hooks/useLiff';
+import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
 import { ErrorState } from '../ui/ErrorState';
 import { Spinner } from '../ui/Spinner';
 
 const NAV_ITEMS = [
-  { to: '/liff/home', label: 'ホーム', icon: HomeIcon },
-  { to: '/liff/tickets', label: '受付番号', icon: TicketsIcon },
-  { to: '/liff/history', label: '履歴', icon: HistoryIcon },
-  { to: '/liff/preferences', label: '設定', icon: SettingsIcon },
+  { to: '/liff/home', labelKey: 'nav.home', icon: HomeIcon },
+  { to: '/liff/tickets', labelKey: 'nav.tickets', icon: TicketsIcon },
+  { to: '/liff/history', labelKey: 'nav.history', icon: HistoryIcon },
+  { to: '/liff/preferences', labelKey: 'nav.settings', icon: SettingsIcon },
 ] as const;
 
 /**
@@ -23,6 +25,7 @@ const NAV_ITEMS = [
  *   - Provides a persistent bottom tab bar for primary navigation
  */
 export function LiffLayout() {
+  const { t } = useTranslation('common');
   const liff = useLiff();
   const { initStatus, error } = liff;
 
@@ -30,7 +33,7 @@ export function LiffLayout() {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-white">
         <Spinner size="lg" />
-        <p className="mt-4 text-sm text-gray-500">初期化しています…</p>
+        <p className="mt-4 text-sm text-gray-500">{t('states.loading')}</p>
       </div>
     );
   }
@@ -39,8 +42,8 @@ export function LiffLayout() {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center bg-white px-6">
         <ErrorState
-          title="初期化できませんでした"
-          message={error?.message ?? 'LIFFの初期化に失敗しました。LINEを閉じて再度開いてください。'}
+          title={t('errors.INTERNAL_ERROR')}
+          message={error?.message ?? t('errors.UNKNOWN')}
         />
       </div>
     );
@@ -54,6 +57,9 @@ export function LiffLayout() {
           <span className="text-xl font-bold tracking-tight">
             {import.meta.env.VITE_APP_NAME ?? 'LINE Queue'}
           </span>
+          <div className="ml-auto rounded-md bg-white px-1 text-gray-900">
+            <LanguageSwitcher compact />
+          </div>
         </header>
 
         {/* ── Page content (scrollable) ── */}
@@ -63,10 +69,10 @@ export function LiffLayout() {
 
         {/* ── Bottom tab bar ── */}
         <nav
-          aria-label="メインナビゲーション"
+          aria-label={t('accessibility.mainNavigation')}
           className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex items-stretch z-10 safe-bottom"
         >
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+          {NAV_ITEMS.map(({ to, labelKey, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -79,7 +85,7 @@ export function LiffLayout() {
               {({ isActive }) => (
                 <>
                   <Icon active={isActive} />
-                  <span>{label}</span>
+                  <span>{t(labelKey)}</span>
                 </>
               )}
             </NavLink>

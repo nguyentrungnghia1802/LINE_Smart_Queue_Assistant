@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const LocaleSchema = z.enum(['ja', 'vi', 'en']);
+
 export const CreateUserSchema = z.object({
   displayName: z.string().min(1).max(120),
   email: z.string().email().optional(),
@@ -10,6 +12,7 @@ export const UpdateUserSchema = z
   .object({
     displayName: z.string().min(1).max(120).optional(),
     email: z.string().email().optional(),
+    preferredLocale: LocaleSchema.nullable().optional(),
     role: z.enum(['admin', 'staff', 'customer']).optional(),
   })
   .refine((d) => Object.values(d).some((v) => v !== undefined), {

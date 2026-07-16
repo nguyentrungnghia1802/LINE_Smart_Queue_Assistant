@@ -1,5 +1,6 @@
 ﻿import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
+import { normalizeLocale, type SupportedLocale } from '../../i18n/locale';
 import { logger } from '../../utils/logger';
 import {
   activeTicketStatusMessage,
@@ -63,6 +64,12 @@ async function dispatchEvent(event: LineEvent, adapter: ILineMessagingAdapter): 
   }
 }
 
+async function resolveLineUserLocale(lineUserId?: string): Promise<SupportedLocale> {
+  if (!lineUserId) return 'ja';
+  const user = await usersRepository.findByLineUserId(lineUserId);
+  return normalizeLocale(user?.preferred_locale) ?? 'ja';
+}
+
 // ── Event handlers ─────────────────────────────────────────────────────────────
 
 async function handleFollow(event: LineEvent, adapter: ILineMessagingAdapter): Promise<void> {
@@ -96,10 +103,11 @@ async function handleFollow(event: LineEvent, adapter: ILineMessagingAdapter): P
   }
 
   if (event.replyToken) {
+    const locale = await resolveLineUserLocale(lineUserId);
     await adapter.replyMessage(event.replyToken, [
       {
         type: 'text',
-        text: followWelcomeMessage(),
+        text: followWelcomeMessage(locale),
       },
     ]);
   }
@@ -128,12 +136,13 @@ async function handleMessage(event: LineEvent, adapter: ILineMessagingAdapter): 
   logger.info({ userId, text }, 'LINE message event');
 
   if (!event.replyToken) return;
+  const locale = await resolveLineUserLocale(userId);
 
   if (text === 'HELP') {
     await adapter.replyMessage(event.replyToken, [
       {
         type: 'text',
-        text: helpMessage(),
+        text: helpMessage(locale),
       },
     ]);
     return;
@@ -146,14 +155,14 @@ async function handleMessage(event: LineEvent, adapter: ILineMessagingAdapter): 
       await adapter.replyMessage(event.replyToken, [
         {
           type: 'text',
-          text: noActiveTicketMessage(),
+          text: noActiveTicketMessage(locale),
         },
       ]);
       return;
     }
 
     await adapter.replyMessage(event.replyToken, [
-      { type: 'text', text: activeTicketStatusMessage(entries) },
+      { type: 'text', text: activeTicketStatusMessage(entries, locale) },
     ]);
     return;
   }
@@ -163,7 +172,7 @@ async function handleMessage(event: LineEvent, adapter: ILineMessagingAdapter): 
 
     if (entries.length === 0) {
       await adapter.replyMessage(event.replyToken, [
-        { type: 'text', text: noCancellableTicketMessage() },
+        { type: 'text', text: noCancellableTicketMessage(locale) },
       ]);
       return;
     }
@@ -172,18 +181,21 @@ async function handleMessage(event: LineEvent, adapter: ILineMessagingAdapter): 
     const target = entries[0];
     await queueService.cancelTicket({ entryId: target.id, actorLineUserId: userId });
     await adapter.replyMessage(event.replyToken, [
-      { type: 'text', text: ticketCancelledMessage(target.ticket_code) },
+      { type: 'text', text: ticketCancelledMessage(target.ticket_code, { locale }) },
     ]);
     return;
   }
 
   // Unrecognised message — send a gentle nudge.
-  await adapter.replyMessage(event.replyToken, [{ type: 'text', text: unknownCommandMessage() }]);
+  await adapter.replyMessage(event.replyToken, [
+    { type: 'text', text: unknownCommandMessage(locale) },
+  ]);
 }
 
 async function handlePostback(event: LineEvent, adapter: ILineMessagingAdapter): Promise<void> {
   const userId = event.source.userId;
   const data = event.postback?.data ?? '';
+  const locale = await resolveLineUserLocale(userId);
   logger.info({ userId, data }, 'LINE postback event');
 
   // Expected format: "action=cancel&entryId=<uuid>"
@@ -195,11 +207,13 @@ async function handlePostback(event: LineEvent, adapter: ILineMessagingAdapter):
     try {
       await queueService.cancelTicket({ entryId, actorLineUserId: userId });
       await adapter.replyMessage(event.replyToken, [
-        { type: 'text', text: cancelSucceededMessage() },
+        { type: 'text', text: cancelSucceededMessage(locale) },
       ]);
     } catch (err) {
       logger.warn({ err, entryId, userId }, 'Postback cancel failed');
-      await adapter.replyMessage(event.replyToken, [{ type: 'text', text: cancelFailedMessage() }]);
+      await adapter.replyMessage(event.replyToken, [
+        { type: 'text', text: cancelFailedMessage(locale) },
+      ]);
     }
     return;
   }
@@ -210,12 +224,14 @@ async function handlePostback(event: LineEvent, adapter: ILineMessagingAdapter):
       await adapter.replyMessage(event.replyToken, [
         {
           type: 'text',
-          text: skipSucceededMessage(result.entry.ticket_code),
+          text: skipSucceededMessage(result.entry.ticket_code, locale),
         },
       ]);
     } catch (err) {
       logger.warn({ err, entryId, userId }, 'Postback skip failed');
-      await adapter.replyMessage(event.replyToken, [{ type: 'text', text: skipFailedMessage() }]);
+      await adapter.replyMessage(event.replyToken, [
+        { type: 'text', text: skipFailedMessage(locale) },
+      ]);
     }
     return;
   }

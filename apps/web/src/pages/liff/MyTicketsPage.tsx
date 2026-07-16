@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { TicketCard } from '../../components/ticket/TicketCard';
@@ -18,6 +19,7 @@ import { useMyTickets } from '../../hooks/useQueueEntry';
  * - Renders a skeleton while loading
  */
 export function MyTicketsPage() {
+  const { t } = useTranslation(['customer', 'common']);
   const navigate = useNavigate();
   const { authStatus } = useLiffRuntime();
   const canLoadLineTickets = authStatus === 'authenticated';
@@ -34,8 +36,12 @@ export function MyTicketsPage() {
     return (
       <EmptyState
         icon="🎫"
-        title={authStatus === 'error' ? 'LINE認証が必要です' : 'LINE認証中です'}
-        message="受付番号を確認するにはLINE認証を完了してください。"
+        title={
+          authStatus === 'error'
+            ? t('home.authRequired', { ns: 'customer' })
+            : t('home.authenticating', { ns: 'customer' })
+        }
+        message={t('home.authHint', { ns: 'customer' })}
       />
     );
   }
@@ -53,7 +59,7 @@ export function MyTicketsPage() {
   if (isError) {
     return (
       <ErrorState
-        message="受付番号を読み込めませんでした。もう一度お試しください。"
+        message={t('home.loadFailed', { ns: 'customer' })}
         onRetry={() => void refetch()}
       />
     );
@@ -63,8 +69,8 @@ export function MyTicketsPage() {
     return (
       <EmptyState
         icon="🎫"
-        title="有効な受付番号はありません"
-        message="QRコードまたはリンクから受付番号を取得してください。"
+        title={t('home.noTicket', { ns: 'customer' })}
+        message={t('home.scanPrompt', { ns: 'customer' })}
       />
     );
   }
@@ -83,7 +89,8 @@ export function MyTicketsPage() {
       ))}
 
       <h1 className="text-lg font-semibold text-gray-900">
-        受付番号 <span className="text-sm font-normal text-gray-400">({tickets.length})</span>
+        {t('common:nav.tickets')}{' '}
+        <span className="text-sm font-normal text-gray-400">({tickets.length})</span>
       </h1>
 
       {tickets.map((ticket) => (

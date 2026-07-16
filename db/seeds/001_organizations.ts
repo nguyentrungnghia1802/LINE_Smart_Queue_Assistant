@@ -50,6 +50,15 @@ export async function seed(client: PoolClient): Promise<void> {
   );
 
   await client.query(
+    `INSERT INTO organization_translations (organization_id, locale, name) VALUES
+       ($1, 'ja', 'スマート受付 東京店'),
+       ($1, 'vi', 'Smart Queue Tokyo'),
+       ($1, 'en', 'Smart Queue Tokyo')
+     ON CONFLICT (organization_id, locale) DO UPDATE SET name = EXCLUDED.name`,
+    [ORG_ID]
+  );
+
+  await client.query(
     `INSERT INTO organization_business_hours
        (organization_id, weekday, is_closed, opens_at, closes_at)
      SELECT $1, day, day = 0,

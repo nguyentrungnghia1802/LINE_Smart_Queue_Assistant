@@ -1,0 +1,32 @@
+export const auth = {
+  login: {
+    title: 'Log in',
+    subtitle: 'Enter your account details.',
+    submit: 'Log in',
+    submitting: 'Logging in…',
+    invalid: 'The email or password is incorrect.',
+    intro:
+      'Manage reception, product selection, staff calls, and LINE notifications in one system.',
+    noAccount: 'Do not have an account?',
+    customerRegister: 'Customer registration',
+    onlineReception: 'Online reception',
+    notificationIntegration: 'Notification integration',
+    paymentDemo: 'Demo payment',
+  },
+  register: {
+    title: 'Create account',
+    subtitle: 'Create an account to track your ticket status.',
+    submit: 'Register',
+    submitting: 'Registering…',
+    failed: 'Registration failed.',
+    hasAccount: 'Already have an account?',
+    phoneOptional: 'Phone (optional)',
+  },
+  account: {
+    title: 'Account information',
+    subtitle: 'Review the currently signed-in user.',
+    back: 'Back to dashboard',
+    organizationId: 'Organization ID',
+    userId: 'User ID',
+  },
+} as const;

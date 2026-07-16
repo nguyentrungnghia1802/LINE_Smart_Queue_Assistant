@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 
+import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher';
 import { post } from '../services/apiClient';
 import {
   formatJPY,
@@ -37,6 +39,7 @@ interface PaymentStatusResponse {
 }
 
 export function PaymentDemoPage() {
+  const { t } = useTranslation(['customer', 'common']);
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
   const session = useMemo(() => loadCheckoutSession(sessionId), [sessionId]);
@@ -86,7 +89,7 @@ export function PaymentDemoPage() {
       }
 
       if (!intent.demoToken) {
-        throw new Error('決済を開始できませんでした。');
+        throw new Error(t('payment.failed', { ns: 'customer' }));
       }
 
       const confirmed = await post<PaymentStatusResponse>('/api/v1/payments/demo/complete', {
@@ -95,7 +98,7 @@ export function PaymentDemoPage() {
       });
 
       if (confirmed.status !== 'paid') {
-        throw new Error('支払い確認が完了していません。');
+        throw new Error(t('payment.failed', { ns: 'customer' }));
       }
 
       const paymentKey = session.paymentKeyBase
@@ -114,9 +117,7 @@ export function PaymentDemoPage() {
       });
       navigate(session.returnPath, { replace: true });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : '支払いに失敗しました。もう一度お試しください。'
-      );
+      setError(err instanceof Error ? err.message : t('payment.failed', { ns: 'customer' }));
       setProcessing(false);
     }
   }
@@ -128,19 +129,26 @@ export function PaymentDemoPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
-                {externalPaymentReady ? 'オンライン決済' : 'デモ決済'}
+                {externalPaymentReady
+                  ? t('payment.title', { ns: 'customer' })
+                  : t('payment.demo', { ns: 'customer' })}
               </p>
-              <h1 className="mt-2 text-2xl font-bold text-gray-950">お支払い</h1>
+              <h1 className="mt-2 text-2xl font-bold text-gray-950">
+                {t('payment.title', { ns: 'customer' })}
+              </h1>
               <p className="mt-1 text-sm text-gray-500">
-                {session.orgName} の事前支払いを処理します。
+                {t('payment.organizationPrepayment', { ns: 'customer', name: session.orgName })}
               </p>
             </div>
-            <Link
-              to={session.returnPath}
-              className="rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
-            >
-              戻る
-            </Link>
+            <div className="flex items-center gap-2">
+              <LanguageSwitcher compact />
+              <Link
+                to={session.returnPath}
+                className="rounded-full border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                {t('actions.back', { ns: 'common' })}
+              </Link>
+            </div>
           </div>
 
           {canChooseScope && (
@@ -154,7 +162,7 @@ export function PaymentDemoPage() {
                     : 'text-gray-500 hover:text-gray-800'
                 }`}
               >
-                必須分のみ
+                {t('payment.requiredOnly', { ns: 'customer' })}
               </button>
               <button
                 type="button"
@@ -165,7 +173,7 @@ export function PaymentDemoPage() {
                     : 'text-gray-500 hover:text-gray-800'
                 }`}
               >
-                全額支払い
+                {t('payment.fullAmount', { ns: 'customer' })}
               </button>
             </div>
           )}
@@ -203,7 +211,9 @@ export function PaymentDemoPage() {
           <div className="mt-6 rounded-2xl bg-gray-950 p-4 text-white">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-300">
-                {paymentScope === 'all_items' ? 'お支払い合計' : '事前支払い合計'}
+                {paymentScope === 'all_items'
+                  ? t('payment.total', { ns: 'customer' })
+                  : t('payment.requiredTotal', { ns: 'customer' })}
               </span>
               <span className="text-2xl font-bold">{formatJPY(payableSubtotal)}</span>
             </div>
@@ -211,7 +221,9 @@ export function PaymentDemoPage() {
         </section>
 
         <aside className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-          <h2 className="text-sm font-semibold text-gray-950">支払い方法</h2>
+          <h2 className="text-sm font-semibold text-gray-950">
+            {t('payment.method', { ns: 'customer' })}
+          </h2>
           <div className="mt-4 space-y-2">
             {PAYMENT_METHODS.map((item) => (
               <button
@@ -224,8 +236,8 @@ export function PaymentDemoPage() {
                     : 'border-gray-200 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <span className="block text-sm font-semibold">{item.label}</span>
-                <span className="mt-0.5 block text-xs text-gray-500">{item.description}</span>
+                <span className="block text-sm font-semibold">{t(item.labelKey)}</span>
+                <span className="mt-0.5 block text-xs text-gray-500">{t(item.descriptionKey)}</span>
               </button>
             ))}
           </div>
@@ -238,15 +250,15 @@ export function PaymentDemoPage() {
             disabled={processing}
             className="mt-5 w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-60"
           >
-            {processing ? '処理中...' : `${selectedMethod.label}で支払う`}
+            {processing ? t('payment.processing', { ns: 'customer' }) : t(selectedMethod.labelKey)}
           </button>
           {error && (
             <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
           )}
           <p className="mt-3 text-xs leading-5 text-gray-500">
             {externalPaymentReady
-              ? '外部決済ページへ移動して支払いを完了します。'
-              : '決済会社の契約・APIキーが未設定のため、デモ決済として自動で成功します。'}
+              ? t('payment.externalHint', { ns: 'customer' })
+              : t('payment.demoHint', { ns: 'customer' })}
           </p>
         </aside>
       </div>
@@ -255,12 +267,16 @@ export function PaymentDemoPage() {
 }
 
 function PaymentFields({ method }: Readonly<{ method: PaymentGatewayMethod['id'] }>) {
+  const { t } = useTranslation('customer');
   if (method === 'credit_card') {
     return (
       <div className="mt-5 space-y-3">
-        <TextInput label="カード番号" value="4242 4242 4242 4242" />
+        <TextInput
+          label={t('payment.cardNumber', { ns: 'customer' })}
+          value="4242 4242 4242 4242"
+        />
         <div className="grid grid-cols-2 gap-3">
-          <TextInput label="有効期限" value="12 / 30" />
+          <TextInput label={t('payment.expiry', { ns: 'customer' })} value="12 / 30" />
           <TextInput label="CVC" value="123" />
         </div>
       </div>
@@ -270,14 +286,14 @@ function PaymentFields({ method }: Readonly<{ method: PaymentGatewayMethod['id']
   if (method === 'konbini') {
     return (
       <div className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
-        コンビニ支払い番号を発行します。デモでは発行後すぐに支払い完了になります。
+        {t('payment.convenienceHint', { ns: 'customer' })}
       </div>
     );
   }
 
   return (
     <div className="mt-5 rounded-xl bg-brand-50 p-4 text-sm text-brand-800">
-      外部アプリへ移動する想定の画面です。デモではこの画面で支払い完了になります。
+      {t('payment.appHint', { ns: 'customer' })}
     </div>
   );
 }

@@ -175,10 +175,7 @@ export function cartSignature(items: Array<{ productId: string; quantity: number
     .join('|');
 }
 
-export function formatJPY(value: number | string) {
-  return new Intl.NumberFormat('ja-JP', {
-    style: 'currency',
-    currency: 'JPY',
-    maximumFractionDigits: 0,
-  }).format(Number(value));
+export function formatJPY(value: number | string, locale = 'ja') {
+  return formatCurrency(Number(value), locale, 'JPY');
 }
+import { formatCurrency } from '../i18n/format';

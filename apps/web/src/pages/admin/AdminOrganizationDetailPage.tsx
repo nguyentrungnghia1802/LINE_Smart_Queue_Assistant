@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
-import { API_BASE_PATH } from '@line-queue/shared';
+import { API_BASE_PATH, type SupportedLocale } from '@line-queue/shared';
 
 import { del, get, patch, post } from '../../services/apiClient';
 import { uploadImage } from '../../services/media.api';
@@ -23,6 +24,7 @@ interface OrgForm {
   phone: string;
   address: string;
   paymentInfo: string;
+  defaultLocale: SupportedLocale;
 }
 
 interface ManagerForm {
@@ -38,11 +40,13 @@ const emptyOrgForm: OrgForm = {
   phone: '',
   address: '',
   paymentInfo: '',
+  defaultLocale: 'ja',
 };
 
 const emptyManagerForm: ManagerForm = { displayName: '', email: '', password: '' };
 
 export function AdminOrganizationDetailPage() {
+  const { t } = useTranslation(['admin', 'common']);
   const { orgId = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -74,6 +78,7 @@ export function AdminOrganizationDetailPage() {
       phone: org.phone ?? '',
       address: org.address ?? '',
       paymentInfo: org.payment_info ?? '',
+      defaultLocale: org.default_locale ?? 'ja',
     });
   }, [org]);
 
@@ -81,7 +86,7 @@ export function AdminOrganizationDetailPage() {
   const refreshManagers = () =>
     queryClient.invalidateQueries({ queryKey: ['admin-org-managers', orgId] });
   const onError = (err: unknown) =>
-    setError(err instanceof Error ? err.message : '操作に失敗しました。');
+    setError(err instanceof Error ? err.message : t('organizations.operationFailed'));
 
   const updateOrg = useMutation({
     mutationFn: () =>
@@ -145,7 +150,7 @@ export function AdminOrganizationDetailPage() {
       const asset = await uploadImage(dataUrl, 'organization_logo', orgId);
       setOrgForm((value) => ({ ...value, logoUrl: asset.public_url }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : '画像を処理できませんでした。');
+      setError(err instanceof Error ? err.message : t('organizations.imageFailed'));
     } finally {
       setLogoBusy(false);
     }
@@ -177,15 +182,15 @@ export function AdminOrganizationDetailPage() {
   }
 
   if (orgsLoading) {
-    return <p className="text-sm text-gray-500">組織を読み込み中...</p>;
+    return <p className="text-sm text-gray-500">{t('organizations.loading')}</p>;
   }
 
   if (!org) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-gray-600">組織が見つかりません。</p>
+        <p className="text-sm text-gray-600">{t('organizations.notFound')}</p>
         <Link to="/admin/orgs" className="text-sm font-medium text-brand-700">
-          組織一覧へ戻る
+          {t('organizations.backToList')}
         </Link>
       </div>
     );
@@ -195,15 +200,17 @@ export function AdminOrganizationDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">組織</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
+            {t('labels.organization', { ns: 'common' })}
+          </p>
           <h1 className="mt-2 text-3xl font-bold text-gray-950">{org.name}</h1>
-          <p className="mt-1 text-sm text-gray-500">組織の詳細情報とマネージャーを管理します。</p>
+          <p className="mt-1 text-sm text-gray-500">{t('organizations.detailDescription')}</p>
         </div>
         <Link
           to="/admin/orgs"
           className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50"
         >
-          組織一覧へ戻る
+          {t('organizations.backToList')}
         </Link>
       </div>
 
@@ -215,7 +222,7 @@ export function AdminOrganizationDetailPage() {
             {org.logo_url ? (
               <img
                 src={org.logo_url}
-                alt={`${org.name} ロゴ`}
+                alt={t('organizations.logoAlt', { name: org.name })}
                 className="h-24 w-24 rounded-2xl border border-gray-200 object-cover"
               />
             ) : (
@@ -224,21 +231,22 @@ export function AdminOrganizationDetailPage() {
               </div>
             )}
             <dl className="space-y-2 text-sm">
-              <InfoRow label="スラッグ" value={org.slug} mono />
-              <InfoRow label="QRトークン" value={org.public_qr_token ?? '-'} mono />
-              <InfoRow label="電話番号" value={org.phone ?? '-'} />
-              <InfoRow label="住所" value={org.address ?? '-'} />
-              <InfoRow label="支払い情報" value={org.payment_info ?? '-'} />
+              <InfoRow label={t('organizations.slug')} value={org.slug} mono />
+              <InfoRow label={t('organizations.qrToken')} value={org.public_qr_token ?? '-'} mono />
+              <InfoRow label={t('labels.phone', { ns: 'common' })} value={org.phone ?? '-'} />
+              <InfoRow label={t('labels.address', { ns: 'common' })} value={org.address ?? '-'} />
+              <InfoRow label={t('organizations.paymentInfo')} value={org.payment_info ?? '-'} />
             </dl>
           </div>
           <button
             type="button"
             onClick={() => {
-              if (window.confirm(`${org.name} を削除しますか?`)) removeOrg.mutate();
+              if (window.confirm(t('organizations.deleteConfirm', { name: org.name })))
+                removeOrg.mutate();
             }}
             className="rounded-xl px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50"
           >
-            組織を削除
+            {t('organizations.deleteOrganization')}
           </button>
         </div>
       </section>
@@ -247,33 +255,50 @@ export function AdminOrganizationDetailPage() {
         onSubmit={submitOrg}
         className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]"
       >
-        <h2 className="text-lg font-bold text-gray-950">組織情報を編集</h2>
+        <h2 className="text-lg font-bold text-gray-950">{t('organizations.editOrganization')}</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <TextInput
-            label="組織名"
+            label={t('organizations.name')}
             value={orgForm.name}
             onChange={(name) => setOrgForm((value) => ({ ...value, name }))}
             required
           />
           <TextInput
-            label="スラッグ"
+            label={t('organizations.slug')}
             value={orgForm.slug}
             onChange={(slug) => setOrgForm((value) => ({ ...value, slug }))}
             pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?"
             required
           />
           <TextInput
-            label="電話番号"
+            label={t('labels.phone', { ns: 'common' })}
             value={orgForm.phone}
             onChange={(phone) => setOrgForm((value) => ({ ...value, phone }))}
           />
+          <label className="text-sm font-medium text-gray-700">
+            {t('organizations.defaultLocale', { ns: 'admin' })}
+            <select
+              value={orgForm.defaultLocale}
+              onChange={(event) =>
+                setOrgForm((value) => ({
+                  ...value,
+                  defaultLocale: event.target.value as SupportedLocale,
+                }))
+              }
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="ja">{t('language.ja', { ns: 'common' })}</option>
+              <option value="vi">{t('language.vi', { ns: 'common' })}</option>
+              <option value="en">{t('language.en', { ns: 'common' })}</option>
+            </select>
+          </label>
           <TextInput
-            label="住所"
+            label={t('labels.address', { ns: 'common' })}
             value={orgForm.address}
             onChange={(address) => setOrgForm((value) => ({ ...value, address }))}
           />
           <TextInput
-            label="支払い情報"
+            label={t('organizations.paymentInfo')}
             value={orgForm.paymentInfo}
             onChange={(paymentInfo) => setOrgForm((value) => ({ ...value, paymentInfo }))}
             className="md:col-span-2"
@@ -285,17 +310,19 @@ export function AdminOrganizationDetailPage() {
             {orgForm.logoUrl ? (
               <img
                 src={orgForm.logoUrl}
-                alt="ロゴプレビュー"
+                alt={t('organizations.logoPreview')}
                 className="h-full w-full object-cover"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">
-                ロゴ
+                {t('organizations.logo')}
               </div>
             )}
           </div>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-600">ロゴ画像</span>
+            <span className="mb-1 block text-xs font-medium text-gray-600">
+              {t('organizations.logoImage')}
+            </span>
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
@@ -303,7 +330,9 @@ export function AdminOrganizationDetailPage() {
               className="block w-full text-sm text-gray-700 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200"
             />
             <p className="mt-2 text-xs text-gray-500">
-              {logoBusy ? '画像を圧縮中...' : '画像はアップロード時に自動で圧縮されます。'}
+              {logoBusy
+                ? t('organizations.compressingImage')
+                : t('organizations.imageCompressionHint')}
             </p>
           </label>
         </div>
@@ -313,7 +342,7 @@ export function AdminOrganizationDetailPage() {
           disabled={updateOrg.isPending || logoBusy}
           className="mt-4 rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-gray-800 disabled:opacity-50"
         >
-          組織を保存
+          {t('organizations.saveOrganization')}
         </button>
       </form>
 
@@ -323,17 +352,17 @@ export function AdminOrganizationDetailPage() {
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-900">
-            {editingManagerId ? 'マネージャーを編集' : 'マネージャーを追加'}
+            {editingManagerId ? t('organizations.editManager') : t('organizations.addManager')}
           </h2>
           {editingManagerId && (
             <button type="button" onClick={resetManagerForm} className="text-sm text-gray-500">
-              編集をキャンセル
+              {t('organizations.cancelEdit')}
             </button>
           )}
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           <TextInput
-            label="表示名"
+            label={t('labels.displayName', { ns: 'common' })}
             value={managerForm.displayName}
             onChange={(displayName) => setManagerForm((value) => ({ ...value, displayName }))}
             required
@@ -347,7 +376,11 @@ export function AdminOrganizationDetailPage() {
             required
           />
           <TextInput
-            label={editingManagerId ? '新しいパスワード' : 'パスワード'}
+            label={
+              editingManagerId
+                ? t('organizations.newPassword')
+                : t('labels.password', { ns: 'common' })
+            }
             type="password"
             value={managerForm.password}
             onChange={(password) => setManagerForm((value) => ({ ...value, password }))}
@@ -359,18 +392,18 @@ export function AdminOrganizationDetailPage() {
           disabled={createManager.isPending || updateManager.isPending}
           className="mt-4 rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-gray-800 disabled:opacity-50"
         >
-          {editingManagerId ? 'マネージャーを保存' : 'マネージャーを追加'}
+          {editingManagerId ? t('organizations.saveManager') : t('organizations.addManager')}
         </button>
       </form>
 
       <section className="overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[var(--shadow-soft)]">
         <div className="border-b border-gray-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">マネージャー一覧</h2>
+          <h2 className="text-sm font-semibold text-gray-900">{t('organizations.managerList')}</h2>
         </div>
         {managersLoading ? (
-          <p className="p-4 text-sm text-gray-500">マネージャーを読み込み中...</p>
+          <p className="p-4 text-sm text-gray-500">{t('organizations.managerLoading')}</p>
         ) : managers.length === 0 ? (
-          <p className="p-4 text-sm text-gray-500">マネージャーが登録されていません。</p>
+          <p className="p-4 text-sm text-gray-500">{t('organizations.managerEmpty')}</p>
         ) : (
           <table className="min-w-full text-sm">
             <tbody className="divide-y divide-gray-100">
@@ -386,18 +419,24 @@ export function AdminOrganizationDetailPage() {
                       onClick={() => startEditManager(manager)}
                       className="rounded-md px-3 py-1.5 text-sm text-brand-700 hover:bg-brand-50"
                     >
-                      編集
+                      {t('actions.edit', { ns: 'common' })}
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm(`${manager.display_name} を削除しますか?`)) {
+                        if (
+                          window.confirm(
+                            t('organizations.managerDeleteConfirm', {
+                              name: manager.display_name,
+                            })
+                          )
+                        ) {
                           removeManager.mutate(manager.id);
                         }
                       }}
                       className="rounded-md px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
                     >
-                      削除
+                      {t('actions.delete', { ns: 'common' })}
                     </button>
                   </td>
                 </tr>
@@ -463,5 +502,6 @@ function orgPayload(form: OrgForm) {
     phone: form.phone.trim() || null,
     address: form.address.trim() || null,
     paymentInfo: form.paymentInfo.trim() || null,
+    defaultLocale: form.defaultLocale,
   };
 }

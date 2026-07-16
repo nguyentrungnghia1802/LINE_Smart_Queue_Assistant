@@ -28,6 +28,9 @@ const mockFindByPublicToken = organizationsRepository.findByPublicToken as jest.
 const mockFindById = organizationsRepository.findById as jest.MockedFunction<
   typeof organizationsRepository.findById
 >;
+const mockFindLocalizedById = organizationsRepository.findLocalizedById as jest.MockedFunction<
+  typeof organizationsRepository.findLocalizedById
+>;
 const mockFindActiveByOrg = queuesRepository.findActiveByOrg as jest.MockedFunction<
   typeof queuesRepository.findActiveByOrg
 >;
@@ -49,6 +52,7 @@ const orgRow = {
   line_channel_id: null,
   line_oa_basic_id: null,
   timezone: 'Asia/Bangkok',
+  default_locale: 'ja' as const,
   settings: {},
   logo_url: null,
   phone: null,
@@ -77,7 +81,7 @@ function makeRes() {
 }
 
 function makeReq(token: string) {
-  return { params: { token } } as unknown as Request;
+  return { params: { token }, get: jest.fn().mockReturnValue(undefined) } as unknown as Request;
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -86,6 +90,7 @@ describe('getOrgByToken controller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFindById.mockResolvedValue(orgRow);
+    mockFindLocalizedById.mockResolvedValue(orgRow);
     mockFindActiveByOrg.mockResolvedValue([]);
     mockFindByOrgProducts.mockResolvedValue([]);
     mockListWaiting.mockResolvedValue([]);

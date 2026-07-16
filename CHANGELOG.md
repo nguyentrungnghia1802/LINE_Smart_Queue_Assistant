@@ -17,6 +17,7 @@ All notable project changes should be recorded here. This file tracks delivered 
 - Fixed demo payment enum updates, multi-queue staff selection, repeatable seed counters/business dates, and Japanese fallback errors/demo identities found by browser testing.
 - Unified root database commands on canonical `node-pg-migrate`, added clean migration/idempotent seed CI smoke tests, critical coverage thresholds, dependency and secret scanning, and full mock E2E quality gates.
 - Added advisory scheduler lock contention, reacquisition, failure sanitization, unlock, and session-release tests.
+- Added Japanese-default internationalization with Vietnamese/English resources, persisted user/organization locales, localized LINE outbox templates, translation tables, and locale-aware Intl formatting.
 
 ### LINE Messaging
 

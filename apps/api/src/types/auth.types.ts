@@ -1,4 +1,4 @@
-import { UserRole } from '@line-queue/shared';
+import { type SupportedLocale, UserRole } from '@line-queue/shared';
 
 /**
  * The authenticated user payload attached to req.user by currentUser middleware.
@@ -18,4 +18,8 @@ export interface AuthUser {
   displayName?: string;
   /** Email for UI. */
   email?: string;
+  /** Explicit user locale, or null when organization/client fallback should apply. */
+  preferredLocale?: SupportedLocale | null;
+  /** Tenant default locale for staff and manager sessions. */
+  organizationLocale?: SupportedLocale;
 }
