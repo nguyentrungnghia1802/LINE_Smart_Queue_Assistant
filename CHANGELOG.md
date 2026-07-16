@@ -32,6 +32,7 @@ All notable project changes should be recorded here. This file tracks delivered 
 - Consolidated overlapping project documents into ten canonical sources of truth.
 - Added repository instructions for coding agents and contributors.
 - Separated historical proposal, presentation, demo, load-test, and release artifacts from current documentation.
+- Added workstream-level production readiness and physical LINE device E2E checklists that explicitly separate automated verification from external acceptance.
 
 ## 0.0.1 - Current baseline
 

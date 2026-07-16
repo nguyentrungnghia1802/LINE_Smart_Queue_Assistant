@@ -177,6 +177,8 @@ CI uses PostgreSQL 16 and does not receive real LINE, PSP, or customer credentia
 
 ## 11. Production readiness checklist
 
+The canonical executable release gate is `docs/checklists/PRODUCTION_READINESS.md`. Physical LINE client acceptance is intentionally separate in `docs/checklists/LINE_REAL_DEVICE_E2E.md` and must not be inferred from mock CI.
+
 - Real secrets rotated and managed outside Git.
 - HTTPS, secure domain/CORS, rate/edge protection, and restricted metrics/docs.
 - Managed PostgreSQL backups and restore drill.

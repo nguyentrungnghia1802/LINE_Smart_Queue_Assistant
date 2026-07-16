@@ -127,3 +127,5 @@ The project is a working local/demo modular monolith, not yet a production-compl
 | `09_ROADMAP_AND_DECISIONS.md`     | Priorities, risks, technical debt, accepted ADRs            |
 
 Historical files under `docs/archive` are evidence of earlier plans, not current product truth.
+
+Production release evidence is tracked with `docs/checklists/PRODUCTION_READINESS.md`. LINE Console and physical-device acceptance use the independent `docs/checklists/LINE_REAL_DEVICE_E2E.md`; they remain pending until executed against real staging configuration.
