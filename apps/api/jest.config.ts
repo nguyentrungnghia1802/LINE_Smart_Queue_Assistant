@@ -23,6 +23,27 @@ const config: Config = {
   coverageDirectory: 'coverage',
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/server.ts'],
   coverageReporters: ['text', 'lcov', 'html'],
+  coverageThreshold: {
+    global: { statements: 48, branches: 25, functions: 35, lines: 50 },
+    './src/modules/payments/payments.service.ts': {
+      statements: 38,
+      branches: 24,
+      functions: 60,
+      lines: 40,
+    },
+    './src/modules/queue/queue.service.ts': {
+      statements: 50,
+      branches: 42,
+      functions: 45,
+      lines: 52,
+    },
+    './src/modules/notifications/notification-outbox.repository.ts': {
+      statements: 60,
+      branches: 45,
+      functions: 40,
+      lines: 60,
+    },
+  },
 };
 
 export default config;

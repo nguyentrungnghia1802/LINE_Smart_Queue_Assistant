@@ -1,18 +1,19 @@
 /**
- * Custom SQL migration runner.
- * Runs db/migrations/*.sql files in order, tracking applied migrations in a
- * `pgmigrations` table — compatible with the node-pg-migrate table schema.
+ * Legacy SQL migration runner and local schema reset helper.
+ * Canonical migrations live in db/migrations/node-pg-migrate and are invoked
+ * through the root npm db:migrate commands. Legacy SQL application is disabled
+ * unless ALLOW_LEGACY_SQL_MIGRATIONS=true is set explicitly.
  *
  * Usage (from repo root):
- *   node scripts/migrate.mjs           # apply all pending migrations
- *   node scripts/migrate.mjs status    # list applied vs pending
+ *   node scripts/migrate.mjs reset     # destructive local schema reset
+ *   node scripts/migrate.mjs legacy    # legacy SQL apply (explicit env opt-in)
  */
 
-import pg from 'pg';
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import path from 'path';
+import pg from 'pg';
+import { fileURLToPath } from 'url';
 
 const require = createRequire(import.meta.url);
 const dotenv = require('dotenv');
@@ -41,9 +42,7 @@ async function ensureMigrationsTable(client) {
 }
 
 async function getAppliedMigrations(client) {
-  const { rows } = await client.query(
-    'SELECT name FROM pgmigrations ORDER BY run_on',
-  );
+  const { rows } = await client.query('SELECT name FROM pgmigrations ORDER BY run_on');
   return new Set(rows.map((r) => r.name));
 }
 
@@ -56,7 +55,7 @@ function getSqlFiles() {
 }
 
 async function runMigrations() {
-  const command = process.argv[2] ?? 'up';
+  const command = process.argv[2] ?? 'legacy';
   const client = await pool.connect();
 
   try {
@@ -64,6 +63,12 @@ async function runMigrations() {
       await client.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
       console.log('✅  Schema reset. Run npm run db:migrate to re-apply migrations.');
       return;
+    }
+
+    if (command !== 'legacy' || process.env.ALLOW_LEGACY_SQL_MIGRATIONS !== 'true') {
+      throw new Error(
+        'Legacy SQL migrations are disabled. Use npm run db:migrate (node-pg-migrate canonical runner).'
+      );
     }
 
     await ensureMigrationsTable(client);

@@ -15,6 +15,8 @@ All notable project changes should be recorded here. This file tracks delivered 
 - Added complete runtime OpenAPI operation coverage with auth, pagination, standard envelopes, validator metadata, specification validation, and route-drift contract tests.
 - Added Playwright desktop/mobile coverage for LIFF mock login, demo payment, booking/ticket, staff/outbox, receipt, admin registration, manager QR/settings, and responsive layouts.
 - Fixed demo payment enum updates, multi-queue staff selection, repeatable seed counters/business dates, and Japanese fallback errors/demo identities found by browser testing.
+- Unified root database commands on canonical `node-pg-migrate`, added clean migration/idempotent seed CI smoke tests, critical coverage thresholds, dependency and secret scanning, and full mock E2E quality gates.
+- Added advisory scheduler lock contention, reacquisition, failure sanitization, unlock, and session-release tests.
 
 ### LINE Messaging
 

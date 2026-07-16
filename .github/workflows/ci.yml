@@ -1,30 +1,56 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# CI Basic — lint · typecheck · build
-#
-# Runs on every push and on pull requests targeting protected branches.
-# Keep a single stable job so the required status check name is predictable.
-# Expected required check name:
-#   CI Basic / Lint · Typecheck · Build
-# ─────────────────────────────────────────────────────────────────────────────
-name: CI Basic
+name: CI Quality Gates
 
 on:
   push:
-    branches:
-      - '**'
+    branches: ['**']
   pull_request:
-    branches:
-      - main
-      - chore/dev
+    branches: [main, chore/dev]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  lint-typecheck-build:
-    name: Lint · Typecheck · Build
+  secret-scan:
+    name: Secret scan
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan repository history
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  quality-gates:
+    name: Test · Migration · Build · E2E
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: line_queue_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d line_queue_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/line_queue_test
+      JWT_SECRET: ci-only-jwt-secret-never-use-in-production
+      DEMO_PAYMENT_WEBHOOK_SECRET: ci-only-payment-secret
+      LINE_CHANNEL_ACCESS_TOKEN: ''
+      LINE_CHANNEL_SECRET: ci-only-line-secret
+      LINE_ID_TOKEN_VERIFICATION_MODE: mock
+      MEDIA_STORAGE_MODE: mock
+      CORS_ORIGIN: http://127.0.0.1:5174
 
     steps:
       - name: Checkout repository
@@ -39,14 +65,44 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build shared package
-        run: npm run build -w packages/shared
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+
+      - name: Formatting
+        run: npm run format:check
 
       - name: Lint
-        run: npm run lint --workspaces --if-present
+        run: npm run lint
 
       - name: Type-check
-        run: npm run typecheck --workspaces --if-present
+        run: npm run typecheck
+
+      - name: OpenAPI contract
+        run: npm run openapi:check
+
+      - name: API tests and critical coverage thresholds
+        run: npm run test:coverage -w apps/api -- --runInBand
+
+      - name: Web and shared tests
+        run: |
+          npm run test -w apps/web
+          npm run test -w packages/shared --if-present
+
+      - name: Clean canonical migrations
+        run: |
+          npm run db:migrate
+          npm run db:migrate:status
+
+      - name: Seed smoke and idempotency
+        run: |
+          npm run db:seed
+          npm run db:seed
 
       - name: Build
-        run: npm run build --workspaces --if-present
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser E2E with mock integrations
+        run: npm run e2e:all
