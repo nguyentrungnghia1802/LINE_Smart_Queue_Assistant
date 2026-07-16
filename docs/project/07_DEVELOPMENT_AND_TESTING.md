@@ -86,11 +86,11 @@ npm run db:seed:reset
 npm run db:reset
 ```
 
-- Canonical schema migrations use `node-pg-migrate` through the `apps/api` workspace and read `db/migrations/node-pg-migrate`.
-- Root `db:migrate:*` commands currently use the legacy SQL runner in `scripts/migrate.mjs`; keep them in validation until the runners are unified, but they only read `db/migrations/*.sql`.
+- Canonical schema migrations use `node-pg-migrate`, read `db/migrations/node-pg-migrate`, and are exposed consistently through both root and `apps/api` workspace commands.
 - `db:seed:reset` truncates/reseeds demo data.
-- `db:reset` rebuilds local/dev schema and destroys data.
-- Root migration rollback/redo commands are intentionally unavailable to prevent mixed runner state.
+- `db:reset`/`db:reset:local` destroy and rebuild only a local/dev schema, then migrate and seed it.
+- `scripts/migrate.mjs` remains only as the local reset helper. Its historical SQL apply mode requires the explicit `ALLOW_LEGACY_SQL_MIGRATIONS=true` opt-in and must not be used for normal deployments.
+- Historical numeric migration names can produce non-blocking timestamp-order warnings from `node-pg-migrate`; never rename already-applied migrations to silence them.
 
 ## 6. LINE Rich Menu sync
 

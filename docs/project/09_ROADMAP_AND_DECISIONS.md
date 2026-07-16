@@ -11,8 +11,7 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 1. Rotate any previously exposed LINE/JWT/provider credential and enable secret scanning.
 2. Select and integrate a real Japan PSP adapter, including merchant secrets, refund execution, settlement reconciliation, and provider operations.
 3. Build a dashboard over the implemented notification operations API and delivery metrics.
-4. Add all automated tests and clean migration smoke tests to CI.
-5. Complete native Japanese and legal/payment copy review.
+4. Complete native Japanese and legal/payment copy review.
 
 ### P1: Complete requested product capabilities
 
@@ -43,7 +42,6 @@ Last reviewed: 2026-07-16. This file records current priorities and accepted arc
 | TD-007 | Forecast heuristic lacks production calibration                | Confidence may not reflect real error  | Measure prediction error before model upgrades  |
 | TD-008 | Location uses a mock travel-time provider                      | Real travel estimates are unavailable  | Approved provider adapter and legal review      |
 | TD-009 | Some OpenAPI operations use generic request/response schemas   | Generated clients have weaker typing   | Incrementally model detailed component schemas  |
-| TD-010 | CI does not run tests/migrations                               | Regressions can merge                  | Add test DB and required checks                 |
 | TD-011 | Metrics reset per process and `/metrics` is public in app      | Weak operations/security               | Scrape/protect endpoint and expand metrics      |
 | TD-012 | Native Japanese/legal copy review is pending                   | Customer wording may be unsuitable     | Native review before external production launch |
 
@@ -97,9 +95,9 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 **Context:** ETA scans and reminders are modest and Redis is not currently required.
 
-**Decision:** Run overlap-protected interval jobs in the API process for one-instance deployments.
+**Decision:** Run interval jobs in the API process. Notification delivery uses row claims; other logical jobs use session-level PostgreSQL advisory locks and durable `scheduler_job_runs` health records.
 
-**Consequences:** No separate worker dependency; before multiple replicas, introduce one scheduler owner, distributed locks, or a durable job queue.
+**Consequences:** Multiple API replicas do not execute the same logical job concurrently, and PostgreSQL releases session locks when a worker disconnects. A dedicated worker remains an operational scaling option, not a correctness prerequisite for the current jobs.
 
 ## ADR-006: Demo-first payment behind a provider boundary
 

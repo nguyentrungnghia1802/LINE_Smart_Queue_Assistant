@@ -170,7 +170,7 @@ Rules:
 - Keep the reset schema, repositories, shared/runtime types, seeds, tests, and this document synchronized.
 - Back up before production migration and test restore/rollback in staging.
 
-Schema migrations live under `db/migrations/node-pg-migrate` and are executed by the `apps/api` workspace `node-pg-migrate` command. Root migration commands are scheduled to be unified with this canonical runner in the CI/CD workstream.
+Schema migrations live under `db/migrations/node-pg-migrate`. Root and `apps/api` workspace migration commands both execute this canonical `node-pg-migrate` history; the historical SQL runner is disabled by default.
 
 `npm run db:reset` is destructive and intended only for local/dev.
 

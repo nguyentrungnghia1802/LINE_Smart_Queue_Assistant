@@ -168,15 +168,12 @@ Disable affected product, inspect order and inventory-reservation history, recon
 
 ## 10. CI/CD current state and target
 
-The GitHub Actions workflow currently installs dependencies, builds shared code, lints, typechecks, and builds workspaces. It does not run the test suite or migration smoke test. Production CI should add:
+GitHub Actions provides two required quality surfaces:
 
-- API/web tests and coverage thresholds for critical modules;
-- clean PostgreSQL migration/seed smoke test;
-- dependency/container/security scanning;
-- secret scanning;
-- immutable image publication and provenance;
-- staging deployment plus smoke/E2E gates;
-- manual approval and rollback metadata for production.
+- full-history Gitleaks secret scanning;
+- dependency audit, format, lint, typecheck, OpenAPI drift validation, API coverage thresholds, web/shared tests, clean PostgreSQL migration/status, repeated seed smoke, build, and mock-integration Playwright desktop/mobile E2E.
+
+CI uses PostgreSQL 16 and does not receive real LINE, PSP, or customer credentials. Remaining production delivery work is container/image scanning, immutable image publication and provenance, staging deployment against sandbox integrations, manual production approval, and rollback metadata.
 
 ## 11. Production readiness checklist
 

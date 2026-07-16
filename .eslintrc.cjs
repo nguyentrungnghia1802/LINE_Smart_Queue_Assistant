@@ -8,8 +8,9 @@ module.exports = {
   },
   overrides: [
     {
-      files: ['*.cjs', '*.mjs', '*.js'],
+      files: ['**/*.cjs', '**/*.mjs', '**/*.js'],
       parserOptions: { project: null },
+      rules: { 'no-console': 'off' },
     },
   ],
 };
