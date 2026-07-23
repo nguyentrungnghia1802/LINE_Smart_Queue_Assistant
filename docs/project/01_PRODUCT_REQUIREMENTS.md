@@ -39,6 +39,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | FR-AUTH-007 | Store LINE-verified customer email when the optional email claim is available | Implemented |
 | FR-AUTH-008 | Present LINE as the primary customer login and email as business-role login   | Implemented |
 | FR-AUTH-009 | Keep legacy customer email registration available only for development/test   | Implemented |
+| FR-AUTH-010 | Keep the login entry responsive and visually balanced across access paths     | Implemented |
 
 ### Organization administration
 
