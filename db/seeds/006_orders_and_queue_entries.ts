@@ -154,6 +154,8 @@ async function getProductSnapshot(client: PoolClient, productId: string) {
 }
 
 export async function seed(client: PoolClient): Promise<void> {
+  await client.query(`DELETE FROM queue_histories WHERE metadata @> '{"seed":true}'::jsonb`);
+
   for (const order of orders) {
     let subtotal = 0;
     const snapshots = [] as Array<{

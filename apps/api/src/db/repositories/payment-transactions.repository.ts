@@ -138,7 +138,13 @@ export const paymentTransactionsRepository = {
   },
 
   async createManual(
-    data: { organizationId: string; orderId: string; amount: number; method: string },
+    data: {
+      organizationId: string;
+      orderId: string;
+      amount: number;
+      method: string;
+      coveredProductIds: string[];
+    },
     client: PoolClient
   ): Promise<PaymentTransactionRow> {
     const { rows } = await client.query<PaymentTransactionRow>(
@@ -146,10 +152,16 @@ export const paymentTransactionsRepository = {
          (organization_id, order_id, provider, method, status, amount, currency,
           paid_at, last_verified_at, metadata, raw_payload)
        VALUES ($1,$2,'manual',$3,'paid',$4,'JPY',NOW(),NOW(),
-         jsonb_build_object('scope','all_items'),
+         jsonb_build_object('scope','all_items','coveredProductIds',$5::jsonb),
          jsonb_build_object('source','staff_manual'))
        RETURNING *`,
-      [data.organizationId, data.orderId, data.method, data.amount]
+      [
+        data.organizationId,
+        data.orderId,
+        data.method,
+        data.amount,
+        JSON.stringify(data.coveredProductIds),
+      ]
     );
     return rows[0];
   },

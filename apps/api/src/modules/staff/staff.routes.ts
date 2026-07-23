@@ -27,7 +27,7 @@ staffRouter.use(requireAuth, requireRole(UserRole.STAFF, UserRole.MANAGER, UserR
 
 // ── My-Queue endpoint ──────────────────────────────────────────────────────────
 
-// GET /api/v1/staff/my-queue — full queue overview for staff's org
+// GET /api/v1/staff/my-queue — bounded queue preview for staff's organization
 staffRouter.get('/my-queue', getMyQueue);
 
 // ── Queue-level actions ───────────────────────────────────────────────────────
