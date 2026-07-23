@@ -13,6 +13,7 @@ node_modules/
 # Build outputs
 # ──────────────────────────────────────────────────────────────────────────────
 dist/
+dist-seeds/
 build/
 out/
 .output/
