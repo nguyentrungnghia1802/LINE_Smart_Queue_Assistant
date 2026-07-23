@@ -36,7 +36,7 @@ describe('CustomerDashboardPage', () => {
   });
 
   it('renders the language switcher for customer pages', async () => {
-    render(
+    const { container } = render(
       <MemoryRouter>
         <CustomerDashboardPage />
       </MemoryRouter>
@@ -45,6 +45,12 @@ describe('CustomerDashboardPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('combobox', { name: '言語' })).toBeInTheDocument();
     });
+    expect(screen.getByRole('navigation', { name: 'メインナビゲーション' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Smart Queue Assistant' })).toHaveAttribute(
+      'href',
+      '/customer'
+    );
+    expect(container.querySelector('header img[src="/logo.svg"]')).toBeInTheDocument();
     expect(screen.getByText('現在有効な受付はありません。')).toBeInTheDocument();
   });
 });

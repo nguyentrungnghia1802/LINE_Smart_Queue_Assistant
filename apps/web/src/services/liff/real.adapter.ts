@@ -11,7 +11,7 @@ import type { LiffAdapter, LiffProfile } from './types';
 
 export class RealLiffAdapter implements LiffAdapter {
   async init(liffId: string): Promise<void> {
-    await liff.init({ liffId });
+    await liff.init({ liffId, withLoginOnExternalBrowser: true });
   }
 
   isLoggedIn(): boolean {

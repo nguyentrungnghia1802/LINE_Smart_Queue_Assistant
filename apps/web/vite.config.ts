@@ -4,6 +4,8 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
+const apiProxyTarget = process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:4000';
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -23,7 +25,13 @@ export default defineConfig({
     proxy: {
       // Proxy /api/* to the Express backend during development
       '/api': {
-        target: process.env.VITE_API_URL ?? 'http://127.0.0.1:4000',
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
+      // Media URLs are persisted as same-origin /media/* paths. Keep local
+      // development aligned with the production nginx reverse proxy.
+      '/media': {
+        target: apiProxyTarget,
         changeOrigin: true,
       },
     },

@@ -173,6 +173,28 @@ export class UsersRepository extends BaseRepository {
     return rows[0] ?? null;
   }
 
+  /**
+   * Persist an email verified by LINE only when the user has no email and the
+   * address is not already owned by another platform identity.
+   */
+  async setVerifiedLineEmailIfAvailable(id: string, email: string): Promise<UserRow | null> {
+    const rows = await this.query<UserRow>(
+      `UPDATE users AS target
+       SET email = $2, updated_at = NOW()
+       WHERE target.id = $1
+         AND target.email IS NULL
+         AND NOT EXISTS (
+           SELECT 1
+           FROM users AS existing
+           WHERE existing.email = $2
+             AND existing.id <> target.id
+         )
+       RETURNING target.*`,
+      [id, email]
+    );
+    return rows[0] ?? this.findById(id);
+  }
+
   // ── LineAccounts ────────────────────────────────────────────────────────────
 
   /**

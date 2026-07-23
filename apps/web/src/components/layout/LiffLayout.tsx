@@ -33,9 +33,7 @@ export function LiffLayout() {
   const topHeader = (
     <header className="flex items-center gap-2 bg-line-green px-4 py-3 text-white shrink-0">
       <BrandLogo decorative className="h-9 w-9" />
-      <span className="text-xl font-bold tracking-tight">
-        {import.meta.env.VITE_APP_NAME ?? 'LINE Queue'}
-      </span>
+      <span className="text-xl font-bold tracking-tight">{t('brandName')}</span>
       <div className="ml-auto">
         <LanguageSwitcher compact />
       </div>

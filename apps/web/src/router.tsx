@@ -51,7 +51,12 @@ export const router = createBrowserRouter([
   },
   {
     path: '/register',
-    element: <RegisterPage />,
+    element:
+      import.meta.env.DEV || import.meta.env.VITE_ENABLE_LEGACY_CUSTOMER_AUTH === 'true' ? (
+        <RegisterPage />
+      ) : (
+        <Navigate to="/login" replace />
+      ),
   },
   {
     path: '/account',

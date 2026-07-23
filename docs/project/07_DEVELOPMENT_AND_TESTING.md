@@ -23,12 +23,17 @@ For ordinary UI/backend work without LINE credentials:
 ```dotenv
 VITE_LIFF_MOCK=true
 VITE_LIFF_MOCK_LOGGED_IN=true
+VITE_ENABLE_LEGACY_CUSTOMER_AUTH=true
 VITE_PAYMENT_MODE=demo
 ```
 
 The API uses `MockLineAdapter` in tests or whenever `LINE_CHANNEL_ACCESS_TOKEN` is absent.
 
 For local Rich Menu navigation demos, set `VITE_LIFF_DEFAULT_BOOKING_PATH` to a safe LIFF booking path such as `/liff/qr/demo-queue-lab-2026`.
+
+`VITE_ENABLE_LEGACY_CUSTOMER_AUTH` is a public build flag. Keep it `true` only for local/test
+coverage of the former email-based customer registration flow. Production builds default it to
+`false`; operational email login remains available for staff, managers, and admins.
 
 ## 3. Run with Docker
 
@@ -76,7 +81,7 @@ npm run dev -w apps/api
 npm run dev -w apps/web
 ```
 
-The web API client/proxy expects the API on port `4000`. Start the API and database before diagnosing frontend `/api` failures.
+The web API client/proxy expects the API on port `4000`. Vite proxies both `/api/*` and persisted `/media/*` URLs to that API, so uploaded organization and product images work through the same local origin. Native Vite defaults its server-only `API_PROXY_TARGET` to `http://127.0.0.1:4000`; Docker Compose sets it to `http://api:4000` and mounts `apps/web/public` so static brand assets are available too. `API_PROXY_TARGET` is not a `VITE_*` value and is never compiled into browser code. Start the API and database before diagnosing frontend `/api` or `/media` failures.
 
 ## 5. Database commands
 
