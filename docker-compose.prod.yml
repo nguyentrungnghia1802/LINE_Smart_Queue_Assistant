@@ -29,6 +29,10 @@ services:
       API_PORT: 4000
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-line_queue}
       CORS_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN must be set}
+      MEDIA_LOCAL_DIR: ${MEDIA_LOCAL_DIR:-/app/var/media}
+      MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-/media}
+    volumes:
+      - media_data:/app/var/media
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,3 +60,4 @@ services:
 
 volumes:
   postgres_data:
+  media_data:
