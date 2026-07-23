@@ -160,6 +160,10 @@ cp .env.example .env
 npm run docker:dev
 ```
 
+The development API container builds the shared workspace and applies pending database migrations
+before it starts. Demo seed data remains explicit: run `npm run db:seed` when the demo accounts and
+catalog are required.
+
 Development URLs:
 
 | Service    | URL                              |
