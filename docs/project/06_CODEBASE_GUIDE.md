@@ -128,8 +128,9 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 5. Handle loading, empty, error, disabled, success, and retry states.
 6. Use responsive constraints; staff side queue remains a left rail that compacts on small screens.
 7. Use semantic controls and existing icon library/style conventions.
-8. Add API methods/hooks outside the page and component tests for risky behavior.
-9. Verify desktop and mobile routes in a browser.
+8. Standalone auth/public/customer entry pages outside shared role layouts must still expose the same compact language switcher used by role layouts. Public pages typically use `StandalonePageTopBar`; login keeps the control independently at the viewport's top-right so the authentication card remains vertically centered.
+9. Add API methods/hooks outside the page and component tests for risky behavior.
+10. Verify desktop and mobile routes in a browser.
 
 ## 9. Error, logging, and transactions
 

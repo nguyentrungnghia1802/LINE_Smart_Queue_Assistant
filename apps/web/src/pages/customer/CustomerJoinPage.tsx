@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
+import { StandalonePageTopBar } from '../../components/layout/StandalonePageTopBar';
 import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
 import { formatDateTime } from '../../i18n/format';
 import { get, post, put } from '../../services/apiClient';
@@ -414,16 +416,22 @@ export function CustomerJoinPage({
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)]">
-        <p className="text-gray-500">{t('states.loading', { ns: 'common' })}</p>
+      <div className="min-h-screen bg-[var(--app-bg)]">
+        {!isLiffMode && <StandalonePageTopBar />}
+        <div className="flex items-center justify-center px-4 py-16">
+          <p className="text-gray-500">{t('states.loading', { ns: 'common' })}</p>
+        </div>
       </div>
     );
   }
 
   if (isError || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)] px-4">
-        <p className="text-red-600">{t('booking.storeNotFound', { ns: 'customer' })}</p>
+      <div className="min-h-screen bg-[var(--app-bg)]">
+        {!isLiffMode && <StandalonePageTopBar />}
+        <div className="flex items-center justify-center px-4 py-16">
+          <p className="text-red-600">{t('booking.storeNotFound', { ns: 'customer' })}</p>
+        </div>
       </div>
     );
   }
@@ -466,6 +474,11 @@ export function CustomerJoinPage({
                 {t('nav.dashboard', { ns: 'common' })}
               </button>
             )
+          )}
+          {!isLiffMode && (
+            <div className={isAuthenticated ? undefined : 'ml-auto'}>
+              <LanguageSwitcher compact />
+            </div>
           )}
         </div>
       </header>

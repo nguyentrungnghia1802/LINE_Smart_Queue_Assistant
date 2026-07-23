@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
+import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher';
 import { ApiClientError } from '../services/apiClient';
 import { useAuthStore } from '../store/authStore';
 
@@ -41,7 +42,10 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)] px-4 py-8">
+    <div className="relative flex min-h-screen items-center justify-center bg-[var(--app-bg)] px-4 py-20">
+      <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+        <LanguageSwitcher compact />
+      </div>
       <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/80 bg-white shadow-[var(--shadow-soft)] lg:grid-cols-[1fr_420px]">
         <section className="hidden bg-gray-950 p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div>

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate } from 'react-router-dom';
 
+import { StandalonePageTopBar } from '../components/layout/StandalonePageTopBar';
 import { useAuthStore } from '../store/authStore';
 
 export function AccountPage() {
@@ -10,8 +11,9 @@ export function AccountPage() {
   if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="mx-auto max-w-3xl space-y-6">
+    <main className="min-h-screen bg-gray-50">
+      <StandalonePageTopBar contentClassName="max-w-3xl" />
+      <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">

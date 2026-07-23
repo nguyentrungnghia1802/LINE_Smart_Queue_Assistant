@@ -29,22 +29,39 @@ export function LiffLayout() {
   const liff = useLiff();
   const { initStatus, error } = liff;
 
+  const topHeader = (
+    <header className="flex items-center gap-2 bg-line-green px-4 py-3 text-white shrink-0">
+      <span className="text-xl font-bold tracking-tight">
+        {import.meta.env.VITE_APP_NAME ?? 'LINE Queue'}
+      </span>
+      <div className="ml-auto">
+        <LanguageSwitcher compact />
+      </div>
+    </header>
+  );
+
   if (initStatus === 'idle' || initStatus === 'loading') {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center bg-white">
-        <Spinner size="lg" />
-        <p className="mt-4 text-sm text-gray-500">{t('states.loading')}</p>
+      <div className="min-h-dvh flex flex-col bg-white">
+        {topHeader}
+        <div className="flex flex-1 flex-col items-center justify-center px-6">
+          <Spinner size="lg" />
+          <p className="mt-4 text-sm text-gray-500">{t('states.loading')}</p>
+        </div>
       </div>
     );
   }
 
   if (initStatus === 'error') {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center bg-white px-6">
-        <ErrorState
-          title={t('errors.INTERNAL_ERROR')}
-          message={error?.message ?? t('errors.UNKNOWN')}
-        />
+      <div className="min-h-dvh flex flex-col bg-white">
+        {topHeader}
+        <div className="flex flex-1 flex-col items-center justify-center px-6">
+          <ErrorState
+            title={t('errors.INTERNAL_ERROR')}
+            message={error?.message ?? t('errors.UNKNOWN')}
+          />
+        </div>
       </div>
     );
   }
@@ -52,15 +69,7 @@ export function LiffLayout() {
   return (
     <LiffRuntimeProvider value={liff}>
       <div className="min-h-dvh flex flex-col bg-gray-50">
-        {/* ── Top header ── */}
-        <header className="bg-line-green text-white px-4 py-3 flex items-center gap-2 shrink-0">
-          <span className="text-xl font-bold tracking-tight">
-            {import.meta.env.VITE_APP_NAME ?? 'LINE Queue'}
-          </span>
-          <div className="ml-auto rounded-md bg-white px-1 text-gray-900">
-            <LanguageSwitcher compact />
-          </div>
-        </header>
+        {topHeader}
 
         {/* ── Page content (scrollable) ── */}
         <main className="flex-1 overflow-y-auto px-4 py-5 pb-24">
