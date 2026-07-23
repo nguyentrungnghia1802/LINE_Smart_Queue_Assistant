@@ -20,6 +20,7 @@ All notable project changes should be recorded here. This file tracks delivered 
 - Added Japanese-default internationalization with Vietnamese/English resources, persisted user/organization locales, localized LINE outbox templates, translation tables, and locale-aware Intl formatting.
 - Rebalanced the login experience with centered brand content and icon-led reception, LINE notification, and JPY payment highlights.
 - Packaged canonical migrations and compiled seed tooling in the production API image while excluding generated seed output from source control.
+- Fixed production same-origin API configuration so existing `/api/v1` request paths are not prefixed as `/api/api/v1`.
 
 ### LINE Messaging
 

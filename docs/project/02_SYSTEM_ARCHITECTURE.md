@@ -33,7 +33,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
 | Payment provider  | Demo adapter or future PSP                  | Hosted/payment redirect and authoritative webhook                                      |
 
-Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and `/media/*` to the internal `api:4000` service without stripping either prefix, so browser code and locally persisted media use the same public origin. The Vite development server proxies these same prefixes to the local API, keeping persisted image URLs working at `localhost:5173`. API requests use `VITE_API_URL=/api` in production.
+Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and `/media/*` to the internal `api:4000` service without stripping either prefix, so browser code and locally persisted media use the same public origin. The Vite development server proxies these same prefixes to the local API, keeping persisted image URLs working at `localhost:5173`. Production API requests use an empty `VITE_API_URL` because service paths already include `/api/v1`.
 
 ## 3. Backend module architecture
 
@@ -117,7 +117,7 @@ Authenticated order and direct queue creation copy only `req.user.lineUserId`, w
 
 ## 7. Synchronous flows
 
-- Browser-to-API communication is JSON REST over `/api/v1`. Production frontend bundles use the public `VITE_API_URL=/api` value and rely on the web nginx reverse proxy to forward requests to the internal API service.
+- Browser-to-API communication is JSON REST over `/api/v1`. Production frontend bundles keep the public `VITE_API_URL` value empty and rely on the web nginx reverse proxy to forward those same-origin request paths to the internal API service.
 - API-to-PostgreSQL uses parameterized `pg` queries and explicit transactions for multi-row writes.
 - Queue/order services never call LINE directly. They enqueue durable notification intents in PostgreSQL through `QueueNotificationService` and `NotificationOutboxRepository` inside the same business transaction as the queue/order state change.
 - API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`; queue lifecycle copy, Flex Message payloads, text fallbacks, and ticket deep links are centralized in `line-notification.templates.ts` and sent by the notification delivery worker through `lineNotificationService`.
