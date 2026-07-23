@@ -8,7 +8,12 @@ import { UserRole } from '@line-queue/shared';
 import { BrandLogo } from '../components/BrandLogo';
 import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher';
 import { ApiClientError } from '../services/apiClient';
+import { getCustomerLineEntryUrl } from '../services/liff/entryUrl';
 import { useAuthStore } from '../store/authStore';
+
+const CUSTOMER_LINE_ENTRY_URL = getCustomerLineEntryUrl('/liff/home');
+const LEGACY_CUSTOMER_AUTH_ENABLED =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_LEGACY_CUSTOMER_AUTH === 'true';
 
 export function LoginPage() {
   const { t } = useTranslation(['auth', 'common']);
@@ -78,8 +83,32 @@ export function LoginPage() {
             <h2 className="mt-5 text-2xl font-bold text-gray-950">
               {t('login.title', { ns: 'auth' })}
             </h2>
-            <p className="mt-1 text-sm text-gray-500">{t('login.subtitle', { ns: 'auth' })}</p>
+            <p className="mt-1 text-sm text-gray-500">
+              {t('login.customerLineDescription', { ns: 'auth' })}
+            </p>
           </div>
+
+          {CUSTOMER_LINE_ENTRY_URL && (
+            <a
+              href={CUSTOMER_LINE_ENTRY_URL}
+              className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#06C755] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#05b54c] focus:outline-none focus:ring-4 focus:ring-[#06C755]/20"
+            >
+              <LineIcon />
+              {t('login.continueWithLine', { ns: 'auth' })}
+            </a>
+          )}
+
+          <div className="my-6 flex items-center gap-3" aria-hidden="true">
+            <span className="h-px flex-1 bg-gray-200" />
+            <span className="text-xs font-semibold text-gray-400">
+              {t('login.operationsDivider', { ns: 'auth' })}
+            </span>
+            <span className="h-px flex-1 bg-gray-200" />
+          </div>
+
+          <p className="mb-4 text-sm text-gray-500">
+            {t('login.operationsSubtitle', { ns: 'auth' })}
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -147,16 +176,26 @@ export function LoginPage() {
               {loading ? t('login.submitting', { ns: 'auth' }) : t('login.submit', { ns: 'auth' })}
             </button>
 
-            <p className="pt-2 text-center text-sm text-gray-500">
-              {t('login.noAccount', { ns: 'auth' })}{' '}
-              <Link to="/register" className="font-medium text-brand-700 hover:text-brand-800">
-                {t('login.customerRegister', { ns: 'auth' })}
-              </Link>
-            </p>
+            {LEGACY_CUSTOMER_AUTH_ENABLED && (
+              <p className="pt-2 text-center text-sm text-gray-500">
+                {t('login.legacyCustomerAuth', { ns: 'auth' })}{' '}
+                <Link to="/register" className="font-medium text-brand-700 hover:text-brand-800">
+                  {t('login.customerRegister', { ns: 'auth' })}
+                </Link>
+              </p>
+            )}
           </form>
         </div>
       </div>
     </div>
+  );
+}
+
+function LineIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path d="M21.7 10.3c0-4.3-4.3-7.8-9.7-7.8S2.3 6 2.3 10.3c0 3.9 3.4 7.1 8.1 7.7.3.1.7.2.8.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1.2 1.1.7 1.3-.6 7.1-4.2 9.6-7.3 1.7-1.8 1.9-3.6 1.9-3.5ZM8.2 12.8H6.3a.5.5 0 0 1-.5-.5V8.5a.5.5 0 0 1 1 0v3.3h1.4a.5.5 0 0 1 0 1Zm1.9-.5a.5.5 0 0 1-1 0V8.5a.5.5 0 0 1 1 0v3.8Zm4.6 0a.5.5 0 0 1-.9.3l-1.9-2.5v2.2a.5.5 0 0 1-1 0V8.5a.5.5 0 0 1 .9-.3l1.9 2.5V8.5a.5.5 0 0 1 1 0v3.8Zm3.1-2.4a.5.5 0 0 1 0 1h-1.4v.9h1.4a.5.5 0 0 1 0 1h-1.9a.5.5 0 0 1-.5-.5V8.5a.5.5 0 0 1 .5-.5h1.9a.5.5 0 0 1 0 1h-1.4v.9h1.4Z" />
+    </svg>
   );
 }
 

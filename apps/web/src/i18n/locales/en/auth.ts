@@ -1,7 +1,10 @@
 export const auth = {
   login: {
     title: 'Log in',
-    subtitle: 'Enter your account details.',
+    customerLineDescription: 'Customers can start booking quickly with LINE.',
+    continueWithLine: 'Continue with LINE',
+    operationsDivider: 'Business access',
+    operationsSubtitle: 'Staff, managers, and administrators sign in with email.',
     submit: 'Log in',
     submitting: 'Logging in…',
     invalid: 'The email or password is incorrect.',
@@ -10,7 +13,7 @@ export const auth = {
     forgotPassword: 'Forgot password?',
     intro:
       'Manage reception, product selection, staff calls, and LINE notifications in one system.',
-    noAccount: 'Do not have an account?',
+    legacyCustomerAuth: 'Development customer account',
     customerRegister: 'Customer registration',
     onlineReception: 'Online reception',
     notificationIntegration: 'Notification integration',

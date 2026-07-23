@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { get } from '../../services/apiClient';
+import { buildLiffEntryUrl } from '../../services/liff/entryUrl';
 
 interface OrgInfo {
   id: string;
@@ -27,23 +28,22 @@ export function ManagerQRPage() {
     queryFn: () => get<OrgInfo>('/api/v1/orgs/my-org'),
   });
 
-  const joinUrl =
+  const publicJoinUrl =
     orgData?.joinUrl ??
     (orgData?.publicQrToken
       ? `${window.location.origin}/qr/${orgData.publicQrToken}`
       : `${window.location.origin}/join/demo`);
 
   const liffTarget = orgData?.publicQrToken ? `/liff/qr/${orgData.publicQrToken}` : '/liff/home';
-  const liffUrl = LIFF_ID
-    ? `https://liff.line.me/${LIFF_ID}?liff.state=${encodeURIComponent(liffTarget)}`
-    : null;
+  const liffUrl = buildLiffEntryUrl(LIFF_ID, liffTarget);
+  const primaryCustomerUrl = liffUrl ?? publicJoinUrl;
 
   function handleCopy() {
-    void navigator.clipboard.writeText(joinUrl ?? '');
+    void navigator.clipboard.writeText(primaryCustomerUrl);
   }
 
-  function handleCopyLiff() {
-    if (liffUrl) void navigator.clipboard.writeText(liffUrl);
+  function handleCopyPublicFallback() {
+    void navigator.clipboard.writeText(publicJoinUrl);
   }
 
   function handlePrint() {
@@ -90,7 +90,7 @@ export function ManagerQRPage() {
             onClick={handleCopy}
             className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50"
           >
-            {t('qr.copyLink')}
+            {t('qr.copyPrimaryLink')}
           </button>
           <button
             type="button"
@@ -107,15 +107,19 @@ export function ManagerQRPage() {
           <div className="grid gap-0 lg:grid-cols-[360px_1fr]">
             <div className="bg-gray-950 p-6 text-white">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#06C755]">
-                Public QR
+                {liffUrl ? t('qr.liffPrimary') : t('qr.publicFallback')}
               </p>
               <h2 className="mt-3 text-2xl font-bold">{orgData?.name ?? t('qr.storeFallback')}</h2>
               {orgData?.address && (
                 <p className="mt-2 text-sm leading-6 text-gray-300">{orgData.address}</p>
               )}
               <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs text-gray-400">{t('qr.publicUrl')}</p>
-                <p className="mt-2 break-all text-sm font-semibold text-white">{joinUrl}</p>
+                <p className="text-xs text-gray-400">
+                  {liffUrl ? t('qr.liffUrl') : t('qr.publicUrl')}
+                </p>
+                <p className="mt-2 break-all text-sm font-semibold text-white">
+                  {primaryCustomerUrl}
+                </p>
               </div>
             </div>
 
@@ -133,7 +137,11 @@ export function ManagerQRPage() {
                   </p>
                 )}
                 <div className="qr-frame mt-5 rounded-2xl border border-gray-100 bg-white p-4">
-                  <QRCodeSVG value={joinUrl} size={220} />
+                  <QRCodeSVG
+                    value={primaryCustomerUrl}
+                    size={220}
+                    fgColor={liffUrl ? '#06C755' : '#111827'}
+                  />
                 </div>
                 <p className="caption mt-4 text-sm font-bold text-gray-700">
                   {t('qr.receptionQr')}
@@ -147,34 +155,30 @@ export function ManagerQRPage() {
           <div className="rounded-2xl border border-[#06C755]/20 bg-white p-5 shadow-[var(--shadow-soft)]">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#06C755]">
-                  LINE
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+                  {t('qr.web')}
                 </p>
-                <h2 className="mt-1 font-bold text-gray-950">LIFF QR</h2>
+                <h2 className="mt-1 font-bold text-gray-950">{t('qr.publicFallback')}</h2>
               </div>
-              <span className="rounded-full bg-[#06C755]/10 px-2.5 py-1 text-xs font-bold text-[#048b3b]">
-                {liffUrl ? t('qr.configured') : t('qr.notConfigured')}
+              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600">
+                {t('qr.development')}
               </span>
             </div>
 
-            {liffUrl ? (
-              <div className="mt-5 flex flex-col items-center">
-                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                  <QRCodeSVG value={liffUrl} size={180} fgColor="#06C755" />
-                </div>
-                <p className="mt-4 w-full break-all rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-500">
-                  {liffUrl}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleCopyLiff}
-                  className="mt-3 w-full rounded-xl bg-[#06C755] py-2.5 text-sm font-bold text-white hover:bg-[#05b54c]"
-                >
-                  {t('qr.copyLiff')}
-                </button>
-              </div>
-            ) : (
-              <div className="mt-5 rounded-xl bg-gray-50 p-4 text-sm text-gray-500">
+            <p className="mt-4 text-sm leading-6 text-gray-500">{t('qr.publicFallbackHint')}</p>
+            <p className="mt-3 break-all rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-500">
+              {publicJoinUrl}
+            </p>
+            <button
+              type="button"
+              onClick={handleCopyPublicFallback}
+              className="mt-3 w-full rounded-xl border border-gray-200 bg-white py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50"
+            >
+              {t('qr.copyFallback')}
+            </button>
+
+            {!liffUrl && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
                 {t('qr.liffMissing')}
               </div>
             )}

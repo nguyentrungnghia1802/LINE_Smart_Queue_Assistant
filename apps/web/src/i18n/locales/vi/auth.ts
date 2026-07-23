@@ -1,7 +1,10 @@
 export const auth = {
   login: {
     title: 'Đăng nhập',
-    subtitle: 'Nhập thông tin tài khoản của bạn.',
+    customerLineDescription: 'Khách hàng có thể bắt đầu đặt chỗ nhanh chóng bằng LINE.',
+    continueWithLine: 'Tiếp tục bằng LINE',
+    operationsDivider: 'Dành cho doanh nghiệp',
+    operationsSubtitle: 'Nhân viên, quản lý và quản trị viên đăng nhập bằng email.',
     submit: 'Đăng nhập',
     submitting: 'Đang đăng nhập…',
     invalid: 'Email hoặc mật khẩu không chính xác.',
@@ -9,7 +12,7 @@ export const auth = {
     hidePassword: 'Ẩn mật khẩu',
     forgotPassword: 'Quên mật khẩu?',
     intro: 'Quản lý tiếp nhận, lựa chọn sản phẩm, gọi lượt và thông báo LINE trong một hệ thống.',
-    noAccount: 'Chưa có tài khoản?',
+    legacyCustomerAuth: 'Tài khoản khách dùng khi phát triển',
     customerRegister: 'Đăng ký khách hàng',
     onlineReception: 'Tiếp nhận trực tuyến',
     notificationIntegration: 'Tích hợp thông báo',
