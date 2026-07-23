@@ -1,6 +1,4 @@
-version: '3.9'
-
-# ── Production stack ───────────────────────────────────────────────────────────
+# ── Local production-like stack ────────────────────────────────────────────────
 # Usage:
 #   docker compose up --build
 #   docker compose up --build -d   (detached)
@@ -46,13 +44,11 @@ services:
       # Override host to use internal Docker service name "postgres"
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-line_queue}
       CORS_ORIGIN: ${WEB_ORIGIN:-http://localhost:80}
-    ports:
-      - '${API_PORT:-4000}:4000'
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:4000/health >/dev/null || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/health >/dev/null || exit 1']
       interval: 30s
       timeout: 5s
       start_period: 20s
@@ -66,8 +62,13 @@ services:
       target: runner
       args:
         # VITE_* are inlined at build time by Vite — provide here or in .env
-        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_APP_NAME: ${VITE_APP_NAME:-LINE Smart Queue Assistant}
+        VITE_LIFF_ID: ${VITE_LIFF_ID:-}
+        VITE_LIFF_DEFAULT_BOOKING_PATH: ${VITE_LIFF_DEFAULT_BOOKING_PATH:-/liff/qr/demo-queue-lab-2026}
+        VITE_LIFF_MOCK: ${VITE_LIFF_MOCK:-false}
+        VITE_PAYMENT_MODE: ${VITE_PAYMENT_MODE:-demo}
+        VITE_PAYMENT_REDIRECT_BASE_URL: ${VITE_PAYMENT_REDIRECT_BASE_URL:-}
     container_name: lq-web
     restart: unless-stopped
     ports:

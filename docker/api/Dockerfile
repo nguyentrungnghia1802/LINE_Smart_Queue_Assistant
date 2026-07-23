@@ -19,7 +19,7 @@ COPY packages/config/package*.json     ./packages/config/
 COPY packages/shared/package*.json     ./packages/shared/
 COPY apps/api/package*.json            ./apps/api/
 
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # ── dev: hot-reload development target ────────────────────────────────────────
 # Source is mounted via docker compose volumes — NOT copied here.
@@ -38,7 +38,7 @@ COPY package*.json                     ./
 COPY packages/config/package*.json     ./packages/config/
 COPY packages/shared/package*.json     ./packages/shared/
 COPY apps/api/package*.json            ./apps/api/
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 # ── builder: compile TypeScript ────────────────────────────────────────────────
 FROM base AS builder
@@ -72,7 +72,7 @@ USER appuser
 EXPOSE 4000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:4000/health || exit 1
+  CMD wget -qO- http://127.0.0.1:4000/health || exit 1
 
 CMD ["node", "apps/api/dist/server.js"]
 
