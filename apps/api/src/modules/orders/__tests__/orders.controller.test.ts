@@ -59,4 +59,21 @@ describe('createOrder controller', () => {
 
     expect(mockCreate).toHaveBeenCalledWith(dto, undefined);
   });
+
+  it('rejects a business account before creating a customer booking', async () => {
+    const req = {
+      body: { orgSlug: 'smart-queue', items: [] },
+      user: { id: 'staff-001', role: UserRole.STAFF },
+    } as unknown as Request;
+    const res = makeResponse();
+    const next = jest.fn();
+
+    createOrder(req, res, next);
+    await flushPromises();
+
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 403, code: 'CUSTOMER_ACCOUNT_REQUIRED' })
+    );
+  });
 });

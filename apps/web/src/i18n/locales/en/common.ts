@@ -91,6 +91,7 @@ export const common = {
   errors: {
     UNAUTHORIZED: 'Please log in again.',
     FORBIDDEN: 'You do not have permission to perform this action.',
+    CUSTOMER_ACCOUNT_REQUIRED: 'A customer account is required to start reception.',
     NOT_FOUND: 'The requested information was not found.',
     CONFLICT: 'This action cannot be completed in the current state.',
     VALIDATION_ERROR: 'Please check the entered information.',

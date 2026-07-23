@@ -79,6 +79,14 @@ export const customer = {
     decreaseItem: '{{name}} を減らす',
     itemQuantity: '{{name}} の数量',
     increaseItem: '{{name}} を追加',
+    customerAccountRequiredBadge: 'お客様アカウントが必要です',
+    customerAccountRequiredTitle: 'お客様として受付を開始してください',
+    customerAccountRequiredDescription:
+      '現在は運営用アカウントでログインしています。受付・注文はお客様用LINEアカウントで行ってください。',
+    customerAccountRequiredSessionHint: '現在の運営用ログイン状態は変更されません。',
+    continueAsCustomerWithLine: 'LINEでお客様として受付を開始',
+    returnToDashboard: 'ホームへ戻る',
+    lineEntryUnavailable: 'LINE受付の設定が必要です。管理者にお問い合わせください。',
   },
   ticket: {
     notFound: '受付番号が見つかりません',
