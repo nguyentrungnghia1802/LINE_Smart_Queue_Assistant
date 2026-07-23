@@ -5,6 +5,7 @@ node_modules
 # ── Build outputs (rebuilt inside image) ─────────────────────────────────────
 dist
 **/dist
+dist-seeds
 build
 **/build
 
