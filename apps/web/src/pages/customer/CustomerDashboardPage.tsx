@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
 import { AccountMenu } from '../../components/layout/AccountMenu';
 import { get } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
@@ -117,8 +118,24 @@ export function CustomerDashboardPage() {
     }
   }, []);
 
-  if (loading)
-    return <div className="p-6 text-gray-500">{t('dashboard.loading', { ns: 'customer' })}</div>;
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {t('dashboard.title', { ns: 'customer' })}
+          </h1>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher compact />
+            <AccountMenu compact />
+          </div>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-gray-500">
+          {t('dashboard.loading', { ns: 'customer' })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
@@ -126,7 +143,10 @@ export function CustomerDashboardPage() {
         <h1 className="text-2xl font-bold text-gray-900">
           {t('dashboard.title', { ns: 'customer' })}
         </h1>
-        <AccountMenu compact />
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher compact />
+          <AccountMenu compact />
+        </div>
       </div>
 
       {error && <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm">{error}</div>}

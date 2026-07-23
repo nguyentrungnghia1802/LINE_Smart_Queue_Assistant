@@ -43,6 +43,10 @@ npm run docker:dev
 | PostgreSQL     | `localhost:5432`        |
 | Node inspector | `localhost:9229`        |
 
+The development API container builds `packages/shared` and applies pending canonical
+`node-pg-migrate` migrations before starting the hot-reload server. It does not seed demo data
+automatically; run `npm run db:seed` explicitly when demo accounts and catalog data are needed.
+
 Useful commands:
 
 ```bash
@@ -217,11 +221,23 @@ npm run docker:dev:logs
 
 ### Shared package import/build error
 
-Run `npm run build -w packages/shared` before starting/building dependent workspaces.
+For native development, run `npm run build -w packages/shared` before starting/building dependent
+workspaces. Docker development performs this build during API container startup. If
+`@line-queue/shared/dist/index.js` is missing in Docker, recreate the API container from the current
+`docker-compose.dev.yml`.
 
 ### Database connection failure
 
 Verify `DATABASE_URL`, Docker database name/password, host (`localhost` natively, `postgres` inside Compose), and `/ready`.
+
+If scheduler logs report missing relations such as `scheduler_job_runs` or `notifications`, verify
+that the API startup migration completed successfully before the dev server started.
+
+### API container is running but unhealthy
+
+The development healthcheck must probe `http://127.0.0.1:4000/health`. Using `localhost` may resolve
+to IPv6 inside Alpine while the API listener is bound to IPv4, producing a false
+`connection refused` result.
 
 ### LINE push silently mocked
 
