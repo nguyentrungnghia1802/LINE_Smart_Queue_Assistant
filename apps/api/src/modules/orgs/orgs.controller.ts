@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 
+import { config } from '../../config';
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { productsRepository } from '../../db/repositories/products.repository';
 import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
@@ -9,6 +10,7 @@ import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 
+import { buildOrganizationBookingUrl } from './org-booking-url';
 import { orgsService } from './orgs.service';
 import { BusinessCalendarDto, UpdateOrgSettingsDto } from './orgs.validator';
 
@@ -99,8 +101,9 @@ export const getManagerOrg = asyncHandler(async (req: Request, res: Response) =>
   const org = await organizationsRepository.findById(orgId);
   if (!org) throw AppError.notFound('Organization not found');
 
-  const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
-  const joinUrl = org.public_qr_token ? `${frontendUrl}/qr/${org.public_qr_token}` : null;
+  const joinUrl = org.public_qr_token
+    ? buildOrganizationBookingUrl(config.web.origin, org.public_qr_token)
+    : null;
 
   sendSuccess(res, {
     id: org.id,
@@ -142,8 +145,9 @@ export const updateManagerOrg = asyncHandler(async (req: Request, res: Response)
     userAgent: req.get('user-agent'),
   });
 
-  const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
-  const joinUrl = org.public_qr_token ? `${frontendUrl}/qr/${org.public_qr_token}` : null;
+  const joinUrl = org.public_qr_token
+    ? buildOrganizationBookingUrl(config.web.origin, org.public_qr_token)
+    : null;
 
   sendSuccess(res, {
     id: org.id,

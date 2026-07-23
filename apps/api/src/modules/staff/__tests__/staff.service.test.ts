@@ -50,6 +50,12 @@ const mockFindEntryById = queueEntriesRepository.findById as jest.MockedFunction
 const mockListWaiting = queueEntriesRepository.listWaiting as jest.MockedFunction<
   typeof queueEntriesRepository.listWaiting
 >;
+const mockCountWaitingEntries = queueEntriesRepository.countWaiting as jest.MockedFunction<
+  typeof queueEntriesRepository.countWaiting
+>;
+const mockCountActiveEntries = queuesRepository.countWaiting as jest.MockedFunction<
+  typeof queuesRepository.countWaiting
+>;
 const mockFindByQueueAndStatus = queueEntriesRepository.findByQueueAndStatus as jest.MockedFunction<
   typeof queueEntriesRepository.findByQueueAndStatus
 >;
@@ -150,6 +156,8 @@ beforeEach(() => {
   // Audit log should succeed silently by default
   mockAuditCreate.mockResolvedValue(auditLogRow);
   mockFindQueueById.mockResolvedValue(baseQueue);
+  mockCountWaitingEntries.mockResolvedValue(0);
+  mockCountActiveEntries.mockResolvedValue(0);
   mockWithTransaction.mockImplementation(async (fn) => fn({} as never));
   mockNotifyTicketCancelled.mockResolvedValue(undefined);
 });
@@ -167,6 +175,8 @@ describe('staffService.getQueueOverview', () => {
     expect(overview.queueId).toBe(QUEUE_ID);
     expect(overview.queueName).toBe('Test Queue');
     expect(overview.waitingCount).toBe(0);
+    expect(overview.totalActiveCount).toBe(0);
+    expect(mockListWaiting).toHaveBeenCalledWith(QUEUE_ID, undefined, 8);
     expect(overview.calledEntry).toBeNull();
     expect(overview.servingEntry).toBeNull();
   });
@@ -177,6 +187,7 @@ describe('staffService.getQueueOverview', () => {
 
     mockFindQueueById.mockResolvedValue(baseQueue);
     mockListWaiting.mockResolvedValue([]);
+    mockCountActiveEntries.mockResolvedValue(2);
     mockFindByQueueAndStatus
       .mockResolvedValueOnce(calledEntry) // called
       .mockResolvedValueOnce(servingEntry); // serving
@@ -185,6 +196,8 @@ describe('staffService.getQueueOverview', () => {
 
     expect(overview.calledEntry?.status).toBe('called');
     expect(overview.servingEntry?.status).toBe('serving');
+    expect(overview.totalActiveCount).toBe(2);
+    expect(mockListWaiting).toHaveBeenCalledWith(QUEUE_ID, undefined, 6);
   });
 
   it('throws 404 when queue not found', async () => {

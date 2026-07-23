@@ -21,6 +21,30 @@ if (!databaseUrl) {
 }
 
 const pool = new Pool({ connectionString: databaseUrl });
+const args = new Set(process.argv.slice(2));
+const resetRequested = args.has('--reset');
+const demoRequested = args.has('--demo');
+const supportedArgs = new Set(['--reset', '--demo']);
+const unknownArgs = [...args].filter((arg) => !supportedArgs.has(arg));
+
+if (unknownArgs.length > 0) {
+  throw new Error(`Unsupported seed arguments: ${unknownArgs.join(', ')}`);
+}
+
+if (resetRequested) {
+  const databaseHost = new URL(databaseUrl).hostname;
+  const localDatabaseHosts = new Set(['localhost', '127.0.0.1', '::1']);
+  const explicitResetAllowed = process.env.ALLOW_DESTRUCTIVE_SEED_RESET === 'true';
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Seed reset is disabled when NODE_ENV=production');
+  }
+  if (!localDatabaseHosts.has(databaseHost) && !explicitResetAllowed) {
+    throw new Error(
+      'Seed reset is limited to local databases. Set ALLOW_DESTRUCTIVE_SEED_RESET=true only for an isolated development database.'
+    );
+  }
+}
 
 function log(message: string): void {
   process.stdout.write(`${message}\n`);
@@ -38,32 +62,43 @@ async function main(): Promise<void> {
   try {
     await client.query('BEGIN');
 
+    if (resetRequested) {
+      log('[seed] Resetting local application data');
+      await client.query('TRUNCATE TABLE organizations, users RESTART IDENTITY CASCADE');
+    }
+
     log('[seed] 001 - organizations');
     await seedOrganizations(client);
 
     log('[seed] 002 - users + organization members');
     await seedUsers(client);
 
-    log('[seed] 003 - LINE accounts');
-    await seedLineAccounts(client);
+    if (demoRequested) {
+      log('[seed:demo] 003 - LINE accounts');
+      await seedLineAccounts(client);
 
-    log('[seed] 004 - products/services');
-    await seedProducts(client);
+      log('[seed:demo] 004 - products/services');
+      await seedProducts(client);
 
-    log('[seed] 005 - queues');
-    await seedQueues(client);
+      log('[seed:demo] 005 - queues');
+      await seedQueues(client);
 
-    log('[seed] 006 - orders + queue entries + histories');
-    await seedOrdersAndQueueEntries(client);
+      log('[seed:demo] 006 - orders + queue entries + histories');
+      await seedOrdersAndQueueEntries(client);
 
-    log('[seed] 007 - notifications');
-    await seedNotifications(client);
+      log('[seed:demo] 007 - notifications');
+      await seedNotifications(client);
 
-    log('[seed] 008 - penalties');
-    await seedPenalties(client);
+      log('[seed:demo] 008 - penalties');
+      await seedPenalties(client);
+    }
 
     await client.query('COMMIT');
-    log('[seed] All seeds completed successfully.');
+    log(
+      demoRequested
+        ? '[seed] Demo profile completed successfully.'
+        : '[seed] Baseline completed successfully; no catalog, queue, order, or notification data was created.'
+    );
     log(
       '[seed] Demo accounts: admin@gmail.com / manager@gmail.com / staff@gmail.com / customer@gmail.com - password: 123456'
     );

@@ -80,6 +80,14 @@ export const customer = {
     decreaseItem: 'Giảm {{name}}',
     itemQuantity: 'Số lượng {{name}}',
     increaseItem: 'Thêm {{name}}',
+    customerAccountRequiredBadge: 'Cần tài khoản khách hàng',
+    customerAccountRequiredTitle: 'Hãy bắt đầu tiếp nhận với tư cách khách hàng',
+    customerAccountRequiredDescription:
+      'Bạn hiện đang đăng nhập bằng tài khoản vận hành. Vui lòng dùng tài khoản LINE của khách hàng để tạo đặt chỗ hoặc đơn hàng.',
+    customerAccountRequiredSessionHint: 'Phiên đăng nhập vận hành hiện tại sẽ không bị thay đổi.',
+    continueAsCustomerWithLine: 'Bắt đầu tiếp nhận với LINE với tư cách khách hàng',
+    returnToDashboard: 'Trở về trang chủ',
+    lineEntryUnavailable: 'Cần cấu hình tiếp nhận LINE. Vui lòng liên hệ quản trị viên.',
   },
   ticket: {
     notFound: 'Không tìm thấy lượt',

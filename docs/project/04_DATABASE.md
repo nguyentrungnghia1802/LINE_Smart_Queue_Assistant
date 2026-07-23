@@ -86,7 +86,7 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 | `queue_hourly_metrics`          | Retained eight-week demand/service aggregate      | Tenant slot indexes, nonnegative counts/durations, bounded weekday/hour, expiry             |
 | `notifications`                 | Durable localized LINE outbox and delivery log    | Unique event key, resolved locale, tenant/entry/user/LINE references, delivery indexes      |
 | `penalty_records`               | No-show/late/cancel/manual policy record          | User/LINE/tenant lookup indexes                                                             |
-| `queue_histories`               | Queue transition/event history                    | Tenant/queue/entry/actor indexes                                                            |
+| `queue_histories`               | Queue transition/event history                    | Tenant/queue/entry indexes; `actor_id` stores the authenticated operator, not the customer  |
 | `audit_logs`                    | Administrative/system audit trail                 | Actor, tenant, resource indexes and JSON changes                                            |
 
 ## 4. Enumerated values
@@ -164,6 +164,7 @@ npm run db:migrate -w apps/api
 npm run db:migrate:status
 npm run db:migrate
 npm run db:seed
+npm run db:seed:demo
 ```
 
 Rules:
@@ -180,7 +181,9 @@ Schema migrations live under `db/migrations/node-pg-migrate`. Root and `apps/api
 
 ## 10. Seed baseline
 
-`db/seeds` provides one Japan-localized demo organization, admin/manager/staff/customer accounts, weekly hours, queues, products, orders, tickets, notifications, and penalties. Password and IDs are deterministic for local demonstration only.
+The default `npm run db:seed` profile creates one Japan-localized organization plus deterministic development users and valid organization memberships. It deliberately creates no products, queues, orders, tickets, payments, notifications, or penalties.
+
+`npm run db:seed:demo` explicitly adds the full demonstration catalog and transactional fixtures. Demo cleanup is restricted to rows marked by the seed profile so reruns do not delete unrelated records. `db:seed:reset` and `db:seed:demo:reset` truncate tenant/application data through foreign-key cascades before reseeding; they are blocked in production and require `ALLOW_DESTRUCTIVE_SEED_RESET=true` for a non-loopback isolated development database. Passwords and fixed IDs are for local demonstration only.
 
 ## 11. Schema gaps requiring follow-up
 

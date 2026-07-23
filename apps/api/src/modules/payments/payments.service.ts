@@ -421,27 +421,59 @@ export const paymentsService = {
         id: string;
         organization_id: string;
         subtotal: string;
-      }>(`SELECT id, organization_id, subtotal FROM orders WHERE id = $1 FOR UPDATE`, [
-        params.orderId,
-      ]);
+        payment_status: string;
+      }>(
+        `SELECT id, organization_id, subtotal, payment_status
+         FROM orders
+         WHERE id = $1
+         FOR UPDATE`,
+        [params.orderId]
+      );
       const order = orderResult.rows[0];
       if (!order) throw AppError.notFound('Order');
       if (order.organization_id !== params.organizationId) throw AppError.forbidden();
 
       let transaction = await paymentTransactionsRepository.findLatestByOrder(order.id, client);
       if (!transaction) {
-        if (params.status !== 'paid') {
+        if (params.status === 'refunded' && order.payment_status !== 'paid') {
           throw AppError.conflict('A paid transaction is required before refund');
         }
+        const itemResult = await client.query<{ product_id: string }>(
+          `SELECT DISTINCT product_id
+           FROM order_items
+           WHERE order_id = $1
+           ORDER BY product_id`,
+          [order.id]
+        );
         transaction = await paymentTransactionsRepository.createManual(
           {
             organizationId: order.organization_id,
             orderId: order.id,
             amount: amountNumber(order.subtotal),
             method: 'cash_or_terminal',
+            coveredProductIds: itemResult.rows.map((item) => item.product_id),
           },
           client
         );
+        if (params.status === 'refunded') {
+          await this.reconcileTransactionInClient(transaction, client);
+          await paymentTransactionsRepository.recordReconciliation(
+            {
+              organizationId: order.organization_id,
+              transactionId: transaction.id,
+              orderId: order.id,
+              actorId: params.actorId,
+              source: 'manual',
+              operationType: 'legacy_paid_backfill',
+              fromStatus: order.payment_status,
+              toStatus: 'paid',
+              amount: amountNumber(order.subtotal),
+              idempotencyKey: `${params.idempotencyKey}:paid-backfill`,
+              reason: 'Backfilled missing transaction before staff refund',
+            },
+            client
+          );
+        }
       }
 
       const total = amountNumber(transaction.amount);
@@ -541,7 +573,10 @@ export const paymentsService = {
         await client.query(
           `UPDATE order_items
            SET refunded_amount = $2,
-               payment_status = CASE WHEN $2 >= prepaid_amount THEN 'refunded' ELSE 'paid' END
+               payment_status = CASE
+                 WHEN $2 >= prepaid_amount THEN 'refunded'::payment_status
+                 ELSE 'paid'::payment_status
+               END
            WHERE id = $1`,
           [item.id, allocation]
         );
@@ -550,8 +585,8 @@ export const paymentsService = {
         `UPDATE orders
          SET refunded_amount = $2,
              payment_status = CASE
-               WHEN $2 >= subtotal AND $3 = 'all_items' THEN 'refunded'
-               ELSE 'paid'
+               WHEN $2 >= subtotal AND $3 = 'all_items' THEN 'refunded'::payment_status
+               ELSE 'paid'::payment_status
              END
          WHERE id = $1`,
         [transaction.order_id, refundedAmount, metadata.scope ?? 'required_items']

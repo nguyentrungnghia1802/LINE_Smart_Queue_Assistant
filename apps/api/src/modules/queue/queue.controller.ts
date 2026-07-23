@@ -1,5 +1,8 @@
 ﻿import { Request, Response } from 'express';
 
+import { UserRole } from '@line-queue/shared';
+
+import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { logger } from '../../utils/logger';
 import { sendCreated, sendSuccess } from '../../utils/response';
@@ -27,6 +30,14 @@ function reqLog(req: Request) {
  * active ticket (idempotent retry).
  */
 export const joinQueue = asyncHandler(async (req: Request, res: Response) => {
+  if (req.user && req.user.role !== UserRole.CUSTOMER) {
+    throw new AppError(
+      'Customer account is required to join a queue',
+      403,
+      'CUSTOMER_ACCOUNT_REQUIRED'
+    );
+  }
+
   const dto: JoinQueueDto = req.body;
   const joinRequest: Parameters<typeof queueService.joinQueue>[0] = {
     ...dto,

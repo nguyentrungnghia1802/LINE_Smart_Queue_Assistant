@@ -176,4 +176,122 @@ describe('paymentsService', () => {
       '33333333-3333-4333-8333-333333333333',
     ]);
   });
+
+  it('casts refund states to the PostgreSQL payment_status enum', async () => {
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'item-1', prepaid_amount: '1500.00' }] })
+      .mockResolvedValue({ rows: [] });
+
+    await paymentsService.reconcileTransactionInClient(
+      {
+        ...baseTransaction,
+        status: 'refunded',
+        order_id: '33333333-3333-4333-8333-333333333333',
+        amount: '1500.00',
+        refunded_amount: '1500.00',
+        metadata: {
+          scope: 'all_items',
+          coveredProductIds: [prepaidProduct.id],
+        },
+      } as never,
+      { query } as never
+    );
+
+    const statements = query.mock.calls.map(([sql]) => String(sql));
+    expect(statements.some((sql) => sql.includes("'refunded'::payment_status"))).toBe(true);
+    expect(statements.some((sql) => sql.includes("'paid'::payment_status"))).toBe(true);
+  });
+
+  it('backfills an audited manual transaction before refunding a legacy paid order', async () => {
+    const orderId = '33333333-3333-4333-8333-333333333333';
+    const actorId = '55555555-5555-4555-8555-555555555555';
+    const client = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: orderId,
+              organization_id: org.id,
+              subtotal: '2000.00',
+              payment_status: 'paid',
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ product_id: prepaidProduct.id }, { product_id: normalProduct.id }],
+        })
+        .mockResolvedValue({ rows: [] }),
+      release: jest.fn(),
+    };
+    const paidManualTransaction = {
+      ...baseTransaction,
+      order_id: orderId,
+      provider: 'manual',
+      method: 'cash_or_terminal',
+      status: 'paid',
+      amount: '2000.00',
+      metadata: {
+        scope: 'all_items',
+        coveredProductIds: [prepaidProduct.id, normalProduct.id],
+      },
+    };
+    const refundedTransaction = {
+      ...paidManualTransaction,
+      status: 'refunded',
+      refunded_amount: '2000.00',
+    };
+
+    jest.mocked(pool.connect).mockResolvedValue(client as never);
+    jest.mocked(paymentTransactionsRepository.findLatestByOrder).mockResolvedValue(null);
+    jest
+      .mocked(paymentTransactionsRepository.createManual)
+      .mockResolvedValue(paidManualTransaction as never);
+    jest.mocked(paymentTransactionsRepository.recordReconciliation).mockResolvedValue(true);
+    jest
+      .mocked(paymentTransactionsRepository.updateStatus)
+      .mockResolvedValue(refundedTransaction as never);
+    const reconcileSpy = jest
+      .spyOn(paymentsService, 'reconcileTransactionInClient')
+      .mockResolvedValue(undefined);
+
+    const result = await paymentsService.manualReconcileOrder({
+      orderId,
+      organizationId: org.id,
+      actorId,
+      status: 'refunded',
+      reason: 'Customer refund',
+      idempotencyKey: 'refund-legacy-order',
+    });
+
+    expect(paymentTransactionsRepository.createManual).toHaveBeenCalledWith(
+      {
+        organizationId: org.id,
+        orderId,
+        amount: 2000,
+        method: 'cash_or_terminal',
+        coveredProductIds: [prepaidProduct.id, normalProduct.id],
+      },
+      client
+    );
+    expect(reconcileSpy).toHaveBeenNthCalledWith(1, paidManualTransaction, client);
+    expect(paymentTransactionsRepository.recordReconciliation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationType: 'legacy_paid_backfill',
+        actorId,
+        idempotencyKey: 'refund-legacy-order:paid-backfill',
+      }),
+      client
+    );
+    expect(paymentTransactionsRepository.updateStatus).toHaveBeenCalledWith(
+      paidManualTransaction.id,
+      expect.objectContaining({ status: 'refunded', refundedAmount: 2000 }),
+      client
+    );
+    expect(result.status).toBe('refunded');
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
+  });
 });

@@ -6,6 +6,11 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Restricted QR booking and direct queue admission to guests or customer accounts, added an explicit LIFF customer entry for authenticated business roles, and preserved their existing dashboard session.
+- Fixed manager booking fallback URLs to use configured `WEB_ORIGIN` instead of a legacy localhost default, made legacy queue QR displays LIFF-first, and documented the required production web-image LIFF build arguments.
+- Added a project-specific Docker build, publication, inspection, Compose, health-check, and cleanup runbook for the API and web images.
+- Fixed staff refunds for legacy paid orders by backfilling an audited manual transaction, limited the staff queue preview to the next eight active customers while preserving total counts, and changed default seeds to organization/account-only with an explicit demo profile.
+- Fixed staff completion/no-show history writes to use the canonical `queue_histories.actor_id` column, normalized inconsistent legacy timing data, corrected demo seed timestamps, and removed the unnecessary Complete request body.
 - Completed atomic inventory reservation lifecycle and queue/counter concurrency controls.
 - Added audited payment reconciliation, replay/out-of-order webhook guards, partial/full refund accounting, and receipt eligibility checks.
 - Added tenant-scoped notification operations, LINE preferences, privacy-aware location alerts, and retention cleanup.
@@ -20,6 +25,7 @@ All notable project changes should be recorded here. This file tracks delivered 
 - Added Japanese-default internationalization with Vietnamese/English resources, persisted user/organization locales, localized LINE outbox templates, translation tables, and locale-aware Intl formatting.
 - Rebalanced the login experience with centered brand content and icon-led reception, LINE notification, and JPY payment highlights.
 - Packaged canonical migrations and compiled seed tooling in the production API image while excluding generated seed output from source control.
+- Fixed production same-origin API configuration so existing `/api/v1` request paths are not prefixed as `/api/api/v1`.
 
 ### LINE Messaging
 
