@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 
+import { UserRole } from '@line-queue/shared';
+
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
@@ -38,6 +40,14 @@ export const getOrderStats = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
+  if (req.user && req.user.role !== UserRole.CUSTOMER) {
+    throw new AppError(
+      'Customer account is required to create a booking',
+      403,
+      'CUSTOMER_ACCOUNT_REQUIRED'
+    );
+  }
+
   const actor = req.user ? { userId: req.user.id, lineUserId: req.user.lineUserId } : undefined;
   const result = await ordersService.create(req.body as CreateOrderDto, actor);
   res.status(201).json({ success: true, data: { order: result.order, queueEntry: result.entry } });
