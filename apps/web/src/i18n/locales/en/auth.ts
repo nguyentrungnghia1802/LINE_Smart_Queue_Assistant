@@ -5,6 +5,9 @@ export const auth = {
     submit: 'Log in',
     submitting: 'Logging in…',
     invalid: 'The email or password is incorrect.',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
+    forgotPassword: 'Forgot password?',
     intro:
       'Manage reception, product selection, staff calls, and LINE notifications in one system.',
     noAccount: 'Do not have an account?',
