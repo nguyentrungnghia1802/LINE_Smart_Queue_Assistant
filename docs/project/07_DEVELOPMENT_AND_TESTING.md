@@ -76,7 +76,7 @@ npm run dev -w apps/api
 npm run dev -w apps/web
 ```
 
-The web API client/proxy expects the API on port `4000`. Start the API and database before diagnosing frontend `/api` failures.
+The web API client/proxy expects the API on port `4000`. Vite proxies both `/api/*` and persisted `/media/*` URLs to that API, so uploaded organization and product images work through the same local origin. Native Vite defaults its server-only `API_PROXY_TARGET` to `http://127.0.0.1:4000`; Docker Compose sets it to `http://api:4000` and mounts `apps/web/public` so static brand assets are available too. `API_PROXY_TARGET` is not a `VITE_*` value and is never compiled into browser code. Start the API and database before diagnosing frontend `/api` or `/media` failures.
 
 ## 5. Database commands
 

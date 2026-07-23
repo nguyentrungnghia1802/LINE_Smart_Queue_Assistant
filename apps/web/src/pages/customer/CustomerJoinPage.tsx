@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import { BrandLogo } from '../../components/BrandLogo';
 import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
 import { StandalonePageTopBar } from '../../components/layout/StandalonePageTopBar';
 import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
@@ -440,27 +441,38 @@ export function CustomerJoinPage({
 
   return (
     <div className="min-h-screen bg-[var(--app-bg)] pb-28">
-      <header className="border-b border-white/80 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-4">
-          {org.logoUrl ? (
-            <img src={org.logoUrl} alt={org.name} className="h-14 w-14 rounded-xl object-cover" />
-          ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-brand-100 text-xl font-bold text-brand-700">
-              {org.name[0]}
+      <header className="border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
+        <div className="mx-auto flex min-h-18 max-w-6xl items-center gap-3 px-4 py-3 sm:gap-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <BrandLogo decorative className="h-10 w-10" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-gray-950 sm:text-base">
+                {t('brandName', { ns: 'common' })}
+              </p>
+              <p className="truncate text-xs font-medium text-brand-700">
+                {t('booking.receptionPage', { ns: 'customer' })}
+              </p>
             </div>
-          )}
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
-              {t('booking.receptionPage', { ns: 'customer' })}
-            </p>
-            <h1 className="truncate text-xl font-bold text-gray-950">{org.name}</h1>
-            {org.address && <p className="truncate text-sm text-gray-500">{org.address}</p>}
+          </div>
+          <div className="hidden h-8 w-px shrink-0 bg-gray-200 md:block" aria-hidden="true" />
+          <div className="hidden min-w-0 items-center gap-2 md:flex">
+            {org.logoUrl ? (
+              <img src={org.logoUrl} alt={org.name} className="h-9 w-9 rounded-lg object-cover" />
+            ) : (
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100 text-sm font-bold text-brand-700">
+                {org.name[0]}
+              </div>
+            )}
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-bold text-gray-900">{org.name}</h1>
+              {org.address && <p className="truncate text-xs text-gray-500">{org.address}</p>}
+            </div>
           </div>
           {isLiffMode ? (
             <button
               type="button"
               onClick={() => navigate('/liff/home')}
-              className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
             >
               {t('nav.home', { ns: 'common' })}
             </button>
@@ -469,7 +481,7 @@ export function CustomerJoinPage({
               <button
                 type="button"
                 onClick={() => navigate('/customer')}
-                className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
               >
                 {t('nav.dashboard', { ns: 'common' })}
               </button>
