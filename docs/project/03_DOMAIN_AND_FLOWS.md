@@ -73,6 +73,13 @@ PostgreSQL values are `waiting`, `called`, `serving`, `served`, `skipped`, `canc
 
 Terminal states are `served`, `cancelled`, and `no_show`. Exact transition guards in queue/staff services are authoritative.
 
+### Customer QR admission
+
+1. A QR URL resolves public organization/catalog data and remains usable by a guest for the documented public fallback flow.
+2. If a JWT is present, only a `customer` role may create an order or join a queue. The API rejects a staff, manager, or admin JWT with `CUSTOMER_ACCOUNT_REQUIRED` before business services run.
+3. The public QR UI detects the same business session, keeps it unchanged, and offers a return path to that role's dashboard.
+4. The UI creates the current QR LIFF deep link only as an explicit customer action. LIFF then verifies the LINE identity and exchanges the ID token for the customer JWT before booking.
+
 ### Order
 
 | Current                | Action                | Next         |

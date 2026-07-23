@@ -3,12 +3,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import { UserRole } from '@line-queue/shared';
+
 import { BrandLogo } from '../../components/BrandLogo';
 import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
 import { StandalonePageTopBar } from '../../components/layout/StandalonePageTopBar';
 import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
 import { formatDateTime } from '../../i18n/format';
 import { get, post, put } from '../../services/apiClient';
+import { getCustomerLineEntryUrl } from '../../services/liff/entryUrl';
 import { useAuthStore } from '../../store/authStore';
 import type { LiffAuthStatus } from '../../types/liff';
 import {
@@ -78,6 +81,21 @@ interface CustomerJoinPageProps {
   liffAuthError?: Error | null;
 }
 
+function dashboardPathForRole(role: UserRole | undefined): string {
+  switch (role) {
+    case UserRole.ADMIN:
+      return '/admin';
+    case UserRole.MANAGER:
+      return '/manager';
+    case UserRole.STAFF:
+      return '/staff';
+    case UserRole.CUSTOMER:
+      return '/customer';
+    default:
+      return '/';
+  }
+}
+
 export function LiffCustomerJoinPage() {
   const liff = useLiffRuntime();
   return (
@@ -97,6 +115,15 @@ export function CustomerJoinPage({
   const { isAuthenticated, user } = useAuthStore();
   const isLiffMode = mode === 'liff';
   const isLineAuthenticated = !isLiffMode || liffAuthStatus === 'authenticated';
+  const isBusinessAccount =
+    isAuthenticated &&
+    user?.role !== UserRole.CUSTOMER &&
+    (!isLiffMode || liffAuthStatus === 'authenticated');
+  const customerLineEntryUrl = token
+    ? getCustomerLineEntryUrl(`/liff/qr/${token}`)
+    : orgSlug
+      ? getCustomerLineEntryUrl(`/liff/q/${orgSlug}`)
+      : null;
 
   const [cart, setCart] = useState<Record<string, number>>({});
   const [customerName, setCustomerName] = useState('');
@@ -439,6 +466,15 @@ export function CustomerJoinPage({
 
   const { org, queue, products } = data;
 
+  if (isBusinessAccount) {
+    return (
+      <CustomerAccountRequiredPage
+        customerLineEntryUrl={customerLineEntryUrl}
+        dashboardPath={dashboardPathForRole(user?.role)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--app-bg)] pb-28">
       <header className="border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
@@ -480,7 +516,7 @@ export function CustomerJoinPage({
             isAuthenticated && (
               <button
                 type="button"
-                onClick={() => navigate('/customer')}
+                onClick={() => navigate(dashboardPathForRole(user?.role))}
                 className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
               >
                 {t('nav.dashboard', { ns: 'common' })}
@@ -751,6 +787,74 @@ export function CustomerJoinPage({
                 : t('booking.prepaymentRequired', { ns: 'customer' })}
           </button>
         </form>
+      </main>
+    </div>
+  );
+}
+
+function CustomerAccountRequiredPage({
+  customerLineEntryUrl,
+  dashboardPath,
+}: Readonly<{
+  customerLineEntryUrl: string | null;
+  dashboardPath: string;
+}>) {
+  const { t } = useTranslation(['customer', 'common']);
+  const navigate = useNavigate();
+
+  return (
+    <div className="min-h-screen bg-[var(--app-bg)]">
+      <header className="border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
+        <div className="mx-auto flex min-h-18 max-w-6xl items-center gap-3 px-4 py-3 sm:gap-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <BrandLogo decorative className="h-10 w-10" />
+            <p className="truncate text-sm font-bold text-gray-950 sm:text-base">
+              {t('brandName', { ns: 'common' })}
+            </p>
+          </div>
+          <div className="ml-auto">
+            <LanguageSwitcher compact />
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto flex min-h-[calc(100vh-73px)] max-w-2xl items-center px-4 py-10">
+        <section className="w-full rounded-2xl border border-amber-200 bg-white p-6 shadow-[var(--shadow-soft)] sm:p-8">
+          <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
+            {t('booking.customerAccountRequiredBadge', { ns: 'customer' })}
+          </span>
+          <h1 className="mt-4 text-2xl font-bold text-gray-950">
+            {t('booking.customerAccountRequiredTitle', { ns: 'customer' })}
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-gray-600">
+            {t('booking.customerAccountRequiredDescription', { ns: 'customer' })}
+          </p>
+          <p className="mt-3 text-sm leading-6 text-gray-600">
+            {t('booking.customerAccountRequiredSessionHint', { ns: 'customer' })}
+          </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            {customerLineEntryUrl && (
+              <a
+                href={customerLineEntryUrl}
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-brand-700"
+              >
+                {t('booking.continueAsCustomerWithLine', { ns: 'customer' })}
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate(dashboardPath)}
+              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50"
+            >
+              {t('booking.returnToDashboard', { ns: 'customer' })}
+            </button>
+          </div>
+          {!customerLineEntryUrl && (
+            <p className="mt-4 text-xs leading-5 text-amber-800">
+              {t('booking.lineEntryUnavailable', { ns: 'customer' })}
+            </p>
+          )}
+        </section>
       </main>
     </div>
   );

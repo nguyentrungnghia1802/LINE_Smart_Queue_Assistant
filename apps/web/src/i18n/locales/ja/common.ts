@@ -91,6 +91,7 @@ export const common = {
   errors: {
     UNAUTHORIZED: '認証が必要です。もう一度ログインしてください。',
     FORBIDDEN: 'この操作を行う権限がありません。',
+    CUSTOMER_ACCOUNT_REQUIRED: '受付にはお客様アカウントが必要です。',
     NOT_FOUND: '指定された情報が見つかりません。',
     CONFLICT: '現在の状態ではこの操作を完了できません。',
     VALIDATION_ERROR: '入力内容を確認してください。',
