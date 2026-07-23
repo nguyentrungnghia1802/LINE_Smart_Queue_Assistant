@@ -33,7 +33,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
 | Payment provider  | Demo adapter or future PSP                  | Hosted/payment redirect and authoritative webhook                                      |
 
-Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification.
+Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` to the internal `api:4000` service without stripping the `/api` prefix, so browser code uses the same origin with `VITE_API_URL=/api`.
 
 ## 3. Backend module architecture
 
@@ -112,7 +112,7 @@ Authenticated order and direct queue creation copy only `req.user.lineUserId`, w
 
 ## 7. Synchronous flows
 
-- Browser-to-API communication is JSON REST over `/api/v1`.
+- Browser-to-API communication is JSON REST over `/api/v1`. Production frontend bundles use the public `VITE_API_URL=/api` value and rely on the web nginx reverse proxy to forward requests to the internal API service.
 - API-to-PostgreSQL uses parameterized `pg` queries and explicit transactions for multi-row writes.
 - Queue/order services never call LINE directly. They enqueue durable notification intents in PostgreSQL through `QueueNotificationService` and `NotificationOutboxRepository` inside the same business transaction as the queue/order state change.
 - API-to-LINE uses HTTPS `fetch` through `ILineMessagingAdapter`; queue lifecycle copy, Flex Message payloads, text fallbacks, and ticket deep links are centralized in `line-notification.templates.ts` and sent by the notification delivery worker through `lineNotificationService`.
