@@ -1,0 +1,58 @@
+# Production image stack.
+# Build immutable images in CI/CD, then deploy this file with real secrets from
+# the environment or a secret manager. VITE_* values are already compiled into
+# the web image; build that image with VITE_API_URL=/api.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-line_queue}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-line_queue}']
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+  api:
+    image: ${LINE_QUEUE_API_IMAGE:-line-smart-queue-api:latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      API_PORT: 4000
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-line_queue}
+      CORS_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN must be set}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/health >/dev/null || exit 1']
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  web:
+    image: ${LINE_QUEUE_WEB_IMAGE:-line-smart-queue-web:latest}
+    restart: unless-stopped
+    ports:
+      - '${WEB_PORT:-80}:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1/health >/dev/null || exit 1']
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
