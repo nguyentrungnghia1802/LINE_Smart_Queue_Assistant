@@ -105,4 +105,6 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Browser E2E with mock integrations
-        run: npm run e2e:all
+        run: |
+          npm run db:seed:demo
+          npm run e2e:all

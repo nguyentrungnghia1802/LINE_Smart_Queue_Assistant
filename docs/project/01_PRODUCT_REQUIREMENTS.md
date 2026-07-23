@@ -85,15 +85,15 @@ The platform role does not replace tenant membership. Staff and manager operatio
 
 ### Queue and staff operation
 
-| ID           | Requirement                                                                                               | Status                          |
-| ------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| FR-QUEUE-001 | Successful booking creates a ticket in the organization's active queue                                    | Implemented                     |
-| FR-QUEUE-002 | Customer sees ticket code, status, people ahead, ETA, order items, and payment                            | Implemented                     |
-| FR-QUEUE-003 | Staff sees a responsive queue list, customer contact details, and a full-width selected booking workspace | Implemented                     |
-| FR-QUEUE-004 | Staff calls next, starts service, completes, marks no-show, or cancels valid tickets                      | Implemented                     |
-| FR-QUEUE-005 | Queue ticket counter resets daily                                                                         | Implemented with UTC limitation |
-| FR-QUEUE-006 | Queue capacity remains strict under concurrent joins                                                      | Partial                         |
-| FR-QUEUE-007 | Manager configures queue status, prefix, capacity, timing, and operational rules                          | Implemented                     |
+| ID           | Requirement                                                                                                                      | Status                          |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| FR-QUEUE-001 | Successful booking creates a ticket in the organization's active queue                                                           | Implemented                     |
+| FR-QUEUE-002 | Customer sees ticket code, status, people ahead, ETA, order items, and payment                                                   | Implemented                     |
+| FR-QUEUE-003 | Staff sees the next eight active customers, the total active count, contact details, and a responsive selected booking workspace | Implemented                     |
+| FR-QUEUE-004 | Staff calls next, starts service, completes, marks no-show, or cancels valid tickets                                             | Implemented                     |
+| FR-QUEUE-005 | Queue ticket counter resets daily                                                                                                | Implemented with UTC limitation |
+| FR-QUEUE-006 | Queue capacity remains strict under concurrent joins                                                                             | Partial                         |
+| FR-QUEUE-007 | Manager configures queue status, prefix, capacity, timing, and operational rules                                                 | Implemented                     |
 
 ### LINE and notifications
 

@@ -49,10 +49,13 @@ interface MyQueueOverview {
   queueId: string | null;
   queueName: string | null;
   waitingCount: number;
+  totalActiveCount: number;
   waitingEntriesWithOrders: QueueEntry[];
   calledEntryWithOrder: QueueEntry | null;
   servingEntryWithOrder: QueueEntry | null;
 }
+
+const MAX_VISIBLE_QUEUE_ENTRIES = 8;
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: 'states.pending',
@@ -164,6 +167,7 @@ export function StaffDashboardPage() {
     ...(queueData?.calledEntryWithOrder ? [queueData.calledEntryWithOrder] : []),
     ...(queueData?.waitingEntriesWithOrders ?? []),
   ];
+  const visibleEntries = allEntries.slice(0, MAX_VISIBLE_QUEUE_ENTRIES);
 
   const selectedEntry = allEntries.find((e) => e.id === selectedEntryId) ?? allEntries[0] ?? null;
   const relatedBookings = useQuery<BookingGroup>({
@@ -237,7 +241,7 @@ export function StaffDashboardPage() {
               </span>
               <span className="sm:hidden">{t('dashboard.waitingShort')}</span>
               <span className="mt-1 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-600 px-1.5 text-xs text-white sm:ml-2 sm:mt-0 sm:h-5 sm:min-w-5">
-                {queueData?.waitingCount ?? 0}
+                {queueData?.totalActiveCount ?? queueData?.waitingCount ?? 0}
               </span>
             </h2>
           </div>
@@ -260,7 +264,7 @@ export function StaffDashboardPage() {
             </span>
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-hidden">
           {isLoading && (
             <p className="text-gray-400 text-sm px-4 py-6 text-center">
               {t('states.loading', { ns: 'common' })}
@@ -271,7 +275,7 @@ export function StaffDashboardPage() {
               {t('dashboard.noCustomers')}
             </p>
           )}
-          {allEntries.map((entry) => {
+          {visibleEntries.map((entry) => {
             const ord = entry.order;
             return (
               <button

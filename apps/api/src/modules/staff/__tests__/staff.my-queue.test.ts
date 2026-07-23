@@ -29,6 +29,12 @@ const mockFindById = queuesRepository.findById as jest.MockedFunction<
 const mockListWaiting = queueEntriesRepository.listWaiting as jest.MockedFunction<
   typeof queueEntriesRepository.listWaiting
 >;
+const mockCountWaitingEntries = queueEntriesRepository.countWaiting as jest.MockedFunction<
+  typeof queueEntriesRepository.countWaiting
+>;
+const mockCountActiveEntries = queuesRepository.countWaiting as jest.MockedFunction<
+  typeof queuesRepository.countWaiting
+>;
 const mockFindByQueueAndStatus = queueEntriesRepository.findByQueueAndStatus as jest.MockedFunction<
   typeof queueEntriesRepository.findByQueueAndStatus
 >;
@@ -95,6 +101,8 @@ describe('staffService.getMyQueueOverview', () => {
     jest.clearAllMocks();
     mockFindById.mockResolvedValue(queueRow);
     mockFindByQueueEntry.mockResolvedValue(null);
+    mockCountWaitingEntries.mockResolvedValue(0);
+    mockCountActiveEntries.mockResolvedValue(0);
   });
 
   it('returns null when org has no active queues', async () => {
@@ -112,6 +120,8 @@ describe('staffService.getMyQueueOverview', () => {
 
     mockFindActiveByOrg.mockResolvedValue([queueRow]);
     mockListWaiting.mockResolvedValue([entry1, entry2]);
+    mockCountWaitingEntries.mockResolvedValue(2);
+    mockCountActiveEntries.mockResolvedValue(2);
     mockFindByQueueAndStatus.mockResolvedValue(null); // no called/serving
 
     const result = await staffService.getMyQueueOverview(ORG_ID);
@@ -119,6 +129,7 @@ describe('staffService.getMyQueueOverview', () => {
 
     expect(result.queueId).toBe(QUEUE_ID);
     expect(result.waitingCount).toBe(2);
+    expect(result.totalActiveCount).toBe(2);
     expect(result.waitingEntriesWithOrders).toHaveLength(2);
     expect(result.calledEntryWithOrder).toBeNull();
     expect(result.servingEntryWithOrder).toBeNull();
@@ -146,6 +157,8 @@ describe('staffService.getMyQueueOverview', () => {
 
     mockFindActiveByOrg.mockResolvedValue([queueRow]);
     mockListWaiting.mockResolvedValue([entry]);
+    mockCountWaitingEntries.mockResolvedValue(1);
+    mockCountActiveEntries.mockResolvedValue(1);
     mockFindByQueueAndStatus.mockResolvedValue(null);
     mockFindByQueueEntry.mockResolvedValue(mockOrder);
 
@@ -162,6 +175,7 @@ describe('staffService.getMyQueueOverview', () => {
 
     mockFindActiveByOrg.mockResolvedValue([queueRow]);
     mockListWaiting.mockResolvedValue([]);
+    mockCountActiveEntries.mockResolvedValue(2);
     mockFindByQueueAndStatus
       .mockResolvedValueOnce(calledEntry) // first call: 'called'
       .mockResolvedValueOnce(servingEntry); // second call: 'serving'
@@ -184,11 +198,35 @@ describe('staffService.getMyQueueOverview', () => {
     mockListWaiting.mockImplementation(async (queueId) =>
       queueId === secondQueue.id ? [waitingEntry] : []
     );
+    mockCountWaitingEntries.mockImplementation(async (queueId) =>
+      queueId === secondQueue.id ? 1 : 0
+    );
+    mockCountActiveEntries.mockImplementation(async (queueId) =>
+      queueId === secondQueue.id ? 1 : 0
+    );
     mockFindByQueueAndStatus.mockResolvedValue(null);
 
     const result = await staffService.getMyQueueOverview(ORG_ID);
 
     expect(result?.queueId).toBe(secondQueue.id);
     expect(result?.waitingCount).toBe(1);
+  });
+
+  it('returns only the first eight waiting entries while preserving the total count', async () => {
+    const waitingEntries = Array.from({ length: 8 }, (_, index) =>
+      makeEntry(`e${index + 1}`, `A-${index + 1}`, 'waiting')
+    );
+    mockFindActiveByOrg.mockResolvedValue([queueRow]);
+    mockListWaiting.mockResolvedValue(waitingEntries);
+    mockCountWaitingEntries.mockResolvedValue(12);
+    mockCountActiveEntries.mockResolvedValue(12);
+    mockFindByQueueAndStatus.mockResolvedValue(null);
+
+    const result = await staffService.getMyQueueOverview(ORG_ID);
+
+    expect(mockListWaiting).toHaveBeenCalledWith(QUEUE_ID, undefined, 8);
+    expect(result?.waitingEntriesWithOrders).toHaveLength(8);
+    expect(result?.waitingCount).toBe(12);
+    expect(result?.totalActiveCount).toBe(12);
   });
 });

@@ -147,15 +147,15 @@ The current customer LIFF UI treats `/queue/join` as a legacy/direct queue path.
 
 All paths require staff/manager/admin and organization ownership.
 
-| Method | Path                                      | Purpose                                                                             |
-| ------ | ----------------------------------------- | ----------------------------------------------------------------------------------- |
-| GET    | `/api/v1/staff/my-queue`                  | Full operational board, order and available customer contact for actor organization |
-| GET    | `/api/v1/staff/queues/:queueId`           | Queue overview                                                                      |
-| POST   | `/api/v1/staff/queues/:queueId/call-next` | Call next                                                                           |
-| POST   | `/api/v1/staff/entries/:entryId/serve`    | Start service                                                                       |
-| POST   | `/api/v1/staff/entries/:entryId/complete` | Complete service                                                                    |
-| POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                                                        |
-| POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                                                               |
+| Method | Path                                      | Purpose                                                                                                      |
+| ------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| GET    | `/api/v1/staff/my-queue`                  | Next eight active entries, total/waiting counts, order and available customer contact for actor organization |
+| GET    | `/api/v1/staff/queues/:queueId`           | Queue overview                                                                                               |
+| POST   | `/api/v1/staff/queues/:queueId/call-next` | Call next                                                                                                    |
+| POST   | `/api/v1/staff/entries/:entryId/serve`    | Start service                                                                                                |
+| POST   | `/api/v1/staff/entries/:entryId/complete` | Complete service                                                                                             |
+| POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                                                                                 |
+| POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                                                                                        |
 
 Staff transition endpoints validate UUID path parameters and do not require a request body. Completion atomically transitions the ticket to `served`, completes the linked order and inventory lifecycle where applicable, enqueues the LINE notification, and records the authenticated staff actor in queue history.
 
@@ -208,7 +208,7 @@ In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has compl
 
 Payment intent creation accepts `orgSlug`, selected `items`, `scope`, `provider`, `method`, `currency`, optional `returnUrl`, and optional `cartSignature`. The API reloads products and computes amount/coverage. Demo mode returns a `demoToken`; the browser must send it to `/payments/demo/complete`, and the server verifies it before marking the transaction paid. Future PSPs must update the same transaction state machine through signed webhooks or server-side verification.
 
-Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatus: paid | refunded`, optional refund `amount` and `reason`, and an `Idempotency-Key` header. Every accepted operation writes an audited reconciliation row. `GET /api/v1/orders/:id/receipt` is staff/manager/admin only and returns receipt source data only for a completed, fully paid order.
+Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatus: paid | refunded`, optional refund `amount` and `reason`, and an `Idempotency-Key` header. Every accepted operation writes an audited reconciliation row. For a legacy paid order without a transaction, the refund path first backfills a server-side manual transaction with covered order products and records a separate reconciliation operation. `GET /api/v1/orders/:id/receipt` is staff/manager/admin only and returns receipt source data only for a completed, fully paid order.
 
 ### Booking groups and organization calendar
 

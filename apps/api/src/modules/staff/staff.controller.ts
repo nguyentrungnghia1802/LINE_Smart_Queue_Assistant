@@ -105,7 +105,14 @@ export const getMyQueue = asyncHandler(async (req: Request, res: Response) => {
 
   const overview = await staffService.getMyQueueOverview(orgId);
 
-  reqLog(req).debug({ orgId, waitingCount: overview?.waitingCount ?? 0 }, 'staff.myQueue');
+  reqLog(req).debug(
+    {
+      orgId,
+      waitingCount: overview?.waitingCount ?? 0,
+      totalActiveCount: overview?.totalActiveCount ?? 0,
+    },
+    'staff.myQueue'
+  );
 
   sendSuccess(
     res,
@@ -117,6 +124,7 @@ export const getMyQueue = asyncHandler(async (req: Request, res: Response) => {
       calledEntryWithOrder: null,
       servingEntryWithOrder: null,
       waitingCount: 0,
+      totalActiveCount: 0,
     }
   );
 });

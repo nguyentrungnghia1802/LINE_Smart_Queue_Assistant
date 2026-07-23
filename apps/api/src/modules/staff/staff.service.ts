@@ -23,6 +23,7 @@ export interface QueueOverview {
   calledEntry: QueueEntryRow | null;
   servingEntry: QueueEntryRow | null;
   waitingCount: number;
+  totalActiveCount: number;
 }
 
 export interface EntryWithOrder extends QueueEntryRow {
@@ -37,9 +38,12 @@ export interface EnrichedQueueOverview {
   calledEntryWithOrder: EntryWithOrder | null;
   servingEntryWithOrder: EntryWithOrder | null;
   waitingCount: number;
+  totalActiveCount: number;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+
+const STAFF_QUEUE_PREVIEW_LIMIT = 8;
 
 /**
  * Record a staff action in the audit log.
@@ -80,11 +84,18 @@ export const staffService = {
       throw AppError.forbidden('Queue is outside your organization');
     }
 
-    const waiting = await queueEntriesRepository.listWaiting(queueId);
-
-    // Find called and serving entries separately
-    const calledEntry = await queueEntriesRepository.findByQueueAndStatus(queueId, 'called');
-    const servingEntry = await queueEntriesRepository.findByQueueAndStatus(queueId, 'serving');
+    const [waitingCount, totalActiveCount, calledEntry, servingEntry] = await Promise.all([
+      queueEntriesRepository.countWaiting(queueId),
+      queuesRepository.countWaiting(queueId),
+      queueEntriesRepository.findByQueueAndStatus(queueId, 'called'),
+      queueEntriesRepository.findByQueueAndStatus(queueId, 'serving'),
+    ]);
+    const occupiedPreviewSlots = Number(Boolean(calledEntry)) + Number(Boolean(servingEntry));
+    const waiting = await queueEntriesRepository.listWaiting(
+      queueId,
+      undefined,
+      STAFF_QUEUE_PREVIEW_LIMIT - occupiedPreviewSlots
+    );
 
     return {
       queueId,
@@ -92,7 +103,8 @@ export const staffService = {
       waitingEntries: waiting,
       calledEntry: calledEntry ?? null,
       servingEntry: servingEntry ?? null,
-      waitingCount: waiting.length,
+      waitingCount,
+      totalActiveCount,
     };
   },
 
@@ -227,7 +239,7 @@ export const staffService = {
     const selected =
       overviews.find(
         ({ overview }) =>
-          overview.waitingCount > 0 ||
+          overview.totalActiveCount > 0 ||
           overview.calledEntry !== null ||
           overview.servingEntry !== null
       ) ?? overviews[0];
@@ -253,6 +265,7 @@ export const staffService = {
       calledEntryWithOrder: calledWithOrder,
       servingEntryWithOrder: servingWithOrder,
       waitingCount: overview.waitingCount,
+      totalActiveCount: overview.totalActiveCount,
     };
   },
 };

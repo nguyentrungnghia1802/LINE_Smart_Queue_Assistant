@@ -22,7 +22,9 @@
     "db:migrate:redo": "npm run db:migrate:down && npm run db:migrate",
     "db:migrate:status": "node-pg-migrate up --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env --dry-run",
     "db:seed": "ts-node --project tsconfig.json ../../db/seeds/index.ts",
-    "db:seed:reset": "ts-node --project tsconfig.json ../../db/seeds/index.ts --reset"
+    "db:seed:reset": "ts-node --project tsconfig.json ../../db/seeds/index.ts --reset",
+    "db:seed:demo": "ts-node --project tsconfig.json ../../db/seeds/index.ts --demo",
+    "db:seed:demo:reset": "ts-node --project tsconfig.json ../../db/seeds/index.ts --demo --reset"
   },
   "dependencies": {
     "@line-queue/shared": "*",
