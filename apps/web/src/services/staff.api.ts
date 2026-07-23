@@ -13,6 +13,7 @@ export interface QueueOverview {
   calledEntry: QueueEntryDisplay | null;
   servingEntry: QueueEntryDisplay | null;
   waitingCount: number;
+  totalActiveCount: number;
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────

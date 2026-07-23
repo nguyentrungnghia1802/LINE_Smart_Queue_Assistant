@@ -46,6 +46,8 @@
     "db:migrate:legacy": "node scripts/migrate.mjs legacy",
     "db:seed": "npm run db:seed -w apps/api",
     "db:seed:reset": "npm run db:seed:reset -w apps/api",
+    "db:seed:demo": "npm run db:seed:demo -w apps/api",
+    "db:seed:demo:reset": "npm run db:seed:demo:reset -w apps/api",
     "line:verify": "npm run line:verify -w apps/api",
     "line:rich-menu:sync": "npm run line:rich-menu:sync -w apps/api"
   },

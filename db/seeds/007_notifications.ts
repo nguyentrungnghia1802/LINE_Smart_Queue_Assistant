@@ -30,7 +30,7 @@ const lineUserByUserId: Record<string, string> = {
 };
 
 export async function seed(client: PoolClient): Promise<void> {
-  await client.query('DELETE FROM notifications');
+  await client.query(`DELETE FROM notifications WHERE event_key LIKE 'seed:%'`);
 
   for (const [entryId, userId, type, channel, status, retryCount, errorMessage] of notifications) {
     const lineUserId = lineUserByUserId[userId] ?? null;
