@@ -1,7 +1,10 @@
 export const auth = {
   login: {
     title: 'ログイン',
-    subtitle: 'アカウント情報を入力してください。',
+    customerLineDescription: 'お客様はLINEでかんたんに受付できます。',
+    continueWithLine: 'LINEで受付を始める',
+    operationsDivider: '店舗・運営者向け',
+    operationsSubtitle: 'スタッフ、マネージャー、管理者はメールでログインしてください。',
     submit: 'ログイン',
     submitting: 'ログインしています…',
     invalid: 'メールアドレスまたはパスワードが正しくありません。',
@@ -9,7 +12,7 @@ export const auth = {
     hidePassword: 'パスワードを非表示',
     forgotPassword: 'パスワードをお忘れですか？',
     intro: '受付、商品選択、スタッフ呼び出し、LINE通知までを一つの画面で管理します。',
-    noAccount: 'アカウントをお持ちでない場合',
+    legacyCustomerAuth: '開発用の顧客アカウント',
     customerRegister: '顧客登録',
     onlineReception: 'オンライン受付',
     notificationIntegration: '通知連携',

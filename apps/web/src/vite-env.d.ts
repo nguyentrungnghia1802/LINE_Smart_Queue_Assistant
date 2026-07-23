@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_API_URL: string;
   readonly VITE_APP_NAME: string;
   readonly VITE_LIFF_DEFAULT_BOOKING_PATH: string;
+  /** Local/test escape hatch for the legacy email-based customer registration UI. */
+  readonly VITE_ENABLE_LEGACY_CUSTOMER_AUTH: string;
 
   // ── Payment ───────────────────────────────────────────────────────────────
   /** "external" enables provider redirect flow; blank/default keeps demo auto-success. */

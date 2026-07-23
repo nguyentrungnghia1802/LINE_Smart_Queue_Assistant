@@ -37,6 +37,8 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | FR-AUTH-005 | Keep public QR booking available without mandatory account login              | Implemented |
 | FR-AUTH-006 | Automatically initialize LIFF login and exchange ID token for system JWT      | Implemented |
 | FR-AUTH-007 | Store LINE-verified customer email when the optional email claim is available | Implemented |
+| FR-AUTH-008 | Present LINE as the primary customer login and email as business-role login   | Implemented |
+| FR-AUTH-009 | Keep legacy customer email registration available only for development/test   | Implemented |
 
 ### Organization administration
 
@@ -49,6 +51,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | FR-ORG-005 | The system generates a unique slug and public QR token                                  | Implemented                                |
 | FR-ORG-006 | Manager edits only their own organization settings                                      | Implemented                                |
 | FR-ORG-007 | Organization stores location, business hours, holiday rules, and provider configuration | Implemented; real provider secrets pending |
+| FR-ORG-008 | Manager print/copy actions prefer LIFF QR and expose public web booking as a fallback   | Implemented                                |
 
 ### Catalog and inventory
 

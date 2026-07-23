@@ -23,12 +23,17 @@ For ordinary UI/backend work without LINE credentials:
 ```dotenv
 VITE_LIFF_MOCK=true
 VITE_LIFF_MOCK_LOGGED_IN=true
+VITE_ENABLE_LEGACY_CUSTOMER_AUTH=true
 VITE_PAYMENT_MODE=demo
 ```
 
 The API uses `MockLineAdapter` in tests or whenever `LINE_CHANNEL_ACCESS_TOKEN` is absent.
 
 For local Rich Menu navigation demos, set `VITE_LIFF_DEFAULT_BOOKING_PATH` to a safe LIFF booking path such as `/liff/qr/demo-queue-lab-2026`.
+
+`VITE_ENABLE_LEGACY_CUSTOMER_AUTH` is a public build flag. Keep it `true` only for local/test
+coverage of the former email-based customer registration flow. Production builds default it to
+`false`; operational email login remains available for staff, managers, and admins.
 
 ## 3. Run with Docker
 

@@ -51,6 +51,7 @@ describe('production web reverse proxy configuration', () => {
       'VITE_APP_NAME',
       'VITE_LIFF_ID',
       'VITE_LIFF_DEFAULT_BOOKING_PATH',
+      'VITE_ENABLE_LEGACY_CUSTOMER_AUTH',
       'VITE_LIFF_MOCK',
       'VITE_PAYMENT_MODE',
       'VITE_PAYMENT_REDIRECT_BASE_URL',
