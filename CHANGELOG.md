@@ -19,6 +19,7 @@ All notable project changes should be recorded here. This file tracks delivered 
 - Added advisory scheduler lock contention, reacquisition, failure sanitization, unlock, and session-release tests.
 - Added Japanese-default internationalization with Vietnamese/English resources, persisted user/organization locales, localized LINE outbox templates, translation tables, and locale-aware Intl formatting.
 - Rebalanced the login experience with centered brand content and icon-led reception, LINE notification, and JPY payment highlights.
+- Packaged canonical migrations and compiled seed tooling in the production API image while excluding generated seed output from source control.
 
 ### LINE Messaging
 
