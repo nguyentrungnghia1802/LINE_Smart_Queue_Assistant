@@ -3,6 +3,7 @@ import { Link, Navigate, NavLink, Outlet } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
+import { BrandLogo } from '../../components/BrandLogo';
 import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
 import { AccountMenu } from '../../components/layout/AccountMenu';
 import { useAuthStore } from '../../store/authStore';
@@ -36,9 +37,7 @@ export function ManagerLayout() {
       <header className="sticky top-0 z-20 border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4">
           <Link to="/manager" className="mr-4 flex items-center gap-3 font-bold text-gray-950">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-sm text-white">
-              LQ
-            </span>
+            <BrandLogo decorative />
             <span>LINE Queue</span>
           </Link>
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
