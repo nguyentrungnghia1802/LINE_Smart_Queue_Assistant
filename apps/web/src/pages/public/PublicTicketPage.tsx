@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
+import { StandalonePageTopBar } from '../../components/layout/StandalonePageTopBar';
 import { formatCurrency } from '../../i18n/format';
 import { get, post } from '../../services/apiClient';
 
@@ -69,18 +70,24 @@ export function PublicTicketPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-500">{t('states.loading', { ns: 'common' })}</p>
+      <div className="min-h-screen bg-gray-50">
+        <StandalonePageTopBar contentClassName="max-w-md" />
+        <div className="flex items-center justify-center px-4 py-16">
+          <p className="text-gray-500">{t('states.loading', { ns: 'common' })}</p>
+        </div>
       </div>
     );
   }
 
   if (isError || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="text-center">
-          <p className="text-2xl mb-2">😕</p>
-          <p className="text-gray-700 font-medium">{t('ticket.notFound', { ns: 'customer' })}</p>
+      <div className="min-h-screen bg-gray-50">
+        <StandalonePageTopBar contentClassName="max-w-md" />
+        <div className="flex items-center justify-center px-4 py-16">
+          <div className="text-center">
+            <p className="mb-2 text-2xl">😕</p>
+            <p className="font-medium text-gray-700">{t('ticket.notFound', { ns: 'customer' })}</p>
+          </div>
         </div>
       </div>
     );
@@ -101,125 +108,128 @@ export function PublicTicketPage() {
       : t('units.approximateMinutes', { ns: 'common', count: waitMinutes });
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start px-4 py-8">
-      <div className="w-full max-w-sm space-y-5">
-        {/* Header */}
-        <div className="text-center">
-          <span className="text-5xl">🟢</span>
-          <h1 className="mt-3 text-xl font-bold text-gray-900">{queueName}</h1>
-          <p className="text-sm text-gray-500 mt-1">{t('ticket.yourTicket', { ns: 'customer' })}</p>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <StandalonePageTopBar contentClassName="max-w-md" />
+      <div className="mx-auto w-full max-w-sm px-4 py-8">
+        <div className="space-y-5">
+          <div className="text-center">
+            <span className="text-5xl">🟢</span>
+            <h1 className="mt-3 text-xl font-bold text-gray-900">{queueName}</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              {t('ticket.yourTicket', { ns: 'customer' })}
+            </p>
+          </div>
 
-        {/* Ticket number */}
-        <div
-          className={`rounded-2xl p-8 text-center shadow-sm border ${isCalled ? 'bg-green-50 border-green-300 animate-pulse' : 'bg-white border-gray-200'}`}
-        >
-          <p className="text-7xl font-black text-brand-600">{entry.ticket_code}</p>
           <div
-            className={`mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${statusInfo.color}`}
+            className={`rounded-2xl border p-8 text-center shadow-sm ${isCalled ? 'animate-pulse border-green-300 bg-green-50' : 'border-gray-200 bg-white'}`}
           >
-            <span>{statusInfo.icon}</span>
-            {t(`states.${entry.status === 'no_show' ? 'noShow' : entry.status}`, {
-              ns: 'common',
-              defaultValue: entry.status,
-            })}
+            <p className="text-7xl font-black text-brand-600">{entry.ticket_code}</p>
+            <div
+              className={`mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${statusInfo.color}`}
+            >
+              <span>{statusInfo.icon}</span>
+              {t(`states.${entry.status === 'no_show' ? 'noShow' : entry.status}`, {
+                ns: 'common',
+                defaultValue: entry.status,
+              })}
+            </div>
           </div>
+
+          {isActive && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm">
+                <p className="text-3xl font-bold text-gray-800">{aheadCount}</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {t('labels.peopleAhead', { ns: 'common' })}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm">
+                <p className="text-base font-bold text-gray-800">{waitLabel}</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {t('labels.estimatedWait', { ns: 'common' })}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isCalled && (
+            <div className="rounded-xl border-2 border-green-400 bg-green-50 p-4 text-center">
+              <p className="text-lg font-bold text-green-800">
+                📢 {t('ticket.goCounter', { ns: 'customer' })}
+              </p>
+              <p className="mt-1 text-sm text-green-700">
+                {t('ticket.calledDescription', { ns: 'customer' })}
+              </p>
+            </div>
+          )}
+
+          {order && (
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                <span className="text-sm font-semibold text-gray-700">
+                  {t('ticket.orderNumber', { ns: 'customer', number: order.order_number })}
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}
+                >
+                  {order.payment_status === 'paid'
+                    ? `✓ ${t('states.paid', { ns: 'common' })}`
+                    : t('states.unpaid', { ns: 'common' })}
+                </span>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {order.items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between px-4 py-2 text-sm"
+                  >
+                    <span className="text-gray-700">
+                      {item.product_name} × {item.quantity}
+                    </span>
+                    <span className="font-medium text-gray-800">
+                      {formatCurrency(Number(item.subtotal), i18n.resolvedLanguage ?? 'ja')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
+                <span className="font-semibold text-gray-700">
+                  {t('labels.total', { ns: 'common' })}
+                </span>
+                <span className="text-lg font-bold text-gray-900">
+                  {formatCurrency(Number(order.subtotal), i18n.resolvedLanguage ?? 'ja')}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <Link
+            to="/customer"
+            className="block w-full rounded-xl bg-[#06C755] px-4 py-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-[#05b54c] focus:outline-none focus:ring-4 focus:ring-[#06C755]/20"
+          >
+            {t('actions.back', { ns: 'common' })}
+          </Link>
+
+          {canCancel && (
+            <button
+              onClick={() => {
+                if (confirm(t('ticket.cancelConfirm', { ns: 'customer' }))) {
+                  cancelMutation.mutate();
+                }
+              }}
+              disabled={cancelMutation.isPending}
+              className="w-full rounded-xl border border-red-200 bg-white/40 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50/60 disabled:opacity-50"
+            >
+              {cancelMutation.isPending
+                ? t('ticket.cancelling', { ns: 'customer' })
+                : t('ticket.cancelOrder', { ns: 'customer' })}
+            </button>
+          )}
+
+          <p className="text-center text-xs text-gray-400">
+            {t('ticket.autoRefresh', { ns: 'customer' })}
+          </p>
         </div>
-
-        {/* Status info */}
-        {isActive && (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-              <p className="text-3xl font-bold text-gray-800">{aheadCount}</p>
-              <p className="text-xs text-gray-500 mt-1">
-                {t('labels.peopleAhead', { ns: 'common' })}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-              <p className="text-base font-bold text-gray-800">{waitLabel}</p>
-              <p className="text-xs text-gray-500 mt-1">
-                {t('labels.estimatedWait', { ns: 'common' })}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {isCalled && (
-          <div className="bg-green-50 border-2 border-green-400 rounded-xl p-4 text-center">
-            <p className="text-green-800 font-bold text-lg">
-              📢 {t('ticket.goCounter', { ns: 'customer' })}
-            </p>
-            <p className="text-green-700 text-sm mt-1">
-              {t('ticket.calledDescription', { ns: 'customer' })}
-            </p>
-          </div>
-        )}
-
-        {/* Order summary */}
-        {order && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-700">
-                {t('ticket.orderNumber', { ns: 'customer', number: order.order_number })}
-              </span>
-              <span
-                className={`text-xs px-2 py-0.5 rounded-full ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}
-              >
-                {order.payment_status === 'paid'
-                  ? `✓ ${t('states.paid', { ns: 'common' })}`
-                  : t('states.unpaid', { ns: 'common' })}
-              </span>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {order.items.map((item) => (
-                <div key={item.id} className="px-4 py-2 flex items-center justify-between text-sm">
-                  <span className="text-gray-700">
-                    {item.product_name} × {item.quantity}
-                  </span>
-                  <span className="font-medium text-gray-800">
-                    {formatCurrency(Number(item.subtotal), i18n.resolvedLanguage ?? 'ja')}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-              <span className="font-semibold text-gray-700">
-                {t('labels.total', { ns: 'common' })}
-              </span>
-              <span className="text-lg font-bold text-gray-900">
-                {formatCurrency(Number(order.subtotal), i18n.resolvedLanguage ?? 'ja')}
-              </span>
-            </div>
-          </div>
-        )}
-
-        <Link
-          to="/customer"
-          className="block w-full rounded-xl bg-[#06C755] px-4 py-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-[#05b54c] focus:outline-none focus:ring-4 focus:ring-[#06C755]/20"
-        >
-          {t('actions.back', { ns: 'common' })}
-        </Link>
-
-        {/* Cancel button */}
-        {canCancel && (
-          <button
-            onClick={() => {
-              if (confirm(t('ticket.cancelConfirm', { ns: 'customer' }))) {
-                cancelMutation.mutate();
-              }
-            }}
-            disabled={cancelMutation.isPending}
-            className="w-full rounded-xl border border-red-200 bg-white/40 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50/60 disabled:opacity-50"
-          >
-            {cancelMutation.isPending
-              ? t('ticket.cancelling', { ns: 'customer' })
-              : t('ticket.cancelOrder', { ns: 'customer' })}
-          </button>
-        )}
-
-        <p className="text-center text-xs text-gray-400">
-          {t('ticket.autoRefresh', { ns: 'customer' })}
-        </p>
       </div>
     </div>
   );

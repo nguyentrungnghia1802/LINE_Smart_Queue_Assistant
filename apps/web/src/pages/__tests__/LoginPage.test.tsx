@@ -60,6 +60,12 @@ describe('LoginPage', () => {
     expect(link).toHaveAttribute('href', '#');
   });
 
+  it('renders the language switcher on the login page', () => {
+    renderPage();
+
+    expect(screen.getByRole('combobox', { name: '言語' })).toBeInTheDocument();
+  });
+
   it('shows backend message when login fails with ApiClientError message', async () => {
     mockLogin.mockRejectedValueOnce(
       new ApiClientError('UNAUTHORIZED', 401, undefined, 'このアカウントは無効です。')
