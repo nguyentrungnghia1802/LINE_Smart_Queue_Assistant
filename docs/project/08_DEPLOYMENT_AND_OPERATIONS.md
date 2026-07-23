@@ -70,6 +70,13 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d
 docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps
 ```
 
+The project-specific Docker build, tag, push, inspection, local Compose, health-check, and cleanup
+commands are collected in
+[`docs/archive/scripts/DOCKER_COMMANDS.md`](../archive/scripts/DOCKER_COMMANDS.md). The current
+Docker Hub repositories are `trungnghia2703/line-smart-queue-api` and
+`trungnghia2703/line-smart-queue-web`; production deployments should prefer an immutable
+`git-<commit>` tag while optionally updating `latest`.
+
 `deploy/docker-compose.yml` is kept byte-for-byte synchronized with the canonical `docker-compose.prod.yml` by an automated test. It expects prebuilt `LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` values and does not publish PostgreSQL or API port `4000` to the host. Always replace image tags with immutable images built from the intended release commit; changing source code does not update an already-pushed tag automatically.
 
 Use `--env-file deploy/.env` when invoking the file from the repository root. Without it, Compose interpolation may read a different `.env` from the current working directory even though the API container's `env_file` is resolved from the deploy directory.
