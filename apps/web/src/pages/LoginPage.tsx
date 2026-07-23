@@ -53,7 +53,7 @@ export function LoginPage() {
         <LanguageSwitcher compact />
       </div>
       <div className="grid w-full max-w-6xl overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[var(--shadow-lift)] lg:min-h-[620px] lg:grid-cols-[minmax(0,1fr)_430px]">
-        <section className="hidden bg-[#050b18] px-10 py-12 text-white lg:flex lg:items-center lg:justify-center xl:px-14">
+        <section className="hidden bg-[#085463] px-10 py-12 text-white lg:flex lg:items-center lg:justify-center xl:px-14">
           <div className="w-full max-w-[590px] text-center">
             <BrandLogo decorative className="mx-auto h-16 w-16" />
             <h1 className="mt-6 text-4xl font-bold leading-tight">LINE Smart Queue Assistant</h1>
