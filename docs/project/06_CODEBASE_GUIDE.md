@@ -71,6 +71,7 @@ apps/web/src/
 |-- contexts/                Runtime providers such as LIFF initialization state
 |-- types/                   Frontend-only contracts
 |-- utils/                   Checkout storage, payment boundary, logo compression
+|-- public/logo.svg          Shared SQA brand mark and browser favicon
 |-- router.tsx               Route map
 |-- index.css                Shared design tokens/global styling
 \-- main.tsx                 Browser entry
