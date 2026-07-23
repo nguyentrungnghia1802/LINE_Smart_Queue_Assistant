@@ -20,7 +20,7 @@ COPY packages/config/package*.json     ./packages/config/
 COPY packages/shared/package*.json     ./packages/shared/
 COPY apps/web/package*.json            ./apps/web/
 
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # ── dev: Vite HMR dev server ──────────────────────────────────────────────────
 # Source is mounted via docker compose volumes — NOT copied here.
@@ -35,8 +35,18 @@ FROM base AS builder
 # VITE_* vars must be available at build time — they are bundled into the JS output
 ARG VITE_API_URL
 ARG VITE_APP_NAME
+ARG VITE_LIFF_ID
+ARG VITE_LIFF_DEFAULT_BOOKING_PATH
+ARG VITE_LIFF_MOCK
+ARG VITE_PAYMENT_MODE
+ARG VITE_PAYMENT_REDIRECT_BASE_URL
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_APP_NAME=$VITE_APP_NAME
+ENV VITE_LIFF_ID=$VITE_LIFF_ID
+ENV VITE_LIFF_DEFAULT_BOOKING_PATH=$VITE_LIFF_DEFAULT_BOOKING_PATH
+ENV VITE_LIFF_MOCK=$VITE_LIFF_MOCK
+ENV VITE_PAYMENT_MODE=$VITE_PAYMENT_MODE
+ENV VITE_PAYMENT_REDIRECT_BASE_URL=$VITE_PAYMENT_REDIRECT_BASE_URL
 
 COPY packages/config/   ./packages/config/
 COPY packages/shared/   ./packages/shared/
@@ -54,5 +64,5 @@ COPY docker/nginx/default.conf              /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost/health || exit 1
+  CMD wget -qO- http://127.0.0.1/health || exit 1
 

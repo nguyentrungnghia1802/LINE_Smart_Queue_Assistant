@@ -1,6 +1,6 @@
 import { render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LiffRuntimeProvider } from '../../../contexts/LiffRuntimeContext';
 import type { LiffContext } from '../../../types/liff';
