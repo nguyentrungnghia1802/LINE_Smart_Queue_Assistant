@@ -58,11 +58,19 @@ The stack builds:
 Image-based production Compose:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml ps
+cp deploy/.env.example deploy/.env
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml pull
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps
 ```
 
-`docker-compose.prod.yml` expects prebuilt `LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` values and does not publish PostgreSQL or API port `4000` to the host. The web image must be built ahead of time with public Vite values such as `VITE_API_URL=/api`, `VITE_LIFF_ID`, `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_PAYMENT_MODE`, and `VITE_PAYMENT_REDIRECT_BASE_URL`. Backend-only secrets such as `JWT_SECRET`, database credentials, LINE channel secret/access token, and provider webhook keys are runtime API secrets only.
+`deploy/docker-compose.yml` is kept byte-for-byte synchronized with the canonical `docker-compose.prod.yml` by an automated test. It expects prebuilt `LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` values and does not publish PostgreSQL or API port `4000` to the host. Always replace image tags with immutable images built from the intended release commit; changing source code does not update an already-pushed tag automatically.
+
+Use `--env-file deploy/.env` when invoking the file from the repository root. Without it, Compose interpolation may read a different `.env` from the current working directory even though the API container's `env_file` is resolved from the deploy directory.
+
+The web image must be built ahead of time with public Vite values such as `VITE_API_URL=/api`, `VITE_LIFF_ID`, `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_PAYMENT_MODE`, and `VITE_PAYMENT_REDIRECT_BASE_URL`. Backend-only secrets such as `JWT_SECRET`, database credentials, LINE channel secret/access token, and provider webhook keys are runtime API secrets only.
+
+The current local media adapter writes to `/app/var/media`, backed by the persistent `media_data` volume. nginx proxies `/media/*` to the API so generated media URLs stay on the public web origin. This volume is a Compose durability baseline, not a substitute for production object storage, backup, scanning, and CDN policy.
 
 For a real production environment, use managed PostgreSQL/object storage, TLS ingress, restricted network/security groups, centralized secrets/logs, and a deployment orchestrator. Compose is a packaging baseline, not high-availability infrastructure.
 
