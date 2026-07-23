@@ -177,3 +177,4 @@ The platform role does not replace tenant membership. Staff and manager operatio
 - Missing resources return `404`; state/stock/idempotency conflicts return `409` where applicable.
 - Third-party delivery failure is logged and retried according to its workflow; it must not expose provider secrets.
 - The UI preserves safe customer input after recoverable errors and shows localized recovery actions with Japanese fallback.
+- The login UI prefers a backend-supplied safe error message when available; otherwise it falls back to localized network/auth/validation/server messaging.
