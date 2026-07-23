@@ -35,7 +35,7 @@ export function StaffLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--app-bg)]">
       <header className="sticky top-0 z-20 border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4">
+        <div className="flex h-16 w-full items-center gap-2 px-2 sm:px-4">
           <Link to="/staff" className="mr-4 flex items-center gap-3 font-bold text-gray-950">
             <BrandLogo decorative />
             <span className="hidden sm:inline">{t('brandName')}</span>

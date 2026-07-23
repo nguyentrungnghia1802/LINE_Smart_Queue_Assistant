@@ -99,7 +99,7 @@ Frontend responsibilities are split into route pages, reusable components/layout
 
 1. LIFF initializes with public `VITE_LIFF_ID`. In real mode, a signed-out customer is automatically sent through LINE Login; mock mode can stay signed in/out for local tests.
 2. After LINE login, the client obtains an OIDC ID token and posts it to `/api/v1/auth/line`.
-3. API verifies it against the configured LINE Login channel ID.
+3. API verifies it against the configured LINE Login channel ID and may persist the optional verified email claim when the channel has email permission and the address is not already owned.
 4. API finds or creates the customer and links `line_accounts.line_user_id` transactionally.
 5. `currentUserMiddleware` accepts the JWT LINE claim only when the matching `line_accounts` row still belongs to that user and `is_linked = TRUE`.
 6. LIFF booking, demo payment return, order creation, and ticket display run in the same `/liff/*` flow. Order and direct queue creation in LIFF are blocked until the system JWT has been issued from the LINE ID token.

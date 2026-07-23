@@ -67,11 +67,11 @@ Clients branch on `error.code` and localize it. `error.message` is diagnostic te
 
 ### Authentication
 
-| Method | Path                    | Access               | Purpose                                                      |
-| ------ | ----------------------- | -------------------- | ------------------------------------------------------------ |
-| POST   | `/api/v1/auth/line`     | Public, strict limit | Verify LINE ID token, find/create linked customer, issue JWT |
-| POST   | `/api/v1/auth/login`    | Public, strict limit | Email/password login                                         |
-| POST   | `/api/v1/auth/register` | Public, strict limit | Register customer account                                    |
+| Method | Path                    | Access               | Purpose                                                                                      |
+| ------ | ----------------------- | -------------------- | -------------------------------------------------------------------------------------------- |
+| POST   | `/api/v1/auth/line`     | Public, strict limit | Verify LINE ID token, find/create linked customer, optionally sync verified email, issue JWT |
+| POST   | `/api/v1/auth/login`    | Public, strict limit | Email/password login                                                                         |
+| POST   | `/api/v1/auth/register` | Public, strict limit | Register customer account                                                                    |
 
 ### Platform admin
 
@@ -147,15 +147,15 @@ The current customer LIFF UI treats `/queue/join` as a legacy/direct queue path.
 
 All paths require staff/manager/admin and organization ownership.
 
-| Method | Path                                      | Purpose                                       |
-| ------ | ----------------------------------------- | --------------------------------------------- |
-| GET    | `/api/v1/staff/my-queue`                  | Full operational board for actor organization |
-| GET    | `/api/v1/staff/queues/:queueId`           | Queue overview                                |
-| POST   | `/api/v1/staff/queues/:queueId/call-next` | Call next                                     |
-| POST   | `/api/v1/staff/entries/:entryId/serve`    | Start service                                 |
-| POST   | `/api/v1/staff/entries/:entryId/complete` | Complete service                              |
-| POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                  |
-| POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                         |
+| Method | Path                                      | Purpose                                                                             |
+| ------ | ----------------------------------------- | ----------------------------------------------------------------------------------- |
+| GET    | `/api/v1/staff/my-queue`                  | Full operational board, order and available customer contact for actor organization |
+| GET    | `/api/v1/staff/queues/:queueId`           | Queue overview                                                                      |
+| POST   | `/api/v1/staff/queues/:queueId/call-next` | Call next                                                                           |
+| POST   | `/api/v1/staff/entries/:entryId/serve`    | Start service                                                                       |
+| POST   | `/api/v1/staff/entries/:entryId/complete` | Complete service                                                                    |
+| POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                                                        |
+| POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                                                               |
 
 ### Orders and payment
 
