@@ -27,6 +27,7 @@ interface Order {
   order_number: string;
   customer_name: string | null;
   customer_phone: string | null;
+  customer_email?: string | null;
   status: string;
   subtotal: string;
   payment_status: string;
@@ -360,7 +361,7 @@ export function StaffDashboardPage() {
               <div className="space-y-5">
                 {/* Customer info */}
                 {selected.order && (
-                  <div className="grid gap-3 rounded-2xl border border-white/80 bg-white p-4 text-sm text-gray-600 shadow-[var(--shadow-soft)] sm:grid-cols-2 sm:p-5">
+                  <div className="grid gap-4 rounded-2xl border border-white/80 bg-white p-4 text-sm text-gray-600 shadow-[var(--shadow-soft)] sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
                         {t('dashboard.customer')}
@@ -369,16 +370,24 @@ export function StaffDashboardPage() {
                         {selected.order.customer_name ?? t('dashboard.guest', { ns: 'staff' })}
                       </p>
                     </div>
-                    {selected.order.customer_phone && (
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                          {t('labels.phone', { ns: 'common' })}
-                        </p>
-                        <p className="mt-1 font-bold text-gray-900">
-                          {selected.order.customer_phone}
-                        </p>
-                      </div>
-                    )}
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                        {t('labels.phone', { ns: 'common' })}
+                      </p>
+                      <p className="mt-1 break-words font-bold text-gray-900">
+                        {selected.order.customer_phone ??
+                          t('dashboard.contactUnavailable', { ns: 'staff' })}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                        {t('labels.email', { ns: 'common' })}
+                      </p>
+                      <p className="mt-1 break-all font-bold text-gray-900">
+                        {selected.order.customer_email ??
+                          t('dashboard.contactUnavailable', { ns: 'staff' })}
+                      </p>
+                    </div>
                   </div>
                 )}
 

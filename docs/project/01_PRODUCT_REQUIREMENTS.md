@@ -27,15 +27,16 @@ The platform role does not replace tenant membership. Staff and manager operatio
 
 ### Authentication and profile
 
-| ID          | Requirement                                                                 | Status      |
-| ----------- | --------------------------------------------------------------------------- | ----------- |
-| FR-AUTH-001 | Authenticate staff/manager/admin by email and password and issue JWT access | Implemented |
-| FR-AUTH-002 | Authenticate a customer from a LINE LIFF ID token after server verification | Implemented |
-| FR-AUTH-003 | Link one LINE account to one platform user and preserve the LINE user ID    | Implemented |
-| FR-AUTH-004 | Allow the authenticated user to view/update supported profile fields        | Implemented |
-| FR-AUTH-005 | Persist preferred locale with organization/client/Japanese fallback         | Implemented |
-| FR-AUTH-005 | Keep public QR booking available without mandatory account login            | Implemented |
-| FR-AUTH-006 | Automatically initialize LIFF login and exchange ID token for system JWT    | Implemented |
+| ID          | Requirement                                                                   | Status      |
+| ----------- | ----------------------------------------------------------------------------- | ----------- |
+| FR-AUTH-001 | Authenticate staff/manager/admin by email and password and issue JWT access   | Implemented |
+| FR-AUTH-002 | Authenticate a customer from a LINE LIFF ID token after server verification   | Implemented |
+| FR-AUTH-003 | Link one LINE account to one platform user and preserve the LINE user ID      | Implemented |
+| FR-AUTH-004 | Allow the authenticated user to view/update supported profile fields          | Implemented |
+| FR-AUTH-005 | Persist preferred locale with organization/client/Japanese fallback           | Implemented |
+| FR-AUTH-005 | Keep public QR booking available without mandatory account login              | Implemented |
+| FR-AUTH-006 | Automatically initialize LIFF login and exchange ID token for system JWT      | Implemented |
+| FR-AUTH-007 | Store LINE-verified customer email when the optional email claim is available | Implemented |
 
 ### Organization administration
 
@@ -80,15 +81,15 @@ The platform role does not replace tenant membership. Staff and manager operatio
 
 ### Queue and staff operation
 
-| ID           | Requirement                                                                          | Status                          |
-| ------------ | ------------------------------------------------------------------------------------ | ------------------------------- |
-| FR-QUEUE-001 | Successful booking creates a ticket in the organization's active queue               | Implemented                     |
-| FR-QUEUE-002 | Customer sees ticket code, status, people ahead, ETA, order items, and payment       | Implemented                     |
-| FR-QUEUE-003 | Staff sees a responsive queue list and a full-width selected booking workspace       | Implemented                     |
-| FR-QUEUE-004 | Staff calls next, starts service, completes, marks no-show, or cancels valid tickets | Implemented                     |
-| FR-QUEUE-005 | Queue ticket counter resets daily                                                    | Implemented with UTC limitation |
-| FR-QUEUE-006 | Queue capacity remains strict under concurrent joins                                 | Partial                         |
-| FR-QUEUE-007 | Manager configures queue status, prefix, capacity, timing, and operational rules     | Implemented                     |
+| ID           | Requirement                                                                                               | Status                          |
+| ------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| FR-QUEUE-001 | Successful booking creates a ticket in the organization's active queue                                    | Implemented                     |
+| FR-QUEUE-002 | Customer sees ticket code, status, people ahead, ETA, order items, and payment                            | Implemented                     |
+| FR-QUEUE-003 | Staff sees a responsive queue list, customer contact details, and a full-width selected booking workspace | Implemented                     |
+| FR-QUEUE-004 | Staff calls next, starts service, completes, marks no-show, or cancels valid tickets                      | Implemented                     |
+| FR-QUEUE-005 | Queue ticket counter resets daily                                                                         | Implemented with UTC limitation |
+| FR-QUEUE-006 | Queue capacity remains strict under concurrent joins                                                      | Partial                         |
+| FR-QUEUE-007 | Manager configures queue status, prefix, capacity, timing, and operational rules                          | Implemented                     |
 
 ### LINE and notifications
 

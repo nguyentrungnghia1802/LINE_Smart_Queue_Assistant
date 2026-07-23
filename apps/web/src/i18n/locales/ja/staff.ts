@@ -16,6 +16,7 @@ export const staff = {
     noOrder: '注文なし',
     selectTicket: '受付番号を選択して詳細を表示',
     customer: '顧客',
+    contactUnavailable: '未登録',
     relatedBookingsLabel: '関連予約',
     group: 'グループ',
     order: '注文 {{number}}',
