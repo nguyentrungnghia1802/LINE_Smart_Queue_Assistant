@@ -37,11 +37,12 @@ Browser-visible configuration:
 - `VITE_ENABLE_LEGACY_CUSTOMER_AUTH`
 - payment mode/redirect base URL and webhook timing limits (identifiers/URLs only, never keys)
 
-For production web builds, set `VITE_API_URL=/api`,
-`VITE_ENABLE_LEGACY_CUSTOMER_AUTH=false`, and a real `VITE_LIFF_ID`. nginx in the web container
-proxies `/api/*` to the internal `api:4000` service and preserves the `/api` prefix, which keeps
-backend routes mounted at `/api/v1`. Every `VITE_*` value is compiled into the browser bundle at
-build time and must be treated as public configuration, not as a secret.
+For production web builds, keep `VITE_API_URL` empty, set
+`VITE_ENABLE_LEGACY_CUSTOMER_AUTH=false`, and provide a real `VITE_LIFF_ID`. Frontend request
+paths already start with `/api/v1`; nginx proxies `/api/*` to the internal `api:4000` service and
+preserves that prefix. Setting `VITE_API_URL=/api` would incorrectly produce
+`/api/api/v1/...`. Every `VITE_*` value is compiled into the browser bundle at build time and
+must be treated as public configuration, not as a secret.
 
 Rotate any credential that has appeared in Git history, logs, screenshots, tickets, or examples.
 
@@ -73,7 +74,7 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps
 
 Use `--env-file deploy/.env` when invoking the file from the repository root. Without it, Compose interpolation may read a different `.env` from the current working directory even though the API container's `env_file` is resolved from the deploy directory.
 
-The web image must be built ahead of time with public Vite values such as `VITE_API_URL=/api`, `VITE_LIFF_ID`, `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_ENABLE_LEGACY_CUSTOMER_AUTH=false`, `VITE_PAYMENT_MODE`, and `VITE_PAYMENT_REDIRECT_BASE_URL`. Backend-only secrets such as `JWT_SECRET`, database credentials, LINE channel secret/access token, and provider webhook keys are runtime API secrets only.
+The web image must be built ahead of time with public Vite values such as an empty `VITE_API_URL` for same-origin routing, `VITE_LIFF_ID`, `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_ENABLE_LEGACY_CUSTOMER_AUTH=false`, `VITE_PAYMENT_MODE`, and `VITE_PAYMENT_REDIRECT_BASE_URL`. Backend-only secrets such as `JWT_SECRET`, database credentials, LINE channel secret/access token, and provider webhook keys are runtime API secrets only.
 
 The current local media adapter writes to `/app/var/media`, backed by the persistent `media_data` volume. nginx proxies `/media/*` to the API so generated media URLs stay on the public web origin. This volume is a Compose durability baseline, not a substitute for production object storage, backup, scanning, and CDN policy.
 

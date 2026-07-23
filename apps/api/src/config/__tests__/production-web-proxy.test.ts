@@ -63,7 +63,11 @@ describe('production web reverse proxy configuration', () => {
       expect(compose).toContain(`${arg}:`);
     }
 
-    expect(compose).toContain('VITE_API_URL: ${VITE_API_URL:-/api}');
+    expect(compose).toContain('VITE_API_URL: ${VITE_API_URL:-}');
+    expect(compose).not.toContain('VITE_API_URL: ${VITE_API_URL:-/api}');
+
+    const authStore = readRepoFile('apps/web/src/store/authStore.ts');
+    expect(authStore).toContain("'/api/v1/auth/login'");
   });
 
   it('keeps the deploy Compose stack synchronized with the canonical production stack', () => {
