@@ -38,7 +38,7 @@ export function StaffLayout() {
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4">
           <Link to="/staff" className="mr-4 flex items-center gap-3 font-bold text-gray-950">
             <BrandLogo decorative />
-            <span className="hidden sm:inline">LINE Queue</span>
+            <span className="hidden sm:inline">{t('brandName')}</span>
           </Link>
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
             <NavLink to="/staff" end className={navClass}>

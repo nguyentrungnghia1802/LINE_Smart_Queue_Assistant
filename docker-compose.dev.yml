@@ -87,12 +87,15 @@ services:
       NODE_ENV: development
       # Vite dev server reads these at startup (not build-time, unlike production)
       VITE_API_URL: http://localhost:4000
+      # Server-only Vite proxy target; never compiled into browser code.
+      API_PROXY_TARGET: http://api:4000
       VITE_APP_NAME: ${VITE_APP_NAME:-LINE Smart Queue Assistant}
     volumes:
       # Mount source for HMR — Vite detects changes instantly
       - ./apps/web/src:/app/apps/web/src
       - ./apps/web/index.html:/app/apps/web/index.html
       - ./apps/web/vite.config.ts:/app/apps/web/vite.config.ts
+      - ./apps/web/public:/app/apps/web/public
       - ./packages/shared/src:/app/packages/shared/src
     ports:
       - '5173:5173' # Vite dev server with HMR

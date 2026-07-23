@@ -8,7 +8,7 @@ import { LiffRuntimeProvider } from '../../../contexts/LiffRuntimeContext';
 import { i18n } from '../../../i18n';
 import { get, post } from '../../../services/apiClient';
 import type { LiffContext } from '../../../types/liff';
-import { LiffCustomerJoinPage } from '../CustomerJoinPage';
+import { CustomerJoinPage, LiffCustomerJoinPage } from '../CustomerJoinPage';
 
 vi.mock('../../../services/apiClient', () => ({
   get: vi.fn(),
@@ -129,5 +129,22 @@ describe('LiffCustomerJoinPage', () => {
     expect(screen.getByText(i18n.t('customer:home.authenticating'))).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '予約する' })).toBeDisabled();
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it('shows the shared product logo in the customer booking navigation', async () => {
+    const queryClient = makeQueryClient();
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/qr/demo-token']}>
+          <Routes>
+            <Route path="/qr/:token" element={<CustomerJoinPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await screen.findByRole('heading', { name: 'テスト店舗' });
+    expect(screen.getByText('Smart Queue Assistant')).toBeInTheDocument();
+    expect(container.querySelector('header img[src="/logo.svg"]')).toBeInTheDocument();
   });
 });
