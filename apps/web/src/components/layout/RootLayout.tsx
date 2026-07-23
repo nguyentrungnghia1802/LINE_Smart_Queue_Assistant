@@ -27,7 +27,7 @@ export function RootLayout() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link to="/" className="flex items-center gap-3 text-lg font-bold text-gray-950">
             <BrandLogo decorative />
-            <span>LINE Queue</span>
+            <span>{t('brandName')}</span>
           </Link>
 
           {/* Desktop nav */}
