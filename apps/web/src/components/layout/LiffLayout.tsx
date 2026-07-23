@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 import { LiffRuntimeProvider } from '../../contexts/LiffRuntimeContext';
 import { useLiff } from '../../hooks/useLiff';
+import { BrandLogo } from '../BrandLogo';
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
 import { ErrorState } from '../ui/ErrorState';
 import { Spinner } from '../ui/Spinner';
@@ -31,6 +32,7 @@ export function LiffLayout() {
 
   const topHeader = (
     <header className="flex items-center gap-2 bg-line-green px-4 py-3 text-white shrink-0">
+      <BrandLogo decorative className="h-9 w-9" />
       <span className="text-xl font-bold tracking-tight">
         {import.meta.env.VITE_APP_NAME ?? 'LINE Queue'}
       </span>

@@ -55,7 +55,9 @@ ENV NODE_ENV=production
 
 # Non-root user (OWASP A05: Security Misconfiguration)
 RUN addgroup --system --gid 1001 appgroup && \
-    adduser  --system --uid 1001 --ingroup appgroup appuser
+    adduser  --system --uid 1001 --ingroup appgroup appuser && \
+    mkdir -p /app/var/media && \
+    chown appuser:appgroup /app/var/media
 
 # Production node_modules (no devDependencies)
 COPY --from=prod-deps --chown=appuser:appgroup /app/node_modules               ./node_modules
