@@ -38,7 +38,7 @@ export function ManagerLayout() {
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4">
           <Link to="/manager" className="mr-4 flex items-center gap-3 font-bold text-gray-950">
             <BrandLogo decorative />
-            <span>LINE Queue</span>
+            <span>{t('brandName')}</span>
           </Link>
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
             <NavLink to="/manager" end className={navClass}>
