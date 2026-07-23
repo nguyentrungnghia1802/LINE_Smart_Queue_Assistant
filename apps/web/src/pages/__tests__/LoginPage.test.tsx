@@ -71,6 +71,16 @@ describe('LoginPage', () => {
     expect(screen.getByRole('combobox', { name: '言語' })).toBeInTheDocument();
   });
 
+  it('renders the centered product benefits with decorative icons', () => {
+    renderPage();
+
+    const benefits = screen.getByTestId('login-benefits');
+    expect(benefits).toHaveTextContent('24h');
+    expect(benefits).toHaveTextContent('LINE');
+    expect(benefits).toHaveTextContent('JPY');
+    expect(benefits.querySelectorAll('svg')).toHaveLength(3);
+  });
+
   it('offers LINE as the customer login path and keeps email for business users', () => {
     renderPage();
 
