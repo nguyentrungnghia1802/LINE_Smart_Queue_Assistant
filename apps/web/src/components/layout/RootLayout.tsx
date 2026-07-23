@@ -5,6 +5,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { UserRole } from '@line-queue/shared';
 
 import { useAuthStore } from '../../store/authStore';
+import { BrandLogo } from '../BrandLogo';
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
 
 import { AccountMenu } from './AccountMenu';
@@ -25,9 +26,7 @@ export function RootLayout() {
       <header className="sticky top-0 z-20 border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link to="/" className="flex items-center gap-3 text-lg font-bold text-gray-950">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-sm text-white">
-              LQ
-            </span>
+            <BrandLogo decorative />
             <span>LINE Queue</span>
           </Link>
 
