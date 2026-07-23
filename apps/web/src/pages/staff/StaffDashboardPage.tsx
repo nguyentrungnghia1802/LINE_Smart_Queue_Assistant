@@ -6,6 +6,7 @@ import { i18n } from '../../i18n';
 import { formatCurrency as formatLocalizedCurrency, formatDateTime } from '../../i18n/format';
 import { get, patch, post } from '../../services/apiClient';
 import type { BookingGroup } from '../../services/bookingGroups.api';
+import { staffApi } from '../../services/staff.api';
 import { useAuthStore } from '../../store/authStore';
 
 interface OrderItem {
@@ -185,7 +186,7 @@ export function StaffDashboardPage() {
     onSuccess: invalidateQueue,
   });
   const completeMutation = useMutation({
-    mutationFn: (entryId: string) => post(`/api/v1/staff/entries/${entryId}/complete`, {}),
+    mutationFn: (entryId: string) => staffApi.complete(entryId),
     onSuccess: invalidateQueue,
   });
   const noShowMutation = useMutation({

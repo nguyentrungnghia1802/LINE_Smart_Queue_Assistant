@@ -6,6 +6,7 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Fixed staff completion/no-show history writes to use the canonical `queue_histories.actor_id` column, normalized inconsistent legacy timing data, corrected demo seed timestamps, and removed the unnecessary Complete request body.
 - Completed atomic inventory reservation lifecycle and queue/counter concurrency controls.
 - Added audited payment reconciliation, replay/out-of-order webhook guards, partial/full refund accounting, and receipt eligibility checks.
 - Added tenant-scoped notification operations, LINE preferences, privacy-aware location alerts, and retention cleanup.

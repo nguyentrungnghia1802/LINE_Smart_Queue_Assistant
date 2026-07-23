@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { get } from '../../../services/apiClient';
+import { get, post } from '../../../services/apiClient';
 import { StaffDashboardPage } from '../StaffDashboardPage';
 
 vi.mock('../../../services/apiClient', () => ({
@@ -70,5 +70,31 @@ describe('StaffDashboardPage', () => {
 
     expect(await screen.findByText('customer@example.com')).toBeInTheDocument();
     expect(screen.getByText('メール')).toBeInTheDocument();
+  });
+
+  it('completes a serving ticket without sending a request body', async () => {
+    vi.mocked(get).mockResolvedValue({
+      queueId: 'queue-1',
+      queueName: '受付カウンターA',
+      waitingCount: 0,
+      waitingEntriesWithOrders: [],
+      calledEntryWithOrder: null,
+      servingEntryWithOrder: {
+        id: '22222222-2222-4222-8222-222222222222',
+        ticket_code: 'A004',
+        status: 'serving',
+        order: null,
+      },
+    });
+    vi.mocked(post).mockResolvedValue({ entry: { id: 'entry-1', status: 'served' } });
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: '完了' }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        '/api/v1/staff/entries/22222222-2222-4222-8222-222222222222/complete'
+      )
+    );
   });
 });
