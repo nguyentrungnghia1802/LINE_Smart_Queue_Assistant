@@ -86,7 +86,7 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 | `queue_hourly_metrics`          | Retained eight-week demand/service aggregate      | Tenant slot indexes, nonnegative counts/durations, bounded weekday/hour, expiry             |
 | `notifications`                 | Durable localized LINE outbox and delivery log    | Unique event key, resolved locale, tenant/entry/user/LINE references, delivery indexes      |
 | `penalty_records`               | No-show/late/cancel/manual policy record          | User/LINE/tenant lookup indexes                                                             |
-| `queue_histories`               | Queue transition/event history                    | Tenant/queue/entry/actor indexes                                                            |
+| `queue_histories`               | Queue transition/event history                    | Tenant/queue/entry indexes; `actor_id` stores the authenticated operator, not the customer  |
 | `audit_logs`                    | Administrative/system audit trail                 | Actor, tenant, resource indexes and JSON changes                                            |
 
 ## 4. Enumerated values

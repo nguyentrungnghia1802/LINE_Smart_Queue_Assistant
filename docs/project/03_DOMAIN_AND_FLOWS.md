@@ -157,7 +157,7 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
 2. `/staff/my-queue` selects an organization queue with waiting/called/serving activity (falling back to the first active queue) and returns its board, order details, and authenticated customer email when available.
 3. Calling next atomically selects/transitions the next eligible waiting entry.
 4. The queue transition and LINE outbox row, including resolved locale, are written in the same transaction; a worker sends the localized message after commit.
-5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful state change enqueues a LINE push intent when the ticket has a verified recipient.
+5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful completion or no-show records the authenticated operator in `queue_histories.actor_id` and enqueues a LINE push intent when the ticket has a verified recipient.
 6. Staff updates order/payment status manually as needed.
 7. Receipt printing is available after the applicable payment success state.
 

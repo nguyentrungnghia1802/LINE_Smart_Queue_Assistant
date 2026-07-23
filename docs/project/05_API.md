@@ -157,6 +157,8 @@ All paths require staff/manager/admin and organization ownership.
 | POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                                                        |
 | POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                                                               |
 
+Staff transition endpoints validate UUID path parameters and do not require a request body. Completion atomically transitions the ticket to `served`, completes the linked order and inventory lifecycle where applicable, enqueues the LINE notification, and records the authenticated staff actor in queue history.
+
 ### Orders and payment
 
 | Method | Path                         | Access                          | Purpose                                              |

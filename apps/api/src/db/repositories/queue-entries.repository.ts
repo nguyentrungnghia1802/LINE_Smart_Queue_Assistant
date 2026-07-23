@@ -245,19 +245,26 @@ export class QueueEntriesRepository extends BaseRepository {
     fromStatus: string,
     toStatus: string,
     reason?: string,
-    client?: PoolClient
+    client?: PoolClient,
+    actorUserId?: string
   ): Promise<void> {
     const waitSeconds =
       entry.serving_started_at && entry.created_at
-        ? Math.round((entry.serving_started_at.getTime() - entry.created_at.getTime()) / 1000)
+        ? Math.max(
+            0,
+            Math.round((entry.serving_started_at.getTime() - entry.created_at.getTime()) / 1000)
+          )
         : null;
     const serviceSeconds =
       entry.served_at && entry.serving_started_at
-        ? Math.round((entry.served_at.getTime() - entry.serving_started_at.getTime()) / 1000)
+        ? Math.max(
+            0,
+            Math.round((entry.served_at.getTime() - entry.serving_started_at.getTime()) / 1000)
+          )
         : null;
     const sql = `
       INSERT INTO queue_histories
-        (queue_entry_id, queue_id, organization_id, user_id, line_user_id,
+        (queue_entry_id, queue_id, organization_id, actor_id, line_user_id,
          ticket_number, ticket_code, from_status, to_status, reason,
          wait_seconds, service_seconds, metadata, created_at)
       SELECT $1, q.id, q.organization_id, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
@@ -265,7 +272,7 @@ export class QueueEntriesRepository extends BaseRepository {
     const args = [
       entry.id,
       entry.queue_id,
-      entry.user_id,
+      actorUserId ?? null,
       entry.line_user_id,
       entry.ticket_number,
       entry.ticket_code,
