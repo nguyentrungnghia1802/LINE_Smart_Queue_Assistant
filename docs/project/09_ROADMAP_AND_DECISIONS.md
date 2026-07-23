@@ -165,9 +165,9 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 **Context:** Customer notifications, ticket deeplinks, and queue ownership need a verified LINE identity. A browser-supplied LINE profile or `lineUserId` cannot be trusted.
 
-**Decision:** Use `/liff/qr/:token` and `/liff/q/:orgSlug` as the primary customer booking routes. LIFF initializes LINE Login, exchanges the ID token for the system JWT, and blocks LIFF booking until that authenticated identity is ready. Public `/qr`, `/q`, and `/ticket` routes remain for fallback/demo access.
+**Decision:** Use `/liff/qr/:token` and `/liff/q/:orgSlug` as the primary customer booking routes. Manager copy/print actions target the LIFF universal link, and the shared login page directs customers to LINE before the operational email form. LIFF initializes LINE Login, exchanges the ID token for the system JWT, and blocks LIFF booking until that authenticated identity is ready. Public `/qr`, `/q`, and `/ticket` routes remain for fallback/demo access. Legacy customer email registration is disabled in production unless an explicit public build flag enables it.
 
-**Consequences:** LINE Console and real-device E2E configuration are required before production acceptance. Local mock mode remains available, but bookings in LIFF must be tested with the authenticated system JWT path.
+**Consequences:** LINE Console and real-device E2E configuration are required before production acceptance. Local mock mode and legacy customer registration remain available for development, but production QR output requires a real LIFF ID and bookings in LIFF must be tested with the authenticated system JWT path.
 
 ## ADR-012: LINE ticket notifications are Flex-first with text fallback
 
