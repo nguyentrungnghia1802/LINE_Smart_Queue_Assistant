@@ -123,23 +123,23 @@ All paths require manager/admin.
 
 ### Customer ticket operations
 
-| Method | Path                               | Access                           | Purpose                                                                              |
-| ------ | ---------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------ |
-| POST   | `/api/v1/queue/join`               | Public, strict limit, idempotent | Join a queue directly; optional LINE recipient comes only from verified JWT identity |
-| GET    | `/api/v1/queue/current?queueId=`   | Public                           | Current queue snapshot                                                               |
-| GET    | `/api/v1/queue/me`                 | Authenticated                    | Current caller ticket                                                                |
-| GET    | `/api/v1/queue/me/penalties`       | Authenticated                    | Active caller penalties                                                              |
-| GET    | `/api/v1/queue/entry/:entryId`     | Public                           | Guest/public ticket status                                                           |
-| POST   | `/api/v1/queue/:entryId/cancel`    | Authenticated owner/operator     | Cancel eligible ticket                                                               |
-| POST   | `/api/v1/queue/:entryId/skip`      | Authenticated                    | Apply skip policy                                                                    |
-| POST   | `/api/v1/queue/:entryId/serve`     | Staff/manager/admin              | Start service                                                                        |
-| POST   | `/api/v1/queue/:entryId/complete`  | Staff/manager/admin              | Complete service                                                                     |
-| GET    | `/api/v1/queue/:queueId/status`    | Public                           | Queue status/counts                                                                  |
-| POST   | `/api/v1/queue/:queueId/call-next` | Staff/manager/admin              | Call next ticket                                                                     |
+| Method | Path                               | Access                                                           | Purpose                                                                              |
+| ------ | ---------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| POST   | `/api/v1/queue/join`               | Public guest or authenticated customer, strict limit, idempotent | Join a queue directly; optional LINE recipient comes only from verified JWT identity |
+| GET    | `/api/v1/queue/current?queueId=`   | Public                                                           | Current queue snapshot                                                               |
+| GET    | `/api/v1/queue/me`                 | Authenticated                                                    | Current caller ticket                                                                |
+| GET    | `/api/v1/queue/me/penalties`       | Authenticated                                                    | Active caller penalties                                                              |
+| GET    | `/api/v1/queue/entry/:entryId`     | Public                                                           | Guest/public ticket status                                                           |
+| POST   | `/api/v1/queue/:entryId/cancel`    | Authenticated owner/operator                                     | Cancel eligible ticket                                                               |
+| POST   | `/api/v1/queue/:entryId/skip`      | Authenticated                                                    | Apply skip policy                                                                    |
+| POST   | `/api/v1/queue/:entryId/serve`     | Staff/manager/admin                                              | Start service                                                                        |
+| POST   | `/api/v1/queue/:entryId/complete`  | Staff/manager/admin                                              | Complete service                                                                     |
+| GET    | `/api/v1/queue/:queueId/status`    | Public                                                           | Queue status/counts                                                                  |
+| POST   | `/api/v1/queue/:queueId/call-next` | Staff/manager/admin                                              | Call next ticket                                                                     |
 
 Static `/current` and `/me` routes must remain before parameter routes.
 
-`POST /queue/join` accepts `queueId`, optional `guestName`, and optional `notes`. It does not accept a browser-supplied `lineUserId`; the controller passes only `req.user.lineUserId` after JWT and active `line_accounts` verification.
+`POST /queue/join` accepts `queueId`, optional `guestName`, and optional `notes`. It does not accept a browser-supplied `lineUserId`; the controller passes only `req.user.lineUserId` after JWT and active `line_accounts` verification. Guests remain supported, while an authenticated non-customer role receives `403 CUSTOMER_ACCOUNT_REQUIRED` before queue admission.
 
 The current customer LIFF UI treats `/queue/join` as a legacy/direct queue path. The product/service booking flow uses `POST /orders` after LIFF ID-token login has produced the system JWT.
 
@@ -147,27 +147,29 @@ The current customer LIFF UI treats `/queue/join` as a legacy/direct queue path.
 
 All paths require staff/manager/admin and organization ownership.
 
-| Method | Path                                      | Purpose                                                                             |
-| ------ | ----------------------------------------- | ----------------------------------------------------------------------------------- |
-| GET    | `/api/v1/staff/my-queue`                  | Full operational board, order and available customer contact for actor organization |
-| GET    | `/api/v1/staff/queues/:queueId`           | Queue overview                                                                      |
-| POST   | `/api/v1/staff/queues/:queueId/call-next` | Call next                                                                           |
-| POST   | `/api/v1/staff/entries/:entryId/serve`    | Start service                                                                       |
-| POST   | `/api/v1/staff/entries/:entryId/complete` | Complete service                                                                    |
-| POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                                                        |
-| POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                                                               |
+| Method | Path                                      | Purpose                                                                                                      |
+| ------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| GET    | `/api/v1/staff/my-queue`                  | Next eight active entries, total/waiting counts, order and available customer contact for actor organization |
+| GET    | `/api/v1/staff/queues/:queueId`           | Queue overview                                                                                               |
+| POST   | `/api/v1/staff/queues/:queueId/call-next` | Call next                                                                                                    |
+| POST   | `/api/v1/staff/entries/:entryId/serve`    | Start service                                                                                                |
+| POST   | `/api/v1/staff/entries/:entryId/complete` | Complete service                                                                                             |
+| POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                                                                                 |
+| POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                                                                                        |
+
+Staff transition endpoints validate UUID path parameters and do not require a request body. Completion atomically transitions the ticket to `served`, completes the linked order and inventory lifecycle where applicable, enqueues the LINE notification, and records the authenticated staff actor in queue history.
 
 ### Orders and payment
 
-| Method | Path                         | Access                          | Purpose                                              |
-| ------ | ---------------------------- | ------------------------------- | ---------------------------------------------------- |
-| POST   | `/api/v1/orders`             | Public, limited, idempotent     | Atomic booking/order/payment/stock/location creation |
-| POST   | `/api/v1/orders/:id/cancel`  | Authenticated owner/operator    | Cancel eligible order and linked ticket              |
-| GET    | `/api/v1/orders`             | Staff/manager/admin             | List tenant orders                                   |
-| GET    | `/api/v1/orders/stats`       | Manager/admin                   | Tenant order statistics                              |
-| GET    | `/api/v1/orders/:id`         | Staff/manager/admin             | Order detail                                         |
-| PATCH  | `/api/v1/orders/:id/status`  | Staff/manager/admin             | Set processing/completed/cancelled                   |
-| PATCH  | `/api/v1/orders/:id/payment` | Staff/manager/admin, idempotent | Manually set unpaid/paid summary                     |
+| Method | Path                         | Access                                                      | Purpose                                              |
+| ------ | ---------------------------- | ----------------------------------------------------------- | ---------------------------------------------------- |
+| POST   | `/api/v1/orders`             | Public guest or authenticated customer, limited, idempotent | Atomic booking/order/payment/stock/location creation |
+| POST   | `/api/v1/orders/:id/cancel`  | Authenticated owner/operator                                | Cancel eligible order and linked ticket              |
+| GET    | `/api/v1/orders`             | Staff/manager/admin                                         | List tenant orders                                   |
+| GET    | `/api/v1/orders/stats`       | Manager/admin                                               | Tenant order statistics                              |
+| GET    | `/api/v1/orders/:id`         | Staff/manager/admin                                         | Order detail                                         |
+| PATCH  | `/api/v1/orders/:id/status`  | Staff/manager/admin                                         | Set processing/completed/cancelled                   |
+| PATCH  | `/api/v1/orders/:id/payment` | Staff/manager/admin, idempotent                             | Manually set unpaid/paid summary                     |
 
 Important `POST /orders` request fields:
 
@@ -190,7 +192,7 @@ Important `POST /orders` request fields:
 
 The server ignores browser price, status, method code, and covered-product authority. Required prepayment is satisfied only by a `payment.transactionId` that points to a paid, same-tenant, unused `payment_transactions` row whose server-computed metadata matches the submitted cart.
 
-For authenticated `POST /orders`, the controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified linked `line_user_id` on the new queue entry. Guest orders keep both recipient fields empty unless a separately verified identity flow is used.
+For authenticated `POST /orders`, only a `customer` JWT is accepted. The controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified linked `line_user_id` on the new queue entry. Guest orders keep both recipient fields empty unless a separately verified identity flow is used. An authenticated staff, manager, or admin receives `403 CUSTOMER_ACCOUNT_REQUIRED` before any order, stock, queue, or payment work starts.
 
 In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has completed and the authenticated LINE-derived JWT is present. The request body must still never include `lineUserId`.
 
@@ -206,7 +208,7 @@ In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has compl
 
 Payment intent creation accepts `orgSlug`, selected `items`, `scope`, `provider`, `method`, `currency`, optional `returnUrl`, and optional `cartSignature`. The API reloads products and computes amount/coverage. Demo mode returns a `demoToken`; the browser must send it to `/payments/demo/complete`, and the server verifies it before marking the transaction paid. Future PSPs must update the same transaction state machine through signed webhooks or server-side verification.
 
-Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatus: paid | refunded`, optional refund `amount` and `reason`, and an `Idempotency-Key` header. Every accepted operation writes an audited reconciliation row. `GET /api/v1/orders/:id/receipt` is staff/manager/admin only and returns receipt source data only for a completed, fully paid order.
+Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatus: paid | refunded`, optional refund `amount` and `reason`, and an `Idempotency-Key` header. Every accepted operation writes an audited reconciliation row. For a legacy paid order without a transaction, the refund path first backfills a server-side manual transaction with covered order products and records a separate reconciliation operation. `GET /api/v1/orders/:id/receipt` is staff/manager/admin only and returns receipt source data only for a completed, fully paid order.
 
 ### Booking groups and organization calendar
 

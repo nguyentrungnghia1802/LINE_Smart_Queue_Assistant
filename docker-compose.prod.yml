@@ -1,7 +1,7 @@
 # Production image stack.
 # Build immutable images in CI/CD, then deploy this file with real secrets from
 # the environment or a secret manager. VITE_* values are already compiled into
-# the web image; build that image with VITE_API_URL=/api.
+# the web image; build that image with an empty VITE_API_URL.
 
 services:
   postgres:

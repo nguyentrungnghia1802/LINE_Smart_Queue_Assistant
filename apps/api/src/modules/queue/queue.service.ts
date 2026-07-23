@@ -544,7 +544,8 @@ export const queueService = {
         'serving',
         'served',
         undefined,
-        client
+        client,
+        params.actorUserId
       );
       return updated;
     });
@@ -593,7 +594,14 @@ export const queueService = {
         notificationOutboxRepository,
         client
       );
-      await queueEntriesRepository.archiveToHistory(noShow, 'called', 'no_show', undefined, client);
+      await queueEntriesRepository.archiveToHistory(
+        noShow,
+        'called',
+        'no_show',
+        undefined,
+        client,
+        params.actorUserId
+      );
       return noShow;
     });
   },

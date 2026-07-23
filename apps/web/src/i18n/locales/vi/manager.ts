@@ -168,6 +168,7 @@ export const manager = {
     notifyBeforeTurns: 'Thông báo trước bao nhiêu lượt',
     publicQrToken: 'QR token công khai',
     publicJoinUrl: 'URL tiếp nhận công khai',
+    customerBookingUrl: 'URL tiếp nhận cho khách hàng',
     copy: 'Sao chép',
     organizationSaved: 'Đã lưu thông tin tổ chức.',
     saveOrganization: 'Lưu tổ chức',

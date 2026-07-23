@@ -73,6 +73,13 @@ PostgreSQL values are `waiting`, `called`, `serving`, `served`, `skipped`, `canc
 
 Terminal states are `served`, `cancelled`, and `no_show`. Exact transition guards in queue/staff services are authoritative.
 
+### Customer QR admission
+
+1. A QR URL resolves public organization/catalog data and remains usable by a guest for the documented public fallback flow.
+2. If a JWT is present, only a `customer` role may create an order or join a queue. The API rejects a staff, manager, or admin JWT with `CUSTOMER_ACCOUNT_REQUIRED` before business services run.
+3. The public QR UI detects the same business session, keeps it unchanged, and offers a return path to that role's dashboard.
+4. The UI creates the current QR LIFF deep link only as an explicit customer action. LIFF then verifies the LINE identity and exchanges the ID token for the customer JWT before booking.
+
 ### Order
 
 | Current                | Action                | Next         |
@@ -88,7 +95,7 @@ Order and ticket states are related but separate. A queue completion should not 
 
 Order/item summary values include `unpaid` and `paid`; provider transaction values use the Phase 6 state machine: `pending`, `authorized`, `paid`, `failed`, `cancelled`, and `refunded`. Public create-order validation accepts only a server-created payment `transactionId`; it does not accept browser-supplied amount, status, method code, or covered product IDs.
 
-Webhook transitions are serialized by locking the payment transaction. Duplicate provider events are ignored by `(provider, event_id)`, older events and regressive transitions are recorded as ignored reconciliation operations, and provider payload fields with secret/card/token-shaped keys are redacted before persistence. Partial refunds keep the transaction/order paid while recording cumulative `refunded_amount`; a full refund transitions to `refunded`. Staff manual paid/refund operations require an idempotency key and create an audited reconciliation row. Receipt data is available only when the order is both `completed` and fully `paid`.
+Webhook transitions are serialized by locking the payment transaction. Duplicate provider events are ignored by `(provider, event_id)`, older events and regressive transitions are recorded as ignored reconciliation operations, and provider payload fields with secret/card/token-shaped keys are redacted before persistence. Partial refunds keep the transaction/order paid while recording cumulative `refunded_amount`; a full refund transitions to `refunded`. Staff manual paid/refund operations require an idempotency key and create an audited reconciliation row. If an older paid order has no transaction, the server creates and reconciles an audited manual transaction before applying the refund; it never accepts browser payment state as proof. Receipt data is available only when the order is both `completed` and fully `paid`.
 
 Per-item state determines prepaid coverage. The order header is `paid` only when every selected item is paid. Required-only checkout leaves the overall order `unpaid` until remaining balance is collected.
 
@@ -100,7 +107,7 @@ Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently
 
 ## 3. Customer entry and identity flow
 
-1. The manager's primary copy/print QR action uses the LIFF route, usually `/liff/qr/:token` from `https://liff.line.me/{LIFF_ID}?liff.state=...`. The public URL is shown separately as a development/fallback entry.
+1. The manager's primary copy/print QR action uses the LIFF route, usually `/liff/qr/:token` from `https://liff.line.me/{LIFF_ID}?liff.state=...`. LIFF automatically starts LINE Login when the customer is not signed in, then continues to the booking screen after the backend ID-token-to-JWT exchange. The public URL is shown separately as a development/fallback entry.
 2. LIFF initializes, automatically starts LINE Login in real mode when needed, obtains an ID token, calls `/auth/line`, and stores the system JWT. If the LINE channel has the optional `email` scope and the customer consents, the backend stores the server-verified email without overwriting or duplicating an existing platform email.
 3. Web fetches public organization, queue, and active product data after the route context is known.
 4. Customer selects products/services, optionally completes demo checkout for required prepayment, and creates the booking within the same LIFF flow.
@@ -154,10 +161,10 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
 ## 7. Staff queue flow
 
 1. Staff authenticates and the API resolves active organization membership.
-2. `/staff/my-queue` selects an organization queue with waiting/called/serving activity (falling back to the first active queue) and returns its board, order details, and authenticated customer email when available.
+2. `/staff/my-queue` selects an organization queue with waiting/called/serving activity (falling back to the first active queue), returns at most the next eight active entries for the board, exposes separate total-active and waiting counts, and includes order details and authenticated customer email when available.
 3. Calling next atomically selects/transitions the next eligible waiting entry.
 4. The queue transition and LINE outbox row, including resolved locale, are written in the same transaction; a worker sends the localized message after commit.
-5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful state change enqueues a LINE push intent when the ticket has a verified recipient.
+5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful completion or no-show records the authenticated operator in `queue_histories.actor_id` and enqueues a LINE push intent when the ticket has a verified recipient.
 6. Staff updates order/payment status manually as needed.
 7. Receipt printing is available after the applicable payment success state.
 

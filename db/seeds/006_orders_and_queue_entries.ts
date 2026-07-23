@@ -154,6 +154,8 @@ async function getProductSnapshot(client: PoolClient, productId: string) {
 }
 
 export async function seed(client: PoolClient): Promise<void> {
+  await client.query(`DELETE FROM queue_histories WHERE metadata @> '{"seed":true}'::jsonb`);
+
   for (const order of orders) {
     let subtotal = 0;
     const snapshots = [] as Array<{
@@ -238,6 +240,7 @@ export async function seed(client: PoolClient): Promise<void> {
 
     const nowExpr = {
       waiting: {
+        created: "NOW() - INTERVAL '10 minutes'",
         called: null,
         serving: null,
         served: null,
@@ -246,6 +249,7 @@ export async function seed(client: PoolClient): Promise<void> {
         noShow: null,
       },
       called: {
+        created: "NOW() - INTERVAL '10 minutes'",
         called: "NOW() - INTERVAL '2 minutes'",
         serving: null,
         served: null,
@@ -254,6 +258,7 @@ export async function seed(client: PoolClient): Promise<void> {
         noShow: null,
       },
       serving: {
+        created: "NOW() - INTERVAL '15 minutes'",
         called: "NOW() - INTERVAL '8 minutes'",
         serving: "NOW() - INTERVAL '5 minutes'",
         served: null,
@@ -262,6 +267,7 @@ export async function seed(client: PoolClient): Promise<void> {
         noShow: null,
       },
       served: {
+        created: "NOW() - INTERVAL '60 minutes'",
         called: "NOW() - INTERVAL '45 minutes'",
         serving: "NOW() - INTERVAL '40 minutes'",
         served: "NOW() - INTERVAL '10 minutes'",
@@ -270,6 +276,7 @@ export async function seed(client: PoolClient): Promise<void> {
         noShow: null,
       },
       skipped: {
+        created: "NOW() - INTERVAL '40 minutes'",
         called: "NOW() - INTERVAL '30 minutes'",
         serving: null,
         served: null,
@@ -278,6 +285,7 @@ export async function seed(client: PoolClient): Promise<void> {
         noShow: null,
       },
       cancelled: {
+        created: "NOW() - INTERVAL '20 minutes'",
         called: null,
         serving: null,
         served: null,
@@ -286,6 +294,7 @@ export async function seed(client: PoolClient): Promise<void> {
         noShow: null,
       },
       no_show: {
+        created: "NOW() - INTERVAL '30 minutes'",
         called: "NOW() - INTERVAL '25 minutes'",
         serving: null,
         served: null,
@@ -300,13 +309,15 @@ export async function seed(client: PoolClient): Promise<void> {
         INSERT INTO queue_entries (
           id, queue_id, user_id, order_id, line_user_id, ticket_number, ticket_code,
           business_date, status, priority, position_snapshot, estimated_wait_seconds,
-          called_at, serving_started_at, served_at, skipped_at, cancelled_at, no_show_at
+          called_at, serving_started_at, served_at, skipped_at, cancelled_at, no_show_at,
+          created_at
         )
         VALUES (
           $1, $2, $3, $4, $5, $6, $7,
           (NOW() AT TIME ZONE 'Asia/Tokyo')::date, $8::queue_entry_status, 0, $9, $10,
           ${nowExpr.called ?? 'NULL'}, ${nowExpr.serving ?? 'NULL'}, ${nowExpr.served ?? 'NULL'},
-          ${nowExpr.skipped ?? 'NULL'}, ${nowExpr.cancelled ?? 'NULL'}, ${nowExpr.noShow ?? 'NULL'}
+          ${nowExpr.skipped ?? 'NULL'}, ${nowExpr.cancelled ?? 'NULL'}, ${nowExpr.noShow ?? 'NULL'},
+          ${nowExpr.created}
         )
         ON CONFLICT (id) DO UPDATE SET
           user_id = EXCLUDED.user_id,
@@ -324,6 +335,7 @@ export async function seed(client: PoolClient): Promise<void> {
           skipped_at = EXCLUDED.skipped_at,
           cancelled_at = EXCLUDED.cancelled_at,
           no_show_at = EXCLUDED.no_show_at,
+          created_at = EXCLUDED.created_at,
           updated_at = NOW();
       `,
       [

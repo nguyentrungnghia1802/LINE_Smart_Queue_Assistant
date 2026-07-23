@@ -161,8 +161,9 @@ npm run docker:dev
 ```
 
 The development API container builds the shared workspace and applies pending database migrations
-before it starts. Demo seed data remains explicit: run `npm run db:seed` when the demo accounts and
-catalog are required.
+before it starts. Seed data remains explicit: `npm run db:seed` creates only the baseline
+organization and development accounts. Run `npm run db:seed:demo` when catalog, queue, order, and
+notification fixtures are required.
 
 Development URLs:
 
@@ -186,7 +187,9 @@ The web app proxies `/api` to the API on port `4000`. If the API is not running,
 
 ## Demo data
 
-After seeding, the main local accounts use password `123456`:
+The default seed creates the organization, accounts, and memberships only. It intentionally leaves
+products, queues, orders, tickets, payments, and notifications empty so stale transactional
+fixtures cannot affect development. The main local accounts use password `123456`:
 
 | Role     | Email                |
 | -------- | -------------------- |
@@ -200,6 +203,12 @@ Public demo paths:
 - QR token: `demo-queue-lab-2026`
 - Customer page: `http://localhost:5173/qr/demo-queue-lab-2026`
 - LIFF mock booking path: `/liff/qr/demo-queue-lab-2026`
+
+Create the optional full demonstration dataset with:
+
+```bash
+npm run db:seed:demo
+```
 
 For local work without real LINE credentials:
 
