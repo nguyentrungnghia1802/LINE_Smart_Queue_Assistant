@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
 import { get } from '../../services/apiClient';
+import { getCustomerLineEntryUrl } from '../../services/liff/entryUrl';
 
 interface QueueStatus {
   queue: { id: string; name: string; status: string };
@@ -14,7 +15,10 @@ interface QueueStatus {
 export function QRDisplayPage() {
   const { t } = useTranslation(['manager', 'common']);
   const { id } = useParams<{ id: string }>();
-  const joinUrl = `${window.location.origin}/join/${id}`;
+  const publicJoinUrl = `${window.location.origin}/join/${id}`;
+  const joinUrl = id
+    ? (getCustomerLineEntryUrl(`/liff/join/${id}`) ?? publicJoinUrl)
+    : publicJoinUrl;
 
   const { data } = useQuery<QueueStatus>({
     queryKey: ['queue-status', id],

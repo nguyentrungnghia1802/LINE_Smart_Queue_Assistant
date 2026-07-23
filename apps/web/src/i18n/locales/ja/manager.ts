@@ -167,6 +167,7 @@ export const manager = {
     notifyBeforeTurns: '何番前に通知',
     publicQrToken: '公開QRトークン',
     publicJoinUrl: '公開受付URL',
+    customerBookingUrl: 'お客様用受付URL',
     copy: 'コピー',
     organizationSaved: '組織情報を保存しました。',
     saveOrganization: '組織を保存',

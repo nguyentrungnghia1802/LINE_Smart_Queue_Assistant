@@ -20,11 +20,17 @@ docker push trungnghia2703/line-smart-queue-api:v1
 
 ## 3. Build Web
 
-Production must use `VITE_API_URL=` as empty, not `/api`.
+Production must use `VITE_API_URL=` as empty, not `/api`. Replace
+`YOUR_LIFF_ID` with the same public LIFF ID configured as `LINE_LIFF_ID` in the
+server's `deploy/.env`. This value is required for the printed QR to open LINE
+Login and the LIFF booking flow.
 
 ```powershell
 docker build --no-cache `
   --build-arg VITE_API_URL= `
+  --build-arg VITE_LIFF_ID=YOUR_LIFF_ID `
+  --build-arg VITE_ENABLE_LEGACY_CUSTOMER_AUTH=false `
+  --build-arg VITE_LIFF_MOCK=false `
   -t trungnghia2703/line-smart-queue-web:v1 `
   -f .\docker\web\Dockerfile .
 ```
