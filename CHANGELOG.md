@@ -21,6 +21,7 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### LINE Messaging
 
+- Made LIFF the primary manager print/copy QR and customer login entry, enabled automatic external-browser LIFF login, and retained public/email customer flows as explicit development fallbacks.
 - Added a safe token verification and optional direct test-message command.
 - Propagated the server-verified LINE user ID into queue entries created by authenticated orders.
 - Documented the separate LINE Login, Messaging API push, and webhook credential roles.

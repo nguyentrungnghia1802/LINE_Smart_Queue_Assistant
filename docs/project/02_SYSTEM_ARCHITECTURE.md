@@ -33,7 +33,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
 | Payment provider  | Demo adapter or future PSP                  | Hosted/payment redirect and authoritative webhook                                      |
 
-Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and `/media/*` to the internal `api:4000` service without stripping either prefix, so browser code and locally persisted media use the same public origin. API requests use `VITE_API_URL=/api`.
+Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and `/media/*` to the internal `api:4000` service without stripping either prefix, so browser code and locally persisted media use the same public origin. The Vite development server proxies these same prefixes to the local API, keeping persisted image URLs working at `localhost:5173`. API requests use `VITE_API_URL=/api` in production.
 
 ## 3. Backend module architecture
 
@@ -89,6 +89,10 @@ Frontend responsibilities are split into route pages, reusable components/layout
 
 ### Email/password
 
+Email/password is the primary operational login for staff, managers, and platform admins. Legacy
+customer email registration remains a local/test escape hatch and is disabled in production web
+builds unless explicitly enabled.
+
 1. Client posts credentials to `/api/v1/auth/login`.
 2. API validates the hash and active user state.
 3. API issues a signed JWT.
@@ -97,14 +101,15 @@ Frontend responsibilities are split into route pages, reusable components/layout
 
 ### LINE LIFF
 
-1. LIFF initializes with public `VITE_LIFF_ID`. In real mode, a signed-out customer is automatically sent through LINE Login; mock mode can stay signed in/out for local tests.
-2. After LINE login, the client obtains an OIDC ID token and posts it to `/api/v1/auth/line`.
-3. API verifies it against the configured LINE Login channel ID.
-4. API finds or creates the customer and links `line_accounts.line_user_id` transactionally.
-5. `currentUserMiddleware` accepts the JWT LINE claim only when the matching `line_accounts` row still belongs to that user and `is_linked = TRUE`.
-6. LIFF booking, demo payment return, order creation, and ticket display run in the same `/liff/*` flow. Order and direct queue creation in LIFF are blocked until the system JWT has been issued from the LINE ID token.
-7. Queue entries that store that verified linked LINE user ID can be targeted through Messaging API push.
-8. Rich Menu entry points open safe `/liff/*` routes. `/liff/home?mode=ticket` resolves the current active ticket for the authenticated LINE user instead of depending on a fixed entry ID.
+1. Customer-facing manager print/copy actions generate `https://liff.line.me/{LIFF_ID}` URLs with a safe `/liff/*` target in `liff.state`; the public `/qr` URL remains visible as a development/fallback link.
+2. LIFF initializes with public `VITE_LIFF_ID`. In real mode, including an external browser, a signed-out customer is automatically sent through LINE Login; mock mode can stay signed in/out for local tests.
+3. After LINE login, the client obtains an OIDC ID token and posts it to `/api/v1/auth/line`.
+4. API verifies it against the configured LINE Login channel ID and may persist the optional verified email claim when the channel has email permission and the address is not already owned.
+5. API finds or creates the customer and links `line_accounts.line_user_id` transactionally.
+6. `currentUserMiddleware` accepts the JWT LINE claim only when the matching `line_accounts` row still belongs to that user and `is_linked = TRUE`.
+7. LIFF booking, demo payment return, order creation, and ticket display run in the same `/liff/*` flow. Order and direct queue creation in LIFF are blocked until the system JWT has been issued from the LINE ID token.
+8. Queue entries that store that verified linked LINE user ID can be targeted through Messaging API push.
+9. Rich Menu entry points open safe `/liff/*` routes. `/liff/home?mode=ticket` resolves the current active ticket for the authenticated LINE user instead of depending on a fixed entry ID.
 
 LINE Login does not send messages. Messaging API does not authenticate the web session. A complete setup needs both capabilities under the intended provider and a consistent LINE user relationship.
 

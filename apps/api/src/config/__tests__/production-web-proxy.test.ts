@@ -30,6 +30,18 @@ describe('production web reverse proxy configuration', () => {
     expect(nginxConfig).not.toMatch(/proxy_pass\s+http:\/\/api:4000\/;/);
   });
 
+  it('proxies persisted media through the API during Vite development', () => {
+    const viteConfig = readRepoFile('apps/web/vite.config.ts');
+    const developmentCompose = readRepoFile('docker-compose.dev.yml');
+
+    expect(viteConfig).toMatch(/'\/media'\s*:\s*\{/);
+    expect(viteConfig).toMatch(/const apiProxyTarget\s*=\s*process\.env\.API_PROXY_TARGET/);
+    expect(viteConfig).toMatch(/http:\/\/127\.0\.0\.1:4000/);
+    expect(viteConfig).toMatch(/'\/media'[\s\S]*?target:\s*apiProxyTarget/);
+    expect(developmentCompose).toContain('API_PROXY_TARGET: http://api:4000');
+    expect(developmentCompose).toContain('./apps/web/public:/app/apps/web/public');
+  });
+
   it('passes all public production Vite build arguments to the web image', () => {
     const dockerfile = readRepoFile('docker/web/Dockerfile');
     const compose = readRepoFile('docker-compose.yml');
@@ -39,6 +51,7 @@ describe('production web reverse proxy configuration', () => {
       'VITE_APP_NAME',
       'VITE_LIFF_ID',
       'VITE_LIFF_DEFAULT_BOOKING_PATH',
+      'VITE_ENABLE_LEGACY_CUSTOMER_AUTH',
       'VITE_LIFF_MOCK',
       'VITE_PAYMENT_MODE',
       'VITE_PAYMENT_REDIRECT_BASE_URL',

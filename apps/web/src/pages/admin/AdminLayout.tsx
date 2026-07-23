@@ -34,7 +34,7 @@ export function AdminLayout() {
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
           <Link to="/admin" className="flex items-center gap-3 font-bold text-gray-950">
             <BrandLogo decorative />
-            <span>{t('nav.admin')}</span>
+            <span>{t('brandName')}</span>
           </Link>
           <nav className="flex items-center gap-1">
             <NavLink to="/admin" end className={navClass}>

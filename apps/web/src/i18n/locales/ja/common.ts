@@ -1,5 +1,6 @@
 export const common = {
   appName: 'LINE Smart Queue Assistant',
+  brandName: 'Smart Queue Assistant',
   language: { label: '言語', ja: '日本語', vi: 'Tiếng Việt', en: 'English' },
   nav: {
     home: 'ホーム',
