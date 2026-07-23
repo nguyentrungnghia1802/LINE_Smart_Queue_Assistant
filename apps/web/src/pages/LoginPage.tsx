@@ -1,5 +1,5 @@
 import { isAxiosError } from 'axios';
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -52,32 +52,44 @@ export function LoginPage() {
       <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
         <LanguageSwitcher compact />
       </div>
-      <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/80 bg-white shadow-[var(--shadow-soft)] lg:grid-cols-[1fr_420px]">
-        <section className="hidden bg-gray-950 p-10 text-white lg:flex lg:flex-col lg:justify-between">
-          <div>
-            <BrandLogo decorative className="h-14 w-14" />
-            <h1 className="mt-8 text-4xl font-bold leading-tight">LINE Smart Queue Assistant</h1>
-            <p className="mt-4 max-w-md text-sm leading-6 text-gray-300">
+      <div className="grid w-full max-w-6xl overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[var(--shadow-lift)] lg:min-h-[620px] lg:grid-cols-[minmax(0,1fr)_430px]">
+        <section className="hidden bg-[#050b18] px-10 py-12 text-white lg:flex lg:items-center lg:justify-center xl:px-14">
+          <div className="w-full max-w-[590px] text-center">
+            <BrandLogo decorative className="mx-auto h-16 w-16" />
+            <h1 className="mt-6 text-4xl font-bold leading-tight">LINE Smart Queue Assistant</h1>
+            <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-gray-300">
               {t('login.intro', { ns: 'auth' })}
             </p>
-          </div>
-          <div className="grid grid-cols-3 gap-3 text-sm">
-            <div className="rounded-2xl bg-white/10 p-4">
-              <p className="text-2xl font-bold">24h</p>
-              <p className="mt-1 text-gray-300">{t('login.onlineReception')}</p>
-            </div>
-            <div className="rounded-2xl bg-white/10 p-4">
-              <p className="text-2xl font-bold">LINE</p>
-              <p className="mt-1 text-gray-300">{t('login.notificationIntegration')}</p>
-            </div>
-            <div className="rounded-2xl bg-white/10 p-4">
-              <p className="text-2xl font-bold">JPY</p>
-              <p className="mt-1 text-gray-300">{t('login.paymentDemo')}</p>
+
+            <div
+              data-testid="login-benefits"
+              className="mt-11 grid grid-cols-3 border-y border-white/10 py-6"
+            >
+              <FeatureHighlight
+                title="24h"
+                description={t('login.onlineReception', { ns: 'auth' })}
+                icon={<ClockIcon />}
+                iconClassName="bg-emerald-400/10 text-emerald-300 ring-emerald-300/20"
+              />
+              <FeatureHighlight
+                title="LINE"
+                description={t('login.notificationIntegration', { ns: 'auth' })}
+                icon={<MessageIcon />}
+                iconClassName="bg-[#06C755]/10 text-[#62e794] ring-[#06C755]/25"
+                divided
+              />
+              <FeatureHighlight
+                title="JPY"
+                description={t('login.paymentDemo', { ns: 'auth' })}
+                icon={<PaymentIcon />}
+                iconClassName="bg-amber-300/10 text-amber-200 ring-amber-200/20"
+                divided
+              />
             </div>
           </div>
         </section>
 
-        <div className="p-6 sm:p-10">
+        <div className="flex flex-col justify-center bg-white p-6 sm:p-10 lg:p-11">
           <div className="mb-8">
             <BrandLogo decorative className="h-14 w-14 lg:hidden" />
             <h2 className="mt-5 text-2xl font-bold text-gray-950">
@@ -188,6 +200,87 @@ export function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function FeatureHighlight({
+  title,
+  description,
+  icon,
+  iconClassName,
+  divided = false,
+}: Readonly<{
+  title: string;
+  description: string;
+  icon: ReactNode;
+  iconClassName: string;
+  divided?: boolean;
+}>) {
+  return (
+    <div
+      className={`flex min-w-0 flex-col items-center px-4 ${divided ? 'border-l border-white/10' : ''}`}
+    >
+      <span
+        className={`flex h-11 w-11 items-center justify-center rounded-lg ring-1 ${iconClassName}`}
+      >
+        {icon}
+      </span>
+      <p className="mt-3 text-xl font-bold text-white">{title}</p>
+      <p className="mt-1 max-w-32 text-xs leading-5 text-gray-300">{description}</p>
+    </div>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+    >
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function MessageIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+    >
+      <path d="M5 18.5 3.5 21l4-1.2a9 9 0 1 0-2.5-1.3Z" />
+      <path d="M8 12h.01M12 12h.01M16 12h.01" />
+    </svg>
+  );
+}
+
+function PaymentIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+    >
+      <path d="m8 5 4 6 4-6M9 11h6M9 14h6M12 11v8" />
+    </svg>
   );
 }
 
