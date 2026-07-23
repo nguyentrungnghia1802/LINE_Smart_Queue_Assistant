@@ -59,6 +59,15 @@ export const authService = {
       });
     }
 
+    // LINE exposes email only when the channel has the email scope and the
+    // customer consents. Never overwrite an existing address or claim one
+    // already owned by another platform user.
+    if (profile.email && !userRow.email) {
+      userRow =
+        (await usersRepository.setVerifiedLineEmailIfAvailable(userRow.id, profile.email)) ??
+        userRow;
+    }
+
     // Step 3 — Issue JWT
     const payload: TokenPayload = {
       sub: userRow.id,
@@ -72,6 +81,7 @@ export const authService = {
       lineUserId: profile.lineUserId,
       role: userRow.role as UserRole,
       displayName: userRow.display_name,
+      email: userRow.email ?? undefined,
       preferredLocale: userRow.preferred_locale,
     };
 
