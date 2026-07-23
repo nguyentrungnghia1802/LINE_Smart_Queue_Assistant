@@ -25,6 +25,10 @@ const mockUpsertLineAccount = usersRepository.upsertLineAccount as jest.MockedFu
   typeof usersRepository.upsertLineAccount
 >;
 const mockCreate = usersRepository.create as jest.MockedFunction<typeof usersRepository.create>;
+const mockSetVerifiedLineEmail =
+  usersRepository.setVerifiedLineEmailIfAvailable as jest.MockedFunction<
+    typeof usersRepository.setVerifiedLineEmailIfAvailable
+  >;
 const mockWithTransaction = withTransaction as jest.MockedFunction<typeof withTransaction>;
 const mockFindByEmail = usersRepository.findByEmail as jest.MockedFunction<
   typeof usersRepository.findByEmail
@@ -93,6 +97,33 @@ describe('authService.loginWithLineToken', () => {
       await authService.loginWithLineToken('fake-id-token');
 
       expect(mockWithTransaction).not.toHaveBeenCalled();
+    });
+
+    it('stores an email verified by LINE when the user has no email', async () => {
+      const verifiedEmail = 'customer@example.com';
+      mockVerify.mockResolvedValue({ ...profile, email: verifiedEmail });
+      mockSetVerifiedLineEmail.mockResolvedValue({
+        ...existingUserRow,
+        email: verifiedEmail,
+      });
+
+      const { user } = await authService.loginWithLineToken('fake-id-token');
+
+      expect(mockSetVerifiedLineEmail).toHaveBeenCalledWith(existingUserRow.id, verifiedEmail);
+      expect(user.email).toBe(verifiedEmail);
+    });
+
+    it('does not overwrite an existing platform email', async () => {
+      mockVerify.mockResolvedValue({ ...profile, email: 'new@example.com' });
+      mockFindByLineUserId.mockResolvedValue({
+        ...existingUserRow,
+        email: 'current@example.com',
+      });
+
+      const { user } = await authService.loginWithLineToken('fake-id-token');
+
+      expect(mockSetVerifiedLineEmail).not.toHaveBeenCalled();
+      expect(user.email).toBe('current@example.com');
     });
   });
 

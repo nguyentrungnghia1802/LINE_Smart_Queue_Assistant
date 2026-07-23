@@ -101,7 +101,7 @@ Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently
 ## 3. Customer entry and identity flow
 
 1. Primary customer entry is the LIFF route, usually `/liff/qr/:token` from `https://liff.line.me/{LIFF_ID}?liff.state=...`.
-2. LIFF initializes, automatically starts LINE Login in real mode when needed, obtains an ID token, calls `/auth/line`, and stores the system JWT.
+2. LIFF initializes, automatically starts LINE Login in real mode when needed, obtains an ID token, calls `/auth/line`, and stores the system JWT. If the LINE channel has the optional `email` scope and the customer consents, the backend stores the server-verified email without overwriting or duplicating an existing platform email.
 3. Web fetches public organization, queue, and active product data after the route context is known.
 4. Customer selects products/services, optionally completes demo checkout for required prepayment, and creates the booking within the same LIFF flow.
 5. The backend uses server-verified identity, not browser profile data or public request body fields, to attach the LINE recipient.
@@ -149,7 +149,7 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
 ## 7. Staff queue flow
 
 1. Staff authenticates and the API resolves active organization membership.
-2. `/staff/my-queue` selects an organization queue with waiting/called/serving activity (falling back to the first active queue) and returns its board and order details.
+2. `/staff/my-queue` selects an organization queue with waiting/called/serving activity (falling back to the first active queue) and returns its board, order details, and authenticated customer email when available.
 3. Calling next atomically selects/transitions the next eligible waiting entry.
 4. The queue transition and LINE outbox row, including resolved locale, are written in the same transaction; a worker sends the localized message after commit.
 5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful state change enqueues a LINE push intent when the ticket has a verified recipient.
