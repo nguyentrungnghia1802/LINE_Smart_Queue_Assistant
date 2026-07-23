@@ -100,7 +100,7 @@ Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently
 
 ## 3. Customer entry and identity flow
 
-1. Primary customer entry is the LIFF route, usually `/liff/qr/:token` from `https://liff.line.me/{LIFF_ID}?liff.state=...`.
+1. The manager's primary copy/print QR action uses the LIFF route, usually `/liff/qr/:token` from `https://liff.line.me/{LIFF_ID}?liff.state=...`. The public URL is shown separately as a development/fallback entry.
 2. LIFF initializes, automatically starts LINE Login in real mode when needed, obtains an ID token, calls `/auth/line`, and stores the system JWT. If the LINE channel has the optional `email` scope and the customer consents, the backend stores the server-verified email without overwriting or duplicating an existing platform email.
 3. Web fetches public organization, queue, and active product data after the route context is known.
 4. Customer selects products/services, optionally completes demo checkout for required prepayment, and creates the booking within the same LIFF flow.
@@ -109,6 +109,11 @@ Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently
 7. Rich Menu opens `/liff/home` or `/liff/home` with mode/section query parameters. LIFF Home resolves the current active ticket and renders localized empty/usage states with Japanese fallback.
 
 Public `/qr/:token`, `/q/:orgSlug`, `/ticket/:entryId`, and public demo checkout remain fallback/browser-compatible routes. Guest trade-off: the order/ticket works, but LINE push is unavailable unless the ticket resolves to a linked `line_user_id`. For LINE-authenticated requests, `currentUserMiddleware` validates the JWT LINE claim against the active `line_accounts` row. The order and queue controllers pass both internal user ID and verified LINE user ID to their services, which store both on the queue entry inside the write transaction.
+
+The shared login page presents a LINE customer entry before the operational email form. Staff,
+manager, and admin accounts continue to use email/password. Legacy customer email registration is
+visible in development and test builds, or only when
+`VITE_ENABLE_LEGACY_CUSTOMER_AUTH=true` is explicitly compiled into a web build.
 
 ## 4. Booking without required prepayment
 

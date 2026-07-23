@@ -31,6 +31,11 @@ vi.mock('../../store/authStore', () => ({
   ),
 }));
 
+vi.mock('../../services/liff/entryUrl', () => ({
+  getCustomerLineEntryUrl: () =>
+    'https://liff.line.me/1234567890-AbCdEfGh?liff.state=%2Fliff%2Fhome',
+}));
+
 describe('LoginPage', () => {
   beforeEach(() => {
     mockNavigate.mockReset();
@@ -64,6 +69,18 @@ describe('LoginPage', () => {
     renderPage();
 
     expect(screen.getByRole('combobox', { name: '言語' })).toBeInTheDocument();
+  });
+
+  it('offers LINE as the customer login path and keeps email for business users', () => {
+    renderPage();
+
+    expect(screen.getByRole('link', { name: 'LINEで受付を始める' })).toHaveAttribute(
+      'href',
+      'https://liff.line.me/1234567890-AbCdEfGh?liff.state=%2Fliff%2Fhome'
+    );
+    expect(
+      screen.getByText('スタッフ、マネージャー、管理者はメールでログインしてください。')
+    ).toBeInTheDocument();
   });
 
   it('shows backend message when login fails with ApiClientError message', async () => {
