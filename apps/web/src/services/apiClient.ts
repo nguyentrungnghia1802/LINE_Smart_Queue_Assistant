@@ -8,9 +8,10 @@ export class ApiClientError extends Error {
   constructor(
     readonly code: string,
     readonly status?: number,
-    readonly details?: unknown
+    readonly details?: unknown,
+    message?: string
   ) {
-    super(translateErrorCode(code));
+    super(message && message.trim().length > 0 ? message : translateErrorCode(code));
     this.name = 'ApiClientError';
   }
 }
@@ -48,7 +49,12 @@ apiClient.interceptors.response.use(
     const payload = error.response?.data;
     if (payload && !payload.success) {
       return Promise.reject(
-        new ApiClientError(payload.error.code, error.response?.status, payload.error.details)
+        new ApiClientError(
+          payload.error.code,
+          error.response?.status,
+          payload.error.details,
+          payload.error.message
+        )
       );
     }
     return Promise.reject(error);
@@ -59,7 +65,12 @@ apiClient.interceptors.response.use(
 
 function unwrap<T>(envelope: ApiResponse<T> | ApiErrorResponse): T {
   if (!envelope.success)
-    throw new ApiClientError(envelope.error.code, undefined, envelope.error.details);
+    throw new ApiClientError(
+      envelope.error.code,
+      undefined,
+      envelope.error.details,
+      envelope.error.message
+    );
   return envelope.data;
 }
 
