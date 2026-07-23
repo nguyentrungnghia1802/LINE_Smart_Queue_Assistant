@@ -80,6 +80,14 @@ export const customer = {
     decreaseItem: 'Decrease {{name}}',
     itemQuantity: '{{name}} quantity',
     increaseItem: 'Add {{name}}',
+    customerAccountRequiredBadge: 'Customer account required',
+    customerAccountRequiredTitle: 'Start reception as a customer',
+    customerAccountRequiredDescription:
+      'You are currently signed in with an operations account. Please use a customer LINE account to create a booking or order.',
+    customerAccountRequiredSessionHint: 'Your current operations session will not be changed.',
+    continueAsCustomerWithLine: 'Start reception with LINE as a customer',
+    returnToDashboard: 'Return to home',
+    lineEntryUnavailable: 'LINE reception must be configured. Please contact an administrator.',
   },
   ticket: {
     notFound: 'Ticket not found',
