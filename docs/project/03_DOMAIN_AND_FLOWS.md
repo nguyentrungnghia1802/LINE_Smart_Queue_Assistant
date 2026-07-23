@@ -100,7 +100,7 @@ Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently
 
 ## 3. Customer entry and identity flow
 
-1. The manager's primary copy/print QR action uses the LIFF route, usually `/liff/qr/:token` from `https://liff.line.me/{LIFF_ID}?liff.state=...`. The public URL is shown separately as a development/fallback entry.
+1. The manager's primary copy/print QR action uses the LIFF route, usually `/liff/qr/:token` from `https://liff.line.me/{LIFF_ID}?liff.state=...`. LIFF automatically starts LINE Login when the customer is not signed in, then continues to the booking screen after the backend ID-token-to-JWT exchange. The public URL is shown separately as a development/fallback entry.
 2. LIFF initializes, automatically starts LINE Login in real mode when needed, obtains an ID token, calls `/auth/line`, and stores the system JWT. If the LINE channel has the optional `email` scope and the customer consents, the backend stores the server-verified email without overwriting or duplicating an existing platform email.
 3. Web fetches public organization, queue, and active product data after the route context is known.
 4. Customer selects products/services, optionally completes demo checkout for required prepayment, and creates the booking within the same LIFF flow.

@@ -81,7 +81,7 @@ Docker Hub repositories are `trungnghia2703/line-smart-queue-api` and
 
 Use `--env-file deploy/.env` when invoking the file from the repository root. Without it, Compose interpolation may read a different `.env` from the current working directory even though the API container's `env_file` is resolved from the deploy directory.
 
-The web image must be built ahead of time with public Vite values such as an empty `VITE_API_URL` for same-origin routing, `VITE_LIFF_ID`, `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_ENABLE_LEGACY_CUSTOMER_AUTH=false`, `VITE_PAYMENT_MODE`, and `VITE_PAYMENT_REDIRECT_BASE_URL`. Backend-only secrets such as `JWT_SECRET`, database credentials, LINE channel secret/access token, and provider webhook keys are runtime API secrets only.
+The web image must be built ahead of time with public Vite values such as an empty `VITE_API_URL` for same-origin routing, `VITE_LIFF_ID`, `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_ENABLE_LEGACY_CUSTOMER_AUTH=false`, `VITE_PAYMENT_MODE`, and `VITE_PAYMENT_REDIRECT_BASE_URL`. `VITE_LIFF_ID` must equal the runtime API's `LINE_LIFF_ID`; it is compiled into the image and cannot be supplied later through production Compose. Without it, manager QR screens intentionally fall back to web booking rather than opening LINE Login. In LINE Developers Console, the LIFF endpoint must use the deployed HTTPS `WEB_ORIGIN` and the host must serve SPA routes such as `/liff/qr/:token`. Backend-only secrets such as `JWT_SECRET`, database credentials, LINE channel secret/access token, and provider webhook keys are runtime API secrets only.
 
 The current local media adapter writes to `/app/var/media`, backed by the persistent `media_data` volume. nginx proxies `/media/*` to the API so generated media URLs stay on the public web origin. This volume is a Compose durability baseline, not a substitute for production object storage, backup, scanning, and CDN policy.
 
@@ -100,7 +100,7 @@ For a real production environment, use managed PostgreSQL/object storage, TLS in
 5. Deploy API and verify `/health` plus `/ready`.
 6. Deploy web with correct public environment values.
 7. Run `npm run line:rich-menu:sync` only after the intended LINE credentials, LIFF ID, web origin, and Rich Menu image are configured.
-8. Confirm manager copy/print QR resolves to the LIFF universal link, then smoke test business email login, public fallback QR, LIFF Home/Rich Menu navigation, booking, staff call, LINE sandbox, and payment mode.
+8. Confirm manager copy/print QR resolves to the LIFF universal link and that a signed-out customer is redirected through LINE Login before booking. Then smoke test business email login, public fallback QR, LIFF Home/Rich Menu navigation, booking, staff call, LINE sandbox, and payment mode.
    Run at least one browser/LIFF smoke in each supported locale (`ja`, `vi`, `en`) and confirm a Japanese fallback when an unsupported browser locale is used.
 9. Monitor errors, latency, DB connections, job execution, stock/payment anomalies, and notification failures.
 10. Record release in `CHANGELOG.md`.

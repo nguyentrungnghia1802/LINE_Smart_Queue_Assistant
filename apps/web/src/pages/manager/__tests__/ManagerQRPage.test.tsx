@@ -47,15 +47,14 @@ describe('ManagerQRPage', () => {
     const expectedLiffUrl = 'https://liff.line.me/liff-test?liff.state=%2Fliff%2Fqr%2Fstore-token';
     expect(await screen.findByTestId('qr-value')).toHaveTextContent(expectedLiffUrl);
     expect(screen.getByText('LINE受付（推奨）')).toBeInTheDocument();
-    expect(screen.getByText('https://queue.example.com/qr/store-token')).toBeInTheDocument();
+    const expectedPublicUrl = `${window.location.origin}/qr/store-token`;
+    expect(screen.getByText(expectedPublicUrl)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'お客様用リンクをコピー' }));
     await waitFor(() => expect(mockWriteText).toHaveBeenCalledWith(expectedLiffUrl));
 
     fireEvent.click(screen.getByRole('button', { name: '予備リンクをコピー' }));
-    await waitFor(() =>
-      expect(mockWriteText).toHaveBeenCalledWith('https://queue.example.com/qr/store-token')
-    );
+    await waitFor(() => expect(mockWriteText).toHaveBeenCalledWith(expectedPublicUrl));
   });
 });
 

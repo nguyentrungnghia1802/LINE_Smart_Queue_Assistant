@@ -168,6 +168,7 @@ export const manager = {
     notifyBeforeTurns: 'Notify this many turns ahead',
     publicQrToken: 'Public QR token',
     publicJoinUrl: 'Public booking URL',
+    customerBookingUrl: 'Customer booking URL',
     copy: 'Copy',
     organizationSaved: 'Organization information saved.',
     saveOrganization: 'Save organization',

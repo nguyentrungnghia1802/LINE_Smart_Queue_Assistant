@@ -28,11 +28,9 @@ export function ManagerQRPage() {
     queryFn: () => get<OrgInfo>('/api/v1/orgs/my-org'),
   });
 
-  const publicJoinUrl =
-    orgData?.joinUrl ??
-    (orgData?.publicQrToken
-      ? `${window.location.origin}/qr/${orgData.publicQrToken}`
-      : `${window.location.origin}/join/demo`);
+  const publicJoinUrl = orgData?.publicQrToken
+    ? `${window.location.origin}/qr/${orgData.publicQrToken}`
+    : (orgData?.joinUrl ?? `${window.location.origin}/join/demo`);
 
   const liffTarget = orgData?.publicQrToken ? `/liff/qr/${orgData.publicQrToken}` : '/liff/home';
   const liffUrl = buildLiffEntryUrl(LIFF_ID, liffTarget);
