@@ -22,6 +22,14 @@ describe('production web reverse proxy configuration', () => {
     expect(nginxConfig).toMatch(/proxy_set_header\s+X-Forwarded-Proto\s+\$scheme;/);
   });
 
+  it('proxies persisted media without stripping the /media prefix', () => {
+    const nginxConfig = readRepoFile('docker/nginx/default.conf');
+
+    expect(nginxConfig).toMatch(/location\s+\/media\/\s*\{/);
+    expect(nginxConfig).toMatch(/proxy_pass\s+http:\/\/api:4000;/);
+    expect(nginxConfig).not.toMatch(/proxy_pass\s+http:\/\/api:4000\/;/);
+  });
+
   it('passes all public production Vite build arguments to the web image', () => {
     const dockerfile = readRepoFile('docker/web/Dockerfile');
     const compose = readRepoFile('docker-compose.yml');
@@ -43,5 +51,17 @@ describe('production web reverse proxy configuration', () => {
     }
 
     expect(compose).toContain('VITE_API_URL: ${VITE_API_URL:-/api}');
+  });
+
+  it('keeps the deploy Compose stack synchronized with the canonical production stack', () => {
+    const canonicalCompose = readRepoFile('docker-compose.prod.yml');
+    const deployCompose = readRepoFile('deploy/docker-compose.yml');
+    const apiDockerfile = readRepoFile('docker/api/Dockerfile');
+
+    expect(deployCompose).toBe(canonicalCompose);
+    expect(canonicalCompose).toContain('media_data:/app/var/media');
+    expect(canonicalCompose).toContain('MEDIA_LOCAL_DIR: ${MEDIA_LOCAL_DIR:-/app/var/media}');
+    expect(apiDockerfile).toContain('mkdir -p /app/var/media');
+    expect(apiDockerfile).toContain('chown appuser:appgroup /app/var/media');
   });
 });

@@ -33,7 +33,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
 | Payment provider  | Demo adapter or future PSP                  | Hosted/payment redirect and authoritative webhook                                      |
 
-Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` to the internal `api:4000` service without stripping the `/api` prefix, so browser code uses the same origin with `VITE_API_URL=/api`.
+Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and `/media/*` to the internal `api:4000` service without stripping either prefix, so browser code and locally persisted media use the same public origin. API requests use `VITE_API_URL=/api`.
 
 ## 3. Backend module architecture
 

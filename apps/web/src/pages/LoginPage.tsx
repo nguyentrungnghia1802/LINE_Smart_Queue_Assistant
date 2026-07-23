@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
+import { BrandLogo } from '../components/BrandLogo';
 import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher';
 import { ApiClientError } from '../services/apiClient';
 import { useAuthStore } from '../store/authStore';
@@ -49,9 +50,7 @@ export function LoginPage() {
       <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/80 bg-white shadow-[var(--shadow-soft)] lg:grid-cols-[1fr_420px]">
         <section className="hidden bg-gray-950 p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500 text-sm font-bold">
-              LQ
-            </div>
+            <BrandLogo decorative className="h-14 w-14" />
             <h1 className="mt-8 text-4xl font-bold leading-tight">LINE Smart Queue Assistant</h1>
             <p className="mt-4 max-w-md text-sm leading-6 text-gray-300">
               {t('login.intro', { ns: 'auth' })}
@@ -75,9 +74,7 @@ export function LoginPage() {
 
         <div className="p-6 sm:p-10">
           <div className="mb-8">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-sm font-bold text-white lg:hidden">
-              LQ
-            </div>
+            <BrandLogo decorative className="h-14 w-14 lg:hidden" />
             <h2 className="mt-5 text-2xl font-bold text-gray-950">
               {t('login.title', { ns: 'auth' })}
             </h2>

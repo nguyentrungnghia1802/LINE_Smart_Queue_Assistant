@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title description">
+  <title id="title">LINE Smart Queue Assistant</title>
+  <desc id="description">SQA queue and time logo</desc>
+  <defs>
+    <linearGradient id="surface" x1="34" y1="222" x2="222" y2="34" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#006C68"/>
+      <stop offset=".58" stop-color="#009B7C"/>
+      <stop offset="1" stop-color="#08B987"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="69" y1="91" x2="189" y2="144" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#20D16F"/>
+      <stop offset="1" stop-color="#15A85B"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#003E3B" flood-opacity=".24"/>
+    </filter>
+  </defs>
+
+  <rect x="10" y="10" width="236" height="236" rx="58" fill="url(#surface)"/>
+  <path d="M31 74C44 39 75 22 112 22h57c29 0 49 8 64 28-26-18-61-18-91-11-37 9-72 29-111 35Z" fill="#20C9A2" opacity=".16"/>
+
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#shadow)">
+    <path d="M95 77c-9-12-21-18-34-18-20 0-34 12-34 29 0 14 9 22 31 32 20 9 27 16 27 28 0 15-12 25-29 25-14 0-26-7-33-20" stroke="#fff" stroke-width="10"/>
+    <path d="M87 84c-7-8-15-12-24-12-12 0-20 6-20 15 0 8 6 13 22 20 23 11 35 22 35 41 0 22-18 38-43 38-19 0-36-10-45-28" stroke="url(#accent)" stroke-width="8"/>
+
+    <path d="M99 116c0-32 22-57 53-57 31 0 53 24 53 57 0 20-8 36-22 46" stroke="#fff" stroke-width="10"/>
+    <path d="M112 116c0-24 16-44 40-44 22 0 39 18 39 44 0 14-4 25-12 34" stroke="url(#accent)" stroke-width="8"/>
+    <path d="M177 151c9 15 18 22 31 22" stroke="#fff" stroke-width="10"/>
+
+    <path d="M118 153l22-35 28-5 33-44" stroke="#fff" stroke-width="10"/>
+    <path d="M184 70l21-3-3 22" stroke="#fff" stroke-width="10"/>
+  </g>
+
+  <g fill="#fff" filter="url(#shadow)">
+    <circle cx="119" cy="153" r="9"/>
+    <circle cx="140" cy="118" r="9"/>
+    <circle cx="168" cy="113" r="9"/>
+  </g>
+
+  <g transform="translate(137 143)" filter="url(#shadow)">
+    <circle cx="0" cy="0" r="23" fill="#007D70" stroke="#fff" stroke-width="6"/>
+    <path d="M0-11V1l9 6" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <g fill="#fff">
+      <circle cx="0" cy="-16" r="1.8"/>
+      <circle cx="16" cy="0" r="1.8"/>
+      <circle cx="0" cy="16" r="1.8"/>
+      <circle cx="-16" cy="0" r="1.8"/>
+    </g>
+  </g>
+
+  <text x="128" y="220" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="800" letter-spacing="2" text-anchor="middle">SQA</text>
+</svg>
