@@ -36,6 +36,8 @@ Browser-visible configuration:
 - `VITE_LIFF_DEFAULT_BOOKING_PATH`
 - payment mode/redirect base URL and webhook timing limits (identifiers/URLs only, never keys)
 
+For production web builds, set `VITE_API_URL=/api`. nginx in the web container proxies `/api/*` to the internal `api:4000` service and preserves the `/api` prefix, which keeps backend routes mounted at `/api/v1`. Every `VITE_*` value is compiled into the browser bundle at build time and must be treated as public configuration, not as a secret.
+
 Rotate any credential that has appeared in Git history, logs, screenshots, tickets, or examples.
 
 ## 3. Docker deployment
@@ -50,8 +52,17 @@ docker compose ps
 The stack builds:
 
 - PostgreSQL 16 with persistent `postgres_data`;
-- API TypeScript build/Node runner on port `4000`;
-- Vite static bundle served by nginx on `WEB_PORT`.
+- API TypeScript build/Node runner reachable inside the Compose network as `api:4000`;
+- Vite static bundle served by nginx on `WEB_PORT`, including same-origin `/api/*` proxying to the API service.
+
+Image-based production Compose:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml ps
+```
+
+`docker-compose.prod.yml` expects prebuilt `LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` values and does not publish PostgreSQL or API port `4000` to the host. The web image must be built ahead of time with public Vite values such as `VITE_API_URL=/api`, `VITE_LIFF_ID`, `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_PAYMENT_MODE`, and `VITE_PAYMENT_REDIRECT_BASE_URL`. Backend-only secrets such as `JWT_SECRET`, database credentials, LINE channel secret/access token, and provider webhook keys are runtime API secrets only.
 
 For a real production environment, use managed PostgreSQL/object storage, TLS ingress, restricted network/security groups, centralized secrets/logs, and a deployment orchestrator. Compose is a packaging baseline, not high-availability infrastructure.
 
