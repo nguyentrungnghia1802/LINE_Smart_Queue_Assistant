@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import type { SupportedLocale } from '@line-queue/shared';
 
 import { get, patch, put } from '../../services/apiClient';
+import { buildLiffEntryUrl } from '../../services/liff/entryUrl';
 import { uploadImage } from '../../services/media.api';
 import { useAuthStore } from '../../store/authStore';
 import { compressLogoFile } from '../../utils/compressLogoFile';
@@ -38,6 +39,8 @@ interface OrgInfo {
     };
   };
 }
+
+const LIFF_ID = import.meta.env.VITE_LIFF_ID as string | undefined;
 
 interface BusinessCalendar {
   weeklyHours: Array<{
@@ -228,8 +231,12 @@ export function ManagerSettingsPage() {
     });
   }
 
-  const joinUrl =
-    org?.joinUrl ?? (org?.publicQrToken ? `${window.location.origin}/qr/${org.publicQrToken}` : '');
+  const publicJoinUrl = org?.publicQrToken
+    ? `${window.location.origin}/qr/${org.publicQrToken}`
+    : (org?.joinUrl ?? '');
+  const joinUrl = org?.publicQrToken
+    ? (buildLiffEntryUrl(LIFF_ID, `/liff/qr/${org.publicQrToken}`) ?? publicJoinUrl)
+    : publicJoinUrl;
   const weekdays = t('settings.weekdays', { returnObjects: true }) as string[];
 
   return (
@@ -683,7 +690,7 @@ export function ManagerSettingsPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">
-                {t('settings.publicJoinUrl')}
+                {t('settings.customerBookingUrl')}
               </label>
               <div className="flex gap-2">
                 <input
