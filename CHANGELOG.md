@@ -6,6 +6,7 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Fixed manager booking fallback URLs to use configured `WEB_ORIGIN` instead of a legacy localhost default, made legacy queue QR displays LIFF-first, and documented the required production web-image LIFF build arguments.
 - Added a project-specific Docker build, publication, inspection, Compose, health-check, and cleanup runbook for the API and web images.
 - Fixed staff refunds for legacy paid orders by backfilling an audited manual transaction, limited the staff queue preview to the next eight active customers while preserving total counts, and changed default seeds to organization/account-only with an explicit demo profile.
 - Fixed staff completion/no-show history writes to use the canonical `queue_histories.actor_id` column, normalized inconsistent legacy timing data, corrected demo seed timestamps, and removed the unnecessary Complete request body.
