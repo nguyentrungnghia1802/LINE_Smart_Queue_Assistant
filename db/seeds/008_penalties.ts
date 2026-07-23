@@ -20,7 +20,7 @@ const penalties = [
 ] as const;
 
 export async function seed(client: PoolClient): Promise<void> {
-  await client.query('DELETE FROM penalty_records');
+  await client.query(`DELETE FROM penalty_records WHERE metadata @> '{"seed":true}'::jsonb`);
 
   for (const [userId, entryId, penaltyType, points, reason] of penalties) {
     await client.query(

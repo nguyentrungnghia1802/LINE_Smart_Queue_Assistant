@@ -70,15 +70,33 @@ export class QueueEntriesRepository extends BaseRepository {
     );
   }
 
-  async listWaiting(queueId: string, client?: PoolClient): Promise<QueueEntryRow[]> {
+  async listWaiting(
+    queueId: string,
+    client?: PoolClient,
+    limit?: number
+  ): Promise<QueueEntryRow[]> {
+    const params: unknown[] = [queueId];
+    const limitClause = limit === undefined ? '' : 'LIMIT $2';
+    if (limit !== undefined) params.push(limit);
     const sql = `
       SELECT * FROM queue_entries
       WHERE queue_id = $1 AND status = 'waiting'
       ORDER BY priority DESC, ticket_number ASC
+      ${limitClause}
     `;
     return client
-      ? this.queryTx<QueueEntryRow>(client, sql, [queueId])
-      : this.query<QueueEntryRow>(sql, [queueId]);
+      ? this.queryTx<QueueEntryRow>(client, sql, params)
+      : this.query<QueueEntryRow>(sql, params);
+  }
+
+  async countWaiting(queueId: string): Promise<number> {
+    const rows = await this.query<{ count: string }>(
+      `SELECT COUNT(*) AS count
+       FROM queue_entries
+       WHERE queue_id = $1 AND status = 'waiting'`,
+      [queueId]
+    );
+    return Number(rows[0]?.count ?? 0);
   }
 
   async create(params: CreateEntryParams, client?: PoolClient): Promise<QueueEntryRow> {

@@ -50,7 +50,8 @@ npm run docker:dev
 
 The development API container builds `packages/shared` and applies pending canonical
 `node-pg-migrate` migrations before starting the hot-reload server. It does not seed demo data
-automatically; run `npm run db:seed` explicitly when demo accounts and catalog data are needed.
+automatically. Run `npm run db:seed` for only the baseline organization/accounts, or
+`npm run db:seed:demo` when catalog and transaction fixtures are needed.
 
 Useful commands:
 
@@ -92,12 +93,16 @@ npm run db:migrate:status
 npm run db:migrate
 npm run db:seed
 npm run db:seed:reset
+npm run db:seed:demo
+npm run db:seed:demo:reset
 npm run db:reset
 ```
 
 - Canonical schema migrations use `node-pg-migrate`, read `db/migrations/node-pg-migrate`, and are exposed consistently through both root and `apps/api` workspace commands.
-- `db:seed:reset` truncates/reseeds demo data.
-- `db:reset`/`db:reset:local` destroy and rebuild only a local/dev schema, then migrate and seed it.
+- `db:seed` is idempotent and creates only one organization plus development users/memberships.
+- `db:seed:demo` explicitly adds catalog, queue, order, notification, and penalty fixtures.
+- `db:seed:reset` and `db:seed:demo:reset` truncate tenant/application data before loading their respective profile. They are blocked in production; a non-loopback isolated development database requires `ALLOW_DESTRUCTIVE_SEED_RESET=true`.
+- `db:reset`/`db:reset:local` destroy and rebuild only a local/dev schema, then migrate and load the minimal seed profile.
 - `scripts/migrate.mjs` remains only as the local reset helper. Its historical SQL apply mode requires the explicit `ALLOW_LEGACY_SQL_MIGRATIONS=true` opt-in and must not be used for normal deployments.
 - Historical numeric migration names can produce non-blocking timestamp-order warnings from `node-pg-migrate`; never rename already-applied migrations to silence them.
 
@@ -114,9 +119,9 @@ The command builds the centralized menu for `ホーム`, `予約する`, `現在
 
 Set `LINE_RICH_MENU_IMAGE_PATH` to a local PNG/JPEG with a production-valid LINE Rich Menu size before syncing against a real Official Account. If the image path is omitted, a generated placeholder is only suitable for mock/dev behavior.
 
-## 7. Demo baseline
+## 7. Seed profiles
 
-After seeding, the main local accounts use password `123456`:
+The minimal profile (`npm run db:seed`) creates only the organization, users, and valid organization memberships. It leaves operational and commercial tables empty. The main local accounts use password `123456`:
 
 | Role     | Email                |
 | -------- | -------------------- |
@@ -125,13 +130,13 @@ After seeding, the main local accounts use password `123456`:
 | Staff    | `staff@gmail.com`    |
 | Customer | `customer@gmail.com` |
 
-Public demo paths:
+The full profile (`npm run db:seed:demo`) also creates the public demo paths and Japan-localized catalog/queue/order fixtures:
 
 - Organization slug: `queue-lab-demo`
 - QR token: `demo-queue-lab-2026`
 - Customer page: `http://localhost:5173/qr/demo-queue-lab-2026`
 
-Seed organization, customer, product, address, currency, and timezone data use the Japanese demo baseline.
+Seed organization, customer, product, address, currency, and timezone data use the Japanese demo baseline. Use full demo fixtures only for scenarios that explicitly need them.
 
 Internationalization tests cover locale precedence, Japanese fallback, Intl formatting, language resources, and LINE Flex/text templates. Add every semantic key to the `ja`, `vi`, and `en` domain resources.
 
@@ -187,7 +192,7 @@ seeded local database, install Chromium once, and run:
 
 ```bash
 npm run e2e:install
-npm run db:seed
+npm run db:seed:demo
 npm run e2e:all
 ```
 
