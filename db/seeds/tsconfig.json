@@ -1,0 +1,11 @@
+{
+  "extends": "../../packages/config/typescript/node.json",
+  "compilerOptions": {
+    "outDir": "../../dist-seeds",
+    "rootDir": ".",
+    "module": "CommonJS",
+    "moduleResolution": "Node"
+  },
+  "include": ["*.ts"],
+  "exclude": ["node_modules"]
+}

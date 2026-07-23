@@ -83,6 +83,9 @@ For a real production environment, use managed PostgreSQL/object storage, TLS in
 
 1. Back up database and verify recent restore test.
 2. Build immutable API/web images from a reviewed commit.
+   The API image contains canonical migrations and compiled demo seed scripts so
+   deployment tooling can run them without TypeScript development dependencies.
+   Production rollout applies migrations explicitly and must not seed demo data.
 3. Run lint, typecheck, tests, build, and contract/migration checks.
 4. Apply additive migrations with a production-safe role.
    Migration `000013` backfills Japanese translation rows and adds user, organization, and durable notification locale snapshots; verify row counts before enabling language selection.
