@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { get, post } from '../../../services/apiClient';
+import { get, patch, post } from '../../../services/apiClient';
 import { StaffDashboardPage } from '../StaffDashboardPage';
 
 vi.mock('../../../services/apiClient', () => ({
@@ -71,6 +71,46 @@ describe('StaffDashboardPage', () => {
 
     expect(await screen.findByText('customer@example.com')).toBeInTheDocument();
     expect(screen.getByText('メール')).toBeInTheDocument();
+  });
+
+  it('disables manual payment confirmation when the order is already paid', async () => {
+    vi.mocked(get).mockResolvedValue({
+      queueId: 'queue-1',
+      queueName: '受付カウンターA',
+      waitingCount: 1,
+      totalActiveCount: 1,
+      waitingEntriesWithOrders: [
+        {
+          id: 'entry-1',
+          ticket_code: 'A001',
+          status: 'waiting',
+          order: {
+            id: 'order-1',
+            booking_group_id: null,
+            order_number: 'ORD-0001',
+            customer_name: '山田 太郎',
+            customer_phone: '09000000000',
+            customer_email: 'customer@example.com',
+            status: 'pending',
+            subtotal: '3000',
+            payment_status: 'paid',
+            ticket_code: 'A001',
+            queue_entry_status: 'waiting',
+            created_at: new Date().toISOString(),
+            items: [],
+          },
+        },
+      ],
+      calledEntryWithOrder: null,
+      servingEntryWithOrder: null,
+    });
+
+    renderPage();
+
+    const paidButton = await screen.findByRole('button', { name: '支払い済み' });
+    expect(paidButton).toBeDisabled();
+    fireEvent.click(paidButton);
+    expect(patch).not.toHaveBeenCalled();
   });
 
   it('completes a serving ticket without sending a request body', async () => {
