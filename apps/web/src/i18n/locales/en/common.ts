@@ -93,6 +93,8 @@ export const common = {
     FORBIDDEN: 'You do not have permission to perform this action.',
     CUSTOMER_ACCOUNT_REQUIRED: 'A customer account is required to start reception.',
     QUEUE_NOT_ACCEPTING: 'No queue is currently accepting bookings.',
+    PAYMENT_ALREADY_USED:
+      'The previous payment has already been used. Please complete payment again.',
     NOT_FOUND: 'The requested information was not found.',
     CONFLICT: 'This action cannot be completed in the current state.',
     VALIDATION_ERROR: 'Please check the entered information.',

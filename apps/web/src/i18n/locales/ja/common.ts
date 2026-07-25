@@ -93,6 +93,8 @@ export const common = {
     FORBIDDEN: 'この操作を行う権限がありません。',
     CUSTOMER_ACCOUNT_REQUIRED: '受付にはお客様アカウントが必要です。',
     QUEUE_NOT_ACCEPTING: '現在受付中のキューはありません。',
+    PAYMENT_ALREADY_USED:
+      '前回のお支払い情報はすでに使用されています。もう一度お支払い手続きを行ってください。',
     NOT_FOUND: '指定された情報が見つかりません。',
     CONFLICT: '現在の状態ではこの操作を完了できません。',
     VALIDATION_ERROR: '入力内容を確認してください。',
