@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { formatCurrency } from '../../i18n/format';
-import { del, get } from '../../services/apiClient';
+import { ApiClientError, del, get } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
 
 interface ProductRow {
@@ -25,6 +25,7 @@ export function ManagerProductsPage() {
   const orgId = user?.organizationId;
   const queryClient = useQueryClient();
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const { data: products = [], isLoading } = useQuery<ProductRow[]>({
     queryKey: ['products', orgId],
@@ -34,9 +35,18 @@ export function ManagerProductsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => del(`/api/v1/products/${id}`),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['products'] });
+    onMutate: () => setDeleteError(''),
+    onSuccess: (_data, deletedId) => {
+      queryClient.setQueryData<ProductRow[]>(['products', orgId], (current) =>
+        current?.filter((product) => product.id !== deletedId)
+      );
+      void queryClient.invalidateQueries({ queryKey: ['products', orgId] });
       setConfirmId(null);
+    },
+    onError: (deleteProductError) => {
+      const code =
+        deleteProductError instanceof ApiClientError ? deleteProductError.code : 'UNKNOWN';
+      setDeleteError(t('products.deleteFailed', { code }));
     },
   });
 
@@ -124,7 +134,10 @@ export function ManagerProductsPage() {
                         {t('actions.edit', { ns: 'common' })}
                       </Link>
                       <button
-                        onClick={() => setConfirmId(p.id)}
+                        onClick={() => {
+                          setDeleteError('');
+                          setConfirmId(p.id);
+                        }}
                         className="text-red-500 hover:underline text-xs"
                       >
                         {t('actions.delete', { ns: 'common' })}
@@ -143,9 +156,20 @@ export function ManagerProductsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-80 shadow-xl">
             <p className="text-sm text-gray-700 mb-4">{t('products.deleteConfirm')}</p>
+            {deleteError && (
+              <p
+                className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+                role="alert"
+              >
+                {deleteError}
+              </p>
+            )}
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => setConfirmId(null)}
+                onClick={() => {
+                  setDeleteError('');
+                  setConfirmId(null);
+                }}
                 className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
               >
                 {t('actions.cancel', { ns: 'common' })}

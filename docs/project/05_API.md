@@ -108,6 +108,10 @@ All paths require `admin`.
 | PATCH  | `/api/v1/products/:id` | Manager/admin | Update product/service                           |
 | DELETE | `/api/v1/products/:id` | Manager/admin | Delete/deactivate according to service behavior  |
 
+Product `imageUrl` accepts either an HTTP/HTTPS object-storage URL or a same-origin path returned by the media upload API (`/media/...` or `/mock-media/...`). Arbitrary relative paths and data URLs remain invalid. Validation responses use `VALIDATION_ERROR` with `details.fieldErrors`; manager product forms show the error code and affected field without exposing server internals.
+
+Product create, update, and deactivate operations write their authenticated manager/admin actor as audit type `user`, matching the canonical PostgreSQL `audit_actor_type` enum. Catalog writes invalidate every locale-aware organization cache key and public slug cache key so deleted products and prepayment changes are not served from stale catalog data.
+
 ### Queue configuration
 
 All paths require manager/admin.

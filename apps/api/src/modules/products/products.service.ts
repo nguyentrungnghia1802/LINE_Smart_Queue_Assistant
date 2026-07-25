@@ -33,7 +33,7 @@ export const productsService = {
     if (audit) {
       await auditLogRepository.create({
         actorId: audit.actorUserId,
-        actorType: 'staff',
+        actorType: 'user',
         action: 'product.create',
         resourceType: 'product',
         resourceId: product.id,
@@ -57,7 +57,7 @@ export const productsService = {
     if (audit) {
       await auditLogRepository.create({
         actorId: audit.actorUserId,
-        actorType: 'staff',
+        actorType: 'user',
         action: 'product.update',
         resourceType: 'product',
         resourceId: id,
@@ -80,7 +80,7 @@ export const productsService = {
     if (audit) {
       await auditLogRepository.create({
         actorId: audit.actorUserId,
-        actorType: 'staff',
+        actorType: 'user',
         action: 'product.delete',
         resourceType: 'product',
         resourceId: id,

@@ -71,6 +71,7 @@ describe('productsService CRUD audit logging', () => {
     expect(mockAuditCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         actorId: ACTOR_ID,
+        actorType: 'user',
         action: 'product.create',
         resourceType: 'product',
         resourceId: PRODUCT_ID,
@@ -96,6 +97,7 @@ describe('productsService CRUD audit logging', () => {
 
     expect(mockAuditCreate).toHaveBeenCalledWith(
       expect.objectContaining({
+        actorType: 'user',
         action: 'product.update',
         changes: { old: existing, new: updated },
       })
@@ -112,6 +114,7 @@ describe('productsService CRUD audit logging', () => {
     expect(mockSoftDelete).toHaveBeenCalledWith(PRODUCT_ID);
     expect(mockAuditCreate).toHaveBeenCalledWith(
       expect.objectContaining({
+        actorType: 'user',
         action: 'product.delete',
         changes: { old: existing, new: { is_active: false } },
       })
