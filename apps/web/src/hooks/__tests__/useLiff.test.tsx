@@ -20,6 +20,7 @@ describe('useLiff', () => {
     loginWithLine?: ReturnType<typeof vi.fn>;
   } = {}) {
     const liffLogin = vi.fn();
+    const syncFriendship = vi.fn().mockResolvedValue(undefined);
     vi.doMock('../../services/liff', () => ({
       isLiffMockMode: mockMode,
       liffAdapter: {
@@ -27,6 +28,7 @@ describe('useLiff', () => {
         isLoggedIn: vi.fn(() => loggedIn),
         isInClient: vi.fn(() => false),
         getProfile: vi.fn().mockResolvedValue({ userId: 'U123', displayName: 'Taro' }),
+        getFriendship: vi.fn().mockResolvedValue(true),
         getAccessToken: vi.fn(() => 'line-access-token'),
         getIDToken: vi.fn(() => idToken),
         login: liffLogin,
@@ -36,13 +38,16 @@ describe('useLiff', () => {
     vi.doMock('../../store/authStore', () => ({
       useAuthStore: () => ({ loginWithLine }),
     }));
+    vi.doMock('../../services/apiClient', () => ({
+      post: syncFriendship,
+    }));
 
     if (!mockMode) {
       vi.stubEnv('VITE_LIFF_ID', '1234567890-AbCdEfGh');
     }
 
     const { useLiff } = await import('../useLiff');
-    return { useLiff, loginWithLine, liffLogin };
+    return { useLiff, loginWithLine, liffLogin, syncFriendship };
   }
 
   beforeEach(() => {
@@ -50,12 +55,15 @@ describe('useLiff', () => {
   });
 
   it('exchanges the LIFF ID token for the system JWT on initialization', async () => {
-    const { useLiff, loginWithLine } = await loadHook();
+    const { useLiff, loginWithLine, syncFriendship } = await loadHook();
 
     const { result } = renderHook(() => useLiff());
 
     await waitFor(() => expect(result.current.authStatus).toBe('authenticated'));
     expect(loginWithLine).toHaveBeenCalledWith('line-id-token');
+    expect(syncFriendship).toHaveBeenCalledWith('/api/v1/line/friendship', {
+      friendFlag: true,
+    });
     expect(result.current.profile?.displayName).toBe('Taro');
   });
 

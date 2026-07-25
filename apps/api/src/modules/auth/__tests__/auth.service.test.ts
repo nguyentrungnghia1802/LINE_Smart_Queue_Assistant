@@ -212,4 +212,22 @@ describe('authService.loginWithEmailPassword', () => {
       email: 'admin@gmail.com',
     });
   });
+
+  it('rejects email login for customer accounts', async () => {
+    const passwordHash = await bcrypt.hash('123456', 10);
+    mockFindByEmail.mockResolvedValue({
+      ...existingUserRow,
+      email: 'customer@gmail.com',
+      password_hash: passwordHash,
+      role: UserRole.CUSTOMER,
+    });
+
+    await expect(
+      authService.loginWithEmailPassword('customer@gmail.com', '123456')
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      code: 'CUSTOMER_LINE_LOGIN_REQUIRED',
+    });
+    expect(mockFindMembershipByUserId).not.toHaveBeenCalled();
+  });
 });

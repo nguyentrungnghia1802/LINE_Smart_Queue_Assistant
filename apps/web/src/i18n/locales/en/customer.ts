@@ -95,6 +95,9 @@ export const customer = {
     continueAsCustomerWithLine: 'Start reception with LINE as a customer',
     returnToDashboard: 'Return to home',
     lineEntryUnavailable: 'LINE reception must be configured. Please contact an administrator.',
+    lineEntryUnavailableHint: 'Ask store staff to verify the LINE reception configuration.',
+    openingLine: 'Opening LINE reception',
+    openingLineHint: 'After LINE authentication, you can select products and services immediately.',
   },
   ticket: {
     notFound: 'Ticket not found',

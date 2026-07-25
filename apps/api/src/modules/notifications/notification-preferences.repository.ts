@@ -98,6 +98,58 @@ export const notificationPreferencesRepository = {
     );
   },
 
+  async syncVerifiedFriendship(params: {
+    userId: string;
+    lineUserId: string;
+    friendFlag: boolean;
+  }): Promise<LineNotificationPreferencesRow> {
+    const { rows } = await pool.query<LineNotificationPreferencesRow>(
+      `INSERT INTO line_notification_preferences
+         (user_id, line_user_id, follow_state, notification_enabled,
+          consented_at, consent_source, revoked_at)
+       SELECT la.user_id, la.line_user_id,
+              CASE WHEN $3 THEN 'followed' ELSE 'unfollowed' END,
+              $3,
+              CASE WHEN $3 THEN NOW() ELSE NULL END,
+              CASE WHEN $3 THEN 'liff_friendship' ELSE NULL END,
+              CASE WHEN $3 THEN NULL ELSE NOW() END
+       FROM line_accounts la
+       WHERE la.user_id = $1 AND la.line_user_id = $2
+       ON CONFLICT (user_id) DO UPDATE
+       SET follow_state = EXCLUDED.follow_state,
+           notification_enabled = CASE
+             WHEN EXCLUDED.follow_state = 'unfollowed' THEN FALSE
+             WHEN line_notification_preferences.follow_state = 'unknown'
+               AND line_notification_preferences.consented_at IS NULL
+               THEN TRUE
+             ELSE line_notification_preferences.notification_enabled
+           END,
+           consented_at = CASE
+             WHEN EXCLUDED.follow_state = 'followed'
+               AND line_notification_preferences.follow_state = 'unknown'
+               AND line_notification_preferences.consented_at IS NULL
+               THEN NOW()
+             ELSE line_notification_preferences.consented_at
+           END,
+           consent_source = CASE
+             WHEN EXCLUDED.follow_state = 'followed'
+               AND line_notification_preferences.follow_state = 'unknown'
+               AND line_notification_preferences.consented_at IS NULL
+               THEN 'liff_friendship'
+             ELSE line_notification_preferences.consent_source
+           END,
+           revoked_at = CASE
+             WHEN EXCLUDED.follow_state = 'unfollowed' THEN NOW()
+             ELSE line_notification_preferences.revoked_at
+           END,
+           updated_at = NOW()
+       RETURNING *`,
+      [params.userId, params.lineUserId, params.friendFlag]
+    );
+    if (!rows[0]) throw new Error('Verified LINE account was not found');
+    return rows[0];
+  },
+
   async canDeliver(
     lineUserId: string,
     eventType: TicketNotificationEventType,

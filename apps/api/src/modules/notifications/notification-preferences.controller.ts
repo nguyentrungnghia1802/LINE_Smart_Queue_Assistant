@@ -5,7 +5,10 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 
 import { notificationPreferencesRepository } from './notification-preferences.repository';
-import type { UpdateNotificationPreferencesDto } from './notification-preferences.validator';
+import type {
+  SyncLineFriendshipDto,
+  UpdateNotificationPreferencesDto,
+} from './notification-preferences.validator';
 
 export const getNotificationPreferences = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw AppError.unauthorized();
@@ -29,6 +32,17 @@ export const updateNotificationPreferences = asyncHandler(async (req: Request, r
     userId: req.user.id,
     lineUserId: req.user.lineUserId,
     ...dto,
+  });
+  sendSuccess(res, preferences);
+});
+
+export const syncLineFriendship = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user?.lineUserId) throw AppError.conflict('Verified LINE account is required');
+  const { friendFlag } = req.body as SyncLineFriendshipDto;
+  const preferences = await notificationPreferencesRepository.syncVerifiedFriendship({
+    userId: req.user.id,
+    lineUserId: req.user.lineUserId,
+    friendFlag,
   });
   sendSuccess(res, preferences);
 });

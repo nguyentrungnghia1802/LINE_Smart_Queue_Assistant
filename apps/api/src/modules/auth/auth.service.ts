@@ -9,7 +9,6 @@ import { AuthUser } from '../../types/auth.types';
 import { AppError } from '../../utils/AppError';
 import { signToken, TokenPayload } from '../../utils/jwt';
 
-import { RegisterCustomerDto } from './auth.validator';
 import { verifyLineIdToken } from './line/lineIdToken.verifier';
 
 export const authService = {
@@ -101,6 +100,13 @@ export const authService = {
     if (!valid) {
       throw AppError.unauthorized('Invalid email or password');
     }
+    if (userRow.role === UserRole.CUSTOMER) {
+      throw new AppError(
+        'Customer accounts must sign in with LINE',
+        403,
+        'CUSTOMER_LINE_LOGIN_REQUIRED'
+      );
+    }
 
     const membership = await organizationsRepository.findMembershipByUserId(userRow.id);
     const organization = membership
@@ -122,37 +128,6 @@ export const authService = {
       email: userRow.email ?? undefined,
       preferredLocale: userRow.preferred_locale,
       organizationLocale: organization?.default_locale,
-    };
-
-    return { token, user };
-  },
-
-  async registerCustomer(dto: RegisterCustomerDto): Promise<{ token: string; user: AuthUser }> {
-    const existing = await usersRepository.findByEmail(dto.email);
-    if (existing) {
-      throw AppError.conflict('A user with this email already exists');
-    }
-
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-    const userRow = await usersRepository.createWithPassword({
-      displayName: dto.displayName,
-      email: dto.email,
-      role: 'customer',
-      passwordHash,
-    });
-
-    const payload: TokenPayload = {
-      sub: userRow.id,
-      role: UserRole.CUSTOMER,
-    };
-    const token = signToken(payload);
-
-    const user: AuthUser = {
-      id: userRow.id,
-      role: UserRole.CUSTOMER,
-      displayName: userRow.display_name,
-      email: userRow.email ?? undefined,
-      preferredLocale: userRow.preferred_locale,
     };
 
     return { token, user };

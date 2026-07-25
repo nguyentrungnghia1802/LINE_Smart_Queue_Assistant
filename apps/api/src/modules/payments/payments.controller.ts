@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 
+import { UserRole } from '@line-queue/shared';
+
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendCreated, sendSuccess } from '../../utils/response';
@@ -8,6 +10,13 @@ import { paymentsService } from './payments.service';
 import { CompleteDemoPaymentDto, CreatePaymentIntentDto } from './payments.validator';
 
 export const createPaymentIntent = asyncHandler(async (req: Request, res: Response) => {
+  if (req.user?.role !== UserRole.CUSTOMER || !req.user.lineUserId) {
+    throw new AppError(
+      'Verified LINE account is required to create a payment',
+      403,
+      'LINE_ACCOUNT_REQUIRED'
+    );
+  }
   const intent = await paymentsService.createIntent(req.body as CreatePaymentIntentDto);
   sendCreated(res, intent);
 });

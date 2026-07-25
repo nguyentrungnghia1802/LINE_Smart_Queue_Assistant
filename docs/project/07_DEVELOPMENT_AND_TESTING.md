@@ -23,17 +23,19 @@ For ordinary UI/backend work without LINE credentials:
 ```dotenv
 VITE_LIFF_MOCK=true
 VITE_LIFF_MOCK_LOGGED_IN=true
-VITE_ENABLE_LEGACY_CUSTOMER_AUTH=true
+VITE_LIFF_ENDPOINT_PATH=/liff
 VITE_PAYMENT_MODE=demo
 ```
 
-The API uses `MockLineAdapter` in tests or whenever `LINE_CHANNEL_ACCESS_TOKEN` is absent.
+Native Vite development defaults to the mock LIFF adapter unless `VITE_LIFF_MOCK=false` is set
+explicitly. The API defaults ID-token verification to `mock` outside production. The development
+Compose file pins matching mock token/user values on both sides, so local customer authentication
+still exercises ID token -> backend -> system JWT without contacting LINE.
 
 For local Rich Menu navigation demos, set `VITE_LIFF_DEFAULT_BOOKING_PATH` to a safe LIFF booking path such as `/liff/qr/demo-queue-lab-2026`.
 
-`VITE_ENABLE_LEGACY_CUSTOMER_AUTH` is a public build flag. Keep it `true` only for local/test
-coverage of the former email-based customer registration flow. Production builds default it to
-`false`; operational email login remains available for staff, managers, and admins.
+Customer email registration and login are not a supported development fallback. Operational email
+login remains available for staff, managers, and admins.
 
 ## 3. Run with Docker
 
@@ -121,14 +123,16 @@ Set `LINE_RICH_MENU_IMAGE_PATH` to a local PNG/JPEG with a production-valid LINE
 
 ## 7. Seed profiles
 
-The minimal profile (`npm run db:seed`) creates only the organization, users, and valid organization memberships. It leaves operational and commercial tables empty. The main local accounts use password `123456`:
+The minimal profile (`npm run db:seed`) creates only the organization, users, and valid organization memberships. It leaves operational and commercial tables empty. The business-role local accounts use password `123456`:
 
-| Role     | Email                |
-| -------- | -------------------- |
-| Admin    | `admin@gmail.com`    |
-| Manager  | `manager@gmail.com`  |
-| Staff    | `staff@gmail.com`    |
-| Customer | `customer@gmail.com` |
+| Role    | Email               |
+| ------- | ------------------- |
+| Admin   | `admin@gmail.com`   |
+| Manager | `manager@gmail.com` |
+| Staff   | `staff@gmail.com`   |
+
+Any seeded customer row is fixture data, not an email-login path. Use the local LIFF mock flow to
+create or link the customer session through `/api/v1/auth/line`.
 
 The full profile (`npm run db:seed:demo`) also creates the public demo paths and Japan-localized catalog/queue/order fixtures:
 
@@ -206,7 +210,9 @@ rejected when `NODE_ENV=production`. Browser E2E never contacts LINE or a PSP.
 3. Run `npm run line:verify` and confirm the expected Official Account name/basic ID without exposing the token.
 4. Expose the local API through HTTPS for LINE webhook testing and set `/api/v1/line/webhook` as the webhook URL.
 5. Add/follow the LINE Official Account as required for push eligibility.
-6. Open `https://liff.line.me/{LIFF_ID}?liff.state=%2Fliff%2Fqr%2F{publicQrToken}` and verify `/api/v1/auth/line` links a real `line_user_id`.
+6. With the LINE Console endpoint set to `https://<web-origin>/liff`, open
+   `https://liff.line.me/{LIFF_ID}/qr/{publicQrToken}` and verify `/api/v1/auth/line` links a real
+   `line_user_id` without producing `/liff/liff/...`.
 7. Select products/services, complete demo prepayment if required, create a booking, and confirm the app redirects to `/liff/tickets/:entryId`.
 8. Call the ticket from staff and observe the Flex Message in the customer's selected locale after the notification worker claims the outbox row. The card should include ticket code, status, people ahead, ETA, next action, and a button that opens the LIFF ticket detail. Japanese is the final locale fallback; text delivery is expected only when Flex delivery fails.
 9. Configure `LINE_RICH_MENU_IMAGE_PATH`, run `npm run line:rich-menu:sync`, and confirm the Official Account Rich Menu opens LIFF Home, booking, current ticket, and usage guide routes.

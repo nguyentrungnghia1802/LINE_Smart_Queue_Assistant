@@ -31,6 +31,9 @@ export interface LiffAdapter {
   /** Fetch the user's LINE profile. Only valid when `isLoggedIn()` is true. */
   getProfile(): Promise<LiffProfile>;
 
+  /** Whether the user has added the linked LINE Official Account as a friend. */
+  getFriendship(): Promise<boolean>;
+
   /**
    * Get the current LIFF access token.
    * Returns `null` when not logged in.

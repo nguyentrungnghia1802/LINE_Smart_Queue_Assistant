@@ -42,6 +42,7 @@ describe('LiffInitPage', () => {
   it('normalizes safe LIFF state paths', () => {
     expect(normalizeLiffState('%2Fliff%2Fqr%2Fdemo-token')).toBe('/liff/qr/demo-token');
     expect(normalizeLiffState('/liff/tickets/entry-1')).toBe('/liff/tickets/entry-1');
+    expect(normalizeLiffState('/home')).toBe('/liff/home');
   });
 
   it('rejects unsafe or unrelated state paths', () => {

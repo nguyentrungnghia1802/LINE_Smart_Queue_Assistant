@@ -111,20 +111,24 @@ reservation transitions.
 
 ## 3. Customer entry and identity flow
 
-1. The manager's primary copy/print QR action uses the LIFF route, usually `/liff/qr/:token` from `https://liff.line.me/{LIFF_ID}?liff.state=...`. LIFF automatically starts LINE Login when the customer is not signed in, then continues to the booking screen after the backend ID-token-to-JWT exchange. The public URL is shown separately as a development/fallback entry.
+1. The manager's primary copy/print QR action uses a permanent LIFF link such as `https://liff.line.me/{LIFF_ID}/qr/:token`. With a `/liff` endpoint, the appended path is `/qr/:token`, not `/liff/qr/:token`, which prevents `/liff/liff/...` after LIFF restores navigation. LIFF automatically starts LINE Login when the customer is not signed in.
 2. LIFF initializes, automatically starts LINE Login in real mode when needed, obtains an ID token, calls `/auth/line`, and stores the system JWT. If the LINE channel has the optional `email` scope and the customer consents, the backend stores the server-verified email without overwriting or duplicating an existing platform email.
-3. Web fetches public organization, queue, and active product data after the route context is known.
+3. The client synchronizes the Official Account friendship state, then fetches public organization, queue, and active product data after the route context is known.
 4. Customer selects products/services, optionally completes demo checkout for required prepayment, and creates the booking within the same LIFF flow.
 5. The backend uses server-verified identity, not browser profile data or public request body fields, to attach the LINE recipient.
 6. On success, LIFF navigates to `/liff/tickets/:entryId` and shows ticket code, status, people ahead, and ETA.
 7. Rich Menu opens `/liff/home` or `/liff/home` with mode/section query parameters. LIFF Home resolves the current active ticket and renders localized empty/usage states with Japanese fallback.
 
-Public `/qr/:token`, `/q/:orgSlug`, `/ticket/:entryId`, and public demo checkout remain fallback/browser-compatible routes. Guest trade-off: the order/ticket works, but LINE push is unavailable unless the ticket resolves to a linked `line_user_id`. For LINE-authenticated requests, `currentUserMiddleware` validates the JWT LINE claim against the active `line_accounts` row. The order and queue controllers pass both internal user ID and verified LINE user ID to their services, which store both on the queue entry inside the write transaction.
+Public `/qr/:token` and `/q/:orgSlug` are customer discovery/redirect routes; they do not create
+guest orders. Payment intents and bookings require the customer JWT created by `/auth/line`.
+`currentUserMiddleware` validates its LINE claim against the active `line_accounts` row. The order
+and queue controllers pass both internal user ID and verified LINE user ID to their services, which
+store both on the queue entry inside the write transaction.
 
-The shared login page presents a LINE customer entry before the operational email form. Staff,
-manager, and admin accounts continue to use email/password. Legacy customer email registration is
-visible in development and test builds, or only when
-`VITE_ENABLE_LEGACY_CUSTOMER_AUTH=true` is explicitly compiled into a web build.
+The shared login page presents LINE as the customer entry and the email form only for staff,
+manager, and admin accounts. The API rejects email login for customer-role users. Local development
+uses the mock LIFF adapter and mock backend ID-token verification, preserving the same
+ID-token-to-system-JWT flow without a second customer auth model.
 
 ## 4. Booking without required prepayment
 
@@ -133,7 +137,7 @@ visible in development and test builds, or only when
 3. Customer may optionally choose checkout for all items or place the reservation unpaid.
 4. `POST /orders` reloads organization, an open queue, products, prices, ownership, and stock.
 5. In one transaction the API increments the ticket counter, creates optional booking group, queue entry with any verified LINE recipient, order, items, stock reservations, and location/alert if supplied.
-6. On success the UI stores a local booking record and navigates to `/liff/tickets/:entryId` in LIFF or `/ticket/:entryId` in the public fallback.
+6. On success the UI stores a local booking record and navigates to `/liff/tickets/:entryId`.
 7. Any transaction error rolls back all database writes.
 
 ## 5. Booking with required prepayment
@@ -182,7 +186,7 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
 ## 7. Staff queue flow
 
 1. Staff authenticates and the API resolves active organization membership.
-2. `/staff/my-queue` selects an organization queue with waiting/called/serving activity (falling back to the first active queue), returns at most the next eight active entries for the board, exposes separate total-active and waiting counts, and includes order details and authenticated customer email when available.
+2. `/staff/my-queue` selects an organization queue with waiting/called/serving activity (falling back to the first active queue), returns at most the next eight active entries for the board, exposes separate total-active and waiting counts, and includes order details, booking name/telephone, and the linked LINE display name when available.
 3. Completion atomically transitions the current service to `served` and calls the next eligible
    waiting entry when no other ticket is already `called`; the Staff UI therefore has no manual
    call-next control.
@@ -234,7 +238,10 @@ ILineMessagingAdapter
 
 The `notifications.event_key` unique constraint makes enqueue idempotent for lifecycle events such as `queue_entry:{entryId}:called`. Workers claim due rows with PostgreSQL row locks, increment `attempt_count`, and update the row to `sent`, `pending` with a later `next_retry_at`, or `failed`. If a process restarts while a row is `processing`, a later worker can reclaim it after the configured processing timeout. Delivery errors are sanitized before storage/logging and never include channel tokens or sensitive provider payloads.
 
-Notification ticket links prefer `LINE_LIFF_ID` and generate `https://liff.line.me/{LINE_LIFF_ID}?liff.state=/liff/tickets/:entryId`. When the LIFF ID is not configured, the backend falls back to `WEB_ORIGIN` plus `/liff/tickets/:entryId`.
+Notification ticket links prefer `LINE_LIFF_ID` and generate endpoint-relative permanent links such
+as `https://liff.line.me/{LINE_LIFF_ID}/tickets/:entryId` for the default `/liff` endpoint. When the
+LIFF ID is not configured, the backend falls back to `WEB_ORIGIN` plus
+`/liff/tickets/:entryId`.
 
 Ticket lifecycle notifications currently cover booking-created, ETA warning, called, serving, completed, cancelled, and no-show events. Each Flex Message shows the system name, ticket code, current status, people ahead, ETA, next action guidance, and a button that opens the LIFF ticket detail.
 
@@ -244,7 +251,7 @@ Ticket lifecycle notifications currently cover booking-created, ETA warning, cal
 LINE Rich Menu tap
           |
           v
-https://liff.line.me/{LINE_LIFF_ID}?liff.state=/liff/home...
+https://liff.line.me/{LINE_LIFF_ID}/home...
           |
           v
 LIFF initializes + exchanges ID token for system JWT
