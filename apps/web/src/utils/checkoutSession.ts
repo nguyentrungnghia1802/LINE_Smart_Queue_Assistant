@@ -23,6 +23,7 @@ export interface CheckoutSession {
   coveredProductIds: string[];
   requiredProductIds?: string[];
   requiredSubtotal?: number;
+  autoBookAfterPayment?: boolean;
   createdAt: string;
 }
 
@@ -36,6 +37,7 @@ export interface PaidCheckout {
   coveredProductIds: string[];
   cartSignature: string;
   paidAt: string;
+  autoBookAfterPayment?: boolean;
 }
 
 export interface CheckoutDraft {

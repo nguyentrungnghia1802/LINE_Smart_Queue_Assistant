@@ -484,6 +484,13 @@ export const ordersService = {
         );
       }
 
+      await paymentsService.refundOrderOnCancellationInClient({
+        orderId,
+        organizationId: order.organization_id,
+        actorId: resolvedActor.userId,
+        reason: isOperator ? 'Order cancelled by operator' : 'Order cancelled by customer',
+        client,
+      });
       const updated = await ordersRepository.updateStatus(orderId, 'cancelled', client);
       if (!updated) throw AppError.notFound('Order not found');
       await inventoryService.releaseOrder(orderId, client, 'order_cancelled', resolvedActor.userId);

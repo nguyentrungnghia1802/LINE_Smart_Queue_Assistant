@@ -123,6 +123,7 @@ export function PaymentDemoPage() {
         coveredProductIds: confirmed.coveredProductIds,
         cartSignature: session.cartSignature,
         paidAt: new Date().toISOString(),
+        autoBookAfterPayment: session.autoBookAfterPayment,
       });
       clearCheckoutSession(session.id);
       navigate(session.returnPath, { replace: true });

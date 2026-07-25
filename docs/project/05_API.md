@@ -163,10 +163,11 @@ All paths require staff/manager/admin and organization ownership.
 | POST   | `/api/v1/staff/queues/:queueId/call-next` | Call next                                                                                                    |
 | POST   | `/api/v1/staff/entries/:entryId/serve`    | Start service                                                                                                |
 | POST   | `/api/v1/staff/entries/:entryId/complete` | Complete service                                                                                             |
+| POST   | `/api/v1/staff/entries/:entryId/defer`    | Return a called late arrival behind all current waiting entries and call the next eligible ticket            |
 | POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                                                                                 |
 | POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                                                                                        |
 
-Staff transition endpoints validate UUID path parameters and do not require a request body. Completion atomically transitions the ticket to `served`, completes the linked order and inventory lifecycle where applicable, enqueues the LINE notification, and records the authenticated staff actor in queue history.
+Staff transition endpoints validate UUID path parameters and do not require a request body. Completion atomically transitions the ticket to `served`, completes the linked order and inventory lifecycle where applicable, enqueues the LINE notification, and automatically calls one next waiting ticket only when no ticket is already called. Defer atomically returns a called ticket to the current waiting tail, records queue history, and calls the next eligible customer.
 
 ### Orders and payment
 
@@ -204,7 +205,10 @@ Important `POST /orders` request fields:
 }
 ```
 
-The server ignores browser price, status, method code, and covered-product authority. Required prepayment is satisfied only by a `payment.transactionId` that points to a paid, same-tenant, unused `payment_transactions` row whose server-computed metadata matches the submitted cart.
+`customerName` and `customerPhone` are required; the phone must pass the Japanese telephone
+validator. The server ignores browser price, status, method code, and covered-product authority.
+Required prepayment is satisfied only by a `payment.transactionId` that points to a paid,
+same-tenant, unused `payment_transactions` row whose server-computed metadata matches the submitted cart.
 
 An already attached payment transaction returns `409 PAYMENT_ALREADY_USED`. Customer clients must
 discard that stale paid-checkout reference and start a new payment attempt; they may preserve the
@@ -227,6 +231,12 @@ In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has compl
 Payment intent creation accepts `orgSlug`, selected `items`, `scope`, `provider`, `method`, `currency`, optional `returnUrl`, and optional `cartSignature`. The API reloads products and computes amount/coverage. Demo mode returns a `demoToken`; the browser must send it to `/payments/demo/complete`, and the server verifies it before marking the transaction paid. Future PSPs must update the same transaction state machine through signed webhooks or server-side verification.
 
 Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatus: paid | refunded`, optional refund `amount` and `reason`, and an `Idempotency-Key` header. Every accepted operation writes an audited reconciliation row. For a legacy paid order without a transaction, the refund path first backfills a server-side manual transaction with covered order products and records a separate reconciliation operation. `GET /api/v1/orders/:id/receipt` is staff/manager/admin only and returns receipt source data only for a completed, fully paid order.
+
+Customer and operator cancellation paths automatically refund all remaining collected amounts for
+transactions attached to the order. Automatic refunds use deterministic per-order/per-transaction
+reconciliation keys and are committed with order/ticket cancellation. This is executable for the
+demo/manual foundation; a real PSP adapter must perform provider-side refund confirmation before
+production rollout.
 
 ### Booking groups and organization calendar
 

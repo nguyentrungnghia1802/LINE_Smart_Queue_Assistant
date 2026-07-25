@@ -4,7 +4,9 @@
 } from '../../../db/repositories/queue-entries.repository';
 import { QueueRow, queuesRepository } from '../../../db/repositories/queues.repository';
 import { withTransaction } from '../../../db/transaction';
+import { inventoryService } from '../../inventory/inventory.service';
 import { queueNotificationService } from '../../notifications/queue-notification.service';
+import { paymentsService } from '../../payments/payments.service';
 import { skipPenaltyService } from '../../skip-penalty/skip-penalty.service';
 import { queueService } from '../queue.service';
 
@@ -13,6 +15,7 @@ import { queueService } from '../queue.service';
 jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
+jest.mock('../../inventory/inventory.service');
 jest.mock('../../notifications/queue-notification.service', () => ({
   queueNotificationService: {
     notifyBookingCreated: jest.fn().mockResolvedValue(undefined),
@@ -25,6 +28,14 @@ jest.mock('../../notifications/queue-notification.service', () => ({
   },
 }));
 jest.mock('../../skip-penalty/skip-penalty.service');
+jest.mock('../../payments/payments.service', () => ({
+  paymentsService: {
+    refundOrderOnCancellationInClient: jest.fn().mockResolvedValue({
+      refundedAmount: 0,
+      transactionCount: 0,
+    }),
+  },
+}));
 
 // Mock orders repository so batchWorkloadForEntries returns an empty Map in tests.
 jest.mock('../../../db/repositories/orders.repository', () => ({
@@ -83,6 +94,24 @@ const mockMarkCancelled = queueEntriesRepository.markCancelled as jest.MockedFun
 >;
 const mockDeprioritize = queueEntriesRepository.deprioritize as jest.MockedFunction<
   typeof queueEntriesRepository.deprioritize
+>;
+const mockListWaiting = queueEntriesRepository.listWaiting as jest.MockedFunction<
+  typeof queueEntriesRepository.listWaiting
+>;
+const mockFindByQueueAndStatus = queueEntriesRepository.findByQueueAndStatus as jest.MockedFunction<
+  typeof queueEntriesRepository.findByQueueAndStatus
+>;
+const mockMarkCalled = queueEntriesRepository.markCalled as jest.MockedFunction<
+  typeof queueEntriesRepository.markCalled
+>;
+const mockMarkServed = queueEntriesRepository.markServed as jest.MockedFunction<
+  typeof queueEntriesRepository.markServed
+>;
+const mockDeferCalledToBack = queueEntriesRepository.deferCalledToBack as jest.MockedFunction<
+  typeof queueEntriesRepository.deferCalledToBack
+>;
+const mockArchiveToHistory = queueEntriesRepository.archiveToHistory as jest.MockedFunction<
+  typeof queueEntriesRepository.archiveToHistory
 >;
 const mockWithTransaction = withTransaction as jest.MockedFunction<typeof withTransaction>;
 const mockQueueNotificationService = queueNotificationService as jest.Mocked<
@@ -164,6 +193,7 @@ function mockTx() {
 beforeEach(() => {
   mockCalcPriority.mockResolvedValue(0);
   mockOnSkipExhausted.mockResolvedValue(undefined);
+  jest.mocked(inventoryService.consumeOrder).mockResolvedValue(0);
 });
 
 // ── joinQueue ─────────────────────────────────────────────────────────────────
@@ -348,6 +378,24 @@ describe('queueService.cancelTicket', () => {
     expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID, expect.anything());
   });
 
+  it('automatically refunds collected payment for an ordered ticket', async () => {
+    const orderedEntry = { ...waitingEntry, order_id: 'order-1' };
+    mockFindEntryById.mockResolvedValue(orderedEntry);
+    mockFindQueueById.mockResolvedValue(openQueue);
+    mockMarkCancelled.mockResolvedValue({ ...orderedEntry, status: 'cancelled' });
+    mockTx();
+
+    await queueService.cancelTicket({ entryId: ENTRY_ID, actorUserId: USER_ID });
+
+    expect(paymentsService.refundOrderOnCancellationInClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: 'order-1',
+        organizationId: openQueue.organization_id,
+        actorId: USER_ID,
+      })
+    );
+  });
+
   it('throws 404 when the ticket does not exist', async () => {
     mockFindEntryById.mockResolvedValue(null);
 
@@ -374,6 +422,85 @@ describe('queueService.cancelTicket', () => {
     await expect(
       queueService.cancelTicket({ entryId: ENTRY_ID, actorUserId: USER_ID })
     ).rejects.toMatchObject({ statusCode: 409 });
+  });
+});
+
+describe('queueService automatic advancement', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFindQueueById.mockResolvedValue(openQueue);
+    mockLockQueueById.mockResolvedValue(openQueue);
+    mockFindByQueueAndStatus.mockResolvedValue(null);
+    mockArchiveToHistory.mockResolvedValue(undefined);
+    mockTx();
+  });
+
+  it('calls the next waiting customer when the serving ticket completes', async () => {
+    const serving = { ...waitingEntry, status: 'serving', order_id: null };
+    const served = { ...serving, status: 'served', served_at: new Date() };
+    const next = { ...waitingEntry, id: 'entry-next', ticket_code: 'A007' };
+    const called = { ...next, status: 'called', called_at: new Date() };
+    mockFindEntryById.mockResolvedValue(serving);
+    mockMarkServed.mockResolvedValue(served);
+    mockListWaiting.mockResolvedValue([next]);
+    mockMarkCalled.mockResolvedValue(called);
+
+    const result = await queueService.completeTicket({
+      entryId: ENTRY_ID,
+      actorUserId: USER_ID,
+      actorOrganizationId: openQueue.organization_id,
+    });
+
+    expect(result.status).toBe('served');
+    expect(mockMarkCalled).toHaveBeenCalledWith(next.id, expect.anything());
+    expect(mockQueueNotificationService.notifyTicketCalled).toHaveBeenCalled();
+  });
+
+  it('does not call another customer when one is already called', async () => {
+    const serving = { ...waitingEntry, status: 'serving', order_id: null };
+    mockFindEntryById.mockResolvedValue(serving);
+    mockMarkServed.mockResolvedValue({ ...serving, status: 'served' });
+    mockFindByQueueAndStatus.mockResolvedValue({
+      ...waitingEntry,
+      id: 'already-called',
+      status: 'called',
+    });
+
+    await queueService.completeTicket({
+      entryId: ENTRY_ID,
+      actorUserId: USER_ID,
+      actorOrganizationId: openQueue.organization_id,
+    });
+
+    expect(mockMarkCalled).not.toHaveBeenCalled();
+  });
+
+  it('moves a called customer behind current waiters and calls the next one', async () => {
+    const calledEntry = { ...waitingEntry, status: 'called' };
+    const next = { ...waitingEntry, id: 'entry-next', ticket_code: 'A007' };
+    const deferred = { ...calledEntry, status: 'waiting', called_at: null };
+    mockFindEntryById.mockResolvedValue(calledEntry);
+    mockListWaiting.mockResolvedValueOnce([next]).mockResolvedValueOnce([next, deferred]);
+    mockDeferCalledToBack.mockResolvedValue(deferred);
+    mockMarkCalled.mockResolvedValue({ ...next, status: 'called' });
+
+    const result = await queueService.deferCalledTicket({
+      entryId: ENTRY_ID,
+      actorUserId: USER_ID,
+      actorOrganizationId: openQueue.organization_id,
+    });
+
+    expect(result.status).toBe('waiting');
+    expect(mockDeferCalledToBack).toHaveBeenCalledWith(ENTRY_ID, QUEUE_ID, expect.anything());
+    expect(mockMarkCalled).toHaveBeenCalledWith(next.id, expect.anything());
+    expect(mockArchiveToHistory).toHaveBeenCalledWith(
+      deferred,
+      'called',
+      'waiting',
+      'staff_deferred_late_arrival',
+      expect.anything(),
+      USER_ID
+    );
   });
 });
 

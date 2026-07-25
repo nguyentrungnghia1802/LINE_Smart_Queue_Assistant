@@ -571,6 +571,77 @@ export const paymentsService = {
     }
   },
 
+  async refundOrderOnCancellationInClient(params: {
+    orderId: string;
+    organizationId: string;
+    actorId?: string;
+    reason: string;
+    client: import('pg').PoolClient;
+  }): Promise<{ refundedAmount: number; transactionCount: number }> {
+    const orderResult = await params.client.query<{
+      id: string;
+      organization_id: string;
+    }>(
+      `SELECT id, organization_id
+       FROM orders
+       WHERE id = $1
+       FOR UPDATE`,
+      [params.orderId]
+    );
+    const order = orderResult.rows[0];
+    if (!order) throw AppError.notFound('Order');
+    if (order.organization_id !== params.organizationId) throw AppError.forbidden();
+
+    const transactions = await paymentTransactionsRepository.findRefundableByOrderForUpdate(
+      params.orderId,
+      params.client
+    );
+    let refundedAmount = 0;
+    let transactionCount = 0;
+
+    for (const transaction of transactions) {
+      const amount = amountNumber(transaction.amount);
+      const alreadyRefunded = amountNumber(transaction.refunded_amount ?? 0);
+      const remainingRefund = Math.max(0, amount - alreadyRefunded);
+      if (remainingRefund === 0) continue;
+
+      const idempotencyKey = `automatic-cancellation-refund:${params.orderId}:${transaction.id}`;
+      const inserted = await paymentTransactionsRepository.recordReconciliation(
+        {
+          organizationId: params.organizationId,
+          transactionId: transaction.id,
+          orderId: params.orderId,
+          actorId: params.actorId,
+          source: 'reconciliation',
+          operationType: 'automatic_cancellation_refund',
+          fromStatus: transaction.status,
+          toStatus: 'refunded',
+          amount: remainingRefund,
+          idempotencyKey,
+          reason: params.reason,
+        },
+        params.client
+      );
+      if (!inserted) continue;
+
+      const updated = await paymentTransactionsRepository.updateStatus(
+        transaction.id,
+        {
+          status: 'refunded',
+          refundedAmount: amount,
+          rawPayload: { source: 'automatic_cancellation' },
+        },
+        params.client
+      );
+      if (!updated) throw AppError.notFound('Payment transaction');
+      await this.reconcileTransactionInClient(updated, params.client);
+      refundedAmount += remainingRefund;
+      transactionCount += 1;
+    }
+
+    return { refundedAmount, transactionCount };
+  },
+
   async reconcileTransactionInClient(
     transaction: PaymentTransactionRow,
     client: import('pg').PoolClient
@@ -637,13 +708,24 @@ export const paymentsService = {
       }
       await client.query(
         `UPDATE orders
-         SET refunded_amount = $2,
+         SET refunded_amount = payment_totals.refunded_amount,
              payment_status = CASE
-               WHEN $2 >= subtotal AND $3 = 'all_items' THEN 'refunded'::payment_status
-               ELSE 'paid'::payment_status
+               WHEN payment_totals.prepaid_amount > payment_totals.refunded_amount
+                 THEN 'paid'::payment_status
+               WHEN payment_totals.refunded_amount > 0
+                 THEN 'refunded'::payment_status
+               ELSE 'unpaid'::payment_status
              END
-         WHERE id = $1`,
-        [transaction.order_id, refundedAmount, metadata.scope ?? 'required_items']
+         FROM (
+           SELECT order_id,
+                  COALESCE(SUM(prepaid_amount), 0) AS prepaid_amount,
+                  COALESCE(SUM(refunded_amount), 0) AS refunded_amount
+           FROM order_items
+           WHERE order_id = $1
+           GROUP BY order_id
+         ) AS payment_totals
+         WHERE orders.id = payment_totals.order_id`,
+        [transaction.order_id]
       );
     }
   },
