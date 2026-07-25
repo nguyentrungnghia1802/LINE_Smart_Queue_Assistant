@@ -10,7 +10,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { getOrSet, MemoryCache } from '../cache';
+import { getOrSet, invalidateProductCatalog, MemoryCache, productCatalogCache } from '../cache';
 
 describe('MemoryCache', () => {
   beforeEach(() => void jest.useFakeTimers());
@@ -51,6 +51,19 @@ describe('MemoryCache', () => {
     cache.invalidate('a');
     expect(cache.get('a')).toBeNull();
     expect(cache.get('b')).toBe(2);
+  });
+
+  it('invalidateByPrefix removes every localized key in a namespace', () => {
+    const cache = new MemoryCache<number>(5_000);
+    cache.set('org:one:ja', 1);
+    cache.set('org:one:en', 2);
+    cache.set('org:two:ja', 3);
+
+    cache.invalidateByPrefix('org:one:');
+
+    expect(cache.get('org:one:ja')).toBeNull();
+    expect(cache.get('org:one:en')).toBeNull();
+    expect(cache.get('org:two:ja')).toBe(3);
   });
 
   it('invalidateAll clears all entries', () => {
@@ -109,5 +122,23 @@ describe('getOrSet', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+describe('invalidateProductCatalog', () => {
+  afterEach(() => productCatalogCache.invalidateAll());
+
+  it('clears every locale for the organization and all public slug variants', () => {
+    productCatalogCache.set('org:one:ja', []);
+    productCatalogCache.set('org:one:vi', []);
+    productCatalogCache.set('org:two:ja', []);
+    productCatalogCache.set('slug:shop:en', []);
+
+    invalidateProductCatalog('one');
+
+    expect(productCatalogCache.get('org:one:ja')).toBeNull();
+    expect(productCatalogCache.get('org:one:vi')).toBeNull();
+    expect(productCatalogCache.get('slug:shop:en')).toBeNull();
+    expect(productCatalogCache.get('org:two:ja')).toEqual([]);
   });
 });
