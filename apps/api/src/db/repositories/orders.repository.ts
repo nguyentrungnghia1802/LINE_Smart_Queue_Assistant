@@ -22,7 +22,7 @@ export interface OrderRow {
   // Enriched fields from queue_entries join (present in some queries)
   ticket_code?: string | null;
   queue_entry_status?: string | null;
-  customer_email?: string | null;
+  customer_line_display_name?: string | null;
 }
 
 export interface CustomerLocationRow {
@@ -160,7 +160,7 @@ export const ordersRepository = {
     const { rows } = await pool.query<OrderRow & { items_json: string }>(
       `SELECT o.*,
          qe.id AS queue_entry_id,
-         u.email AS customer_email,
+         la.display_name AS customer_line_display_name,
          COALESCE(
            json_agg(
              json_build_object(
@@ -182,9 +182,9 @@ export const ordersRepository = {
        LEFT JOIN order_items oi ON oi.order_id = o.id
        LEFT JOIN products p ON p.id = oi.product_id
        LEFT JOIN queue_entries qe ON qe.order_id = o.id
-       LEFT JOIN users u ON u.id = o.customer_user_id
+       LEFT JOIN line_accounts la ON la.user_id = o.customer_user_id
        WHERE o.id = $1
-       GROUP BY o.id, qe.id, u.email`,
+       GROUP BY o.id, qe.id, la.display_name`,
       [id]
     );
     if (!rows[0]) return null;
@@ -201,7 +201,7 @@ export const ordersRepository = {
     const { rows } = await pool.query<OrderRow & { items_json: string }>(
       `SELECT o.*,
          qe.id AS queue_entry_id,
-         u.email AS customer_email,
+         la.display_name AS customer_line_display_name,
          COALESCE(
            json_agg(
              json_build_object(
@@ -221,11 +221,11 @@ export const ordersRepository = {
          ) AS items_json
        FROM orders o
        JOIN queue_entries qe ON qe.order_id = o.id
-       LEFT JOIN users u ON u.id = o.customer_user_id
+       LEFT JOIN line_accounts la ON la.user_id = o.customer_user_id
        LEFT JOIN order_items oi ON oi.order_id = o.id
        LEFT JOIN products p ON p.id = oi.product_id
        WHERE qe.id = $1
-       GROUP BY o.id, qe.id, u.email
+       GROUP BY o.id, qe.id, la.display_name
        LIMIT 1`,
       [queueEntryId]
     );

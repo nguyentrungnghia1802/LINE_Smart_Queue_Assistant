@@ -22,11 +22,6 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     auth: false,
     validator: 'EmailPasswordLoginSchema',
   }),
-  endpoint('post', '/api/v1/auth/register', 'auth', {
-    auth: false,
-    validator: 'RegisterCustomerSchema',
-  }),
-
   endpoint('get', '/api/v1/admin/organizations', 'admin'),
   endpoint('post', '/api/v1/admin/organizations', 'admin', {
     validator: 'CreateOrganizationSchema',
@@ -61,6 +56,9 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
   endpoint('put', '/api/v1/line/preferences', 'line', {
     validator: 'UpdateNotificationPreferencesSchema',
   }),
+  endpoint('post', '/api/v1/line/friendship', 'line', {
+    validator: 'SyncLineFriendshipSchema',
+  }),
   endpoint('get', '/api/v1/line/location-consent', 'location'),
   endpoint('put', '/api/v1/line/location-consent', 'location', {
     validator: 'UpdateLocationConsentSchema',
@@ -89,7 +87,7 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     validator: 'ListNotificationsQuerySchema',
   }),
 
-  endpoint('post', '/api/v1/orders', 'orders', { auth: false, validator: 'CreateOrderSchema' }),
+  endpoint('post', '/api/v1/orders', 'orders', { validator: 'CreateOrderSchema' }),
   endpoint('post', '/api/v1/orders/{id}/cancel', 'orders'),
   endpoint('get', '/api/v1/orders', 'orders'),
   endpoint('get', '/api/v1/orders/stats', 'orders'),
@@ -114,7 +112,6 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
   endpoint('get', '/api/v1/orgs/{slug}', 'organizations', { auth: false }),
 
   endpoint('post', '/api/v1/payments/intents', 'payments', {
-    auth: false,
     validator: 'CreatePaymentIntentSchema',
   }),
   endpoint('post', '/api/v1/payments/demo/complete', 'payments', {

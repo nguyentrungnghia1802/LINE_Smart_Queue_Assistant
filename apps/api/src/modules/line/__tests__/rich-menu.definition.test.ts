@@ -22,17 +22,37 @@ describe('rich-menu.definition', () => {
     ]);
   });
 
-  it('uses LIFF state deeplinks that do not require a fixed entry ID', () => {
+  it('uses LIFF permanent links that do not require a fixed entry ID', () => {
     const definition = buildSmartQueueRichMenuDefinition({
       liffId: '1234567890-AbCdEfGh',
+      liffEndpointPath: '/liff',
     });
 
     for (const [index, route] of RICH_MENU_ROUTES.entries()) {
+      const additionalPath = route.path.slice('/liff'.length);
       expect(definition.areas[index].action.uri).toBe(
-        `https://liff.line.me/1234567890-AbCdEfGh?liff.state=${encodeURIComponent(route.path)}`
+        `https://liff.line.me/1234567890-AbCdEfGh${additionalPath}`
       );
       expect(definition.areas[index].action.uri).not.toContain('/liff/tickets/');
     }
+  });
+
+  it('does not duplicate the LIFF endpoint path', () => {
+    expect(
+      buildLiffRichMenuUri('/liff/home', {
+        liffId: '1234567890-AbCdEfGh',
+        liffEndpointPath: '/liff',
+      })
+    ).toBe('https://liff.line.me/1234567890-AbCdEfGh/home');
+  });
+
+  it('supports a LIFF endpoint configured at the web root', () => {
+    expect(
+      buildLiffRichMenuUri('/liff/home', {
+        liffId: '1234567890-AbCdEfGh',
+        liffEndpointPath: '/',
+      })
+    ).toBe('https://liff.line.me/1234567890-AbCdEfGh/liff/home');
   });
 
   it('falls back to a web URL when LIFF ID is not configured', () => {

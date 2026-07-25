@@ -2,7 +2,7 @@
 
 # Roadmap and Decisions
 
-Last reviewed: 2026-07-16. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
+Last reviewed: 2026-07-26. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
 
 ## 1. Prioritized roadmap
 
@@ -165,9 +165,9 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 **Context:** Customer notifications, ticket deeplinks, and queue ownership need a verified LINE identity. A browser-supplied LINE profile or `lineUserId` cannot be trusted.
 
-**Decision:** Use `/liff/qr/:token` and `/liff/q/:orgSlug` as the primary customer booking routes. Manager copy/print actions target the LIFF universal link, and the shared login page directs customers to LINE before the operational email form. LIFF initializes LINE Login, exchanges the ID token for the system JWT, and blocks LIFF booking until that authenticated identity is ready. Public `/qr`, `/q`, and `/ticket` routes remain for fallback/demo access. Legacy customer email registration is disabled in production unless an explicit public build flag enables it.
+**Decision:** Use `/liff/qr/:token` and `/liff/q/:orgSlug` as the customer booking routes. Public `/qr` and `/q` entries redirect to permanent LIFF links. With the default `/liff` endpoint, links append only endpoint-relative paths such as `/qr/:token`, preventing duplicated `/liff/liff/...` navigation. LIFF initializes LINE Login, exchanges the ID token for the system JWT, synchronizes friendship state, and blocks payment/booking until that authenticated identity is ready. Customer email registration is removed and email/password login is restricted to staff, manager, and admin roles.
 
-**Consequences:** LINE Console and real-device E2E configuration are required before production acceptance. Local mock mode and legacy customer registration remain available for development, but production QR output requires a real LIFF ID and bookings in LIFF must be tested with the authenticated system JWT path.
+**Consequences:** Production QR output requires a real LIFF ID and matching frontend/backend endpoint-path configuration. Local development uses paired frontend/backend LIFF mock values and the same ID-token-to-system-JWT path; it does not introduce a separate customer identity model. Business-role sessions remain active when redirected to the customer LINE entry. LINE Login has been exercised on the deployed HTTPS environment, while complete Messaging API/Rich Menu physical-device acceptance remains an operations gate.
 
 ## ADR-012: LINE ticket notifications are Flex-first with text fallback
 

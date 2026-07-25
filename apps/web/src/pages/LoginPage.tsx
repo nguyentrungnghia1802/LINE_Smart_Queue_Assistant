@@ -1,7 +1,7 @@
 import { isAxiosError } from 'axios';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
@@ -12,8 +12,6 @@ import { getCustomerLineEntryUrl } from '../services/liff/entryUrl';
 import { useAuthStore } from '../store/authStore';
 
 const CUSTOMER_LINE_ENTRY_URL = getCustomerLineEntryUrl('/liff/home');
-const LEGACY_CUSTOMER_AUTH_ENABLED =
-  import.meta.env.DEV || import.meta.env.VITE_ENABLE_LEGACY_CUSTOMER_AUTH === 'true';
 
 export function LoginPage() {
   const { t } = useTranslation(['auth', 'common']);
@@ -187,15 +185,6 @@ export function LoginPage() {
             >
               {loading ? t('login.submitting', { ns: 'auth' }) : t('login.submit', { ns: 'auth' })}
             </button>
-
-            {LEGACY_CUSTOMER_AUTH_ENABLED && (
-              <p className="pt-2 text-center text-sm text-gray-500">
-                {t('login.legacyCustomerAuth', { ns: 'auth' })}{' '}
-                <Link to="/register" className="font-medium text-brand-700 hover:text-brand-800">
-                  {t('login.customerRegister', { ns: 'auth' })}
-                </Link>
-              </p>
-            )}
           </form>
         </div>
       </div>

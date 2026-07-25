@@ -94,6 +94,9 @@ export const customer = {
     continueAsCustomerWithLine: 'LINEでお客様として受付を開始',
     returnToDashboard: 'ホームへ戻る',
     lineEntryUnavailable: 'LINE受付の設定が必要です。管理者にお問い合わせください。',
+    lineEntryUnavailableHint: '店舗スタッフにLINE受付の設定をご確認ください。',
+    openingLine: 'LINE受付を開いています',
+    openingLineHint: 'LINE認証後、そのまま商品・サービスを選択できます。',
   },
   ticket: {
     notFound: '受付番号が見つかりません',

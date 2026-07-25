@@ -2,7 +2,7 @@
 
 LINE Smart Queue Assistant is a LINE-first queue, reservation, ordering, payment-foundation, and customer-notification platform for Japanese service businesses. Customers reserve from a QR code or LIFF, receive queue updates in LINE chat, and track their ticket without waiting beside the counter. Staff, managers, and platform admins use role-specific browser dashboards.
 
-The project is currently a working local/demo modular monolith. Core queue, order, inventory, multilingual UI, LIFF login, LINE notification outbox, Rich Menu navigation, and demo payment flows are implemented. Production PSP integration, LINE Console real-device acceptance, and real travel-time provider integration are still pending.
+The project is currently a working modular monolith with a deployed LINE Login/LIFF customer path. Core queue, order, inventory, multilingual UI, LIFF login, LINE notification outbox, Rich Menu navigation, and demo payment flows are implemented. Production PSP integration, complete physical-device messaging acceptance, and real travel-time provider integration are still pending.
 
 ## Table of contents
 
@@ -42,8 +42,8 @@ This project solves that by moving the customer-facing flow into QR and LINE whi
 
 | Area                         | Status                            | Notes                                                                         |
 | ---------------------------- | --------------------------------- | ----------------------------------------------------------------------------- |
-| Customer QR/LIFF booking     | Implemented                       | LIFF-first flow with public browser fallback                                  |
-| LINE Login and Messaging API | Implemented in code               | LINE Console configuration and real-device E2E are pending                    |
+| Customer QR/LIFF booking     | Implemented                       | QR/web entry redirects to LINE; booking requires verified LINE identity       |
+| LINE Login and Messaging API | Login deployed; messaging in code | Complete notification/Rich Menu physical-device acceptance is still required  |
 | Queue and staff operation    | Implemented                       | Ticket lifecycle, staff board, receipt access, and manual payment controls    |
 | Products and inventory       | Implemented                       | Finite/unlimited stock, transactional reservation, release/consume lifecycle  |
 | Payment                      | Production foundation implemented | Demo provider works; Stripe/KOMOJU/PayPay adapters are not connected yet      |
@@ -187,21 +187,23 @@ The web app proxies `/api` to the API on port `4000`. If the API is not running,
 
 ## Demo data
 
-The default seed creates the organization, accounts, and memberships only. It intentionally leaves
+The default seed creates the organization, operational accounts, and memberships only. It intentionally leaves
 products, queues, orders, tickets, payments, and notifications empty so stale transactional
 fixtures cannot affect development. The main local accounts use password `123456`:
 
-| Role     | Email                |
-| -------- | -------------------- |
-| Admin    | `admin@gmail.com`    |
-| Manager  | `manager@gmail.com`  |
-| Staff    | `staff@gmail.com`    |
-| Customer | `customer@gmail.com` |
+| Role    | Email               |
+| ------- | ------------------- |
+| Admin   | `admin@gmail.com`   |
+| Manager | `manager@gmail.com` |
+| Staff   | `staff@gmail.com`   |
+
+Customer email/password login is intentionally disabled. Local customer flows use the LIFF mock
+identity, while production customer flows use a verified LINE ID token.
 
 Public demo paths:
 
 - QR token: `demo-queue-lab-2026`
-- Customer page: `http://localhost:5173/qr/demo-queue-lab-2026`
+- Customer entry: `http://localhost:5173/qr/demo-queue-lab-2026` (redirects into the local LIFF mock)
 - LIFF mock booking path: `/liff/qr/demo-queue-lab-2026`
 
 Create the optional full demonstration dataset with:
@@ -215,6 +217,7 @@ For local work without real LINE credentials:
 ```dotenv
 VITE_LIFF_MOCK=true
 VITE_LIFF_MOCK_LOGGED_IN=true
+VITE_LIFF_ENDPOINT_PATH=/liff
 VITE_PAYMENT_MODE=demo
 ```
 
@@ -233,7 +236,12 @@ npm run line:verify
 npm run line:rich-menu:sync
 ```
 
-Real-device verification still requires LINE Developers Console configuration, HTTPS webhook exposure, Official Account follow/push eligibility, LIFF opening on a real device, and confirmation that Flex Messages open the correct `/liff/tickets/:entryId` route.
+The deployed LIFF endpoint is configured as the SPA base path, normally
+`https://<web-origin>/liff`. Customer permanent links append endpoint-relative paths, for example
+`https://liff.line.me/{LIFF_ID}/qr/:token`; they must not append `/liff` a second time. Complete
+real-device verification still includes HTTPS webhook exposure, Official Account follow/push
+eligibility, Rich Menu synchronization, notification preferences, and confirmation that Flex
+Messages open the correct ticket.
 
 ## Validation
 

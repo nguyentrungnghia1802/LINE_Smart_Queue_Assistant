@@ -39,21 +39,21 @@ Docker Compose supplies these local/production-like boundaries; it is not the fi
 
 The API entry is `apps/api/src/server.ts`; `app.ts` composes middleware, health routes, docs, and `/api/v1` modules.
 
-| Module          | Responsibility                                                   |
-| --------------- | ---------------------------------------------------------------- |
-| `auth`          | Email/password login, LINE ID-token login, customer registration |
-| `admin`         | Platform organization and manager lifecycle                      |
-| `orgs`          | Public organization lookup and manager settings                  |
-| `products`      | Catalog and finite/unlimited inventory configuration             |
-| `queues`        | Manager queue configuration                                      |
-| `queue`         | Customer ticket operations and shared ticket transitions         |
-| `staff`         | Organization-scoped operational queue board/actions              |
-| `orders`        | Reservation/order/payment/item/inventory/location transaction    |
-| `users`         | Profiles and manager-owned staff accounts                        |
-| `line`          | Webhook signature handling, reply/push transport                 |
-| `notifications` | Notification listing and queue lifecycle messaging               |
-| `eta`           | Pure wait-time calculation                                       |
-| `skip-penalty`  | Skip/no-show policy behavior                                     |
+| Module          | Responsibility                                                 |
+| --------------- | -------------------------------------------------------------- |
+| `auth`          | Business email/password login and customer LINE ID-token login |
+| `admin`         | Platform organization and manager lifecycle                    |
+| `orgs`          | Public organization lookup and manager settings                |
+| `products`      | Catalog and finite/unlimited inventory configuration           |
+| `queues`        | Manager queue configuration                                    |
+| `queue`         | Customer ticket operations and shared ticket transitions       |
+| `staff`         | Organization-scoped operational queue board/actions            |
+| `orders`        | Reservation/order/payment/item/inventory/location transaction  |
+| `users`         | Profiles and manager-owned staff accounts                      |
+| `line`          | Webhook signature handling, reply/push transport               |
+| `notifications` | Notification listing and queue lifecycle messaging             |
+| `eta`           | Pure wait-time calculation                                     |
+| `skip-penalty`  | Skip/no-show policy behavior                                   |
 
 Dependency direction:
 
@@ -69,7 +69,7 @@ Routes and controllers must not contain domain policy. Repositories must not kno
 
 `apps/web/src/router.tsx` defines one SPA with these route domains:
 
-- Public customer fallback: `/q/:orgSlug`, `/qr/:token`, `/ticket/:entryId`, `/checkout/demo/:sessionId`
+- Customer LINE entry redirects: `/q/:orgSlug`, `/qr/:token`
 - LINE-first customer: `/liff/home`, `/liff/q/:orgSlug`, `/liff/qr/:token`, `/liff/checkout/demo/:sessionId`, `/liff/tickets`, `/liff/tickets/:entryId`
 - Staff: `/staff`, `/staff/products`
 - Manager: `/manager/*`
@@ -89,9 +89,8 @@ Frontend responsibilities are split into route pages, reusable components/layout
 
 ### Email/password
 
-Email/password is the primary operational login for staff, managers, and platform admins. Legacy
-customer email registration remains a local/test escape hatch and is disabled in production web
-builds unless explicitly enabled.
+Email/password is the operational login for staff, managers, and platform admins. The API rejects
+email login for customer-role users and exposes no public customer registration endpoint.
 
 1. Client posts credentials to `/api/v1/auth/login`.
 2. API validates the hash and active user state.
@@ -101,19 +100,23 @@ builds unless explicitly enabled.
 
 ### LINE LIFF
 
-1. Customer-facing manager print/copy actions generate `https://liff.line.me/{LIFF_ID}` URLs with a safe `/liff/*` target in `liff.state`; the public `/qr` URL remains visible as a development/fallback link.
-2. LIFF initializes with public `VITE_LIFF_ID`. In real mode, including an external browser, a signed-out customer is automatically sent through LINE Login; mock mode can stay signed in/out for local tests.
+1. Customer-facing manager print/copy actions generate permanent links such as `https://liff.line.me/{LIFF_ID}/qr/:token`. The configured endpoint is normally `/liff`, so the additional path is endpoint-relative and must not contain another `/liff`.
+2. Public `/qr` and `/q` routes resolve the requested customer destination and redirect into LINE. LIFF initializes with public `VITE_LIFF_ID`. In real mode, including an external browser, a signed-out customer is automatically sent through LINE Login.
 3. After LINE login, the client obtains an OIDC ID token and posts it to `/api/v1/auth/line`.
 4. API verifies it against the configured LINE Login channel ID and may persist the optional verified email claim when the channel has email permission and the address is not already owned.
 5. API finds or creates the customer and links `line_accounts.line_user_id` transactionally.
 6. `currentUserMiddleware` accepts the JWT LINE claim only when the matching `line_accounts` row still belongs to that user and `is_linked = TRUE`.
 7. LIFF booking, demo payment return, order creation, and ticket display run in the same `/liff/*` flow. Order and direct queue creation in LIFF are blocked until the system JWT has been issued from the LINE ID token.
-8. Queue entries that store that verified linked LINE user ID can be targeted through Messaging API push.
-9. Rich Menu entry points open safe `/liff/*` routes. `/liff/home?mode=ticket` resolves the current active ticket for the authenticated LINE user instead of depending on a fixed entry ID.
+8. After authentication, the client synchronizes the Official Account friendship state without overriding a later explicit notification opt-out.
+9. Queue entries that store that verified linked LINE user ID can be targeted through Messaging API push.
+10. Rich Menu entry points open safe `/liff/*` routes. `/liff/home?mode=ticket` resolves the current active ticket for the authenticated LINE user instead of depending on a fixed entry ID.
 
 LINE Login does not send messages. Messaging API does not authenticate the web session. A complete setup needs both capabilities under the intended provider and a consistent LINE user relationship.
 
-Authenticated order and direct queue creation copy only `req.user.lineUserId`, which came from the verified LINE ID token, internal JWT, and active `line_accounts` link, into the new queue entry. Guest orders and anonymous direct queue joins remain valid without a LINE recipient; public request bodies cannot assert `lineUserId`.
+Payment intent creation, order creation, and direct customer queue creation require a customer JWT
+whose `lineUserId` came from the verified LINE ID token and active `line_accounts` link. Controllers
+copy only this trusted claim into new queue entries; public request bodies cannot assert
+`lineUserId`.
 
 ## 7. Synchronous flows
 

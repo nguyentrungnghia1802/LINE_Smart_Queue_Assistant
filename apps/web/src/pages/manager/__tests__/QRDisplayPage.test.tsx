@@ -11,7 +11,7 @@ vi.mock('../../../services/apiClient', () => ({
 
 vi.mock('../../../services/liff/entryUrl', () => ({
   getCustomerLineEntryUrl: (route: string) =>
-    `https://liff.line.me/liff-test?liff.state=${encodeURIComponent(route)}`,
+    `https://liff.line.me/liff-test${route.replace(/^\/liff/, '')}`,
 }));
 
 vi.mock('qrcode.react', () => ({
@@ -35,7 +35,7 @@ describe('QRDisplayPage', () => {
     );
 
     expect(screen.getByTestId('qr-value')).toHaveTextContent(
-      'https://liff.line.me/liff-test?liff.state=%2Fliff%2Fjoin%2Fqueue-1'
+      'https://liff.line.me/liff-test/join/queue-1'
     );
   });
 });

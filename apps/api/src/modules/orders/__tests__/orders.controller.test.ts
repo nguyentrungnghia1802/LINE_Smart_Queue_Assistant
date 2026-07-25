@@ -49,15 +49,36 @@ describe('createOrder controller', () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  it('keeps guest order creation anonymous', async () => {
+  it('rejects order creation without LINE authentication', async () => {
     const dto = { orgSlug: 'smart-queue', items: [] };
     const req = { body: dto } as Request;
     const res = makeResponse();
+    const next = jest.fn();
 
-    createOrder(req, res, jest.fn());
+    createOrder(req, res, next);
     await flushPromises();
 
-    expect(mockCreate).toHaveBeenCalledWith(dto, undefined);
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 401, code: 'LINE_AUTH_REQUIRED' })
+    );
+  });
+
+  it('rejects a customer JWT that is not linked to LINE', async () => {
+    const req = {
+      body: { orgSlug: 'smart-queue', items: [] },
+      user: { id: 'customer-001', role: UserRole.CUSTOMER },
+    } as unknown as Request;
+    const res = makeResponse();
+    const next = jest.fn();
+
+    createOrder(req, res, next);
+    await flushPromises();
+
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 403, code: 'LINE_ACCOUNT_REQUIRED' })
+    );
   });
 
   it('rejects a business account before creating a customer booking', async () => {

@@ -11,9 +11,13 @@ import {
 import { UpdateLocationConsentSchema } from '../location/location.validator';
 import {
   getNotificationPreferences,
+  syncLineFriendship,
   updateNotificationPreferences,
 } from '../notifications/notification-preferences.controller';
-import { UpdateNotificationPreferencesSchema } from '../notifications/notification-preferences.validator';
+import {
+  SyncLineFriendshipSchema,
+  UpdateNotificationPreferencesSchema,
+} from '../notifications/notification-preferences.validator';
 
 import { handleWebhook } from './line.controller';
 
@@ -26,6 +30,7 @@ lineRouter.put(
   validate(UpdateNotificationPreferencesSchema),
   updateNotificationPreferences
 );
+lineRouter.post('/friendship', requireAuth, validate(SyncLineFriendshipSchema), syncLineFriendship);
 lineRouter.get('/location-consent', requireAuth, getLocationConsent);
 lineRouter.put(
   '/location-consent',
