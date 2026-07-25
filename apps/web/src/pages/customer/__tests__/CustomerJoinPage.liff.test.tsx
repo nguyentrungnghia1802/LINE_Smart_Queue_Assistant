@@ -8,12 +8,29 @@ import { UserRole } from '@line-queue/shared';
 
 import { LiffRuntimeProvider } from '../../../contexts/LiffRuntimeContext';
 import { i18n } from '../../../i18n';
-import { get, post } from '../../../services/apiClient';
+import { ApiClientError, get, post } from '../../../services/apiClient';
 import { useAuthStore } from '../../../store/authStore';
 import type { LiffContext } from '../../../types/liff';
+import {
+  BOOKING_GROUP_PREFIX,
+  CHECKOUT_DRAFT_PREFIX,
+  PAID_CHECKOUT_PREFIX,
+  paymentKeyFor,
+  savePaidCheckout,
+} from '../../../utils/checkoutSession';
 import { CustomerJoinPage, LiffCustomerJoinPage } from '../CustomerJoinPage';
 
 vi.mock('../../../services/apiClient', () => ({
+  ApiClientError: class ApiClientError extends Error {
+    constructor(
+      readonly code: string,
+      readonly status?: number,
+      readonly details?: unknown,
+      message?: string
+    ) {
+      super(message ?? code);
+    }
+  },
   get: vi.fn(),
   post: vi.fn(),
 }));
@@ -136,6 +153,153 @@ describe('LiffCustomerJoinPage', () => {
     });
     expect(payload).not.toHaveProperty('lineUserId');
     expect(await screen.findByTestId('location')).toHaveTextContent('/liff/tickets/entry-123');
+  });
+
+  it('clears the completed draft and used payment before a new booking attempt', async () => {
+    vi.mocked(get).mockResolvedValue({
+      org: {
+        id: 'org-1',
+        name: 'テスト店舗',
+        slug: 'test-store',
+        logoUrl: null,
+        phone: null,
+        address: 'Tokyo',
+        paymentInfo: null,
+      },
+      queue: {
+        id: 'queue-1',
+        name: '受付',
+        prefix: 'A',
+        waitingCount: 0,
+        avgWaitMinutes: 5,
+      },
+      products: [
+        {
+          id: 'product-1',
+          name: '前払いカット',
+          description: null,
+          image_url: null,
+          price: '3000',
+          service_time_minutes: 30,
+          requires_prepayment: true,
+          stock_quantity: null,
+          product_type: 'service',
+        },
+      ],
+    });
+    const draftKey = 'liff:qr:demo-token';
+    const paymentKey = paymentKeyFor('test-store:product-1:1', 'required_items');
+    sessionStorage.setItem(
+      `${CHECKOUT_DRAFT_PREFIX}${draftKey}`,
+      JSON.stringify({
+        cart: { 'product-1': 1 },
+        customerName: '以前の名前',
+        customerPhone: '09000000000',
+      })
+    );
+    savePaidCheckout(paymentKey, {
+      paid: true,
+      transactionId: 'payment-previous',
+      method: 'demo',
+      code: 'payment-previous',
+      amount: 3000,
+      scope: 'required_items',
+      coveredProductIds: ['product-1'],
+      cartSignature: 'product-1:1',
+      paidAt: new Date().toISOString(),
+    });
+
+    const user = userEvent.setup();
+    const firstRender = renderLiffBooking();
+    expect(await screen.findByText('決済番号: payment-previous')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '予約する' }));
+    expect(await screen.findByTestId('location')).toHaveTextContent('/liff/tickets/entry-123');
+
+    expect(sessionStorage.getItem(`${CHECKOUT_DRAFT_PREFIX}${draftKey}`)).toBeNull();
+    expect(sessionStorage.getItem(`${PAID_CHECKOUT_PREFIX}${paymentKey}`)).toBeNull();
+    expect(localStorage.getItem(`${BOOKING_GROUP_PREFIX}${draftKey}`)).not.toBeNull();
+
+    firstRender.unmount();
+    renderLiffBooking();
+
+    await screen.findByRole('heading', { name: 'テスト店舗' });
+    expect(screen.getByPlaceholderText('例: 山田太郎')).toHaveValue('');
+    expect(screen.getByPlaceholderText('例: 0901234567')).toHaveValue('');
+    expect(screen.queryByText('決済番号: payment-previous')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '予約する' })).toBeDisabled();
+  });
+
+  it('discards a legacy used payment and keeps the cart ready for repayment', async () => {
+    vi.mocked(get).mockResolvedValue({
+      org: {
+        id: 'org-1',
+        name: 'テスト店舗',
+        slug: 'test-store',
+        logoUrl: null,
+        phone: null,
+        address: 'Tokyo',
+        paymentInfo: null,
+      },
+      queue: {
+        id: 'queue-1',
+        name: '受付',
+        prefix: 'A',
+        waitingCount: 0,
+        avgWaitMinutes: 5,
+      },
+      products: [
+        {
+          id: 'product-1',
+          name: '前払いカット',
+          description: null,
+          image_url: null,
+          price: '3000',
+          service_time_minutes: 30,
+          requires_prepayment: true,
+          stock_quantity: null,
+          product_type: 'service',
+        },
+      ],
+    });
+    const draftKey = 'liff:qr:demo-token';
+    const paymentKey = paymentKeyFor('test-store:product-1:1', 'required_items');
+    sessionStorage.setItem(
+      `${CHECKOUT_DRAFT_PREFIX}${draftKey}`,
+      JSON.stringify({
+        cart: { 'product-1': 1 },
+        customerName: '山田太郎',
+        customerPhone: '0901234567',
+      })
+    );
+    savePaidCheckout(paymentKey, {
+      paid: true,
+      transactionId: 'payment-already-used',
+      method: 'demo',
+      code: 'payment-already-used',
+      amount: 3000,
+      scope: 'required_items',
+      coveredProductIds: ['product-1'],
+      cartSignature: 'product-1:1',
+      paidAt: new Date().toISOString(),
+    });
+    vi.mocked(post).mockRejectedValueOnce(
+      new ApiClientError('PAYMENT_ALREADY_USED', 409, undefined)
+    );
+
+    const user = userEvent.setup();
+    renderLiffBooking();
+    expect(await screen.findByText('決済番号: payment-already-used')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '予約する' }));
+
+    expect(
+      await screen.findByText(i18n.t('common:errors.PAYMENT_ALREADY_USED'))
+    ).toBeInTheDocument();
+    expect(sessionStorage.getItem(`${PAID_CHECKOUT_PREFIX}${paymentKey}`)).toBeNull();
+    expect(screen.getByRole('button', { name: '事前支払いへ進む' })).toBeEnabled();
+    expect(
+      screen.getByRole('button', { name: i18n.t('customer:booking.prepaymentRequired') })
+    ).toBeDisabled();
+    expect(screen.getByDisplayValue('1')).toBeInTheDocument();
   });
 
   it('blocks booking until LINE authentication is complete', async () => {

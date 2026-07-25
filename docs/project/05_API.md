@@ -206,6 +206,10 @@ Important `POST /orders` request fields:
 
 The server ignores browser price, status, method code, and covered-product authority. Required prepayment is satisfied only by a `payment.transactionId` that points to a paid, same-tenant, unused `payment_transactions` row whose server-computed metadata matches the submitted cart.
 
+An already attached payment transaction returns `409 PAYMENT_ALREADY_USED`. Customer clients must
+discard that stale paid-checkout reference and start a new payment attempt; they may preserve the
+current cart for recovery but must not resubmit the consumed transaction.
+
 For authenticated `POST /orders`, only a `customer` JWT is accepted. The controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified linked `line_user_id` on the new queue entry. Guest orders keep both recipient fields empty unless a separately verified identity flow is used. An authenticated staff, manager, or admin receives `403 CUSTOMER_ACCOUNT_REQUIRED` before any order, stock, queue, or payment work starts.
 
 In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has completed and the authenticated LINE-derived JWT is present. The request body must still never include `lineUserId`.
