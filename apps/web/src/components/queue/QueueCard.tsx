@@ -14,7 +14,7 @@ export function QueueCard({ queue }: QueueCardProps) {
   const { t } = useTranslation('common');
   return (
     <Link
-      to={`/queues/${queue.id}`}
+      to={`/manager/queues/${queue.id}`}
       className="block bg-white rounded-[var(--radius-card)] border border-gray-200 shadow-sm hover:shadow-md hover:border-brand-200 transition-all p-5"
     >
       <div className="flex items-start justify-between gap-2 mb-3">

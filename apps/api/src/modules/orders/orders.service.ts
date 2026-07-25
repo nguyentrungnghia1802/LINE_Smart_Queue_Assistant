@@ -96,9 +96,10 @@ export const ordersService = {
     const org = await organizationsRepository.findBySlug(dto.orgSlug);
     if (!org) throw AppError.notFound('Organization not found');
 
-    // Load first active queue for this org
-    const queues = await queuesRepository.findActiveByOrg(org.id);
-    if (queues.length === 0) throw AppError.badRequest('No active queue for this organization');
+    const queues = await queuesRepository.findOpenByOrg(org.id);
+    if (queues.length === 0) {
+      throw new AppError('No queue is currently accepting bookings', 409, 'QUEUE_NOT_ACCEPTING');
+    }
     const queue = queues[0];
 
     // Validate + fetch all products
@@ -174,12 +175,31 @@ export const ordersService = {
 
       const lockedQueue = await queuesRepository.lockById(queue.id, client);
       if (!lockedQueue || lockedQueue.status !== 'open') {
-        throw AppError.conflict('Queue is not accepting entries');
+        throw new AppError('Queue is not accepting entries', 409, 'QUEUE_NOT_ACCEPTING');
       }
       if (lockedQueue.max_capacity !== null) {
         const activeCount = await queuesRepository.countWaiting(queue.id, client);
         if (activeCount >= lockedQueue.max_capacity) {
           throw AppError.conflict('Queue is at full capacity');
+        }
+      }
+
+      if (paymentTransaction) {
+        const lockedPayment = await paymentTransactionsRepository.findByIdForUpdate(
+          paymentTransaction.id,
+          client
+        );
+        if (!lockedPayment) {
+          throw AppError.badRequest('Verified payment transaction was not found');
+        }
+        if (lockedPayment.organization_id !== org.id) {
+          throw AppError.badRequest('Payment transaction does not belong to this organization');
+        }
+        if (lockedPayment.order_id) {
+          throw AppError.conflict('Payment transaction has already been used');
+        }
+        if (lockedPayment.status !== 'paid') {
+          throw AppError.badRequest('Payment transaction has not been verified as paid');
         }
       }
 
@@ -370,10 +390,25 @@ export const ordersService = {
     }
   },
 
-  async updateStatus(id: string, orgId: string, dto: UpdateOrderStatusDto) {
+  async updateStatus(
+    id: string,
+    orgId: string,
+    dto: UpdateOrderStatusDto,
+    actor: { userId: string; role: string }
+  ) {
     const order = await ordersRepository.findById(id);
     if (!order) throw AppError.notFound('Order not found');
     if (order.organization_id !== orgId) throw AppError.forbidden();
+    if (dto.status === 'cancelled') {
+      return this.cancelByOrderId(id, {
+        userId: actor.userId,
+        role: actor.role,
+        organizationId: orgId,
+      });
+    }
+    if (dto.status === 'completed' && order.queue_entry_id) {
+      throw AppError.conflict('Complete the linked queue entry instead');
+    }
     const updated = await ordersRepository.updateStatus(id, dto.status);
     if (!updated) throw AppError.notFound('Order not found');
     return updated;
@@ -440,24 +475,30 @@ export const ordersService = {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      const linkedEntry = order.queue_entry_id
+        ? await queueEntriesRepository.findById(order.queue_entry_id, client)
+        : null;
+      if (linkedEntry && !['waiting', 'called'].includes(linkedEntry.status)) {
+        throw AppError.conflict(
+          `Order cannot be cancelled while queue entry is '${linkedEntry.status}'`
+        );
+      }
+
       const updated = await ordersRepository.updateStatus(orderId, 'cancelled', client);
       if (!updated) throw AppError.notFound('Order not found');
       await inventoryService.releaseOrder(orderId, client, 'order_cancelled', resolvedActor.userId);
 
-      if (order.queue_entry_id) {
-        const linkedEntry = await queueEntriesRepository.findById(order.queue_entry_id, client);
-        if (linkedEntry && ['waiting', 'called'].includes(linkedEntry.status)) {
-          const cancelledEntry = await queueEntriesRepository.markCancelled(
-            order.queue_entry_id,
-            client
-          );
-          await queueNotificationService.notifyTicketCancelled(
-            cancelledEntry,
-            { organizationId: order.organization_id },
-            notificationOutboxRepository,
-            client
-          );
-        }
+      if (linkedEntry && order.queue_entry_id) {
+        const cancelledEntry = await queueEntriesRepository.markCancelled(
+          order.queue_entry_id,
+          client
+        );
+        await queueNotificationService.notifyTicketCancelled(
+          cancelledEntry,
+          { organizationId: order.organization_id },
+          notificationOutboxRepository,
+          client
+        );
       }
 
       await client.query('COMMIT');

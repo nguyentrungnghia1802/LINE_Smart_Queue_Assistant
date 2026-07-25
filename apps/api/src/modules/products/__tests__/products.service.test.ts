@@ -104,6 +104,29 @@ describe('productsService CRUD audit logging', () => {
     );
   });
 
+  it('rejects enabling prepayment on a zero-price product', async () => {
+    mockFindById.mockResolvedValue(makeProduct({ price: '0' }));
+
+    await expect(
+      productsService.update(PRODUCT_ID, ORG_ID, { requiresPrepayment: true })
+    ).rejects.toMatchObject({ statusCode: 422 });
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('clears finite stock when a product is converted to a service', async () => {
+    const existing = makeProduct({ product_type: 'product', stock_quantity: 5 });
+    const updated = makeProduct({ product_type: 'service', stock_quantity: null });
+    mockFindById.mockResolvedValue(existing);
+    mockUpdate.mockResolvedValue(updated);
+
+    await productsService.update(PRODUCT_ID, ORG_ID, { productType: 'service' });
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      PRODUCT_ID,
+      expect.objectContaining({ productType: 'service', stockQuantity: null })
+    );
+  });
+
   it('soft deletes a product and writes an audit log', async () => {
     const existing = makeProduct();
     mockFindById.mockResolvedValue(existing);

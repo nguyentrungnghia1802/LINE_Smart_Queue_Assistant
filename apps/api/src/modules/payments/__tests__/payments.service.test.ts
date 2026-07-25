@@ -2,6 +2,7 @@ import { pool } from '../../../db/client';
 import { organizationsRepository } from '../../../db/repositories/organizations.repository';
 import { paymentTransactionsRepository } from '../../../db/repositories/payment-transactions.repository';
 import { productsRepository } from '../../../db/repositories/products.repository';
+import { queuesRepository } from '../../../db/repositories/queues.repository';
 import { canApplyPaymentEvent, paymentsService, resolveRefundState } from '../payments.service';
 
 jest.mock('../../../db/client', () => ({
@@ -13,6 +14,7 @@ jest.mock('../../../db/client', () => ({
 jest.mock('../../../db/repositories/payment-transactions.repository');
 jest.mock('../../../db/repositories/organizations.repository');
 jest.mock('../../../db/repositories/products.repository');
+jest.mock('../../../db/repositories/queues.repository');
 
 const org = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -65,6 +67,7 @@ describe('paymentsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(organizationsRepository.findBySlug).mockResolvedValue(org as never);
+    jest.mocked(queuesRepository.findOpenByOrg).mockResolvedValue([{ id: 'queue-1' }] as never);
     jest.mocked(productsRepository.findById).mockImplementation(async (id: string) => {
       if (id === prepaidProduct.id) return prepaidProduct as never;
       if (id === normalProduct.id) return normalProduct as never;
@@ -104,6 +107,22 @@ describe('paymentsService', () => {
     expect(intent.status).toBe('pending');
     expect(intent.coveredProductIds).toEqual([prepaidProduct.id]);
     expect(intent.demoToken).toHaveLength(64);
+  });
+
+  it('does not create a payment intent when no queue is accepting bookings', async () => {
+    jest.mocked(queuesRepository.findOpenByOrg).mockResolvedValue([]);
+
+    await expect(
+      paymentsService.createIntent({
+        orgSlug: org.slug,
+        items: [{ productId: prepaidProduct.id, quantity: 1 }],
+        scope: 'required_items',
+        provider: 'demo',
+        method: 'credit_card',
+        currency: 'JPY',
+      })
+    ).rejects.toMatchObject({ statusCode: 409, code: 'QUEUE_NOT_ACCEPTING' });
+    expect(paymentTransactionsRepository.createIntent).not.toHaveBeenCalled();
   });
 
   it('does not process duplicate webhook events twice', async () => {

@@ -20,7 +20,7 @@ const AbsoluteImageUrlSchema = z
 
 const ProductImageUrlSchema = z.union([RelativeMediaUrlSchema, AbsoluteImageUrlSchema]);
 
-export const CreateProductSchema = z.object({
+const ProductFieldsSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
   imageUrl: ProductImageUrlSchema.optional(),
@@ -32,9 +32,38 @@ export const CreateProductSchema = z.object({
   productType: z.enum(['product', 'service']).default('service'),
 });
 
-export const UpdateProductSchema = CreateProductSchema.partial().extend({
-  isActive: z.boolean().optional(),
-});
+function validateProductConfiguration(
+  value: {
+    price?: number;
+    requiresPrepayment?: boolean;
+    stockQuantity?: number;
+    productType?: 'product' | 'service';
+  },
+  ctx: z.RefinementCtx
+) {
+  if (value.requiresPrepayment === true && value.price !== undefined && value.price <= 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['price'],
+      message: 'Prepaid products must have a price greater than zero',
+    });
+  }
+  if (value.productType === 'service' && value.stockQuantity !== undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['stockQuantity'],
+      message: 'Services must use unlimited stock',
+    });
+  }
+}
+
+export const CreateProductSchema = ProductFieldsSchema.superRefine(validateProductConfiguration);
+
+export const UpdateProductSchema = ProductFieldsSchema.partial()
+  .extend({
+    isActive: z.boolean().optional(),
+  })
+  .superRefine(validateProductConfiguration);
 
 export type CreateProductDto = z.infer<typeof CreateProductSchema>;
 export type UpdateProductDto = z.infer<typeof UpdateProductSchema>;
