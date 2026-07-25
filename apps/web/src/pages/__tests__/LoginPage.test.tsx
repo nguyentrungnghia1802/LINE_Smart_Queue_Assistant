@@ -32,8 +32,7 @@ vi.mock('../../store/authStore', () => ({
 }));
 
 vi.mock('../../services/liff/entryUrl', () => ({
-  getCustomerLineEntryUrl: () =>
-    'https://liff.line.me/1234567890-AbCdEfGh?liff.state=%2Fliff%2Fhome',
+  getCustomerLineEntryUrl: () => 'https://liff.line.me/1234567890-AbCdEfGh/home',
 }));
 
 describe('LoginPage', () => {
@@ -86,7 +85,7 @@ describe('LoginPage', () => {
 
     expect(screen.getByRole('link', { name: 'LINEで受付を始める' })).toHaveAttribute(
       'href',
-      'https://liff.line.me/1234567890-AbCdEfGh?liff.state=%2Fliff%2Fhome'
+      'https://liff.line.me/1234567890-AbCdEfGh/home'
     );
     expect(
       screen.getByText('スタッフ、マネージャー、管理者はメールでログインしてください。')

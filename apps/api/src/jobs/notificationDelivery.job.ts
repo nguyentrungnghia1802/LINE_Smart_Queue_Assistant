@@ -58,6 +58,7 @@ function buildTemplateFromOutbox(row: NotificationOutboxRow) {
     ticketCode: stringOrFallback(payload.ticketCode, '----'),
     ticketUrl: buildTicketDeepLink(row.queue_entry_id, {
       liffId: config.line.liffId,
+      liffEndpointPath: config.line.liffEndpointPath,
       webOrigin: config.web.origin,
     }),
     aheadCount: numberOrNull(payload.aheadCount),

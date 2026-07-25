@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { i18n } from '../i18n';
+import { post } from '../services/apiClient';
 import { isLiffMockMode, liffAdapter } from '../services/liff';
 import { useAuthStore } from '../store/authStore';
 import type { LiffAuthStatus, LiffContext, LiffInitStatus, LiffProfile } from '../types/liff';
@@ -91,6 +92,12 @@ export function useLiff(): LiffContext {
               setAuthStatus('authenticating');
               try {
                 await loginWithLine(oidcToken);
+                try {
+                  const friendFlag = await liffAdapter.getFriendship();
+                  await post('/api/v1/line/friendship', { friendFlag });
+                } catch (friendshipError) {
+                  console.warn('Could not synchronize LINE friendship state', friendshipError);
+                }
                 if (!cancelled) {
                   setAuthStatus('authenticated');
                   setAuthError(null);

@@ -9,7 +9,7 @@ import { AdminOrganizationDetailPage } from './pages/admin/AdminOrganizationDeta
 import { AdminOrganizationRegisterPage } from './pages/admin/AdminOrganizationRegisterPage';
 import { AdminOrganizationsPage } from './pages/admin/AdminOrganizationsPage';
 import { CustomerDashboardPage } from './pages/customer/CustomerDashboardPage';
-import { CustomerJoinPage, LiffCustomerJoinPage } from './pages/customer/CustomerJoinPage';
+import { CustomerLineEntryPage, LiffCustomerJoinPage } from './pages/customer/CustomerJoinPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { HistoryPage } from './pages/liff/HistoryPage';
 import { HomePage } from './pages/liff/HomePage';
@@ -36,7 +36,6 @@ import { PublicJoinPage } from './pages/public/PublicJoinPage';
 import { PublicTicketPage } from './pages/public/PublicTicketPage';
 import { QueueDetailPage } from './pages/QueueDetailPage';
 import { QueuesPage } from './pages/QueuesPage';
-import { RegisterPage } from './pages/RegisterPage';
 import { RoleRedirectPage } from './pages/RoleRedirectPage';
 import { StaffDashboardPage } from './pages/staff/StaffDashboardPage';
 import { StaffLayout } from './pages/staff/StaffLayout';
@@ -51,12 +50,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/register',
-    element:
-      import.meta.env.DEV || import.meta.env.VITE_ENABLE_LEGACY_CUSTOMER_AUTH === 'true' ? (
-        <RegisterPage />
-      ) : (
-        <Navigate to="/login" replace />
-      ),
+    element: <Navigate to="/login" replace />,
   },
   {
     path: '/account',
@@ -67,8 +61,8 @@ export const router = createBrowserRouter([
   { path: '/join/:queueId', element: <PublicJoinPage /> },
   { path: '/ticket/:entryId', element: <PublicTicketPage /> },
   { path: '/checkout/demo/:sessionId', element: <PaymentDemoPage /> },
-  { path: '/q/:orgSlug', element: <CustomerJoinPage /> },
-  { path: '/qr/:token', element: <CustomerJoinPage /> },
+  { path: '/q/:orgSlug', element: <CustomerLineEntryPage /> },
+  { path: '/qr/:token', element: <CustomerLineEntryPage /> },
 
   // ── Manager ───────────────────────────────────────────────────────────────
   {

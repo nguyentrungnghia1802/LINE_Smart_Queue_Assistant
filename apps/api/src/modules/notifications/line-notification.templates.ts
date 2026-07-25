@@ -2,6 +2,7 @@ import type { SupportedLocale } from '@line-queue/shared';
 
 import type { QueueEntryRow } from '../../db/repositories/queue-entries.repository';
 import { normalizeLocale } from '../../i18n/locale';
+import { buildLiffPermanentLink } from '../line/liff-deeplink';
 import type { LineFlexMessage } from '../line/line.adapter';
 
 import { enLineNotificationCopy } from './templates/en';
@@ -42,11 +43,12 @@ export function getLineNotificationCopy(locale?: string | null): LineNotificatio
 
 export function buildTicketDeepLink(
   entryId: string,
-  options: { liffId?: string; webOrigin?: string }
+  options: { liffId?: string; liffEndpointPath?: string; webOrigin?: string }
 ): string {
   const state = `/liff/tickets/${entryId}`;
   if (options.liffId) {
-    return `https://liff.line.me/${options.liffId}?liff.state=${encodeURIComponent(state)}`;
+    const liffLink = buildLiffPermanentLink(options.liffId, state, options.liffEndpointPath);
+    if (liffLink) return liffLink;
   }
   const origin = (options.webOrigin ?? 'http://localhost:5173').replace(/\/$/, '');
   return `${origin}${state}`;

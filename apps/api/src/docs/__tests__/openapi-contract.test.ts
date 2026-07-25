@@ -66,6 +66,7 @@ describe('OpenAPI runtime contract', () => {
   it('records auth, pagination, and runtime validator metadata in the catalog', () => {
     const history = apiEndpointCatalog.find((entry) => entry.path === '/api/v1/booking-groups/me');
     const webhook = apiEndpointCatalog.find((entry) => entry.path === '/api/v1/line/webhook');
+    const friendship = apiEndpointCatalog.find((entry) => entry.path === '/api/v1/line/friendship');
     const payment = apiEndpointCatalog.find((entry) => entry.path === '/api/v1/payments/intents');
     expect(history).toMatchObject({
       auth: true,
@@ -73,7 +74,8 @@ describe('OpenAPI runtime contract', () => {
       validator: 'BookingGroupListQuerySchema',
     });
     expect(webhook).toMatchObject({ auth: false, validator: 'LineWebhookSignature' });
-    expect(payment).toMatchObject({ auth: false, validator: 'CreatePaymentIntentSchema' });
+    expect(friendship).toMatchObject({ auth: true, validator: 'SyncLineFriendshipSchema' });
+    expect(payment).toMatchObject({ auth: true, validator: 'CreatePaymentIntentSchema' });
   });
 
   it('is a valid OpenAPI 3 document', async () => {

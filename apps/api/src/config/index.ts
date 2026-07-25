@@ -31,12 +31,13 @@ export const config = {
     channelId: process.env.LINE_CHANNEL_ID ?? '',
     /** LIFF app ID used to generate customer deep links in LINE push messages. */
     liffId: process.env.LINE_LIFF_ID ?? process.env.VITE_LIFF_ID ?? '',
+    /** Path configured in the LINE Developers Console LIFF Endpoint URL. */
+    liffEndpointPath: process.env.LINE_LIFF_ENDPOINT_PATH ?? '/liff',
     /** Local PNG/JPEG image used by the explicit Rich Menu sync command. */
     richMenuImagePath: process.env.LINE_RICH_MENU_IMAGE_PATH ?? '',
     /** Explicit local/E2E escape hatch. Mock verification is rejected in production. */
-    idTokenVerificationMode: (process.env.LINE_ID_TOKEN_VERIFICATION_MODE ?? 'line') as
-      | 'line'
-      | 'mock',
+    idTokenVerificationMode: (process.env.LINE_ID_TOKEN_VERIFICATION_MODE ??
+      (process.env.NODE_ENV === 'production' ? 'line' : 'mock')) as 'line' | 'mock',
     mockIdToken: process.env.LINE_ID_TOKEN_MOCK_VALUE ?? 'mock-liff-id-token',
     mockUserId: process.env.LINE_ID_TOKEN_MOCK_USER_ID ?? 'mock-user-001',
     mockDisplayName: process.env.LINE_ID_TOKEN_MOCK_DISPLAY_NAME ?? 'ローカルテストユーザー',

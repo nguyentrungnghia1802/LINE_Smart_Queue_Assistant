@@ -2,7 +2,7 @@
 
 ## 1. Scope and terminology
 
-The system manages tenant organizations, public reservations/orders, queue tickets, payment state, inventory, LINE communication, and operational dashboards. A reservation creates a distinct `order` and `queue_entry`. Related repeat reservations may share a `booking_group` while remaining independently auditable.
+The system manages tenant organizations, LINE-authenticated customer reservations/orders, queue tickets, payment state, inventory, LINE communication, and operational dashboards. A reservation creates a distinct `order` and `queue_entry`. Related repeat reservations may share a `booking_group` while remaining independently auditable.
 
 Status labels in this document mean:
 
@@ -12,14 +12,14 @@ Status labels in this document mean:
 
 ## 2. Actors and authorization
 
-| Actor                       | Scope                                                                                   |
-| --------------------------- | --------------------------------------------------------------------------------------- |
-| Customer/guest              | Public fallback organization, catalog, booking, checkout, and ticket views              |
-| Authenticated LINE customer | Primary LIFF booking, verified LINE identity, ticket view, and notification eligibility |
-| Staff                       | Operational data and actions for their active organization membership                   |
-| Manager                     | Staff capabilities plus configuration and management for their organization             |
-| Platform admin              | Cross-tenant organization and manager administration only                               |
-| Scheduler/system            | ETA updates, notification scans, and counter resets                                     |
+| Actor                       | Scope                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| Customer entry              | Public organization/catalog resolution followed by automatic LINE/LIFF authentication |
+| Authenticated LINE customer | LIFF booking, verified LINE identity, ticket view, and notification eligibility       |
+| Staff                       | Operational data and actions for their active organization membership                 |
+| Manager                     | Staff capabilities plus configuration and management for their organization           |
+| Platform admin              | Cross-tenant organization and manager administration only                             |
+| Scheduler/system            | ETA updates, notification scans, and counter resets                                   |
 
 The platform role does not replace tenant membership. Staff and manager operations must verify both role and organization ownership.
 
@@ -27,20 +27,20 @@ The platform role does not replace tenant membership. Staff and manager operatio
 
 ### Authentication and profile
 
-| ID          | Requirement                                                                   | Status      |
-| ----------- | ----------------------------------------------------------------------------- | ----------- |
-| FR-AUTH-001 | Authenticate staff/manager/admin by email and password and issue JWT access   | Implemented |
-| FR-AUTH-002 | Authenticate a customer from a LINE LIFF ID token after server verification   | Implemented |
-| FR-AUTH-003 | Link one LINE account to one platform user and preserve the LINE user ID      | Implemented |
-| FR-AUTH-004 | Allow the authenticated user to view/update supported profile fields          | Implemented |
-| FR-AUTH-005 | Persist preferred locale with organization/client/Japanese fallback           | Implemented |
-| FR-AUTH-005 | Keep public QR booking available without mandatory account login              | Implemented |
-| FR-AUTH-006 | Automatically initialize LIFF login and exchange ID token for system JWT      | Implemented |
-| FR-AUTH-007 | Store LINE-verified customer email when the optional email claim is available | Implemented |
-| FR-AUTH-008 | Present LINE as the primary customer login and email as business-role login   | Implemented |
-| FR-AUTH-009 | Keep legacy customer email registration available only for development/test   | Implemented |
-| FR-AUTH-010 | Keep the login entry responsive and visually balanced across access paths     | Implemented |
-| FR-AUTH-011 | Block authenticated business roles from QR booking and direct queue admission | Implemented |
+| ID          | Requirement                                                                    | Status      |
+| ----------- | ------------------------------------------------------------------------------ | ----------- |
+| FR-AUTH-001 | Authenticate staff/manager/admin by email and password and issue JWT access    | Implemented |
+| FR-AUTH-002 | Authenticate a customer from a LINE LIFF ID token after server verification    | Implemented |
+| FR-AUTH-003 | Link one LINE account to one platform user and preserve the LINE user ID       | Implemented |
+| FR-AUTH-004 | Allow the authenticated user to view/update supported profile fields           | Implemented |
+| FR-AUTH-005 | Persist preferred locale with organization/client/Japanese fallback            | Implemented |
+| FR-AUTH-006 | Automatically initialize LIFF login and exchange ID token for system JWT       | Implemented |
+| FR-AUTH-007 | Store LINE-verified customer email when the optional email claim is available  | Implemented |
+| FR-AUTH-008 | Use LINE-only customer login and email/password only for business roles        | Implemented |
+| FR-AUTH-009 | Provide a paired frontend/backend LIFF mock identity only in local development | Implemented |
+| FR-AUTH-010 | Keep the login entry responsive and visually balanced across access paths      | Implemented |
+| FR-AUTH-011 | Block authenticated business roles from QR booking and direct queue admission  | Implemented |
+| FR-AUTH-012 | Require a verified LINE-derived customer JWT for payment intent and booking    | Implemented |
 
 ### Organization administration
 
@@ -87,17 +87,17 @@ The platform role does not replace tenant membership. Staff and manager operatio
 
 ### Queue and staff operation
 
-| ID           | Requirement                                                                                                                      | Status                          |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| FR-QUEUE-001 | Successful booking creates a ticket in the organization's active queue                                                           | Implemented                     |
-| FR-QUEUE-002 | Customer sees ticket code, status, people ahead, ETA, order items, and payment                                                   | Implemented                     |
-| FR-QUEUE-003 | Staff sees the next eight active customers, the total active count, contact details, and a responsive selected booking workspace | Implemented                     |
-| FR-QUEUE-004 | Completion automatically calls the next eligible customer when no ticket is already called                                       | Implemented                     |
-| FR-QUEUE-005 | Queue ticket counter resets daily                                                                                                | Implemented with UTC limitation |
-| FR-QUEUE-006 | Queue capacity remains strict under concurrent joins                                                                             | Partial                         |
-| FR-QUEUE-007 | Manager configures queue status, prefix, capacity, timing, and operational rules                                                 | Implemented                     |
-| FR-QUEUE-008 | Staff can move a called late customer behind everyone currently waiting                                                          | Implemented                     |
-| FR-QUEUE-009 | Staff related-booking context includes only active queue tickets and excludes completed history                                  | Implemented                     |
+| ID           | Requirement                                                                                                                       | Status                          |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| FR-QUEUE-001 | Successful booking creates a ticket in the organization's active queue                                                            | Implemented                     |
+| FR-QUEUE-002 | Customer sees ticket code, status, people ahead, ETA, order items, and payment                                                    | Implemented                     |
+| FR-QUEUE-003 | Staff sees the next eight active customers, total active count, booking name/phone, LINE display name, and a responsive workspace | Implemented                     |
+| FR-QUEUE-004 | Completion automatically calls the next eligible customer when no ticket is already called                                        | Implemented                     |
+| FR-QUEUE-005 | Queue ticket counter resets daily                                                                                                 | Implemented with UTC limitation |
+| FR-QUEUE-006 | Queue capacity remains strict under concurrent joins                                                                              | Partial                         |
+| FR-QUEUE-007 | Manager configures queue status, prefix, capacity, timing, and operational rules                                                  | Implemented                     |
+| FR-QUEUE-008 | Staff can move a called late customer behind everyone currently waiting                                                           | Implemented                     |
+| FR-QUEUE-009 | Staff related-booking context includes only active queue tickets and excludes completed history                                   | Implemented                     |
 
 ### LINE and notifications
 
@@ -106,9 +106,9 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | FR-LINE-001 | Messaging API sends a LINE chat message when the turn approaches                              | Implemented for authenticated LINE-linked tickets with durable delivery                                               |
 | FR-LINE-002 | Messaging API sends a LINE chat message when staff changes ticket state                       | Implemented for called/serving/completed/cancelled/no-show on authenticated LINE-linked tickets with durable delivery |
 | FR-LINE-003 | Queue state remains successful even if LINE delivery fails                                    | Implemented                                                                                                           |
-| FR-LINE-004 | Delivery is durable and deduplicated across restarts/replicas                                 | Planned                                                                                                               |
+| FR-LINE-004 | Delivery is durable and deduplicated across restarts/replicas                                 | Implemented                                                                                                           |
 | FR-LINE-005 | Follow/unfollow link state is persisted                                                       | Implemented                                                                                                           |
-| FR-LINE-006 | Consent/preferences and opt-out controls are user-manageable                                  | Planned                                                                                                               |
+| FR-LINE-006 | Consent/preferences and opt-out controls are user-manageable                                  | Implemented                                                                                                           |
 | FR-LINE-007 | LINE notification links open the correct LIFF ticket detail                                   | Implemented                                                                                                           |
 | FR-LINE-008 | Ticket lifecycle notifications use a common Flex Message with text fallback                   | Implemented                                                                                                           |
 | FR-LINE-009 | Booking success sends a LINE ticket notification when the entry has a verified LINE recipient | Implemented                                                                                                           |
@@ -129,41 +129,42 @@ The platform role does not replace tenant membership. Staff and manager operatio
 
 ## 4. Business rules
 
-| Rule            | Definition                                                                                                                                |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| BR-TENANT-001   | Every tenant-owned read/write must be restricted to the actor's organization.                                                             |
-| BR-ORG-001      | `slug` and generated `public_qr_token` are globally unique. QR token is not user-entered.                                                 |
-| BR-ORG-002      | Organization registration and initial manager membership succeed or fail in one transaction.                                              |
-| BR-USER-001     | A manager registered through the admin organization flow must use a Gmail address.                                                        |
-| BR-QUEUE-001    | Only an open/active queue accepts new tickets.                                                                                            |
-| BR-QUEUE-002    | A queue entry follows only allowed state transitions; terminal entries cannot return to waiting.                                          |
-| BR-QUEUE-003    | Calling next selects the earliest eligible waiting ticket and must not call two tickets through one race.                                 |
-| BR-QUEUE-004    | Notification failure must never roll back an already committed queue transition.                                                          |
-| BR-QUEUE-005    | Completing service calls at most one next waiting ticket and does not create another call while a called ticket exists.                   |
-| BR-QUEUE-006    | Deferring a called ticket preserves its ticket code and moves it behind everyone waiting at that moment.                                  |
-| BR-ORDER-001    | Server prices and product ownership are authoritative; browser totals are advisory only.                                                  |
-| BR-ORDER-002    | Order, queue entry, items, payment transaction, stock change, and reservation are atomic.                                                 |
-| BR-ORDER-003    | Each new reservation is a separate order/ticket, even when it shares a booking group.                                                     |
-| BR-STOCK-001    | `stock_quantity IS NULL` is unlimited; finite stock cannot become negative.                                                               |
-| BR-STOCK-002    | A finite item is unavailable when requested quantity exceeds stock.                                                                       |
-| BR-PAY-001      | Every selected `requires_prepayment` product ID must be in the paid coverage set before booking.                                          |
-| BR-PAY-002      | Order is `paid` only when all selected items are covered; required-only payment leaves the order `unpaid`.                                |
-| BR-PAY-003      | Payment success comes from verified provider callback or server-side provider verification, never a browser flag.                         |
-| BR-PAY-004      | Customer or operator cancellation refunds every collected transaction idempotently before the cancellation transaction commits.           |
-| BR-CUSTOMER-001 | Customer name and a valid Japanese telephone number are required for order creation.                                                      |
-| BR-LINE-001     | A LINE push requires a verified/linkable recipient LINE user ID and a configured Messaging API token.                                     |
-| BR-LINE-002     | Login and Messaging API are separate LINE channels/capabilities and must be configured consistently.                                      |
-| BR-LINE-003     | Public request bodies must not assert a LINE user ID; derive the recipient from a verified LINE account.                                  |
-| BR-LINE-004     | LIFF booking must wait for the LINE-derived system JWT before creating order/queue records.                                               |
-| BR-LINE-005     | Rich Menu areas must open LIFF routes that can resolve the current customer context, not fixed ticket IDs.                                |
-| BR-AUTH-001     | Public QR booking remains available to guests, but an authenticated staff, manager, or admin must use a customer account.                 |
-| BR-AUTH-002     | A blocked business session must remain active; opening customer LIFF is an explicit action and may establish a separate customer session. |
-| BR-PRIVACY-001  | Location is optional, consent-based, purpose-limited, and must have a retention/deletion policy.                                          |
+| Rule            | Definition                                                                                                                           |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| BR-TENANT-001   | Every tenant-owned read/write must be restricted to the actor's organization.                                                        |
+| BR-ORG-001      | `slug` and generated `public_qr_token` are globally unique. QR token is not user-entered.                                            |
+| BR-ORG-002      | Organization registration and initial manager membership succeed or fail in one transaction.                                         |
+| BR-USER-001     | A manager registered through the admin organization flow must use a Gmail address.                                                   |
+| BR-QUEUE-001    | Only an open/active queue accepts new tickets.                                                                                       |
+| BR-QUEUE-002    | A queue entry follows only allowed state transitions; terminal entries cannot return to waiting.                                     |
+| BR-QUEUE-003    | Calling next selects the earliest eligible waiting ticket and must not call two tickets through one race.                            |
+| BR-QUEUE-004    | Notification failure must never roll back an already committed queue transition.                                                     |
+| BR-QUEUE-005    | Completing service calls at most one next waiting ticket and does not create another call while a called ticket exists.              |
+| BR-QUEUE-006    | Deferring a called ticket preserves its ticket code and moves it behind everyone waiting at that moment.                             |
+| BR-ORDER-001    | Server prices and product ownership are authoritative; browser totals are advisory only.                                             |
+| BR-ORDER-002    | Order, queue entry, items, payment transaction, stock change, and reservation are atomic.                                            |
+| BR-ORDER-003    | Each new reservation is a separate order/ticket, even when it shares a booking group.                                                |
+| BR-STOCK-001    | `stock_quantity IS NULL` is unlimited; finite stock cannot become negative.                                                          |
+| BR-STOCK-002    | A finite item is unavailable when requested quantity exceeds stock.                                                                  |
+| BR-PAY-001      | Every selected `requires_prepayment` product ID must be in the paid coverage set before booking.                                     |
+| BR-PAY-002      | Order is `paid` only when all selected items are covered; required-only payment leaves the order `unpaid`.                           |
+| BR-PAY-003      | Payment success comes from verified provider callback or server-side provider verification, never a browser flag.                    |
+| BR-PAY-004      | Customer or operator cancellation refunds every collected transaction idempotently before the cancellation transaction commits.      |
+| BR-CUSTOMER-001 | Customer name and a valid Japanese telephone number are required for order creation.                                                 |
+| BR-LINE-001     | A LINE push requires a verified/linkable recipient LINE user ID and a configured Messaging API token.                                |
+| BR-LINE-002     | Login and Messaging API are separate LINE channels/capabilities and must be configured consistently.                                 |
+| BR-LINE-003     | Public request bodies must not assert a LINE user ID; derive the recipient from a verified LINE account.                             |
+| BR-LINE-004     | LIFF booking must wait for the LINE-derived system JWT before creating order/queue records.                                          |
+| BR-LINE-005     | Rich Menu areas must open LIFF routes that can resolve the current customer context, not fixed ticket IDs.                           |
+| BR-AUTH-001     | Public QR and slug routes are discovery/redirect entries; payment intent and booking require a verified LINE customer JWT.           |
+| BR-AUTH-002     | A blocked business session remains active; opening customer LIFF is an explicit action that establishes a separate customer session. |
+| BR-AUTH-003     | Email/password login cannot issue a customer session; local customer testing uses the mock ID-token exchange.                        |
+| BR-PRIVACY-001  | Location is optional, consent-based, purpose-limited, and must have a retention/deletion policy.                                     |
 
 ## 5. Core acceptance criteria
 
-1. A guest selecting only non-prepaid items can place a reservation without checkout and receives an order/ticket.
-2. A guest selecting a prepaid item cannot create an order until all prepaid-required products are covered.
+1. A LINE-authenticated customer selecting only non-prepaid items can place a reservation without checkout and receives an order/ticket.
+2. A LINE-authenticated customer selecting a prepaid item cannot create an order until all prepaid-required products are covered.
 3. Required-only checkout marks covered order items paid; the order remains unpaid only when
    uncovered items remain in the cart.
 4. Full checkout marks every item and the order paid from one verified payment transaction.

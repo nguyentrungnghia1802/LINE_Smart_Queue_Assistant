@@ -40,15 +40,25 @@ export const getOrderStats = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
-  if (req.user && req.user.role !== UserRole.CUSTOMER) {
+  if (!req.user) {
+    throw new AppError('LINE authentication is required', 401, 'LINE_AUTH_REQUIRED');
+  }
+  if (req.user.role !== UserRole.CUSTOMER) {
     throw new AppError(
       'Customer account is required to create a booking',
       403,
       'CUSTOMER_ACCOUNT_REQUIRED'
     );
   }
+  if (!req.user.lineUserId) {
+    throw new AppError(
+      'Verified LINE account is required to create a booking',
+      403,
+      'LINE_ACCOUNT_REQUIRED'
+    );
+  }
 
-  const actor = req.user ? { userId: req.user.id, lineUserId: req.user.lineUserId } : undefined;
+  const actor = { userId: req.user.id, lineUserId: req.user.lineUserId };
   const result = await ordersService.create(req.body as CreateOrderDto, actor);
   res.status(201).json({ success: true, data: { order: result.order, queueEntry: result.entry } });
 });

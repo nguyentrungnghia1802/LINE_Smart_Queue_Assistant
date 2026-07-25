@@ -12,6 +12,7 @@ async function main(): Promise<void> {
   const replace = hasFlag('--replace');
   const definition = buildSmartQueueRichMenuDefinition({
     liffId: config.line.liffId,
+    liffEndpointPath: config.line.liffEndpointPath,
     webOrigin: config.web.origin,
   });
   const image = await loadRichMenuImageConfig(config.line.richMenuImagePath);

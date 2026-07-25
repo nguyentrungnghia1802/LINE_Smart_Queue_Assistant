@@ -104,7 +104,7 @@ describe('notificationDelivery job', () => {
     expect(adapter.pushCalls[0].to).toBe('U_test_001');
     expect(adapter.pushCalls[0].messages[0].type).toBe('flex');
     expect(JSON.stringify(adapter.pushCalls[0].messages[0])).toContain(
-      '%2Fliff%2Ftickets%2Fentry-001'
+      'https://liff.line.me/2010516188-KAcYkLTh/tickets/entry-001'
     );
     expect(repository.markSent).toHaveBeenCalledWith('notification-001');
     expect(repository.markRetry).not.toHaveBeenCalled();

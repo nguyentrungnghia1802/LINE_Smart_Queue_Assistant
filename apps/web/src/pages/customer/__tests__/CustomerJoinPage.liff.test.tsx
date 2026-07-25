@@ -9,6 +9,7 @@ import { UserRole } from '@line-queue/shared';
 import { LiffRuntimeProvider } from '../../../contexts/LiffRuntimeContext';
 import { i18n } from '../../../i18n';
 import { ApiClientError, get, post } from '../../../services/apiClient';
+import { getCustomerLineEntryUrl } from '../../../services/liff/entryUrl';
 import { useAuthStore } from '../../../store/authStore';
 import type { LiffContext } from '../../../types/liff';
 import {
@@ -18,7 +19,7 @@ import {
   paymentKeyFor,
   savePaidCheckout,
 } from '../../../utils/checkoutSession';
-import { CustomerJoinPage, LiffCustomerJoinPage } from '../CustomerJoinPage';
+import { CustomerJoinPage, CustomerLineEntryPage, LiffCustomerJoinPage } from '../CustomerJoinPage';
 
 vi.mock('../../../services/apiClient', () => ({
   ApiClientError: class ApiClientError extends Error {
@@ -92,6 +93,9 @@ describe('LiffCustomerJoinPage', () => {
     sessionStorage.clear();
     localStorage.clear();
     vi.clearAllMocks();
+    vi.mocked(getCustomerLineEntryUrl).mockImplementation(
+      (route: string) => `https://liff.line.me/test-id?route=${route}`
+    );
     useAuthStore.setState({ user: null, token: null, isAuthenticated: false });
     vi.mocked(get).mockResolvedValue({
       org: {
@@ -412,7 +416,22 @@ describe('LiffCustomerJoinPage', () => {
     expect(container.querySelector('header img[src="/logo.svg"]')).toBeInTheDocument();
   });
 
-  it('requires a customer account for a public QR booking without logging out a staff session', async () => {
+  it('routes a local customer entry into the LIFF mock booking flow', async () => {
+    vi.mocked(getCustomerLineEntryUrl).mockReturnValue('/liff/qr/demo-token');
+
+    render(
+      <MemoryRouter initialEntries={['/qr/demo-token']}>
+        <Routes>
+          <Route path="/qr/:token" element={<CustomerLineEntryPage />} />
+          <Route path="/liff/qr/:token" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId('location')).toHaveTextContent('/liff/qr/demo-token');
+  });
+
+  it('requires LINE customer entry without logging out a staff session', async () => {
     const user = userEvent.setup();
     useAuthStore.setState({
       user: { id: 'staff-001', role: UserRole.STAFF },
@@ -425,7 +444,7 @@ describe('LiffCustomerJoinPage', () => {
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/qr/demo-token']}>
           <Routes>
-            <Route path="/qr/:token" element={<CustomerJoinPage />} />
+            <Route path="/qr/:token" element={<CustomerLineEntryPage />} />
             <Route path="/staff" element={<LocationProbe />} />
           </Routes>
         </MemoryRouter>

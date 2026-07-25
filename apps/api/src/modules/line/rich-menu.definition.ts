@@ -1,3 +1,4 @@
+import { buildLiffPermanentLink } from './liff-deeplink';
 import type { RichMenuDefinition } from './rich-menu.types';
 
 export const SMART_QUEUE_RICH_MENU_NAME = 'line-smart-queue-main-v1';
@@ -23,10 +24,11 @@ export const RICH_MENU_ROUTES: RichMenuRoute[] = [
 
 export function buildLiffRichMenuUri(
   path: string,
-  options: { liffId?: string; webOrigin?: string }
+  options: { liffId?: string; liffEndpointPath?: string; webOrigin?: string }
 ): string {
   if (options.liffId) {
-    return `https://liff.line.me/${options.liffId}?liff.state=${encodeURIComponent(path)}`;
+    const liffLink = buildLiffPermanentLink(options.liffId, path, options.liffEndpointPath);
+    if (liffLink) return liffLink;
   }
   const origin = (options.webOrigin ?? 'http://localhost:5173').replace(/\/$/, '');
   return `${origin}${path}`;
@@ -34,6 +36,7 @@ export function buildLiffRichMenuUri(
 
 export function buildSmartQueueRichMenuDefinition(options: {
   liffId?: string;
+  liffEndpointPath?: string;
   webOrigin?: string;
 }): RichMenuDefinition {
   return {
