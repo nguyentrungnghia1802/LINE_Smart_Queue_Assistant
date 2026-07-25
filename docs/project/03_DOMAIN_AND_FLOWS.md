@@ -146,7 +146,8 @@ visible in development and test builds, or only when
 7. Order request includes the `transactionId` only.
 8. API reloads product data, loads the paid transaction, checks tenant, unused state, amount, cart metadata, and required prepayment coverage.
 9. API links the transaction to the order and marks covered order items paid.
-10. Full coverage marks the order paid; required-only coverage leaves the order unpaid for later staff collection.
+10. If the covered items equal the full cart, the order is paid even when checkout used the
+    `required_items` option. A mixed cart remains unpaid only while an uncovered balance exists.
 
 Production invariant: a browser return cannot establish payment. Only the server's verified provider state may produce a paid transaction that order creation can consume.
 
@@ -174,7 +175,9 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
 3. Calling next atomically selects/transitions the next eligible waiting entry.
 4. The queue transition and LINE outbox row, including resolved locale, are written in the same transaction; a worker sends the localized message after commit.
 5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful completion or no-show records the authenticated operator in `queue_histories.actor_id` and enqueues a LINE push intent when the ticket has a verified recipient.
-6. Staff updates order/payment status manually as needed.
+6. Staff can collect an outstanding balance. The API creates an audited manual payment transaction
+   for unpaid items, reconciles item payment states, and marks the order paid only when no unpaid
+   item remains.
 7. Receipt printing is available after the applicable payment success state.
 
 Notification delivery failure is non-transactional and cannot reverse a queue transition. Failed delivery is retried through the durable outbox until the configured attempt limit is reached.
