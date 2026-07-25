@@ -414,4 +414,64 @@ describe('paymentsService', () => {
     expect(result.status).toBe('refunded');
     expect(client.query).toHaveBeenCalledWith('COMMIT');
   });
+
+  it('refunds every collected transaction idempotently when an order is cancelled', async () => {
+    const orderId = '33333333-3333-4333-8333-333333333333';
+    const client = {
+      query: jest.fn().mockResolvedValue({
+        rows: [{ id: orderId, organization_id: org.id }],
+      }),
+    };
+    const paidTransaction = {
+      ...baseTransaction,
+      order_id: orderId,
+      status: 'paid',
+      amount: '1500.00',
+      refunded_amount: '0.00',
+      metadata: {
+        scope: 'required_items',
+        coveredProductIds: [prepaidProduct.id],
+      },
+    };
+    const refundedTransaction = {
+      ...paidTransaction,
+      status: 'refunded',
+      refunded_amount: '1500.00',
+    };
+    jest
+      .mocked(paymentTransactionsRepository.findRefundableByOrderForUpdate)
+      .mockResolvedValue([paidTransaction] as never);
+    jest.mocked(paymentTransactionsRepository.recordReconciliation).mockResolvedValue(true);
+    jest
+      .mocked(paymentTransactionsRepository.updateStatus)
+      .mockResolvedValue(refundedTransaction as never);
+    const reconcileSpy = jest
+      .spyOn(paymentsService, 'reconcileTransactionInClient')
+      .mockResolvedValue(undefined);
+
+    const result = await paymentsService.refundOrderOnCancellationInClient({
+      orderId,
+      organizationId: org.id,
+      actorId: '55555555-5555-4555-8555-555555555555',
+      reason: 'Order cancelled by customer',
+      client: client as never,
+    });
+
+    expect(result).toEqual({ refundedAmount: 1500, transactionCount: 1 });
+    expect(paymentTransactionsRepository.recordReconciliation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationType: 'automatic_cancellation_refund',
+        amount: 1500,
+        idempotencyKey: `automatic-cancellation-refund:${orderId}:${paidTransaction.id}`,
+      }),
+      client
+    );
+    expect(paymentTransactionsRepository.updateStatus).toHaveBeenCalledWith(
+      paidTransaction.id,
+      expect.objectContaining({ status: 'refunded', refundedAmount: 1500 }),
+      client
+    );
+    expect(reconcileSpy).toHaveBeenCalledWith(refundedTransaction, client);
+    reconcileSpy.mockRestore();
+  });
 });

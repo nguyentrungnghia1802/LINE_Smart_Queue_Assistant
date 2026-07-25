@@ -31,6 +31,11 @@ export const customer = {
   booking: {
     nameOptional: 'Name (optional)',
     phoneOptional: 'Phone (optional)',
+    nameRequiredLabel: 'Name (required)',
+    phoneRequiredLabel: 'Phone number (required)',
+    nameRequired: 'Enter your name.',
+    phoneRequired: 'Enter your phone number.',
+    phoneInvalid: 'Enter a valid Japanese phone number.',
     selectItem: 'Select at least one product or service.',
     prepaymentRequired: 'Some items require prepayment. Complete the required payment first.',
     book: 'Book',
@@ -77,6 +82,8 @@ export const customer = {
     proceedPayment: 'Proceed to prepayment',
     paymentInstruction:
       'Complete the required prepayment before booking. You can choose to pay the full amount on the payment page.',
+    payAndBook: 'Pay and book',
+    payAndBookHint: 'Your booking will be created automatically after payment succeeds.',
     decreaseItem: 'Decrease {{name}}',
     itemQuantity: '{{name}} quantity',
     increaseItem: 'Add {{name}}',

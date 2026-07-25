@@ -185,12 +185,17 @@ export class QueueEntriesRepository extends BaseRepository {
     return this.firstOrThrow(rows, 'queueEntries.markNoShow');
   }
 
-  async findByQueueAndStatus(queueId: string, status: string): Promise<QueueEntryRow | null> {
-    return this.queryOne<QueueEntryRow>(
-      `SELECT * FROM queue_entries WHERE queue_id = $1 AND status = $2
-       ORDER BY updated_at DESC LIMIT 1`,
-      [queueId, status]
-    );
+  async findByQueueAndStatus(
+    queueId: string,
+    status: string,
+    client?: PoolClient
+  ): Promise<QueueEntryRow | null> {
+    const sql = `SELECT * FROM queue_entries WHERE queue_id = $1 AND status = $2
+       ORDER BY updated_at DESC LIMIT 1`;
+    const rows = client
+      ? await this.queryTx<QueueEntryRow>(client, sql, [queueId, status])
+      : await this.query<QueueEntryRow>(sql, [queueId, status]);
+    return rows[0] ?? null;
   }
 
   /** Decrement priority by 1 (customer self-service skip). */
@@ -201,6 +206,32 @@ export class QueueEntriesRepository extends BaseRepository {
       ? await this.queryTx<QueueEntryRow>(client, sql, [id])
       : await this.query<QueueEntryRow>(sql, [id]);
     return this.firstOrThrow(rows, 'queueEntries.deprioritize');
+  }
+
+  /**
+   * Return a called ticket to waiting behind every customer currently waiting.
+   * Existing waiting priorities are raised atomically so the deferred ticket can
+   * keep its stable ticket number while sorting last.
+   */
+  async deferCalledToBack(id: string, queueId: string, client: PoolClient): Promise<QueueEntryRow> {
+    await this.queryTx(
+      client,
+      `UPDATE queue_entries
+       SET priority = priority + 1
+       WHERE queue_id = $1 AND status = 'waiting'`,
+      [queueId]
+    );
+    const rows = await this.queryTx<QueueEntryRow>(
+      client,
+      `UPDATE queue_entries
+       SET status = 'waiting',
+           priority = 0,
+           called_at = NULL
+       WHERE id = $1 AND queue_id = $2 AND status = 'called'
+       RETURNING *`,
+      [id, queueId]
+    );
+    return this.firstOrThrow(rows, 'queueEntries.deferCalledToBack');
   }
 
   async getEntryIdsAhead(

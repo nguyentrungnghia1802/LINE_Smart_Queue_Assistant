@@ -10,8 +10,8 @@ export const OrderItemSchema = z.object({
 export const CreateOrderSchema = z
   .object({
     orgSlug: z.string().min(1),
-    customerName: z.string().min(1).max(100).optional(),
-    customerPhone: JapanesePhoneSchema.optional(),
+    customerName: z.string().trim().min(1).max(100),
+    customerPhone: JapanesePhoneSchema,
     items: z.array(OrderItemSchema).min(1),
     bookingGroupId: z.string().uuid().optional(),
     localDeviceKey: z.string().min(1).max(160).optional(),

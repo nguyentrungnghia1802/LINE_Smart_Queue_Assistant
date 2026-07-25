@@ -34,6 +34,10 @@ export const staffApi = {
   complete: (entryId: string) =>
     post<{ entry: QueueEntryDisplay }>(`${BASE}/entries/${entryId}/complete`),
 
+  /** POST /api/v1/staff/entries/:entryId/defer — move a called ticket back. */
+  defer: (entryId: string) =>
+    post<{ entry: QueueEntryDisplay }>(`${BASE}/entries/${entryId}/defer`),
+
   /** POST /api/v1/staff/entries/:entryId/no-show — mark as no-show. */
   noShow: (entryId: string) =>
     post<{ entry: QueueEntryDisplay }>(`${BASE}/entries/${entryId}/no-show`),

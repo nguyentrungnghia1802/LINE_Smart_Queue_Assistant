@@ -12,6 +12,7 @@ import { ordersRepository } from '../../../db/repositories/orders.repository';
 import type { QueueEntryRow } from '../../../db/repositories/queue-entries.repository';
 import { queueEntriesRepository } from '../../../db/repositories/queue-entries.repository';
 import { queueNotificationService } from '../../notifications/queue-notification.service';
+import { paymentsService } from '../../payments/payments.service';
 import { ordersService } from '../orders.service';
 
 jest.mock('../../../db/repositories/orders.repository');
@@ -22,6 +23,14 @@ jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../notifications/queue-notification.service', () => ({
   queueNotificationService: {
     notifyTicketCancelled: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+jest.mock('../../payments/payments.service', () => ({
+  paymentsService: {
+    refundOrderOnCancellationInClient: jest.fn().mockResolvedValue({
+      refundedAmount: 0,
+      transactionCount: 0,
+    }),
   },
 }));
 jest.mock('../../../db/client', () => {
@@ -55,6 +64,9 @@ const mockNotifyTicketCancelled =
   queueNotificationService.notifyTicketCancelled as jest.MockedFunction<
     typeof queueNotificationService.notifyTicketCancelled
   >;
+const mockRefundOrder = paymentsService.refundOrderOnCancellationInClient as jest.MockedFunction<
+  typeof paymentsService.refundOrderOnCancellationInClient
+>;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -170,6 +182,13 @@ describe('ordersService.cancelByOrderId', () => {
 
     expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled', expect.anything());
     expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID, expect.anything());
+    expect(mockRefundOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: ORDER_ID,
+        organizationId: 'org-001',
+        actorId: operatorActor.userId,
+      })
+    );
   });
 
   it('cancels authenticated order when actorUserId matches', async () => {

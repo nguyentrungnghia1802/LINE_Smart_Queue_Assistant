@@ -141,6 +141,11 @@ An insufficient-stock update affects zero rows, raises a conflict, and rolls bac
 - Organization plus initial manager/membership registration uses one transaction.
 - Queue join counter, entry creation, and booking-created notification outbox enqueue use one transaction.
 - Queue/order lifecycle transitions that produce customer LINE notifications write the state change and outbox row in the same transaction. External LINE API delivery happens only after commit through the worker.
+- Customer/operator cancellation locks the order and refundable payment transactions, records
+  idempotent reconciliation operations, updates transaction/item/order refund summaries, releases
+  inventory, cancels the order/ticket, and enqueues the LINE cancellation notification in one transaction.
+- Service completion locks the queue before serving completion and automatic call-next selection.
+  Defer also locks the queue while re-ranking current waiters and returning the called ticket to the tail.
 
 Queue capacity, call-next, daily ticket numbering, and organization order numbering use transaction locks or atomic counters. Production load testing remains required.
 

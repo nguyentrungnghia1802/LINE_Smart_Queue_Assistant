@@ -137,6 +137,23 @@ export const paymentTransactionsRepository = {
     return rows[0] ?? null;
   },
 
+  async findRefundableByOrderForUpdate(
+    orderId: string,
+    client: PoolClient
+  ): Promise<PaymentTransactionRow[]> {
+    const { rows } = await client.query<PaymentTransactionRow>(
+      `SELECT *
+       FROM payment_transactions
+       WHERE order_id = $1
+         AND status = 'paid'::payment_status
+         AND refunded_amount < amount
+       ORDER BY created_at
+       FOR UPDATE`,
+      [orderId]
+    );
+    return rows;
+  },
+
   async createManual(
     data: {
       organizationId: string;

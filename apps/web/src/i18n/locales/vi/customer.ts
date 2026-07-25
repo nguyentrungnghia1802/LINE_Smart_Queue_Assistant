@@ -31,6 +31,11 @@ export const customer = {
   booking: {
     nameOptional: 'Tên (không bắt buộc)',
     phoneOptional: 'Số điện thoại (không bắt buộc)',
+    nameRequiredLabel: 'Họ tên (bắt buộc)',
+    phoneRequiredLabel: 'Số điện thoại (bắt buộc)',
+    nameRequired: 'Vui lòng nhập họ tên.',
+    phoneRequired: 'Vui lòng nhập số điện thoại.',
+    phoneInvalid: 'Vui lòng nhập số điện thoại Nhật Bản hợp lệ.',
     selectItem: 'Vui lòng chọn ít nhất một sản phẩm hoặc dịch vụ.',
     prepaymentRequired:
       'Có sản phẩm yêu cầu trả trước. Vui lòng hoàn tất phần thanh toán bắt buộc.',
@@ -77,6 +82,8 @@ export const customer = {
     proceedPayment: 'Tiến hành trả trước',
     paymentInstruction:
       'Hoàn tất phần trả trước bắt buộc trước khi đặt chỗ. Bạn có thể chọn thanh toán toàn bộ tại màn hình thanh toán.',
+    payAndBook: 'Thanh toán và đặt chỗ',
+    payAndBookHint: 'Đặt chỗ sẽ được tạo tự động sau khi thanh toán thành công.',
     decreaseItem: 'Giảm {{name}}',
     itemQuantity: 'Số lượng {{name}}',
     increaseItem: 'Thêm {{name}}',

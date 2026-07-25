@@ -31,6 +31,7 @@ import {
   paymentKeyFor,
   saveCheckoutDraft,
   saveCheckoutSession,
+  savePaidCheckout,
 } from '../../utils/checkoutSession';
 
 interface OrgInfo {
@@ -144,6 +145,7 @@ export function CustomerJoinPage({
   const hydratedDraftKeyRef = useRef<string | null>(null);
   const bookingCompletedRef = useRef(false);
   const bookingAttemptIdRef = useRef(createCheckoutId());
+  const autoBookingTransactionRef = useRef<string | null>(null);
 
   const apiEndpoint = token ? `/api/v1/orgs/by-token/${token}` : `/api/v1/orgs/${orgSlug}`;
 
@@ -222,6 +224,16 @@ export function CustomerJoinPage({
     Boolean(paidFullCheckout.transactionId) &&
     paidFullCheckout.cartSignature === currentCartSignature;
   const canBook = !needsPrepayment || isRequiredPaid || isFullyPaid;
+
+  function customerDetailsError(): string | null {
+    if (!customerName.trim()) return t('booking.nameRequired', { ns: 'customer' });
+    if (!customerPhone.trim()) return t('booking.phoneRequired', { ns: 'customer' });
+    const normalizedPhone = customerPhone.replace(/[\s()-]/g, '');
+    if (!/^(?:\+81|0)\d{9,10}$/.test(normalizedPhone)) {
+      return t('booking.phoneInvalid', { ns: 'customer' });
+    }
+    return null;
+  }
 
   function maxSelectable(product: Product): number {
     return product.stock_quantity === null ? 99 : Math.max(0, product.stock_quantity);
@@ -327,7 +339,13 @@ export function CustomerJoinPage({
       setError(stockError);
       return;
     }
+    const detailsError = customerDetailsError();
+    if (detailsError) {
+      setError(detailsError);
+      return;
+    }
     if (requiredPrepaymentItems.length === 0) return;
+    saveCheckoutDraft(draftKey, { cart, customerName, customerPhone });
     const sessionId = createCheckoutId();
     saveCheckoutSession({
       id: sessionId,
@@ -343,6 +361,7 @@ export function CustomerJoinPage({
       coveredProductIds: requiredPrepaymentItems.map((item) => item.productId),
       requiredProductIds: requiredPrepaymentItems.map((item) => item.productId),
       requiredSubtotal: requiredPrepaymentSubtotal,
+      autoBookAfterPayment: true,
       createdAt: new Date().toISOString(),
     });
     navigate(`${isLiffMode ? '/liff' : ''}/checkout/demo/${sessionId}`);
@@ -378,8 +397,7 @@ export function CustomerJoinPage({
     );
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submitBooking(paidCheckoutOverride?: PaidCheckout) {
     if (!queue) {
       setError(t('booking.queueClosed', { ns: 'customer' }));
       return;
@@ -388,7 +406,12 @@ export function CustomerJoinPage({
       setError(t('booking.selectItem', { ns: 'customer' }));
       return;
     }
-    if (!canBook) {
+    const detailsError = customerDetailsError();
+    if (detailsError) {
+      setError(detailsError);
+      return;
+    }
+    if (!canBook && !paidCheckoutOverride) {
       setError(t('booking.prepaymentRequired', { ns: 'customer' }));
       return;
     }
@@ -401,11 +424,9 @@ export function CustomerJoinPage({
       setError(stockError);
       return;
     }
-    const paidCheckout = isFullyPaid
-      ? paidFullCheckout
-      : isRequiredPaid
-        ? paidRequiredCheckout
-        : null;
+    const paidCheckout =
+      paidCheckoutOverride ??
+      (isFullyPaid ? paidFullCheckout : isRequiredPaid ? paidRequiredCheckout : null);
     const localDeviceKey = getLocalDeviceKey();
     const bookingGroupId = bookingGroup?.id ?? createCheckoutId();
     setError('');
@@ -415,8 +436,8 @@ export function CustomerJoinPage({
         '/api/v1/orders',
         {
           orgSlug: data?.org.slug,
-          customerName: customerName.trim() || undefined,
-          customerPhone: customerPhone.trim() || undefined,
+          customerName: customerName.trim(),
+          customerPhone: customerPhone.trim(),
           items: cartItems,
           bookingGroupId,
           localDeviceKey,
@@ -483,6 +504,56 @@ export function CustomerJoinPage({
       setSubmitting(false);
     }
   }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const detailsError = customerDetailsError();
+    if (detailsError) {
+      setError(detailsError);
+      return;
+    }
+    if (needsPrepayment && !canBook) {
+      startPayment();
+      return;
+    }
+    void submitBooking();
+  }
+
+  useEffect(() => {
+    const paidCheckout = isFullyPaid
+      ? paidFullCheckout
+      : isRequiredPaid
+        ? paidRequiredCheckout
+        : null;
+    if (
+      !paidCheckout?.autoBookAfterPayment ||
+      submitting ||
+      autoBookingTransactionRef.current === paidCheckout.transactionId
+    ) {
+      return;
+    }
+
+    autoBookingTransactionRef.current = paidCheckout.transactionId;
+    const consumedCheckout = { ...paidCheckout, autoBookAfterPayment: false };
+    const paymentKey = paidCheckout.scope === 'all_items' ? fullPaymentKey : requiredPaymentKey;
+    if (paymentKey) savePaidCheckout(paymentKey, consumedCheckout);
+    if (paidCheckout.scope === 'all_items') {
+      setPaidFullCheckout(consumedCheckout);
+    } else {
+      setPaidRequiredCheckout(consumedCheckout);
+    }
+    void submitBooking(consumedCheckout);
+    // submitBooking intentionally uses the checkout state captured by this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    fullPaymentKey,
+    isFullyPaid,
+    isRequiredPaid,
+    paidFullCheckout,
+    paidRequiredCheckout,
+    requiredPaymentKey,
+    submitting,
+  ]);
 
   if (isLoading) {
     return (
@@ -699,17 +770,19 @@ export function CustomerJoinPage({
 
           <div className="space-y-3">
             <TextInput
-              label={t('booking.nameOptional', { ns: 'customer' })}
+              label={t('booking.nameRequiredLabel', { ns: 'customer' })}
               value={customerName}
               onChange={setCustomerName}
               placeholder={t('booking.namePlaceholder', { ns: 'customer' })}
+              required
             />
             <TextInput
-              label={t('booking.phoneOptional', { ns: 'customer' })}
+              label={t('booking.phoneRequiredLabel', { ns: 'customer' })}
               type="tel"
               value={customerPhone}
               onChange={setCustomerPhone}
               placeholder={t('booking.phonePlaceholder', { ns: 'customer' })}
+              required
             />
           </div>
 
@@ -766,70 +839,26 @@ export function CustomerJoinPage({
             {locationStatus && <p className="mt-2 text-xs text-gray-500">{locationStatus}</p>}
           </section>
 
-          {needsPrepayment && (
-            <section className="rounded-xl border border-brand-100 bg-brand-50 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-bold text-brand-900">
-                    {t('booking.payment', { ns: 'customer' })}
-                  </h3>
-                  <p className="mt-1 text-xs leading-5 text-brand-800">
-                    {t('booking.paymentRequiredHint', { ns: 'customer' })}
-                  </p>
-                </div>
-                {(isRequiredPaid || isFullyPaid) && (
-                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-brand-700">
-                    {isFullyPaid
-                      ? t('booking.fullyPaid', { ns: 'customer' })
-                      : t('booking.requiredPaid', { ns: 'customer' })}
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-3 space-y-3">
-                {isFullyPaid || isRequiredPaid ? (
-                  <p className="rounded-lg bg-white px-3 py-2 text-xs text-gray-600">
-                    {t('booking.paymentCode', {
-                      ns: 'customer',
-                      code: (isFullyPaid ? paidFullCheckout : paidRequiredCheckout)?.code,
-                    })}
-                  </p>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={startPayment}
-                      disabled={!queue || checkoutItems.length === 0 || !isLineAuthenticated}
-                      className="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-50"
-                    >
-                      {t('booking.proceedPayment', { ns: 'customer' })}
-                    </button>
-                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-                      {t('booking.paymentInstruction', { ns: 'customer' })}
-                    </p>
-                  </>
-                )}
-              </div>
-            </section>
-          )}
-
           {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
           <button
             type="submit"
-            disabled={
-              submitting || !queue || cartItems.length === 0 || !canBook || !isLineAuthenticated
-            }
+            disabled={submitting || !queue || cartItems.length === 0 || !isLineAuthenticated}
             className="w-full rounded-xl bg-gray-950 px-4 py-3 text-base font-bold text-white transition hover:bg-gray-800 disabled:opacity-50"
           >
             {submitting
               ? t('booking.booking', { ns: 'customer' })
               : !queue
                 ? t('booking.queueClosed', { ns: 'customer' })
-                : canBook
-                  ? t('booking.book', { ns: 'customer' })
-                  : t('booking.prepaymentRequired', { ns: 'customer' })}
+                : needsPrepayment && !canBook
+                  ? t('booking.payAndBook', { ns: 'customer' })
+                  : t('booking.book', { ns: 'customer' })}
           </button>
+          {needsPrepayment && !canBook && (
+            <p className="text-center text-xs leading-5 text-amber-700">
+              {t('booking.payAndBookHint', { ns: 'customer' })}
+            </p>
+          )}
         </form>
       </main>
     </div>
@@ -1037,12 +1066,14 @@ function TextInput({
   onChange,
   placeholder,
   type = 'text',
+  required = false,
 }: Readonly<{
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   type?: string;
+  required?: boolean;
 }>) {
   return (
     <label className="block">
@@ -1052,6 +1083,7 @@ function TextInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        required={required}
         className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
       />
     </label>
