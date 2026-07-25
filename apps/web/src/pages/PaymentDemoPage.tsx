@@ -5,6 +5,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher';
 import { ApiClientError, post } from '../services/apiClient';
 import {
+  clearCheckoutSession,
   formatJPY,
   loadCheckoutSession,
   paymentKeyFor,
@@ -123,6 +124,7 @@ export function PaymentDemoPage() {
         cartSignature: session.cartSignature,
         paidAt: new Date().toISOString(),
       });
+      clearCheckoutSession(session.id);
       navigate(session.returnPath, { replace: true });
     } catch (err) {
       setError(

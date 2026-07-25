@@ -169,6 +169,9 @@ The platform role does not replace tenant membership. Staff and manager operatio
 11. All primary pages remain usable at mobile and desktop widths; copy uses `ja`, `vi`, or `en` resources with Japanese fallback.
 12. Health/readiness clearly distinguish a live process from a usable database connection.
 13. A staff, manager, or admin opening a QR booking page cannot create a booking or direct queue ticket with that business JWT, can return to their own dashboard, and is offered the current QR route in LINE LIFF.
+14. After a successful booking, reopening the same QR/LIFF entry starts a clean booking attempt.
+    Booking history remains available, but the consumed payment reference, cart, and customer-input
+    draft are not reused.
 
 ## 6. Non-functional requirements
 

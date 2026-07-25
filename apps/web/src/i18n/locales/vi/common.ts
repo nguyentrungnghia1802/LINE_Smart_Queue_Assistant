@@ -93,6 +93,8 @@ export const common = {
     FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
     CUSTOMER_ACCOUNT_REQUIRED: 'Cần tài khoản khách hàng để bắt đầu tiếp nhận.',
     QUEUE_NOT_ACCEPTING: 'Hiện không có hàng đợi đang tiếp nhận.',
+    PAYMENT_ALREADY_USED:
+      'Thông tin thanh toán trước đã được sử dụng. Vui lòng thực hiện thanh toán lại.',
     NOT_FOUND: 'Không tìm thấy thông tin được yêu cầu.',
     CONFLICT: 'Không thể hoàn thành thao tác ở trạng thái hiện tại.',
     VALIDATION_ERROR: 'Vui lòng kiểm tra dữ liệu đã nhập.',
