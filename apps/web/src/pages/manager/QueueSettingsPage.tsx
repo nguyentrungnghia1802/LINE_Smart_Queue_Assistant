@@ -62,7 +62,7 @@ export function QueueSettingsPage() {
           : undefined,
       });
       setSaved(true);
-      setTimeout(() => navigate(`/queues/${id}`), 1000);
+      setTimeout(() => navigate(`/manager/queues/${id}`), 1000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('queue.saveFailed'));
     } finally {
@@ -81,7 +81,7 @@ export function QueueSettingsPage() {
   return (
     <div className="max-w-lg mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link to={`/queues/${id}`} className="text-gray-400 hover:text-gray-600 text-sm">
+        <Link to={`/manager/queues/${id}`} className="text-gray-400 hover:text-gray-600 text-sm">
           ← {t('products.details')}
         </Link>
         <span className="text-gray-300">/</span>
@@ -151,7 +151,7 @@ export function QueueSettingsPage() {
 
         <div className="flex gap-3 pt-2">
           <Link
-            to={`/queues/${id}`}
+            to={`/manager/queues/${id}`}
             className="flex-1 text-center border border-gray-300 text-gray-700 font-medium py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors"
           >
             {t('actions.cancel', { ns: 'common' })}

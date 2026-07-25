@@ -203,11 +203,6 @@ export function StaffDashboardPage() {
   });
 
   // Order actions
-  const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      patch(`/api/v1/orders/${id}/status`, { status }),
-    onSuccess: invalidateQueue,
-  });
   const paymentMutation = useMutation({
     mutationFn: ({
       id,
@@ -643,20 +638,6 @@ export function StaffDashboardPage() {
                                 {t('dashboard.refund')}
                               </button>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (confirm(t('dashboard.cancelOrderConfirm')))
-                                  statusMutation.mutate({
-                                    id: order.id,
-                                    status: 'cancelled',
-                                  });
-                              }}
-                              disabled={statusMutation.isPending}
-                              className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 disabled:opacity-50"
-                            >
-                              {t('dashboard.cancelOrder')}
-                            </button>
                           </div>
                         )}
                         {order.payment_status === 'paid' && order.status === 'completed' && (

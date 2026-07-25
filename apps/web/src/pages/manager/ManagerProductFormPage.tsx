@@ -181,7 +181,14 @@ export function ManagerProductFormPage() {
             className={inputCls}
             value={form.productType}
             onChange={(e) =>
-              setForm((f) => ({ ...f, productType: e.target.value as 'product' | 'service' }))
+              setForm((f) => {
+                const productType = e.target.value as 'product' | 'service';
+                return {
+                  ...f,
+                  productType,
+                  stockQuantity: productType === 'service' ? '' : f.stockQuantity,
+                };
+              })
             }
           >
             <option value="service">{t('labels.service', { ns: 'common' })}</option>
@@ -224,7 +231,7 @@ export function ManagerProductFormPage() {
           <input
             className={inputCls}
             type="number"
-            min={0}
+            min={form.requiresPrepayment ? 1 : 0}
             required
             value={form.price}
             onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
@@ -251,16 +258,17 @@ export function ManagerProductFormPage() {
             onChange={(e) => setForm((f) => ({ ...f, maxWaitMinutes: e.target.value }))}
           />
         )}
-        {field(
-          t('products.stockOptional'),
-          <input
-            className={inputCls}
-            type="number"
-            min={0}
-            value={form.stockQuantity}
-            onChange={(e) => setForm((f) => ({ ...f, stockQuantity: e.target.value }))}
-          />
-        )}
+        {form.productType === 'product' &&
+          field(
+            t('products.stockOptional'),
+            <input
+              className={inputCls}
+              type="number"
+              min={0}
+              value={form.stockQuantity}
+              onChange={(e) => setForm((f) => ({ ...f, stockQuantity: e.target.value }))}
+            />
+          )}
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input
             type="checkbox"

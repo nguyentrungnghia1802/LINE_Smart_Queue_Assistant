@@ -148,7 +148,7 @@ export function StaffQueuePage() {
     return (
       <div className="text-center py-16">
         <p className="text-gray-500 mb-4">{t('dashboard.queueLoadFailed')}</p>
-        <Link to="/queues" className="text-brand-600 hover:underline text-sm">
+        <Link to="/manager/queues" className="text-brand-600 hover:underline text-sm">
           ← {t('actions.back', { ns: 'common' })}
         </Link>
       </div>
@@ -169,7 +169,7 @@ export function StaffQueuePage() {
       <div>
         {/* Header */}
         <div className="flex items-center gap-3 mb-2">
-          <Link to="/queues" className="text-gray-400 hover:text-gray-600 text-sm">
+          <Link to="/manager/queues" className="text-gray-400 hover:text-gray-600 text-sm">
             ← {t('nav.queue', { ns: 'common' })}
           </Link>
         </div>
@@ -182,7 +182,7 @@ export function StaffQueuePage() {
           </div>
           <div className="flex gap-2">
             <Link
-              to={`/queues/${queueId}/display`}
+              to={`/manager/queues/${queueId}/display`}
               className="inline-flex items-center gap-1.5 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors"
             >
               📺 QR

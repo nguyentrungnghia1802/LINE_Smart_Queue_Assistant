@@ -10,7 +10,7 @@ import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
 import { StandalonePageTopBar } from '../../components/layout/StandalonePageTopBar';
 import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
 import { formatDateTime } from '../../i18n/format';
-import { get, post, put } from '../../services/apiClient';
+import { ApiClientError, get, post, put } from '../../services/apiClient';
 import { getCustomerLineEntryUrl } from '../../services/liff/entryUrl';
 import { useAuthStore } from '../../store/authStore';
 import type { LiffAuthStatus } from '../../types/liff';
@@ -140,6 +140,7 @@ export function CustomerJoinPage({
   } | null>(null);
   const [locationStatus, setLocationStatus] = useState('');
   const hydratedDraftKeyRef = useRef<string | null>(null);
+  const bookingAttemptIdRef = useRef(createCheckoutId());
 
   const apiEndpoint = token ? `/api/v1/orgs/by-token/${token}` : `/api/v1/orgs/${orgSlug}`;
 
@@ -308,6 +309,10 @@ export function CustomerJoinPage({
 
   function startPayment() {
     if (!data || checkoutItems.length === 0 || !currentCartSignature) return;
+    if (!data.queue) {
+      setError(t('booking.queueClosed', { ns: 'customer' }));
+      return;
+    }
     if (!isLineAuthenticated) {
       setError(t('booking.lineBeforePayment', { ns: 'customer' }));
       return;
@@ -370,6 +375,10 @@ export function CustomerJoinPage({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!queue) {
+      setError(t('booking.queueClosed', { ns: 'customer' }));
+      return;
+    }
     if (cartItems.length === 0) {
       setError(t('booking.selectItem', { ns: 'customer' }));
       return;
@@ -414,6 +423,11 @@ export function CustomerJoinPage({
               }
             : undefined,
           payment: paidCheckout ? { transactionId: paidCheckout.transactionId } : undefined,
+        },
+        {
+          headers: {
+            'Idempotency-Key': `booking:${bookingAttemptIdRef.current}`,
+          },
         }
       );
       const nextGroup = appendBookingRecord(
@@ -436,7 +450,13 @@ export function CustomerJoinPage({
       setPaidFullCheckout(null);
       navigate(`${isLiffMode ? '/liff/tickets' : '/ticket'}/${result.queueEntry.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('booking.orderFailed', { ns: 'customer' }));
+      setError(
+        err instanceof ApiClientError && err.code === 'QUEUE_NOT_ACCEPTING'
+          ? t('errors.QUEUE_NOT_ACCEPTING', { ns: 'common' })
+          : err instanceof Error
+            ? err.message
+            : t('booking.orderFailed', { ns: 'customer' })
+      );
     } finally {
       setSubmitting(false);
     }
@@ -757,7 +777,7 @@ export function CustomerJoinPage({
                     <button
                       type="button"
                       onClick={startPayment}
-                      disabled={checkoutItems.length === 0 || !isLineAuthenticated}
+                      disabled={!queue || checkoutItems.length === 0 || !isLineAuthenticated}
                       className="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-50"
                     >
                       {t('booking.proceedPayment', { ns: 'customer' })}
@@ -782,9 +802,11 @@ export function CustomerJoinPage({
           >
             {submitting
               ? t('booking.booking', { ns: 'customer' })
-              : canBook
-                ? t('booking.book', { ns: 'customer' })
-                : t('booking.prepaymentRequired', { ns: 'customer' })}
+              : !queue
+                ? t('booking.queueClosed', { ns: 'customer' })
+                : canBook
+                  ? t('booking.book', { ns: 'customer' })
+                  : t('booking.prepaymentRequired', { ns: 'customer' })}
           </button>
         </form>
       </main>
