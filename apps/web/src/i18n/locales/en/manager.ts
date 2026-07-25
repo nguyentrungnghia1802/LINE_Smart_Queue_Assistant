@@ -79,6 +79,7 @@ export const manager = {
     duration: 'Duration',
     actions: 'Actions',
     deleteConfirm: 'Delete this product?',
+    deleteFailed: 'Could not delete the product. Error code: {{code}}',
     formCreate: 'Create product',
     formEdit: 'Edit product',
     serviceTime: 'Service time (min)',
@@ -101,6 +102,8 @@ export const manager = {
     details: 'Details',
     uploadFailed: 'Could not upload the image.',
     saveFailed: 'Something went wrong. Please try again.',
+    validationFailed: 'Check the entered information. Error code: {{code}} / field: {{fields}}',
+    imageUrlValidationHint: 'The product image URL is invalid. Upload the image again.',
   },
   qr: {
     title: 'QR management',

@@ -59,7 +59,7 @@ function auditStaff(
   void auditLogRepository
     .create({
       actorId: actorUserId,
-      actorType: 'staff',
+      actorType: 'user',
       action,
       resourceType,
       resourceId,
