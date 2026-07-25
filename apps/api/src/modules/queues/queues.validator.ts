@@ -6,6 +6,7 @@ export const CreateQueueSchema = z.object({
   orgId: z.string().uuid(),
   name: z.string().min(1).max(120),
   description: z.string().max(500).optional(),
+  status: z.enum(['open', 'paused', 'closed']).default('open'),
   prefix: z.string().max(10).optional(),
   maxCapacity: z.number().int().positive().optional(),
   avgServiceMs: z.number().int().positive().optional(),

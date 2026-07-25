@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 
 import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher';
-import { post } from '../services/apiClient';
+import { ApiClientError, post } from '../services/apiClient';
 import {
+  clearCheckoutSession,
   formatJPY,
   loadCheckoutSession,
   paymentKeyFor,
@@ -69,19 +70,27 @@ export function PaymentDemoPage() {
     setProcessing(true);
     setError('');
     try {
-      const intent = await post<PaymentIntentResponse>('/api/v1/payments/intents', {
-        orgSlug: session.orgSlug,
-        items: session.items.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-        })),
-        scope: paymentScope,
-        provider: externalPaymentReady ? selectedMethod.provider : 'demo',
-        method: selectedMethod.externalMethod ?? selectedMethod.id,
-        currency: 'JPY',
-        returnUrl: window.location.href,
-        cartSignature: session.cartSignature,
-      });
+      const intent = await post<PaymentIntentResponse>(
+        '/api/v1/payments/intents',
+        {
+          orgSlug: session.orgSlug,
+          items: session.items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+          scope: paymentScope,
+          provider: externalPaymentReady ? selectedMethod.provider : 'demo',
+          method: selectedMethod.externalMethod ?? selectedMethod.id,
+          currency: 'JPY',
+          returnUrl: window.location.href,
+          cartSignature: session.cartSignature,
+        },
+        {
+          headers: {
+            'Idempotency-Key': `payment:${session.id}:${paymentScope}`,
+          },
+        }
+      );
 
       if (intent.checkoutUrl) {
         window.location.assign(intent.checkoutUrl);
@@ -114,10 +123,18 @@ export function PaymentDemoPage() {
         coveredProductIds: confirmed.coveredProductIds,
         cartSignature: session.cartSignature,
         paidAt: new Date().toISOString(),
+        autoBookAfterPayment: session.autoBookAfterPayment,
       });
+      clearCheckoutSession(session.id);
       navigate(session.returnPath, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('payment.failed', { ns: 'customer' }));
+      setError(
+        err instanceof ApiClientError && err.code === 'QUEUE_NOT_ACCEPTING'
+          ? t('errors.QUEUE_NOT_ACCEPTING', { ns: 'common' })
+          : err instanceof Error
+            ? err.message
+            : t('payment.failed', { ns: 'customer' })
+      );
       setProcessing(false);
     }
   }

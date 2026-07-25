@@ -13,6 +13,7 @@ import {
   callNext,
   cancelEntry,
   completeEntry,
+  deferEntry,
   getMyQueue,
   getQueueOverview,
   noShowEntry,
@@ -59,6 +60,14 @@ staffRouter.post(
   authenticatedActionRateLimiter,
   validate(EntryIdParamSchema, 'params'),
   completeEntry
+);
+
+// POST /api/v1/staff/entries/:entryId/defer
+staffRouter.post(
+  '/entries/:entryId/defer',
+  authenticatedActionRateLimiter,
+  validate(EntryIdParamSchema, 'params'),
+  deferEntry
 );
 
 // POST /api/v1/staff/entries/:entryId/no-show

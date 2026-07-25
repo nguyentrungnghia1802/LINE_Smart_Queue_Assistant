@@ -31,8 +31,8 @@ const mockFindById = organizationsRepository.findById as jest.MockedFunction<
 const mockFindLocalizedById = organizationsRepository.findLocalizedById as jest.MockedFunction<
   typeof organizationsRepository.findLocalizedById
 >;
-const mockFindActiveByOrg = queuesRepository.findActiveByOrg as jest.MockedFunction<
-  typeof queuesRepository.findActiveByOrg
+const mockFindOpenByOrg = queuesRepository.findOpenByOrg as jest.MockedFunction<
+  typeof queuesRepository.findOpenByOrg
 >;
 const mockFindByOrgProducts = productsRepository.findByOrg as jest.MockedFunction<
   typeof productsRepository.findByOrg
@@ -91,7 +91,7 @@ describe('getOrgByToken controller', () => {
     jest.clearAllMocks();
     mockFindById.mockResolvedValue(orgRow);
     mockFindLocalizedById.mockResolvedValue(orgRow);
-    mockFindActiveByOrg.mockResolvedValue([]);
+    mockFindOpenByOrg.mockResolvedValue([]);
     mockFindByOrgProducts.mockResolvedValue([]);
     mockListWaiting.mockResolvedValue([]);
   });

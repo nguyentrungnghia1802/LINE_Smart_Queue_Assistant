@@ -58,7 +58,8 @@ export const patchOrderStatus = asyncHandler(async (req: Request, res: Response)
   const order = await ordersService.updateStatus(
     req.params.id,
     orgId,
-    req.body as UpdateOrderStatusDto
+    req.body as UpdateOrderStatusDto,
+    { userId: req.user?.id ?? '', role: req.user?.role ?? '' }
   );
   sendSuccess(res, order);
 });

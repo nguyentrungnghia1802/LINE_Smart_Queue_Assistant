@@ -193,6 +193,9 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
   endpoint('post', '/api/v1/staff/entries/{entryId}/complete', 'staff', {
     validator: 'EntryIdParamSchema',
   }),
+  endpoint('post', '/api/v1/staff/entries/{entryId}/defer', 'staff', {
+    validator: 'EntryIdParamSchema',
+  }),
   endpoint('post', '/api/v1/staff/entries/{entryId}/no-show', 'staff', {
     validator: 'EntryIdParamSchema',
   }),

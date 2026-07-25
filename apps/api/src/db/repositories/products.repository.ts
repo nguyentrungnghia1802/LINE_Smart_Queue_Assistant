@@ -1,6 +1,6 @@
 import type { SupportedLocale } from '@line-queue/shared';
 
-import { productCatalogCache } from '../../utils/cache';
+import { invalidateProductCatalog, productCatalogCache } from '../../utils/cache';
 import { pool } from '../client';
 
 export interface ProductRow {
@@ -100,7 +100,7 @@ export const productsRepository = {
         data.productType ?? 'service',
       ]
     );
-    productCatalogCache.invalidate(`org:${data.organizationId}`);
+    invalidateProductCatalog(data.organizationId);
     await pool.query(
       `INSERT INTO product_translations (product_id, locale, name, description)
        VALUES ($1,'ja',$2,$3)
@@ -157,7 +157,7 @@ export const productsRepository = {
     );
     const updated = rows[0] ?? null;
     if (updated) {
-      productCatalogCache.invalidate(`org:${updated.organization_id}`);
+      invalidateProductCatalog(updated.organization_id);
       if (data.name !== undefined || data.description !== undefined) {
         await pool.query(
           `INSERT INTO product_translations (product_id, locale, name, description)
@@ -173,6 +173,6 @@ export const productsRepository = {
   async softDelete(id: string): Promise<void> {
     const existing = await this.findById(id);
     await pool.query(`UPDATE products SET is_active = FALSE WHERE id = $1`, [id]);
-    if (existing) productCatalogCache.invalidate(`org:${existing.organization_id}`);
+    if (existing) invalidateProductCatalog(existing.organization_id);
   },
 };

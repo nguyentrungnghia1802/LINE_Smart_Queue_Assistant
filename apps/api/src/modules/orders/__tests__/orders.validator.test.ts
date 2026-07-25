@@ -2,25 +2,26 @@
  * Unit tests for orders.validator — customer linkage fields.
  *
  * Verifies:
- *   1. `customerPhone` is optional and accepted.
+ *   1. Customer name and phone are required and accepted.
  *   2. `customerPhone` is rejected when too long (> 20 chars).
- *   3. Order can be created without customerName or customerPhone (anonymous/guest).
+ *   3. Orders without customer contact details are rejected.
  */
 import { CreateOrderSchema } from '../orders.validator';
 
 const baseOrder = {
   orgSlug: 'test-salon',
+  customerName: '山田太郎',
+  customerPhone: '0901234567',
   items: [{ productId: '44444444-4444-4444-8444-444444444441', quantity: 1 }],
 };
 
 describe('CreateOrderSchema — customer linkage fields', () => {
-  it('parses a minimal order without customer info', () => {
-    const result = CreateOrderSchema.safeParse(baseOrder);
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.customerName).toBeUndefined();
-      expect(result.data.customerPhone).toBeUndefined();
-    }
+  it('rejects an order without customer info', () => {
+    const result = CreateOrderSchema.safeParse({
+      orgSlug: baseOrder.orgSlug,
+      items: baseOrder.items,
+    });
+    expect(result.success).toBe(false);
   });
 
   it('accepts customerName and customerPhone when provided', () => {
@@ -61,6 +62,17 @@ describe('CreateOrderSchema — customer linkage fields', () => {
     const result = CreateOrderSchema.safeParse({
       ...baseOrder,
       items: [{ productId: 'not-a-uuid', quantity: 1 }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects duplicate products in the same order', () => {
+    const result = CreateOrderSchema.safeParse({
+      ...baseOrder,
+      items: [
+        { productId: '44444444-4444-4444-8444-444444444441', quantity: 1 },
+        { productId: '44444444-4444-4444-8444-444444444441', quantity: 2 },
+      ],
     });
     expect(result.success).toBe(false);
   });

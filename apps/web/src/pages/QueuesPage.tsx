@@ -14,7 +14,7 @@ export function QueuesPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{t('nav.queue', { ns: 'common' })}</h1>
         <Link
-          to="/queues/new"
+          to="/manager/queues/new"
           className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
         >
           + {t('queue.create')}

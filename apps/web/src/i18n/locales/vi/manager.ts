@@ -79,6 +79,7 @@ export const manager = {
     duration: 'Thời gian',
     actions: 'Thao tác',
     deleteConfirm: 'Xóa sản phẩm này?',
+    deleteFailed: 'Không thể xóa sản phẩm. Mã lỗi: {{code}}',
     formCreate: 'Tạo sản phẩm',
     formEdit: 'Sửa sản phẩm',
     serviceTime: 'Thời gian phục vụ (phút)',
@@ -101,6 +102,8 @@ export const manager = {
     details: 'Chi tiết',
     uploadFailed: 'Không thể tải ảnh lên.',
     saveFailed: 'Đã xảy ra lỗi. Vui lòng thử lại.',
+    validationFailed: 'Vui lòng kiểm tra dữ liệu. Mã lỗi: {{code}} / trường: {{fields}}',
+    imageUrlValidationHint: 'URL ảnh sản phẩm không hợp lệ. Vui lòng tải ảnh lên lại.',
   },
   qr: {
     title: 'Quản lý mã QR',

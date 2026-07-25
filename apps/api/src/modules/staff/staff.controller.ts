@@ -65,6 +65,19 @@ export const completeEntry = asyncHandler(async (req: Request, res: Response) =>
   sendSuccess(res, { entry });
 });
 
+// ── POST /api/v1/staff/entries/:entryId/defer ────────────────────────────────
+
+/** Return a called ticket to the back of the current waiting queue. */
+export const deferEntry = asyncHandler(async (req: Request, res: Response) => {
+  const { entryId } = req.params as unknown as EntryIdParam;
+  if (!req.user) throw AppError.unauthorized();
+  const entry = await staffService.deferCalled(entryId, req.user.id, req.user.organizationId);
+
+  reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.defer');
+
+  sendSuccess(res, { entry });
+});
+
 // ── POST /api/v1/staff/entries/:entryId/no-show ───────────────────────────────
 
 /** Mark a called entry as no-show (customer did not appear). */

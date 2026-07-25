@@ -3,7 +3,7 @@ import type { PoolClient } from 'pg';
 import { config } from '../../config';
 import { pool } from '../../db/client';
 import { inventoryReservationsRepository } from '../../db/repositories/inventory-reservations.repository';
-import { productCatalogCache } from '../../utils/cache';
+import { invalidateProductCatalog } from '../../utils/cache';
 
 function expiryDate(now = new Date()): Date | null {
   if (config.inventory.reservationTtlMinutes <= 0) return null;
@@ -73,7 +73,7 @@ export const inventoryService = {
       }
       await client.query('COMMIT');
       for (const organizationId of affectedOrganizations) {
-        productCatalogCache.invalidate(`org:${organizationId}`);
+        invalidateProductCatalog(organizationId);
       }
       return orderIds.length;
     } catch (error) {

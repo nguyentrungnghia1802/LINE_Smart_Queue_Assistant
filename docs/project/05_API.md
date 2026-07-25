@@ -91,12 +91,12 @@ All paths require `admin`.
 
 ### Organizations and public entry
 
-| Method | Path                           | Access        | Purpose                                                      |
-| ------ | ------------------------------ | ------------- | ------------------------------------------------------------ |
-| GET    | `/api/v1/orgs/my-org`          | Authenticated | Resolve actor organization including public QR token         |
-| PATCH  | `/api/v1/orgs/my-org`          | Manager/admin | Update own organization settings with audit                  |
-| GET    | `/api/v1/orgs/by-token/:token` | Public        | Resolve public organization by generated token               |
-| GET    | `/api/v1/orgs/:slug`           | Public        | Resolve organization, active queue, and catalog landing data |
+| Method | Path                           | Access        | Purpose                                                    |
+| ------ | ------------------------------ | ------------- | ---------------------------------------------------------- |
+| GET    | `/api/v1/orgs/my-org`          | Authenticated | Resolve actor organization including public QR token       |
+| PATCH  | `/api/v1/orgs/my-org`          | Manager/admin | Update own organization settings with audit                |
+| GET    | `/api/v1/orgs/by-token/:token` | Public        | Resolve public organization by generated token             |
+| GET    | `/api/v1/orgs/:slug`           | Public        | Resolve organization, open queue, and catalog landing data |
 
 ### Products/services
 
@@ -108,6 +108,15 @@ All paths require `admin`.
 | PATCH  | `/api/v1/products/:id` | Manager/admin | Update product/service                           |
 | DELETE | `/api/v1/products/:id` | Manager/admin | Delete/deactivate according to service behavior  |
 
+Product `imageUrl` accepts either an HTTP/HTTPS object-storage URL or a same-origin path returned by the media upload API (`/media/...` or `/mock-media/...`). Arbitrary relative paths and data URLs remain invalid. Validation responses use `VALIDATION_ERROR` with `details.fieldErrors`; manager product forms show the error code and affected field without exposing server internals.
+
+Product create, update, and deactivate operations write their authenticated manager/admin actor as audit type `user`, matching the canonical PostgreSQL `audit_actor_type` enum. Catalog writes invalidate every locale-aware organization cache key and public slug cache key so deleted products and prepayment changes are not served from stale catalog data.
+
+Product validation rejects finite stock for `service` records and rejects
+`requiresPrepayment=true` when the price is zero. Payment and order item arrays reject duplicate
+product IDs. These rules keep Manager configuration compatible with checkout, inventory, and
+database constraints.
+
 ### Queue configuration
 
 All paths require manager/admin.
@@ -116,7 +125,7 @@ All paths require manager/admin.
 | ------ | --------------------------- | ------------------------------------------------ |
 | GET    | `/api/v1/queues`            | List tenant queues                               |
 | GET    | `/api/v1/queues/:id`        | Queue detail                                     |
-| POST   | `/api/v1/queues`            | Create queue                                     |
+| POST   | `/api/v1/queues`            | Create queue; status defaults to `open`          |
 | PATCH  | `/api/v1/queues/:id`        | Update queue configuration                       |
 | PATCH  | `/api/v1/queues/:id/status` | Change queue status                              |
 | DELETE | `/api/v1/queues/:id`        | Delete/archive queue according to service guards |
@@ -154,10 +163,11 @@ All paths require staff/manager/admin and organization ownership.
 | POST   | `/api/v1/staff/queues/:queueId/call-next` | Call next                                                                                                    |
 | POST   | `/api/v1/staff/entries/:entryId/serve`    | Start service                                                                                                |
 | POST   | `/api/v1/staff/entries/:entryId/complete` | Complete service                                                                                             |
+| POST   | `/api/v1/staff/entries/:entryId/defer`    | Return a called late arrival behind all current waiting entries and call the next eligible ticket            |
 | POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                                                                                 |
 | POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                                                                                        |
 
-Staff transition endpoints validate UUID path parameters and do not require a request body. Completion atomically transitions the ticket to `served`, completes the linked order and inventory lifecycle where applicable, enqueues the LINE notification, and records the authenticated staff actor in queue history.
+Staff transition endpoints validate UUID path parameters and do not require a request body. Completion atomically transitions the ticket to `served`, completes the linked order and inventory lifecycle where applicable, enqueues the LINE notification, and automatically calls one next waiting ticket only when no ticket is already called. Defer atomically returns a called ticket to the current waiting tail, records queue history, and calls the next eligible customer.
 
 ### Orders and payment
 
@@ -169,7 +179,12 @@ Staff transition endpoints validate UUID path parameters and do not require a re
 | GET    | `/api/v1/orders/stats`       | Manager/admin                                               | Tenant order statistics                              |
 | GET    | `/api/v1/orders/:id`         | Staff/manager/admin                                         | Order detail                                         |
 | PATCH  | `/api/v1/orders/:id/status`  | Staff/manager/admin                                         | Set processing/completed/cancelled                   |
-| PATCH  | `/api/v1/orders/:id/payment` | Staff/manager/admin, idempotent                             | Manually set unpaid/paid summary                     |
+| PATCH  | `/api/v1/orders/:id/payment` | Staff/manager/admin, idempotent                             | Collect outstanding balance or record refund         |
+
+Order payment summary is derived from item coverage. A verified `required_items` transaction marks
+the order paid when those items are the entire cart. For a mixed cart, Staff payment confirmation
+creates an audited manual transaction for the remaining unpaid items; reconciliation then marks the
+order paid and repeated UI confirmation is disabled.
 
 Important `POST /orders` request fields:
 
@@ -190,7 +205,14 @@ Important `POST /orders` request fields:
 }
 ```
 
-The server ignores browser price, status, method code, and covered-product authority. Required prepayment is satisfied only by a `payment.transactionId` that points to a paid, same-tenant, unused `payment_transactions` row whose server-computed metadata matches the submitted cart.
+`customerName` and `customerPhone` are required; the phone must pass the Japanese telephone
+validator. The server ignores browser price, status, method code, and covered-product authority.
+Required prepayment is satisfied only by a `payment.transactionId` that points to a paid,
+same-tenant, unused `payment_transactions` row whose server-computed metadata matches the submitted cart.
+
+An already attached payment transaction returns `409 PAYMENT_ALREADY_USED`. Customer clients must
+discard that stale paid-checkout reference and start a new payment attempt; they may preserve the
+current cart for recovery but must not resubmit the consumed transaction.
 
 For authenticated `POST /orders`, only a `customer` JWT is accepted. The controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified linked `line_user_id` on the new queue entry. Guest orders keep both recipient fields empty unless a separately verified identity flow is used. An authenticated staff, manager, or admin receives `403 CUSTOMER_ACCOUNT_REQUIRED` before any order, stock, queue, or payment work starts.
 
@@ -209,6 +231,12 @@ In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has compl
 Payment intent creation accepts `orgSlug`, selected `items`, `scope`, `provider`, `method`, `currency`, optional `returnUrl`, and optional `cartSignature`. The API reloads products and computes amount/coverage. Demo mode returns a `demoToken`; the browser must send it to `/payments/demo/complete`, and the server verifies it before marking the transaction paid. Future PSPs must update the same transaction state machine through signed webhooks or server-side verification.
 
 Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatus: paid | refunded`, optional refund `amount` and `reason`, and an `Idempotency-Key` header. Every accepted operation writes an audited reconciliation row. For a legacy paid order without a transaction, the refund path first backfills a server-side manual transaction with covered order products and records a separate reconciliation operation. `GET /api/v1/orders/:id/receipt` is staff/manager/admin only and returns receipt source data only for a completed, fully paid order.
+
+Customer and operator cancellation paths automatically refund all remaining collected amounts for
+transactions attached to the order. Automatic refunds use deterministic per-order/per-transaction
+reconciliation keys and are committed with order/ticket cancellation. This is executable for the
+demo/manual foundation; a real PSP adapter must perform provider-side refund confirmation before
+production rollout.
 
 ### Booking groups and organization calendar
 

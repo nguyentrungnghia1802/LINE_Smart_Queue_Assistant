@@ -22,7 +22,7 @@ export function QueueDetailPage() {
     return (
       <div className="text-center py-16">
         <p className="text-gray-500 mb-4">{t('queue.notFound')}</p>
-        <Link to="/queues" className="text-brand-600 hover:underline text-sm">
+        <Link to="/manager/queues" className="text-brand-600 hover:underline text-sm">
           ← {t('queue.backToQueues')}
         </Link>
       </div>
@@ -32,7 +32,7 @@ export function QueueDetailPage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-2">
-        <Link to="/queues" className="text-gray-400 hover:text-gray-600 text-sm">
+        <Link to="/manager/queues" className="text-gray-400 hover:text-gray-600 text-sm">
           ← {t('nav.queue', { ns: 'common' })}
         </Link>
       </div>
@@ -47,19 +47,19 @@ export function QueueDetailPage() {
       {/* Action buttons */}
       <div className="flex flex-wrap gap-3 mb-8">
         <Link
-          to={`/staff/queues/${id}`}
+          to={`/manager/queues/${id}/manage`}
           className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
           📋 {t('queue.manage')}
         </Link>
         <Link
-          to={`/queues/${id}/display`}
+          to={`/manager/queues/${id}/display`}
           className="inline-flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
           📺 {t('queue.showQr')}
         </Link>
         <Link
-          to={`/queues/${id}/settings`}
+          to={`/manager/queues/${id}/settings`}
           className="inline-flex items-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
           ⚙️ {t('nav.settings', { ns: 'common' })}

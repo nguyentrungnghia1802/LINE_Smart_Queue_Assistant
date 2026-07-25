@@ -78,6 +78,7 @@ export const manager = {
     duration: '時間',
     actions: '操作',
     deleteConfirm: 'この商品を削除しますか？',
+    deleteFailed: '商品を削除できませんでした。エラーコード: {{code}}',
     formCreate: '商品を作成',
     formEdit: '商品を編集',
     serviceTime: '対応時間（分）',
@@ -100,6 +101,8 @@ export const manager = {
     details: '詳細',
     uploadFailed: '画像をアップロードできませんでした。',
     saveFailed: 'エラーが発生しました。もう一度お試しください。',
+    validationFailed: '入力内容を確認してください。エラーコード: {{code}}／対象: {{fields}}',
+    imageUrlValidationHint: '商品画像のURLが無効です。画像をもう一度アップロードしてください。',
   },
   qr: {
     title: 'QRコード管理',

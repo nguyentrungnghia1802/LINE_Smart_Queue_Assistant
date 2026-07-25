@@ -66,6 +66,7 @@ PostgreSQL values are `waiting`, `called`, `serving`, `served`, `skipped`, `canc
 | new                | Create successful booking | `waiting`                           | Customer/system          |
 | `waiting`          | Call next                 | `called`                            | Staff/manager/admin      |
 | `called`           | Begin service             | `serving`                           | Staff/manager/admin      |
+| `called`           | Defer late arrival        | `waiting` at current queue tail     | Staff/manager/admin      |
 | `serving`          | Complete service          | `served`                            | Staff/manager/admin      |
 | `waiting`/eligible | Skip                      | `skipped` or policy-specific result | Customer/staff policy    |
 | eligible active    | Cancel                    | `cancelled`                         | Owner or tenant operator |
@@ -103,7 +104,10 @@ Per-item state determines prepaid coverage. The order header is `paid` only when
 
 Finite stock is decremented and a `reserved` reservation is inserted in the same order transaction. Fulfillment transitions it to `consumed` without changing stock. Cancellation or no-show transitions it to `released` and restores stock. The expiry worker transitions due rows to `expired`, restores stock, and cancels the pending order/ticket. Every transition is conditional on `status = 'reserved'` and writes `inventory_reservation_events`, preventing double release or consume.
 
-Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently decrements `products.stock_quantity` and writes `reserved`; transitions and stock restoration are not yet fully implemented.
+Values are `reserved`, `consumed`, `released`, and `expired`. Creation decrements
+`products.stock_quantity` and writes `reserved` in the booking transaction. Completion consumes the
+reservation; cancellation, no-show, and expiry restore stock exactly once through guarded
+reservation transitions.
 
 ## 3. Customer entry and identity flow
 
@@ -124,10 +128,10 @@ visible in development and test builds, or only when
 
 ## 4. Booking without required prepayment
 
-1. Customer selects available items and quantities.
+1. Customer selects available items and quantities and enters the required name and telephone number.
 2. UI checks visible stock and calculates a display subtotal.
 3. Customer may optionally choose checkout for all items or place the reservation unpaid.
-4. `POST /orders` reloads organization, active queue, products, prices, ownership, and stock.
+4. `POST /orders` reloads organization, an open queue, products, prices, ownership, and stock.
 5. In one transaction the API increments the ticket counter, creates optional booking group, queue entry with any verified LINE recipient, order, items, stock reservations, and location/alert if supplied.
 6. On success the UI stores a local booking record and navigates to `/liff/tickets/:entryId` in LIFF or `/ticket/:entryId` in the public fallback.
 7. Any transaction error rolls back all database writes.
@@ -135,26 +139,43 @@ visible in development and test builds, or only when
 ## 5. Booking with required prepayment
 
 1. Selection includes one or more `requires_prepayment` items.
-2. The booking action explains that those items must be paid and opens one checkout flow.
+2. The single booking action validates customer details and opens one checkout flow.
 3. Checkout offers two scopes: `required_items` or `all_items`.
 4. API creates a server-side payment intent and `payment_transactions` row with server-computed coverage.
 5. Demo provider completes with a server-signed token; future external providers redirect to PSP checkout and return via signed webhook/server verification.
 6. Browser returns to the booking page with its session draft preserved and only the verified `transactionId` stored locally.
-7. Order request includes the `transactionId` only.
-8. API reloads product data, loads the paid transaction, checks tenant, unused state, amount, cart metadata, and required prepayment coverage.
-9. API links the transaction to the order and marks covered order items paid.
-10. Full coverage marks the order paid; required-only coverage leaves the order unpaid for later staff collection.
+7. The booking page consumes the payment continuation once and automatically creates the order;
+   no second booking-button click is required.
+8. Order request includes the `transactionId` only.
+9. API reloads product data, loads the paid transaction, checks tenant, unused state, amount, cart metadata, and required prepayment coverage.
+10. API links the transaction to the order and marks covered order items paid.
+11. If the covered items equal the full cart, the order is paid even when checkout used the
+    `required_items` option. A mixed cart remains unpaid only while an uncovered balance exists.
+12. After order creation succeeds, the frontend synchronously removes the completed cart draft,
+    checkout session, and paid transaction reference before opening the ticket. Booking history is
+    retained separately.
 
 Production invariant: a browser return cannot establish payment. Only the server's verified provider state may produce a paid transaction that order creation can consume.
+
+Payment intent creation also requires an open queue. The customer UI disables payment and booking
+when no queue is accepting customers, and the API independently returns
+`QUEUE_NOT_ACCEPTING`. This prevents payment when the organization cannot issue a ticket. Order
+creation locks both the selected queue and any referenced payment transaction before attaching the
+transaction, so the same verified payment cannot create two bookings under concurrent requests.
 
 ## 6. Repeat/additional booking flow
 
 1. Browser creates a stable local device key and a booking-group UUID.
 2. First reservation creates an independent order/ticket and optionally the server booking group.
-3. A later reservation creates another independent order/ticket using the same group ID.
+3. A later reservation starts with a clean cart/payment attempt and creates another independent
+   order/ticket using the same group ID.
 4. The authenticated customer history API resolves the group by internal user identity, supports pagination across devices, and returns each order/ticket independently.
 5. Tenant staff may inspect a related group from the staff workspace; customer ownership and staff organization scope are enforced server-side.
 6. Cancellation, queue state, item/payment records, and receipts remain per order.
+
+A paid transaction can be attached to only one order. Legacy browser state that references an
+already attached transaction is discarded, the cart remains available for a new checkout, and the
+API returns the stable `PAYMENT_ALREADY_USED` conflict code.
 
 Anonymous browser drafts may still use a local grouping key, but cross-device history requires authenticated LINE/system identity.
 
@@ -162,11 +183,23 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
 
 1. Staff authenticates and the API resolves active organization membership.
 2. `/staff/my-queue` selects an organization queue with waiting/called/serving activity (falling back to the first active queue), returns at most the next eight active entries for the board, exposes separate total-active and waiting counts, and includes order details and authenticated customer email when available.
-3. Calling next atomically selects/transitions the next eligible waiting entry.
+3. Completion atomically transitions the current service to `served` and calls the next eligible
+   waiting entry when no other ticket is already `called`; the Staff UI therefore has no manual
+   call-next control.
 4. The queue transition and LINE outbox row, including resolved locale, are written in the same transaction; a worker sends the localized message after commit.
-5. Staff starts service, completes, marks no-show, or cancels through guarded transitions; each successful completion or no-show records the authenticated operator in `queue_histories.actor_id` and enqueues a LINE push intent when the ticket has a verified recipient.
-6. Staff updates order/payment status manually as needed.
+5. Staff starts service, completes, marks no-show, cancels, or moves a called late arrival behind
+   everyone currently waiting through guarded transitions. Defer preserves the ticket code and calls
+   the next waiting customer when one exists.
+6. Staff can collect an outstanding balance. The API creates an audited manual payment transaction
+   for unpaid items, reconciles item payment states, and marks the order paid only when no unpaid
+   item remains.
 7. Receipt printing is available after the applicable payment success state.
+8. Related booking groups are historical associations, but the Staff working context filters them
+   to tickets in `waiting`, `called`, or `serving`.
+
+Customer and operator cancellation refund every remaining collected amount before the cancellation
+transaction commits. Each transaction uses a deterministic reconciliation key, so retries cannot
+refund twice. No-show remains a separate business outcome and does not imply an automatic refund.
 
 Notification delivery failure is non-transactional and cannot reverse a queue transition. Failed delivery is retried through the durable outbox until the configured attempt limit is reached.
 

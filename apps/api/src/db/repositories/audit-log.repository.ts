@@ -20,7 +20,7 @@ export interface AuditLogRow {
 
 export interface CreateAuditLogParams {
   actorId?: string;
-  actorType?: 'user' | 'staff' | 'system' | 'webhook' | 'cron';
+  actorType?: 'user' | 'system' | 'line_webhook' | 'scheduler';
   action: string;
   resourceType: string;
   resourceId?: string;

@@ -13,7 +13,9 @@ import {
 } from '../../../db/repositories/queue-entries.repository';
 import { QueueRow, queuesRepository } from '../../../db/repositories/queues.repository';
 import { withTransaction } from '../../../db/transaction';
+import { inventoryService } from '../../inventory/inventory.service';
 import { queueNotificationService } from '../../notifications/queue-notification.service';
+import { paymentsService } from '../../payments/payments.service';
 import { queueService } from '../../queue/queue.service';
 import { staffService } from '../staff.service';
 
@@ -23,9 +25,18 @@ jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/repositories/audit-log.repository');
 jest.mock('../../../db/transaction');
+jest.mock('../../inventory/inventory.service');
 jest.mock('../../notifications/queue-notification.service', () => ({
   queueNotificationService: {
     notifyTicketCancelled: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+jest.mock('../../payments/payments.service', () => ({
+  paymentsService: {
+    refundOrderOnCancellationInClient: jest.fn().mockResolvedValue({
+      refundedAmount: 0,
+      transactionCount: 0,
+    }),
   },
 }));
 jest.mock('../../queue/queue.service');
@@ -79,6 +90,9 @@ const mockServeTicket = queueService.serveTicket as jest.MockedFunction<
 >;
 const mockCompleteTicket = queueService.completeTicket as jest.MockedFunction<
   typeof queueService.completeTicket
+>;
+const mockDeferCalledTicket = queueService.deferCalledTicket as jest.MockedFunction<
+  typeof queueService.deferCalledTicket
 >;
 const mockNoShowTicket = queueService.noShowTicket as jest.MockedFunction<
   typeof queueService.noShowTicket
@@ -158,8 +172,11 @@ beforeEach(() => {
   mockFindQueueById.mockResolvedValue(baseQueue);
   mockCountWaitingEntries.mockResolvedValue(0);
   mockCountActiveEntries.mockResolvedValue(0);
-  mockWithTransaction.mockImplementation(async (fn) => fn({} as never));
+  mockWithTransaction.mockImplementation(async (fn) =>
+    fn({ query: jest.fn().mockResolvedValue({ rows: [] }) } as never)
+  );
   mockNotifyTicketCancelled.mockResolvedValue(undefined);
+  jest.mocked(inventoryService.releaseOrder).mockResolvedValue(0);
 });
 
 // ── getQueueOverview ───────────────────────────────────────────────────────────
@@ -259,6 +276,22 @@ describe('staffService.complete', () => {
   });
 });
 
+describe('staffService.deferCalled', () => {
+  it('moves the called ticket back through queueService', async () => {
+    const deferred = { ...baseEntry, status: 'waiting' };
+    mockDeferCalledTicket.mockResolvedValue(deferred);
+
+    const result = await staffService.deferCalled(ENTRY_ID, ACTOR_ID, baseQueue.organization_id);
+
+    expect(result.status).toBe('waiting');
+    expect(mockDeferCalledTicket).toHaveBeenCalledWith({
+      entryId: ENTRY_ID,
+      actorUserId: ACTOR_ID,
+      actorOrganizationId: baseQueue.organization_id,
+    });
+  });
+});
+
 // ── markNoShow ────────────────────────────────────────────────────────────────
 
 describe('staffService.markNoShow', () => {
@@ -310,6 +343,23 @@ describe('staffService.cancelEntry', () => {
     const result = await staffService.cancelEntry(ENTRY_ID, ACTOR_ID);
 
     expect(result.status).toBe('cancelled');
+  });
+
+  it('automatically refunds collected payment when cancelling an ordered entry', async () => {
+    const orderedEntry = { ...baseEntry, order_id: 'order-1' };
+    const cancelled = { ...orderedEntry, status: 'cancelled' };
+    mockFindEntryById.mockResolvedValue(orderedEntry);
+    mockMarkCancelled.mockResolvedValue(cancelled);
+
+    await staffService.cancelEntry(ENTRY_ID, ACTOR_ID, baseQueue.organization_id);
+
+    expect(paymentsService.refundOrderOnCancellationInClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: 'order-1',
+        organizationId: baseQueue.organization_id,
+        actorId: ACTOR_ID,
+      })
+    );
   });
 
   it('throws 404 when entry not found', async () => {
