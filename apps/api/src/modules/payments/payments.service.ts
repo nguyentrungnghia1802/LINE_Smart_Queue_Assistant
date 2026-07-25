@@ -439,6 +439,43 @@ export const paymentsService = {
       if (order.organization_id !== params.organizationId) throw AppError.forbidden();
 
       let transaction = await paymentTransactionsRepository.findLatestByOrder(order.id, client);
+      let createdManualBalance = false;
+
+      if (params.status === 'paid' && order.payment_status !== 'paid') {
+        const itemResult = await client.query<{
+          product_id: string;
+          subtotal: string;
+          prepaid_amount: string;
+          payment_status: string;
+        }>(
+          `SELECT product_id, subtotal, prepaid_amount, payment_status
+           FROM order_items
+           WHERE order_id = $1
+             AND payment_status <> 'paid'::payment_status
+           ORDER BY product_id
+           FOR UPDATE`,
+          [order.id]
+        );
+        if (itemResult.rows.length > 0) {
+          const outstandingAmount = itemResult.rows.reduce(
+            (sum, item) =>
+              sum + Math.max(0, amountNumber(item.subtotal) - amountNumber(item.prepaid_amount)),
+            0
+          );
+          transaction = await paymentTransactionsRepository.createManual(
+            {
+              organizationId: order.organization_id,
+              orderId: order.id,
+              amount: outstandingAmount,
+              method: 'cash_or_terminal',
+              coveredProductIds: itemResult.rows.map((item) => item.product_id),
+            },
+            client
+          );
+          createdManualBalance = true;
+        }
+      }
+
       if (!transaction) {
         if (params.status === 'refunded' && order.payment_status !== 'paid') {
           throw AppError.conflict('A paid transaction is required before refund');
@@ -496,11 +533,12 @@ export const paymentsService = {
           orderId: order.id,
           actorId: params.actorId,
           source: 'manual',
-          operationType:
-            params.status === 'refunded' && effectiveStatus === 'paid'
+          operationType: createdManualBalance
+            ? 'manual_balance_payment'
+            : params.status === 'refunded' && effectiveStatus === 'paid'
               ? 'partial_refund'
               : 'manual_state_transition',
-          fromStatus: transaction.status,
+          fromStatus: createdManualBalance ? order.payment_status : transaction.status,
           toStatus: effectiveStatus,
           amount: params.status === 'refunded' ? refundAmount : total,
           idempotencyKey: params.idempotencyKey,
@@ -552,10 +590,21 @@ export const paymentsService = {
       [transaction.id, Array.from(coveredProductIds), paid, transaction.order_id]
     );
 
-    if (paid && metadata.scope === 'all_items') {
-      await client.query(`UPDATE orders SET payment_status = 'paid' WHERE id = $1`, [
-        transaction.order_id,
-      ]);
+    if (paid) {
+      await client.query(
+        `UPDATE orders
+         SET payment_status = CASE
+           WHEN EXISTS (
+             SELECT 1
+             FROM order_items
+             WHERE order_id = $1
+               AND payment_status <> 'paid'::payment_status
+           ) THEN 'unpaid'::payment_status
+           ELSE 'paid'::payment_status
+         END
+         WHERE id = $1`,
+        [transaction.order_id]
+      );
     }
 
     if (refundedAmount > 0) {

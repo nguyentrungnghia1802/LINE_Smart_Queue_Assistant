@@ -17,6 +17,7 @@ import { notificationOutboxRepository } from '../notifications/notification-outb
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { paymentsService } from '../payments/payments.service';
 
+import { resolveOrderPaymentStatus } from './orders.payment';
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
 
 interface OrderActorIdentity {
@@ -165,8 +166,11 @@ export const ordersService = {
       throw AppError.badRequest('Payment transaction amount does not cover selected items');
     }
 
-    const isFullyPaid = paymentMetadata?.scope === 'all_items' && paidSubtotal >= subtotal;
-    const orderPaymentStatus = isFullyPaid ? 'paid' : 'unpaid';
+    const orderPaymentStatus = resolveOrderPaymentStatus(
+      paymentTransaction !== null,
+      paidSubtotal,
+      subtotal
+    );
 
     // Create queue entry + order + items in a transaction
     const client = await pool.connect();

@@ -170,7 +170,7 @@ describe('paymentsService', () => {
     expect(resolveRefundState(1500, 1500)).toEqual({ status: 'refunded', refundedAmount: 1500 });
   });
 
-  it('reconciles paid all-item transactions to order and item payment state', async () => {
+  it('reconciles paid transactions to item state and derives the order state from all items', async () => {
     const query = jest.fn().mockResolvedValue({ rows: [] });
     await paymentsService.reconcileTransactionInClient(
       {
@@ -194,6 +194,107 @@ describe('paymentsService', () => {
     expect(query).toHaveBeenCalledWith(expect.stringContaining('UPDATE orders'), [
       '33333333-3333-4333-8333-333333333333',
     ]);
+  });
+
+  it('creates a manual balance transaction after required-item prepayment', async () => {
+    const orderId = '33333333-3333-4333-8333-333333333333';
+    const actorId = '55555555-5555-4555-8555-555555555555';
+    const client = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: orderId,
+              organization_id: org.id,
+              subtotal: '2000.00',
+              payment_status: 'unpaid',
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              product_id: normalProduct.id,
+              subtotal: '500.00',
+              prepaid_amount: '0.00',
+              payment_status: 'unpaid',
+            },
+          ],
+        })
+        .mockResolvedValue({ rows: [] }),
+      release: jest.fn(),
+    };
+    const prepaidTransaction = {
+      ...baseTransaction,
+      order_id: orderId,
+      status: 'paid',
+      metadata: {
+        scope: 'required_items',
+        coveredProductIds: [prepaidProduct.id],
+      },
+    };
+    const balanceTransaction = {
+      ...baseTransaction,
+      id: '66666666-6666-4666-8666-666666666666',
+      order_id: orderId,
+      provider: 'manual',
+      method: 'cash_or_terminal',
+      status: 'paid',
+      amount: '500.00',
+      metadata: {
+        scope: 'all_items',
+        coveredProductIds: [normalProduct.id],
+      },
+    };
+
+    jest.mocked(pool.connect).mockResolvedValue(client as never);
+    jest
+      .mocked(paymentTransactionsRepository.findLatestByOrder)
+      .mockResolvedValue(prepaidTransaction as never);
+    jest
+      .mocked(paymentTransactionsRepository.createManual)
+      .mockResolvedValue(balanceTransaction as never);
+    jest.mocked(paymentTransactionsRepository.recordReconciliation).mockResolvedValue(true);
+    jest
+      .mocked(paymentTransactionsRepository.updateStatus)
+      .mockResolvedValue(balanceTransaction as never);
+    const reconcileSpy = jest
+      .spyOn(paymentsService, 'reconcileTransactionInClient')
+      .mockResolvedValue(undefined);
+
+    const result = await paymentsService.manualReconcileOrder({
+      orderId,
+      organizationId: org.id,
+      actorId,
+      status: 'paid',
+      idempotencyKey: 'collect-order-balance',
+    });
+
+    expect(paymentTransactionsRepository.createManual).toHaveBeenCalledWith(
+      {
+        organizationId: org.id,
+        orderId,
+        amount: 500,
+        method: 'cash_or_terminal',
+        coveredProductIds: [normalProduct.id],
+      },
+      client
+    );
+    expect(paymentTransactionsRepository.recordReconciliation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operationType: 'manual_balance_payment',
+        fromStatus: 'unpaid',
+        toStatus: 'paid',
+        amount: 500,
+      }),
+      client
+    );
+    expect(reconcileSpy).toHaveBeenCalledWith(balanceTransaction, client);
+    expect(result.status).toBe('paid');
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
+    reconcileSpy.mockRestore();
   });
 
   it('casts refund states to the PostgreSQL payment_status enum', async () => {

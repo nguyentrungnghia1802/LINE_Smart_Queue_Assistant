@@ -178,7 +178,12 @@ Staff transition endpoints validate UUID path parameters and do not require a re
 | GET    | `/api/v1/orders/stats`       | Manager/admin                                               | Tenant order statistics                              |
 | GET    | `/api/v1/orders/:id`         | Staff/manager/admin                                         | Order detail                                         |
 | PATCH  | `/api/v1/orders/:id/status`  | Staff/manager/admin                                         | Set processing/completed/cancelled                   |
-| PATCH  | `/api/v1/orders/:id/payment` | Staff/manager/admin, idempotent                             | Manually set unpaid/paid summary                     |
+| PATCH  | `/api/v1/orders/:id/payment` | Staff/manager/admin, idempotent                             | Collect outstanding balance or record refund         |
+
+Order payment summary is derived from item coverage. A verified `required_items` transaction marks
+the order paid when those items are the entire cart. For a mixed cart, Staff payment confirmation
+creates an audited manual transaction for the remaining unpaid items; reconciliation then marks the
+order paid and repeated UI confirmation is disabled.
 
 Important `POST /orders` request fields:
 
