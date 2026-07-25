@@ -33,7 +33,7 @@ export const productsService = {
     if (audit) {
       await auditLogRepository.create({
         actorId: audit.actorUserId,
-        actorType: 'staff',
+        actorType: 'user',
         action: 'product.create',
         resourceType: 'product',
         resourceId: product.id,
@@ -51,13 +51,31 @@ export const productsService = {
     const product = await productsRepository.findById(id);
     if (!product) throw AppError.notFound('Product not found');
     if (product.organization_id !== orgId) throw AppError.forbidden();
-    const updated = await productsRepository.update(id, dto);
+    if (
+      (dto.requiresPrepayment ?? product.requires_prepayment) &&
+      (dto.price ?? Number(product.price)) <= 0
+    ) {
+      throw AppError.unprocessable('Prepaid products must have a price greater than zero', {
+        fieldErrors: { price: ['Prepaid products must have a price greater than zero'] },
+      });
+    }
+    const nextProductType = dto.productType ?? product.product_type;
+    if (nextProductType === 'service' && dto.stockQuantity !== undefined) {
+      throw AppError.unprocessable('Services must use unlimited stock', {
+        fieldErrors: { stockQuantity: ['Services must use unlimited stock'] },
+      });
+    }
+    const normalizedDto = {
+      ...dto,
+      ...(nextProductType === 'service' ? { stockQuantity: null } : {}),
+    };
+    const updated = await productsRepository.update(id, normalizedDto);
     if (!updated) throw AppError.notFound('Product not found');
 
     if (audit) {
       await auditLogRepository.create({
         actorId: audit.actorUserId,
-        actorType: 'staff',
+        actorType: 'user',
         action: 'product.update',
         resourceType: 'product',
         resourceId: id,
@@ -80,7 +98,7 @@ export const productsService = {
     if (audit) {
       await auditLogRepository.create({
         actorId: audit.actorUserId,
-        actorType: 'staff',
+        actorType: 'user',
         action: 'product.delete',
         resourceType: 'product',
         resourceId: id,

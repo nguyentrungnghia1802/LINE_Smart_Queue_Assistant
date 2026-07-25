@@ -20,6 +20,7 @@ export function CreateQueuePage() {
     name: '',
     description: '',
     prefix: '',
+    status: 'open',
     maxCapacity: '',
     avgServiceTimeMinutes: '',
     autoNoShowMinutes: '',
@@ -42,13 +43,14 @@ export function CreateQueuePage() {
         orgId: user.organizationId,
         name: form.name,
         description: form.description || undefined,
+        status: form.status,
         prefix: form.prefix || undefined,
         maxCapacity: form.maxCapacity ? parseInt(form.maxCapacity) : undefined,
         avgServiceMs: form.avgServiceTimeMinutes
           ? parseInt(form.avgServiceTimeMinutes) * 60 * 1000
           : undefined,
       });
-      navigate(`/queues/${queue.id}`);
+      navigate(`/manager/queues/${queue.id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('queue.createFailed'));
     } finally {
@@ -59,7 +61,7 @@ export function CreateQueuePage() {
   return (
     <div className="max-w-lg mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Link to="/queues" className="text-gray-400 hover:text-gray-600 text-sm">
+        <Link to="/manager/queues" className="text-gray-400 hover:text-gray-600 text-sm">
           ← {t('nav.queue', { ns: 'common' })}
         </Link>
         <span className="text-gray-300">/</span>
@@ -89,6 +91,18 @@ export function CreateQueuePage() {
             onChange={(e) => set('description', e.target.value)}
             className={inputCls}
           />
+        </Field>
+
+        <Field label={t('labels.status', { ns: 'common' })}>
+          <select
+            value={form.status}
+            onChange={(e) => set('status', e.target.value)}
+            className={inputCls}
+          >
+            <option value="open">{t('queue.open')}</option>
+            <option value="paused">{t('states.paused', { ns: 'common' })}</option>
+            <option value="closed">{t('states.closed', { ns: 'common' })}</option>
+          </select>
         </Field>
 
         <div className="grid grid-cols-2 gap-4">
@@ -141,7 +155,7 @@ export function CreateQueuePage() {
 
         <div className="flex gap-3 pt-2">
           <Link
-            to="/queues"
+            to="/manager/queues"
             className="flex-1 text-center border border-gray-300 text-gray-700 font-medium py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors"
           >
             {t('actions.cancel', { ns: 'common' })}

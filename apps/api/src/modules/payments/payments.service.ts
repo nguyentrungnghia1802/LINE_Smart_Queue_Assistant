@@ -5,6 +5,7 @@ import type { PaymentTransactionRow } from '../../db/repositories/orders.reposit
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { paymentTransactionsRepository } from '../../db/repositories/payment-transactions.repository';
 import { productsRepository } from '../../db/repositories/products.repository';
+import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
 
 import { getPaymentProvider } from './payment-provider.registry';
@@ -118,6 +119,10 @@ export const paymentsService = {
   async createIntent(dto: CreatePaymentIntentDto) {
     const org = await organizationsRepository.findBySlug(dto.orgSlug);
     if (!org) throw AppError.notFound('Organization');
+    const openQueues = await queuesRepository.findOpenByOrg(org.id);
+    if (openQueues.length === 0) {
+      throw new AppError('No queue is currently accepting bookings', 409, 'QUEUE_NOT_ACCEPTING');
+    }
 
     const rows = await loadIntentProducts(org.id, dto.items);
     const coveredProductIds = resolveCoveredProductIds(dto.scope, rows);
@@ -434,6 +439,43 @@ export const paymentsService = {
       if (order.organization_id !== params.organizationId) throw AppError.forbidden();
 
       let transaction = await paymentTransactionsRepository.findLatestByOrder(order.id, client);
+      let createdManualBalance = false;
+
+      if (params.status === 'paid' && order.payment_status !== 'paid') {
+        const itemResult = await client.query<{
+          product_id: string;
+          subtotal: string;
+          prepaid_amount: string;
+          payment_status: string;
+        }>(
+          `SELECT product_id, subtotal, prepaid_amount, payment_status
+           FROM order_items
+           WHERE order_id = $1
+             AND payment_status <> 'paid'::payment_status
+           ORDER BY product_id
+           FOR UPDATE`,
+          [order.id]
+        );
+        if (itemResult.rows.length > 0) {
+          const outstandingAmount = itemResult.rows.reduce(
+            (sum, item) =>
+              sum + Math.max(0, amountNumber(item.subtotal) - amountNumber(item.prepaid_amount)),
+            0
+          );
+          transaction = await paymentTransactionsRepository.createManual(
+            {
+              organizationId: order.organization_id,
+              orderId: order.id,
+              amount: outstandingAmount,
+              method: 'cash_or_terminal',
+              coveredProductIds: itemResult.rows.map((item) => item.product_id),
+            },
+            client
+          );
+          createdManualBalance = true;
+        }
+      }
+
       if (!transaction) {
         if (params.status === 'refunded' && order.payment_status !== 'paid') {
           throw AppError.conflict('A paid transaction is required before refund');
@@ -491,11 +533,12 @@ export const paymentsService = {
           orderId: order.id,
           actorId: params.actorId,
           source: 'manual',
-          operationType:
-            params.status === 'refunded' && effectiveStatus === 'paid'
+          operationType: createdManualBalance
+            ? 'manual_balance_payment'
+            : params.status === 'refunded' && effectiveStatus === 'paid'
               ? 'partial_refund'
               : 'manual_state_transition',
-          fromStatus: transaction.status,
+          fromStatus: createdManualBalance ? order.payment_status : transaction.status,
           toStatus: effectiveStatus,
           amount: params.status === 'refunded' ? refundAmount : total,
           idempotencyKey: params.idempotencyKey,
@@ -528,6 +571,77 @@ export const paymentsService = {
     }
   },
 
+  async refundOrderOnCancellationInClient(params: {
+    orderId: string;
+    organizationId: string;
+    actorId?: string;
+    reason: string;
+    client: import('pg').PoolClient;
+  }): Promise<{ refundedAmount: number; transactionCount: number }> {
+    const orderResult = await params.client.query<{
+      id: string;
+      organization_id: string;
+    }>(
+      `SELECT id, organization_id
+       FROM orders
+       WHERE id = $1
+       FOR UPDATE`,
+      [params.orderId]
+    );
+    const order = orderResult.rows[0];
+    if (!order) throw AppError.notFound('Order');
+    if (order.organization_id !== params.organizationId) throw AppError.forbidden();
+
+    const transactions = await paymentTransactionsRepository.findRefundableByOrderForUpdate(
+      params.orderId,
+      params.client
+    );
+    let refundedAmount = 0;
+    let transactionCount = 0;
+
+    for (const transaction of transactions) {
+      const amount = amountNumber(transaction.amount);
+      const alreadyRefunded = amountNumber(transaction.refunded_amount ?? 0);
+      const remainingRefund = Math.max(0, amount - alreadyRefunded);
+      if (remainingRefund === 0) continue;
+
+      const idempotencyKey = `automatic-cancellation-refund:${params.orderId}:${transaction.id}`;
+      const inserted = await paymentTransactionsRepository.recordReconciliation(
+        {
+          organizationId: params.organizationId,
+          transactionId: transaction.id,
+          orderId: params.orderId,
+          actorId: params.actorId,
+          source: 'reconciliation',
+          operationType: 'automatic_cancellation_refund',
+          fromStatus: transaction.status,
+          toStatus: 'refunded',
+          amount: remainingRefund,
+          idempotencyKey,
+          reason: params.reason,
+        },
+        params.client
+      );
+      if (!inserted) continue;
+
+      const updated = await paymentTransactionsRepository.updateStatus(
+        transaction.id,
+        {
+          status: 'refunded',
+          refundedAmount: amount,
+          rawPayload: { source: 'automatic_cancellation' },
+        },
+        params.client
+      );
+      if (!updated) throw AppError.notFound('Payment transaction');
+      await this.reconcileTransactionInClient(updated, params.client);
+      refundedAmount += remainingRefund;
+      transactionCount += 1;
+    }
+
+    return { refundedAmount, transactionCount };
+  },
+
   async reconcileTransactionInClient(
     transaction: PaymentTransactionRow,
     client: import('pg').PoolClient
@@ -547,10 +661,21 @@ export const paymentsService = {
       [transaction.id, Array.from(coveredProductIds), paid, transaction.order_id]
     );
 
-    if (paid && metadata.scope === 'all_items') {
-      await client.query(`UPDATE orders SET payment_status = 'paid' WHERE id = $1`, [
-        transaction.order_id,
-      ]);
+    if (paid) {
+      await client.query(
+        `UPDATE orders
+         SET payment_status = CASE
+           WHEN EXISTS (
+             SELECT 1
+             FROM order_items
+             WHERE order_id = $1
+               AND payment_status <> 'paid'::payment_status
+           ) THEN 'unpaid'::payment_status
+           ELSE 'paid'::payment_status
+         END
+         WHERE id = $1`,
+        [transaction.order_id]
+      );
     }
 
     if (refundedAmount > 0) {
@@ -583,13 +708,24 @@ export const paymentsService = {
       }
       await client.query(
         `UPDATE orders
-         SET refunded_amount = $2,
+         SET refunded_amount = payment_totals.refunded_amount,
              payment_status = CASE
-               WHEN $2 >= subtotal AND $3 = 'all_items' THEN 'refunded'::payment_status
-               ELSE 'paid'::payment_status
+               WHEN payment_totals.prepaid_amount > payment_totals.refunded_amount
+                 THEN 'paid'::payment_status
+               WHEN payment_totals.refunded_amount > 0
+                 THEN 'refunded'::payment_status
+               ELSE 'unpaid'::payment_status
              END
-         WHERE id = $1`,
-        [transaction.order_id, refundedAmount, metadata.scope ?? 'required_items']
+         FROM (
+           SELECT order_id,
+                  COALESCE(SUM(prepaid_amount), 0) AS prepaid_amount,
+                  COALESCE(SUM(refunded_amount), 0) AS refunded_amount
+           FROM order_items
+           WHERE order_id = $1
+           GROUP BY order_id
+         ) AS payment_totals
+         WHERE orders.id = payment_totals.order_id`,
+        [transaction.order_id]
       );
     }
   },

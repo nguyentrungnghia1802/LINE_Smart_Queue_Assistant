@@ -176,21 +176,25 @@ export function StaffDashboardPage() {
       get<BookingGroup>(`/api/v1/booking-groups/${selectedEntry?.order?.booking_group_id}`),
     enabled: Boolean(selectedEntry?.order?.booking_group_id),
   });
+  const activeRelatedOrders =
+    relatedBookings.data?.orders.filter(
+      (order) => order.ticket && ['waiting', 'called', 'serving'].includes(order.ticket.status)
+    ) ?? [];
 
   const invalidateQueue = () =>
     queryClient.invalidateQueries({ queryKey: ['staff-my-queue', orgId] });
 
   // Queue actions
-  const callNextMutation = useMutation({
-    mutationFn: () => post(`/api/v1/staff/queues/${queueData?.queueId}/call-next`, {}),
-    onSuccess: invalidateQueue,
-  });
   const serveMutation = useMutation({
     mutationFn: (entryId: string) => post(`/api/v1/staff/entries/${entryId}/serve`, {}),
     onSuccess: invalidateQueue,
   });
   const completeMutation = useMutation({
     mutationFn: (entryId: string) => staffApi.complete(entryId),
+    onSuccess: invalidateQueue,
+  });
+  const deferMutation = useMutation({
+    mutationFn: (entryId: string) => staffApi.defer(entryId),
     onSuccess: invalidateQueue,
   });
   const noShowMutation = useMutation({
@@ -203,11 +207,6 @@ export function StaffDashboardPage() {
   });
 
   // Order actions
-  const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      patch(`/api/v1/orders/${id}/status`, { status }),
-    onSuccess: invalidateQueue,
-  });
   const paymentMutation = useMutation({
     mutationFn: ({
       id,
@@ -232,8 +231,8 @@ export function StaffDashboardPage() {
     <div className="flex min-h-[calc(100vh-4rem)] min-w-0 flex-row overflow-hidden bg-[var(--app-bg)]">
       {/* Left sidebar: queue entries */}
       <aside className="flex w-24 shrink-0 flex-col border-r border-gray-200 bg-white sm:w-80">
-        {/* Queue header + Call Next */}
-        <div className="space-y-2 border-b border-gray-100 px-2 py-3 sm:px-4">
+        {/* Queue header */}
+        <div className="border-b border-gray-100 px-2 py-3 sm:px-4">
           <div className="flex items-center justify-center sm:justify-between">
             <h2 className="text-center text-xs font-semibold text-gray-700 sm:text-left sm:text-sm">
               <span className="hidden sm:inline">
@@ -245,24 +244,6 @@ export function StaffDashboardPage() {
               </span>
             </h2>
           </div>
-          <button
-            onClick={() => callNextMutation.mutate()}
-            disabled={
-              callNextMutation.isPending ||
-              !queueData?.queueId ||
-              (queueData?.waitingCount ?? 0) === 0
-            }
-            className="w-full rounded-xl bg-brand-600 px-2 py-2 text-xs font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-40"
-          >
-            <span className="hidden sm:inline">
-              {callNextMutation.isPending
-                ? t('dashboard.calling', { ns: 'staff' })
-                : t('dashboard.callNext', { ns: 'staff' })}
-            </span>
-            <span className="sm:hidden">
-              {callNextMutation.isPending ? '...' : t('dashboard.callShort')}
-            </span>
-          </button>
         </div>
         <div className="flex-1 overflow-hidden">
           {isLoading && (
@@ -407,7 +388,7 @@ export function StaffDashboardPage() {
                           {relatedBookings.isLoading
                             ? t('states.loading', { ns: 'common' })
                             : t('dashboard.relatedBookings', {
-                                count: relatedBookings.data?.orders.length ?? 0,
+                                count: activeRelatedOrders.length,
                               })}
                         </p>
                       </div>
@@ -417,7 +398,7 @@ export function StaffDashboardPage() {
                     </div>
                     {relatedBookings.data && (
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {relatedBookings.data.orders.map((order) => (
+                        {activeRelatedOrders.map((order) => (
                           <span
                             key={order.id}
                             className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-700"
@@ -572,6 +553,19 @@ export function StaffDashboardPage() {
                         >
                           {t('dashboard.noShow')}
                         </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(t('dashboard.deferConfirm'))) {
+                              deferMutation.mutate(selected.id);
+                            }
+                          }}
+                          disabled={deferMutation.isPending}
+                          className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          {deferMutation.isPending
+                            ? t('dashboard.deferring')
+                            : t('dashboard.defer')}
+                        </button>
                       </>
                     )}
                     {selected.status === 'serving' && (
@@ -624,38 +618,6 @@ export function StaffDashboardPage() {
                               {order.payment_status === 'paid'
                                 ? t('states.paid', { ns: 'common' })
                                 : t('dashboard.markPaid', { ns: 'staff' })}
-                            </button>
-                            {order.payment_status === 'paid' && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (confirm(t('dashboard.refundConfirm'))) {
-                                    paymentMutation.mutate({
-                                      id: order.id,
-                                      paymentStatus: 'refunded',
-                                      reason: t('dashboard.refundReason'),
-                                    });
-                                  }
-                                }}
-                                disabled={paymentMutation.isPending}
-                                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                              >
-                                {t('dashboard.refund')}
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (confirm(t('dashboard.cancelOrderConfirm')))
-                                  statusMutation.mutate({
-                                    id: order.id,
-                                    status: 'cancelled',
-                                  });
-                              }}
-                              disabled={statusMutation.isPending}
-                              className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 disabled:opacity-50"
-                            >
-                              {t('dashboard.cancelOrder')}
                             </button>
                           </div>
                         )}

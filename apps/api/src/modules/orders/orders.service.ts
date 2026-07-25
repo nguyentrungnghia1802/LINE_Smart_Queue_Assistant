@@ -9,7 +9,7 @@ import { productsRepository } from '../../db/repositories/products.repository';
 import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
-import { productCatalogCache } from '../../utils/cache';
+import { invalidateProductCatalog } from '../../utils/cache';
 import { etaService } from '../eta/eta.service';
 import { inventoryService } from '../inventory/inventory.service';
 import { locationRepository } from '../location/location.repository';
@@ -17,6 +17,7 @@ import { notificationOutboxRepository } from '../notifications/notification-outb
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { paymentsService } from '../payments/payments.service';
 
+import { assertPaymentTransactionUnused, resolveOrderPaymentStatus } from './orders.payment';
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
 
 interface OrderActorIdentity {
@@ -96,9 +97,10 @@ export const ordersService = {
     const org = await organizationsRepository.findBySlug(dto.orgSlug);
     if (!org) throw AppError.notFound('Organization not found');
 
-    // Load first active queue for this org
-    const queues = await queuesRepository.findActiveByOrg(org.id);
-    if (queues.length === 0) throw AppError.badRequest('No active queue for this organization');
+    const queues = await queuesRepository.findOpenByOrg(org.id);
+    if (queues.length === 0) {
+      throw new AppError('No queue is currently accepting bookings', 409, 'QUEUE_NOT_ACCEPTING');
+    }
     const queue = queues[0];
 
     // Validate + fetch all products
@@ -125,9 +127,7 @@ export const ordersService = {
       if (paymentTransaction.organization_id !== org.id) {
         throw AppError.badRequest('Payment transaction does not belong to this organization');
       }
-      if (paymentTransaction.order_id) {
-        throw AppError.conflict('Payment transaction has already been used');
-      }
+      assertPaymentTransactionUnused(paymentTransaction.order_id);
       if (paymentTransaction.status !== 'paid') {
         throw AppError.badRequest('Payment transaction has not been verified as paid');
       }
@@ -164,8 +164,11 @@ export const ordersService = {
       throw AppError.badRequest('Payment transaction amount does not cover selected items');
     }
 
-    const isFullyPaid = paymentMetadata?.scope === 'all_items' && paidSubtotal >= subtotal;
-    const orderPaymentStatus = isFullyPaid ? 'paid' : 'unpaid';
+    const orderPaymentStatus = resolveOrderPaymentStatus(
+      paymentTransaction !== null,
+      paidSubtotal,
+      subtotal
+    );
 
     // Create queue entry + order + items in a transaction
     const client = await pool.connect();
@@ -174,12 +177,29 @@ export const ordersService = {
 
       const lockedQueue = await queuesRepository.lockById(queue.id, client);
       if (!lockedQueue || lockedQueue.status !== 'open') {
-        throw AppError.conflict('Queue is not accepting entries');
+        throw new AppError('Queue is not accepting entries', 409, 'QUEUE_NOT_ACCEPTING');
       }
       if (lockedQueue.max_capacity !== null) {
         const activeCount = await queuesRepository.countWaiting(queue.id, client);
         if (activeCount >= lockedQueue.max_capacity) {
           throw AppError.conflict('Queue is at full capacity');
+        }
+      }
+
+      if (paymentTransaction) {
+        const lockedPayment = await paymentTransactionsRepository.findByIdForUpdate(
+          paymentTransaction.id,
+          client
+        );
+        if (!lockedPayment) {
+          throw AppError.badRequest('Verified payment transaction was not found');
+        }
+        if (lockedPayment.organization_id !== org.id) {
+          throw AppError.badRequest('Payment transaction does not belong to this organization');
+        }
+        assertPaymentTransactionUnused(lockedPayment.order_id);
+        if (lockedPayment.status !== 'paid') {
+          throw AppError.badRequest('Payment transaction has not been verified as paid');
         }
       }
 
@@ -360,8 +380,7 @@ export const ordersService = {
       );
 
       await client.query('COMMIT');
-      productCatalogCache.invalidate(`org:${org.id}`);
-      productCatalogCache.invalidate(`slug:${org.slug}`);
+      invalidateProductCatalog(org.id);
       return { order: linkedOrder, entry: linkedEntry };
     } catch (err) {
       await client.query('ROLLBACK');
@@ -371,10 +390,25 @@ export const ordersService = {
     }
   },
 
-  async updateStatus(id: string, orgId: string, dto: UpdateOrderStatusDto) {
+  async updateStatus(
+    id: string,
+    orgId: string,
+    dto: UpdateOrderStatusDto,
+    actor: { userId: string; role: string }
+  ) {
     const order = await ordersRepository.findById(id);
     if (!order) throw AppError.notFound('Order not found');
     if (order.organization_id !== orgId) throw AppError.forbidden();
+    if (dto.status === 'cancelled') {
+      return this.cancelByOrderId(id, {
+        userId: actor.userId,
+        role: actor.role,
+        organizationId: orgId,
+      });
+    }
+    if (dto.status === 'completed' && order.queue_entry_id) {
+      throw AppError.conflict('Complete the linked queue entry instead');
+    }
     const updated = await ordersRepository.updateStatus(id, dto.status);
     if (!updated) throw AppError.notFound('Order not found');
     return updated;
@@ -441,24 +475,37 @@ export const ordersService = {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      const linkedEntry = order.queue_entry_id
+        ? await queueEntriesRepository.findById(order.queue_entry_id, client)
+        : null;
+      if (linkedEntry && !['waiting', 'called'].includes(linkedEntry.status)) {
+        throw AppError.conflict(
+          `Order cannot be cancelled while queue entry is '${linkedEntry.status}'`
+        );
+      }
+
+      await paymentsService.refundOrderOnCancellationInClient({
+        orderId,
+        organizationId: order.organization_id,
+        actorId: resolvedActor.userId,
+        reason: isOperator ? 'Order cancelled by operator' : 'Order cancelled by customer',
+        client,
+      });
       const updated = await ordersRepository.updateStatus(orderId, 'cancelled', client);
       if (!updated) throw AppError.notFound('Order not found');
       await inventoryService.releaseOrder(orderId, client, 'order_cancelled', resolvedActor.userId);
 
-      if (order.queue_entry_id) {
-        const linkedEntry = await queueEntriesRepository.findById(order.queue_entry_id, client);
-        if (linkedEntry && ['waiting', 'called'].includes(linkedEntry.status)) {
-          const cancelledEntry = await queueEntriesRepository.markCancelled(
-            order.queue_entry_id,
-            client
-          );
-          await queueNotificationService.notifyTicketCancelled(
-            cancelledEntry,
-            { organizationId: order.organization_id },
-            notificationOutboxRepository,
-            client
-          );
-        }
+      if (linkedEntry && order.queue_entry_id) {
+        const cancelledEntry = await queueEntriesRepository.markCancelled(
+          order.queue_entry_id,
+          client
+        );
+        await queueNotificationService.notifyTicketCancelled(
+          cancelledEntry,
+          { organizationId: order.organization_id },
+          notificationOutboxRepository,
+          client
+        );
       }
 
       await client.query('COMMIT');

@@ -57,7 +57,7 @@ export function QRDisplayPage() {
         <p className="text-gray-500 text-sm break-all">{joinUrl}</p>
 
         <Link
-          to={`/queues/${id}`}
+          to={`/manager/queues/${id}`}
           className="inline-block mt-4 text-gray-400 hover:text-white text-sm underline transition-colors"
         >
           ← {t('qr.backToQueue')}

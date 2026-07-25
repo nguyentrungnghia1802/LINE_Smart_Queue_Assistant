@@ -21,7 +21,7 @@ export const orgsService = {
 
     await auditLogRepository.create({
       actorId: audit.actorUserId,
-      actorType: 'staff',
+      actorType: 'user',
       action: 'organization.update_settings',
       resourceType: 'organization',
       resourceId: orgId,
@@ -71,7 +71,7 @@ export const orgsService = {
     );
     await auditLogRepository.create({
       actorId: audit.actorUserId,
-      actorType: 'staff',
+      actorType: 'user',
       action: 'organization.update_business_calendar',
       resourceType: 'organization',
       resourceId: orgId,

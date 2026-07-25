@@ -47,7 +47,7 @@ describe('QueueCard', () => {
   it('links to the queue detail page', () => {
     renderQueueCard();
     const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', '/queues/q-123');
+    expect(link).toHaveAttribute('href', '/manager/queues/q-123');
   });
 
   it('renders the formatted current ticket number', () => {

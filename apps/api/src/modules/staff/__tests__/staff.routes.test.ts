@@ -29,6 +29,7 @@ const mockFindOrganizationById = organizationsRepository.findById as jest.Mocked
   typeof organizationsRepository.findById
 >;
 const mockComplete = staffService.complete as jest.MockedFunction<typeof staffService.complete>;
+const mockDefer = staffService.deferCalled as jest.MockedFunction<typeof staffService.deferCalled>;
 
 function authToken(): string {
   return signToken({ sub: USER_ID, role: UserRole.STAFF, orgId: ORG_ID });
@@ -98,6 +99,27 @@ beforeEach(() => {
     created_at: new Date(),
     updated_at: new Date(),
   });
+  mockDefer.mockResolvedValue({
+    id: ENTRY_ID,
+    queue_id: '55555555-5555-4555-8555-555555555555',
+    user_id: null,
+    order_id: null,
+    line_user_id: null,
+    ticket_number: 4,
+    ticket_code: 'A004',
+    status: 'waiting',
+    priority: 0,
+    position_snapshot: null,
+    called_at: null,
+    serving_started_at: null,
+    served_at: null,
+    skipped_at: null,
+    cancelled_at: null,
+    no_show_at: null,
+    estimated_wait_seconds: null,
+    created_at: new Date(),
+    updated_at: new Date(),
+  });
 });
 
 describe('POST /api/v1/staff/entries/:entryId/complete', () => {
@@ -122,5 +144,20 @@ describe('POST /api/v1/staff/entries/:entryId/complete', () => {
     expect(response.status).toBe(422);
     expect(response.body.error.details.fieldErrors).toHaveProperty('entryId');
     expect(mockComplete).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/v1/staff/entries/:entryId/defer', () => {
+  it('moves a called ticket back without requiring a request body', async () => {
+    const response = await request(app)
+      .post(`/api/v1/staff/entries/${ENTRY_ID}/defer`)
+      .set('Authorization', `Bearer ${authToken()}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      success: true,
+      data: { entry: { id: ENTRY_ID, status: 'waiting' } },
+    });
+    expect(mockDefer).toHaveBeenCalledWith(ENTRY_ID, USER_ID, ORG_ID);
   });
 });

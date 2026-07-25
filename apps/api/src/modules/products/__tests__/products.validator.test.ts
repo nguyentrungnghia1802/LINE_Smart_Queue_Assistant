@@ -49,4 +49,40 @@ describe('CreateProductSchema — productType field', () => {
     const result = CreateProductSchema.safeParse({ ...baseProduct, productType: null });
     expect(result.success).toBe(false);
   });
+
+  it('accepts the same-origin media URL returned by the image upload endpoint', () => {
+    const result = CreateProductSchema.safeParse({
+      ...baseProduct,
+      imageUrl: '/media/product_image/2026-07-25/0d73ca0a-4e0d-4fd7-95f5-21eb6d4ec0d8.webp',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects arbitrary relative paths as product images', () => {
+    const result = CreateProductSchema.safeParse({
+      ...baseProduct,
+      imageUrl: '/images/product.png',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects finite stock for services', () => {
+    const result = CreateProductSchema.safeParse({
+      ...baseProduct,
+      productType: 'service',
+      stockQuantity: 5,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects required prepayment when the price is zero', () => {
+    const result = CreateProductSchema.safeParse({
+      ...baseProduct,
+      price: 0,
+      requiresPrepayment: true,
+    });
+    expect(result.success).toBe(false);
+  });
 });

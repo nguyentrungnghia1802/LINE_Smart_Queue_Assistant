@@ -12,6 +12,7 @@ import { metricsService } from '../../utils/metrics';
 import { inventoryService } from '../inventory/inventory.service';
 import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
+import { paymentsService } from '../payments/payments.service';
 import { queueService } from '../queue/queue.service';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -59,7 +60,7 @@ function auditStaff(
   void auditLogRepository
     .create({
       actorId: actorUserId,
-      actorType: 'staff',
+      actorType: 'user',
       action,
       resourceType,
       resourceId,
@@ -153,6 +154,23 @@ export const staffService = {
     return entry;
   },
 
+  /** Move a called customer behind current waiting customers and advance the queue. */
+  async deferCalled(
+    entryId: string,
+    actorUserId: string,
+    actorOrganizationId?: string
+  ): Promise<QueueEntryRow> {
+    const entry = await queueService.deferCalledTicket({
+      entryId,
+      actorUserId,
+      actorOrganizationId,
+    });
+    auditStaff(actorUserId, 'defer_called', 'queue_entry', entry.id, {
+      ticket: entry.ticket_code,
+    });
+    return entry;
+  },
+
   /**
    * Mark a called ticket as no-show (customer did not appear).
    * Records audit log entry.
@@ -196,6 +214,13 @@ export const staffService = {
     const cancelled = await withTransaction(async (client) => {
       const updated = await queueEntriesRepository.markCancelled(entryId, client);
       if (updated.order_id) {
+        await paymentsService.refundOrderOnCancellationInClient({
+          orderId: updated.order_id,
+          organizationId: queue.organization_id,
+          actorId: actorUserId,
+          reason: 'Queue ticket cancelled by staff',
+          client,
+        });
         await inventoryService.releaseOrder(
           updated.order_id,
           client,
