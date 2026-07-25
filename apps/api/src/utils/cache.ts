@@ -31,6 +31,7 @@ export interface ICache<T> {
   get(key: string): T | null;
   set(key: string, value: T, ttlMs?: number): void;
   invalidate(key: string): void;
+  invalidateByPrefix(prefix: string): void;
   invalidateAll(): void;
 }
 
@@ -64,6 +65,16 @@ export class MemoryCache<T> implements ICache<T> {
    */
   invalidate(key: string): void {
     this.store.delete(key);
+  }
+
+  /**
+   * Remove every entry whose key starts with the supplied prefix.
+   * Useful for locale-aware caches where one domain record has multiple keys.
+   */
+  invalidateByPrefix(prefix: string): void {
+    for (const key of this.store.keys()) {
+      if (key.startsWith(prefix)) this.store.delete(key);
+    }
   }
 
   /**
@@ -123,10 +134,15 @@ export const orgCache = new MemoryCache<OrganizationRow>(5 * 60_000);
 
 /**
  * Product catalog cache — TTL 2 minutes.
- * Key: `org:<orgId>` or `slug:<slug>`. Stores the product array.
+ * Key: `org:<orgId>:<locale>` or `slug:<slug>:<locale>`. Stores the product array.
  * Invalidated on any product create/update/delete for that org.
  */
 export const productCatalogCache = new MemoryCache<ProductRow[]>(2 * 60_000);
+
+export function invalidateProductCatalog(organizationId: string): void {
+  productCatalogCache.invalidateByPrefix(`org:${organizationId}:`);
+  productCatalogCache.invalidateByPrefix('slug:');
+}
 
 /**
  * Queue config cache — TTL 30 seconds.

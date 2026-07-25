@@ -6,6 +6,7 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Fixed manager product create/update/delete by accepting trusted same-origin media paths, aligning authenticated audit actors with the database enum, invalidating locale-aware catalog caches, preserving prepayment selections, returning to the product list after creation, and showing field/delete diagnostics.
 - Restricted QR booking and direct queue admission to guests or customer accounts, added an explicit LIFF customer entry for authenticated business roles, and preserved their existing dashboard session.
 - Fixed manager booking fallback URLs to use configured `WEB_ORIGIN` instead of a legacy localhost default, made legacy queue QR displays LIFF-first, and documented the required production web-image LIFF build arguments.
 - Added a project-specific Docker build, publication, inspection, Compose, health-check, and cleanup runbook for the API and web images.

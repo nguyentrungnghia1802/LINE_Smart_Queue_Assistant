@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { get, patch, post } from '../../services/apiClient';
+import { ApiClientError, get, patch, post } from '../../services/apiClient';
 import { uploadImage } from '../../services/media.api';
 import { useAuthStore } from '../../store/authStore';
 import { compressLogoFile } from '../../utils/compressLogoFile';
@@ -58,12 +58,14 @@ export function ManagerProductFormPage() {
   const orgId = user?.organizationId;
   const [form, setForm] = useState<FormState>(empty);
   const [error, setError] = useState('');
+  const [errorFields, setErrorFields] = useState<string[]>([]);
   const [imageBusy, setImageBusy] = useState(false);
 
   async function handleImage(file: File | undefined) {
     if (!file) return;
     setImageBusy(true);
     setError('');
+    setErrorFields([]);
     try {
       const dataUrl = await compressLogoFile(file);
       const asset = await uploadImage(dataUrl, 'product_image');
@@ -103,15 +105,31 @@ export function ManagerProductFormPage() {
       isEdit ? patch(`/api/v1/products/${id}`, dto) : post(`/api/v1/products`, dto),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['products', orgId] });
-      navigate('/manager/products');
+      if (id) void queryClient.invalidateQueries({ queryKey: ['product', id] });
+      navigate('/manager/products', { replace: true });
     },
-    onError: () => setError(t('products.saveFailed')),
+    onError: (saveError) => {
+      if (saveError instanceof ApiClientError && saveError.code === 'VALIDATION_ERROR') {
+        const fields = getValidationFields(saveError.details);
+        setErrorFields(fields);
+        setError(
+          t('products.validationFailed', {
+            code: saveError.code,
+            fields: fields.map((field) => productFieldLabel(t, field)).join('、'),
+          })
+        );
+        return;
+      }
+
+      setError(saveError instanceof Error ? saveError.message : t('products.saveFailed'));
+    },
   });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    mutation.mutate({
+    setErrorFields([]);
+    const dto: Record<string, unknown> = {
       name: form.name,
       description: form.description || undefined,
       imageUrl: form.imageUrl || undefined,
@@ -121,8 +139,9 @@ export function ManagerProductFormPage() {
       requiresPrepayment: form.requiresPrepayment,
       stockQuantity: form.stockQuantity ? parseInt(form.stockQuantity) : undefined,
       productType: form.productType,
-      isActive: form.isActive,
-    });
+    };
+    if (isEdit) dto.isActive = form.isActive;
+    mutation.mutate(dto);
   }
 
   function field(label: string, input: React.ReactNode) {
@@ -259,7 +278,17 @@ export function ManagerProductFormPage() {
           {t('products.enabled')}
         </label>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && (
+          <div
+            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+            role="alert"
+          >
+            <p className="font-medium">{error}</p>
+            {errorFields.includes('imageUrl') && (
+              <p className="mt-1 text-xs leading-5">{t('products.imageUrlValidationHint')}</p>
+            )}
+          </div>
+        )}
 
         <div className="flex gap-3 pt-2">
           <button
@@ -282,4 +311,25 @@ export function ManagerProductFormPage() {
       </form>
     </div>
   );
+}
+
+function getValidationFields(details: unknown): string[] {
+  if (!details || typeof details !== 'object') return [];
+  const fieldErrors = (details as { fieldErrors?: unknown }).fieldErrors;
+  if (!fieldErrors || typeof fieldErrors !== 'object') return [];
+
+  return Object.keys(fieldErrors as Record<string, unknown>);
+}
+
+function productFieldLabel(t: (key: string) => string, field: string): string {
+  const labels: Record<string, string> = {
+    name: t('products.nameRequired'),
+    imageUrl: t('products.image'),
+    price: t('products.priceYenRequired'),
+    serviceTimeMinutes: t('products.serviceTimeRequired'),
+    maxWaitMinutes: t('products.maxWait'),
+    stockQuantity: t('products.stockOptional'),
+  };
+
+  return labels[field] ?? field;
 }

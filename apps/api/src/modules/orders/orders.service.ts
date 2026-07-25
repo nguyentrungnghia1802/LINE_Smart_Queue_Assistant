@@ -9,7 +9,7 @@ import { productsRepository } from '../../db/repositories/products.repository';
 import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
-import { productCatalogCache } from '../../utils/cache';
+import { invalidateProductCatalog } from '../../utils/cache';
 import { etaService } from '../eta/eta.service';
 import { inventoryService } from '../inventory/inventory.service';
 import { locationRepository } from '../location/location.repository';
@@ -360,8 +360,7 @@ export const ordersService = {
       );
 
       await client.query('COMMIT');
-      productCatalogCache.invalidate(`org:${org.id}`);
-      productCatalogCache.invalidate(`slug:${org.slug}`);
+      invalidateProductCatalog(org.id);
       return { order: linkedOrder, entry: linkedEntry };
     } catch (err) {
       await client.query('ROLLBACK');
