@@ -120,7 +120,15 @@ describe('LiffCustomerJoinPage', () => {
     await user.click(screen.getByRole('button', { name: 'カット を追加' }));
     await user.click(screen.getByRole('button', { name: '予約する' }));
 
-    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/orders', expect.any(Object)));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        '/api/v1/orders',
+        expect.any(Object),
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'Idempotency-Key': expect.any(String) }),
+        })
+      )
+    );
     const payload = vi.mocked(post).mock.calls[0][1] as Record<string, unknown>;
     expect(payload).toMatchObject({
       orgSlug: 'test-store',
@@ -136,6 +144,45 @@ describe('LiffCustomerJoinPage', () => {
     await screen.findByRole('heading', { name: 'テスト店舗' });
     expect(screen.getByText(i18n.t('customer:home.authenticating'))).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '予約する' })).toBeDisabled();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it('blocks payment and booking when no queue is accepting customers', async () => {
+    vi.mocked(get).mockResolvedValue({
+      org: {
+        id: 'org-1',
+        name: 'テスト店舗',
+        slug: 'test-store',
+        logoUrl: null,
+        phone: null,
+        address: 'Tokyo',
+        paymentInfo: null,
+      },
+      queue: null,
+      products: [
+        {
+          id: 'product-1',
+          name: '前払いカット',
+          description: null,
+          image_url: null,
+          price: '3000',
+          service_time_minutes: 30,
+          requires_prepayment: true,
+          stock_quantity: null,
+          product_type: 'service',
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderLiffBooking();
+
+    expect(await screen.findAllByText(i18n.t('customer:booking.queueClosed'))).not.toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: '前払いカット を追加' }));
+
+    expect(screen.getByRole('button', { name: '事前支払いへ進む' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: i18n.t('customer:booking.queueClosed') })
+    ).toBeDisabled();
     expect(post).not.toHaveBeenCalled();
   });
 

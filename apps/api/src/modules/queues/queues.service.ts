@@ -1,14 +1,31 @@
-import type { SupportedLocale } from '@line-queue/shared';
+import type { Queue, SupportedLocale } from '@line-queue/shared';
 
-import { queuesRepository } from '../../db/repositories/queues.repository';
+import { type QueueRow, queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
 import { metricsService } from '../../utils/metrics';
 
 import { CreateQueueDto, UpdateQueueDto, UpdateQueueStatusDto } from './queues.validator';
 
+function toQueue(row: QueueRow): Queue {
+  return {
+    id: row.id,
+    organizationId: row.organization_id,
+    name: row.name,
+    description: row.description ?? undefined,
+    status: row.status as Queue['status'],
+    currentNumber: row.daily_ticket_counter,
+    maxCapacity: row.max_capacity ?? undefined,
+    avgServiceTimeMinutes: Math.max(1, Math.ceil(row.avg_service_seconds / 60)),
+    ticketPrefix: row.prefix || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 export const queuesService = {
   async listQueues(orgId: string, locale: SupportedLocale = 'ja') {
-    return queuesRepository.findActiveByOrg(orgId, locale);
+    const queues = await queuesRepository.findActiveByOrg(orgId, locale);
+    return queues.map(toQueue);
   },
 
   async getQueue(id: string, orgId: string) {
@@ -16,7 +33,7 @@ export const queuesService = {
     if (!queue) throw AppError.notFound(`Queue ${id} not found`);
     if (queue.organization_id !== orgId)
       throw AppError.forbidden('Queue is outside your organization');
-    return queue;
+    return toQueue(queue);
   },
 
   async createQueue(orgId: string, dto: CreateQueueDto) {
@@ -24,12 +41,13 @@ export const queuesService = {
       organizationId: orgId,
       name: dto.name,
       description: dto.description,
+      status: dto.status,
       prefix: dto.prefix,
       maxCapacity: dto.maxCapacity,
       avgServiceSeconds: dto.avgServiceMs ? Math.floor(dto.avgServiceMs / 1000) : undefined,
     });
     metricsService.increment('queue_created_total');
-    return queue;
+    return toQueue(queue);
   },
 
   async updateQueue(id: string, orgId: string, dto: UpdateQueueDto) {
@@ -38,13 +56,15 @@ export const queuesService = {
     if (existing.organization_id !== orgId)
       throw AppError.forbidden('Queue is outside your organization');
 
-    return queuesRepository.update(id, {
+    const updated = await queuesRepository.update(id, {
       name: dto.name,
       description: dto.description,
       status: dto.status,
       maxCapacity: dto.maxCapacity,
       avgServiceMs: dto.avgServiceMs,
     });
+    if (!updated) throw AppError.notFound(`Queue ${id} not found`);
+    return toQueue(updated);
   },
 
   async updateQueueStatus(id: string, orgId: string, dto: UpdateQueueStatusDto) {
@@ -53,7 +73,9 @@ export const queuesService = {
     if (existing.organization_id !== orgId)
       throw AppError.forbidden('Queue is outside your organization');
 
-    return queuesRepository.update(id, { status: dto.status });
+    const updated = await queuesRepository.update(id, { status: dto.status });
+    if (!updated) throw AppError.notFound(`Queue ${id} not found`);
+    return toQueue(updated);
   },
 
   async deleteQueue(id: string, orgId: string) {

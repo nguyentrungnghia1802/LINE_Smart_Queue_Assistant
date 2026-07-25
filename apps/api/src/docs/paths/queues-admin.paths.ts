@@ -18,32 +18,23 @@ export const queuesAdminPaths = {
   '/api/v1/queues': {
     get: {
       tags: ['queues'],
-      summary: 'List all queues (admin)',
+      summary: 'List organization queues',
       operationId: 'listQueues',
       security: bearerSecurity,
-      parameters: [
-        { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
-        {
-          name: 'limit',
-          in: 'query',
-          schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
-        },
-      ],
       responses: {
         200: {
-          description: 'Paginated queue list',
+          description: 'Organization queue list',
           content: {
             'application/json': {
               schema: {
                 type: 'object',
-                required: ['success', 'data', 'meta'],
+                required: ['success', 'data'],
                 properties: {
                   success: { type: 'boolean', example: true },
                   data: {
                     type: 'array',
                     items: { $ref: '#/components/schemas/AdminQueueResponse' },
                   },
-                  meta: { $ref: '#/components/schemas/PaginationMeta' },
                 },
               },
             },

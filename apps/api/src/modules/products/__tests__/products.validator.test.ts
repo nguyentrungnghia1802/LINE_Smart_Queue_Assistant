@@ -67,4 +67,22 @@ describe('CreateProductSchema — productType field', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('rejects finite stock for services', () => {
+    const result = CreateProductSchema.safeParse({
+      ...baseProduct,
+      productType: 'service',
+      stockQuantity: 5,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects required prepayment when the price is zero', () => {
+    const result = CreateProductSchema.safeParse({
+      ...baseProduct,
+      price: 0,
+      requiresPrepayment: true,
+    });
+    expect(result.success).toBe(false);
+  });
 });

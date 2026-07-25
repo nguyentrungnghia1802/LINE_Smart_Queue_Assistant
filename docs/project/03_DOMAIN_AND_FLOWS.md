@@ -103,7 +103,10 @@ Per-item state determines prepaid coverage. The order header is `paid` only when
 
 Finite stock is decremented and a `reserved` reservation is inserted in the same order transaction. Fulfillment transitions it to `consumed` without changing stock. Cancellation or no-show transitions it to `released` and restores stock. The expiry worker transitions due rows to `expired`, restores stock, and cancels the pending order/ticket. Every transition is conditional on `status = 'reserved'` and writes `inventory_reservation_events`, preventing double release or consume.
 
-Values are `reserved`, `consumed`, `released`, and `expired`. Creation currently decrements `products.stock_quantity` and writes `reserved`; transitions and stock restoration are not yet fully implemented.
+Values are `reserved`, `consumed`, `released`, and `expired`. Creation decrements
+`products.stock_quantity` and writes `reserved` in the booking transaction. Completion consumes the
+reservation; cancellation, no-show, and expiry restore stock exactly once through guarded
+reservation transitions.
 
 ## 3. Customer entry and identity flow
 
@@ -127,7 +130,7 @@ visible in development and test builds, or only when
 1. Customer selects available items and quantities.
 2. UI checks visible stock and calculates a display subtotal.
 3. Customer may optionally choose checkout for all items or place the reservation unpaid.
-4. `POST /orders` reloads organization, active queue, products, prices, ownership, and stock.
+4. `POST /orders` reloads organization, an open queue, products, prices, ownership, and stock.
 5. In one transaction the API increments the ticket counter, creates optional booking group, queue entry with any verified LINE recipient, order, items, stock reservations, and location/alert if supplied.
 6. On success the UI stores a local booking record and navigates to `/liff/tickets/:entryId` in LIFF or `/ticket/:entryId` in the public fallback.
 7. Any transaction error rolls back all database writes.
@@ -146,6 +149,12 @@ visible in development and test builds, or only when
 10. Full coverage marks the order paid; required-only coverage leaves the order unpaid for later staff collection.
 
 Production invariant: a browser return cannot establish payment. Only the server's verified provider state may produce a paid transaction that order creation can consume.
+
+Payment intent creation also requires an open queue. The customer UI disables payment and booking
+when no queue is accepting customers, and the API independently returns
+`QUEUE_NOT_ACCEPTING`. This prevents payment when the organization cannot issue a ticket. Order
+creation locks both the selected queue and any referenced payment transaction before attaching the
+transaction, so the same verified payment cannot create two bookings under concurrent requests.
 
 ## 6. Repeat/additional booking flow
 

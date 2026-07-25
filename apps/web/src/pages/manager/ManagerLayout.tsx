@@ -47,6 +47,9 @@ export function ManagerLayout() {
             <NavLink to="/manager/products" className={navClass}>
               {t('nav.products')}
             </NavLink>
+            <NavLink to="/manager/queues" className={navClass}>
+              {t('nav.queue')}
+            </NavLink>
             <NavLink to="/manager/users" className={navClass}>
               {t('nav.staff')}
             </NavLink>
