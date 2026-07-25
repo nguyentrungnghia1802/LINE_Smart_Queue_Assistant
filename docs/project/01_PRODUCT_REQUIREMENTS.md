@@ -157,7 +157,8 @@ The platform role does not replace tenant membership. Staff and manager operatio
 
 1. A guest selecting only non-prepaid items can place a reservation without checkout and receives an order/ticket.
 2. A guest selecting a prepaid item cannot create an order until all prepaid-required products are covered.
-3. Required-only checkout marks covered order items paid but leaves uncovered items and order total unpaid.
+3. Required-only checkout marks covered order items paid; the order remains unpaid only when
+   uncovered items remain in the cart.
 4. Full checkout marks every item and the order paid from one verified payment transaction.
 5. Concurrent finite-stock orders cannot reduce stock below zero; a failed order leaves no partial ticket/order/item rows.
 6. Staff actions cannot access an entry/order in another organization.
