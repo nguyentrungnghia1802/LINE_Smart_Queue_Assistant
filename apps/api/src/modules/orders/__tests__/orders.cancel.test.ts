@@ -181,12 +181,14 @@ describe('ordersService.cancelByOrderId', () => {
     expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID, expect.anything());
   });
 
-  it('does not cancel queue entry when it is already non-cancellable', async () => {
+  it('rejects cancellation when the linked queue entry is already non-cancellable', async () => {
     mockFindById.mockResolvedValue(makeOrder());
     mockFindEntryById.mockResolvedValue({ ...cancelledEntry, status: 'served' });
 
-    await expect(ordersService.cancelByOrderId(ORDER_ID, operatorActor)).resolves.not.toThrow();
-    expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled', expect.anything());
+    await expect(ordersService.cancelByOrderId(ORDER_ID, operatorActor)).rejects.toMatchObject({
+      statusCode: 409,
+    });
+    expect(mockUpdateStatus).not.toHaveBeenCalled();
     expect(mockMarkCancelled).not.toHaveBeenCalled();
     expect(mockNotifyTicketCancelled).not.toHaveBeenCalled();
   });

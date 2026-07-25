@@ -91,12 +91,12 @@ All paths require `admin`.
 
 ### Organizations and public entry
 
-| Method | Path                           | Access        | Purpose                                                      |
-| ------ | ------------------------------ | ------------- | ------------------------------------------------------------ |
-| GET    | `/api/v1/orgs/my-org`          | Authenticated | Resolve actor organization including public QR token         |
-| PATCH  | `/api/v1/orgs/my-org`          | Manager/admin | Update own organization settings with audit                  |
-| GET    | `/api/v1/orgs/by-token/:token` | Public        | Resolve public organization by generated token               |
-| GET    | `/api/v1/orgs/:slug`           | Public        | Resolve organization, active queue, and catalog landing data |
+| Method | Path                           | Access        | Purpose                                                    |
+| ------ | ------------------------------ | ------------- | ---------------------------------------------------------- |
+| GET    | `/api/v1/orgs/my-org`          | Authenticated | Resolve actor organization including public QR token       |
+| PATCH  | `/api/v1/orgs/my-org`          | Manager/admin | Update own organization settings with audit                |
+| GET    | `/api/v1/orgs/by-token/:token` | Public        | Resolve public organization by generated token             |
+| GET    | `/api/v1/orgs/:slug`           | Public        | Resolve organization, open queue, and catalog landing data |
 
 ### Products/services
 
@@ -112,6 +112,11 @@ Product `imageUrl` accepts either an HTTP/HTTPS object-storage URL or a same-ori
 
 Product create, update, and deactivate operations write their authenticated manager/admin actor as audit type `user`, matching the canonical PostgreSQL `audit_actor_type` enum. Catalog writes invalidate every locale-aware organization cache key and public slug cache key so deleted products and prepayment changes are not served from stale catalog data.
 
+Product validation rejects finite stock for `service` records and rejects
+`requiresPrepayment=true` when the price is zero. Payment and order item arrays reject duplicate
+product IDs. These rules keep Manager configuration compatible with checkout, inventory, and
+database constraints.
+
 ### Queue configuration
 
 All paths require manager/admin.
@@ -120,7 +125,7 @@ All paths require manager/admin.
 | ------ | --------------------------- | ------------------------------------------------ |
 | GET    | `/api/v1/queues`            | List tenant queues                               |
 | GET    | `/api/v1/queues/:id`        | Queue detail                                     |
-| POST   | `/api/v1/queues`            | Create queue                                     |
+| POST   | `/api/v1/queues`            | Create queue; status defaults to `open`          |
 | PATCH  | `/api/v1/queues/:id`        | Update queue configuration                       |
 | PATCH  | `/api/v1/queues/:id/status` | Change queue status                              |
 | DELETE | `/api/v1/queues/:id`        | Delete/archive queue according to service guards |

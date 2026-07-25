@@ -27,7 +27,7 @@ async function buildOrgResponse(orgId: string, clientLocale?: string) {
   if (!org) throw AppError.notFound('Organization not found');
 
   const [queues, products] = await Promise.all([
-    queuesRepository.findActiveByOrg(org.id, locale),
+    queuesRepository.findOpenByOrg(org.id, locale),
     productsRepository.findByOrg(org.id, locale),
   ]);
 

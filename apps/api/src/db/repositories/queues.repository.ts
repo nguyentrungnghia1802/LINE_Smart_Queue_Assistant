@@ -38,6 +38,7 @@ export interface CreateQueueParams {
   organizationId: string;
   name: string;
   description?: string;
+  status?: 'open' | 'paused' | 'closed';
   prefix?: string;
   queueType?: string;
   maxCapacity?: number;
@@ -98,19 +99,38 @@ export class QueuesRepository extends BaseRepository {
     );
   }
 
+  async findOpenByOrg(organizationId: string, locale: SupportedLocale = 'ja'): Promise<QueueRow[]> {
+    return this.query<QueueRow>(
+      `SELECT q.*,
+              COALESCE(requested.name, tenant_default.name, japanese.name, q.name) AS name,
+              COALESCE(requested.description, tenant_default.description, japanese.description, q.description) AS description
+       FROM queues q
+       JOIN organizations o ON o.id = q.organization_id
+       LEFT JOIN queue_translations requested ON requested.queue_id = q.id AND requested.locale = $2
+       LEFT JOIN queue_translations tenant_default ON tenant_default.queue_id = q.id AND tenant_default.locale = o.default_locale
+       LEFT JOIN queue_translations japanese ON japanese.queue_id = q.id AND japanese.locale = 'ja'
+       WHERE q.organization_id = $1
+         AND q.is_active = TRUE
+         AND q.status = 'open'
+       ORDER BY q.created_at, q.id`,
+      [organizationId, locale]
+    );
+  }
+
   async create(params: CreateQueueParams): Promise<QueueRow> {
     const sql = `
       INSERT INTO queues
-        (organization_id, name, description, prefix, queue_type,
+        (organization_id, name, description, status, prefix, queue_type,
          max_capacity, avg_service_seconds, notify_ahead_positions,
          allow_skip, max_skips_before_penalty, opens_at, closes_at, settings)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *
     `;
     const rows = await this.query<QueueRow>(sql, [
       params.organizationId,
       params.name,
       params.description ?? null,
+      params.status ?? 'open',
       params.prefix ?? '',
       params.queueType ?? 'walk_in',
       params.maxCapacity ?? null,

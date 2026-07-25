@@ -17,7 +17,7 @@ export function DashboardPage() {
 
       <div className="mt-8">
         <Link
-          to="/queues"
+          to="/manager/queues"
           className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
         >
           {t('dashboard.manageQueues')} →

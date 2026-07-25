@@ -65,6 +65,17 @@ describe('CreateOrderSchema — customer linkage fields', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects duplicate products in the same order', () => {
+    const result = CreateOrderSchema.safeParse({
+      ...baseOrder,
+      items: [
+        { productId: '44444444-4444-4444-8444-444444444441', quantity: 1 },
+        { productId: '44444444-4444-4444-8444-444444444441', quantity: 2 },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('accepts verified payment transaction reference', () => {
     const result = CreateOrderSchema.safeParse({
       ...baseOrder,

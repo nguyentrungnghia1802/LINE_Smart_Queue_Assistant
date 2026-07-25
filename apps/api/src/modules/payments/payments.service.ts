@@ -5,6 +5,7 @@ import type { PaymentTransactionRow } from '../../db/repositories/orders.reposit
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { paymentTransactionsRepository } from '../../db/repositories/payment-transactions.repository';
 import { productsRepository } from '../../db/repositories/products.repository';
+import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
 
 import { getPaymentProvider } from './payment-provider.registry';
@@ -118,6 +119,10 @@ export const paymentsService = {
   async createIntent(dto: CreatePaymentIntentDto) {
     const org = await organizationsRepository.findBySlug(dto.orgSlug);
     if (!org) throw AppError.notFound('Organization');
+    const openQueues = await queuesRepository.findOpenByOrg(org.id);
+    if (openQueues.length === 0) {
+      throw new AppError('No queue is currently accepting bookings', 409, 'QUEUE_NOT_ACCEPTING');
+    }
 
     const rows = await loadIntentProducts(org.id, dto.items);
     const coveredProductIds = resolveCoveredProductIds(dto.scope, rows);
