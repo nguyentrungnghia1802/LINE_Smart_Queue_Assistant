@@ -19,6 +19,8 @@ import {
   type BookingGroup,
   cartSignature,
   type CheckoutItem,
+  clearCheckoutDraft,
+  clearPaidCheckout,
   createCheckoutId,
   formatJPY,
   getLocalDeviceKey,
@@ -140,6 +142,7 @@ export function CustomerJoinPage({
   } | null>(null);
   const [locationStatus, setLocationStatus] = useState('');
   const hydratedDraftKeyRef = useRef<string | null>(null);
+  const bookingCompletedRef = useRef(false);
   const bookingAttemptIdRef = useRef(createCheckoutId());
 
   const apiEndpoint = token ? `/api/v1/orgs/by-token/${token}` : `/api/v1/orgs/${orgSlug}`;
@@ -245,6 +248,7 @@ export function CustomerJoinPage({
   useEffect(() => {
     if (hydratedDraftKeyRef.current === draftKey) return;
     hydratedDraftKeyRef.current = draftKey;
+    bookingCompletedRef.current = false;
     const draft = loadCheckoutDraft(draftKey);
     if (draft) {
       setCart(draft.cart);
@@ -262,6 +266,7 @@ export function CustomerJoinPage({
 
   useEffect(() => {
     if (hydratedDraftKeyRef.current !== draftKey) return;
+    if (bookingCompletedRef.current) return;
     saveCheckoutDraft(draftKey, { cart, customerName, customerPhone });
   }, [cart, customerName, customerPhone, draftKey]);
 
@@ -445,18 +450,35 @@ export function CustomerJoinPage({
         }
       );
       setBookingGroup(nextGroup);
+      bookingCompletedRef.current = true;
+      clearCheckoutDraft(draftKey);
+      if (requiredPaymentKey) clearPaidCheckout(requiredPaymentKey);
+      if (fullPaymentKey) clearPaidCheckout(fullPaymentKey);
       setCart({});
+      setCustomerName('');
+      setCustomerPhone('');
+      setCustomerLocation(null);
+      setLocationStatus('');
       setPaidRequiredCheckout(null);
       setPaidFullCheckout(null);
       navigate(`${isLiffMode ? '/liff/tickets' : '/ticket'}/${result.queueEntry.id}`);
     } catch (err) {
-      setError(
-        err instanceof ApiClientError && err.code === 'QUEUE_NOT_ACCEPTING'
-          ? t('errors.QUEUE_NOT_ACCEPTING', { ns: 'common' })
-          : err instanceof Error
-            ? err.message
-            : t('booking.orderFailed', { ns: 'customer' })
-      );
+      if (err instanceof ApiClientError && err.code === 'PAYMENT_ALREADY_USED') {
+        if (requiredPaymentKey) clearPaidCheckout(requiredPaymentKey);
+        if (fullPaymentKey) clearPaidCheckout(fullPaymentKey);
+        setPaidRequiredCheckout(null);
+        setPaidFullCheckout(null);
+        bookingAttemptIdRef.current = createCheckoutId();
+        setError(t('errors.PAYMENT_ALREADY_USED', { ns: 'common' }));
+      } else {
+        setError(
+          err instanceof ApiClientError && err.code === 'QUEUE_NOT_ACCEPTING'
+            ? t('errors.QUEUE_NOT_ACCEPTING', { ns: 'common' })
+            : err instanceof Error
+              ? err.message
+              : t('booking.orderFailed', { ns: 'customer' })
+        );
+      }
     } finally {
       setSubmitting(false);
     }

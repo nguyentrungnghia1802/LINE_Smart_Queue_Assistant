@@ -91,6 +91,10 @@ export function loadCheckoutSession(id: string): CheckoutSession | null {
   }
 }
 
+export function clearCheckoutSession(id: string) {
+  sessionStorage.removeItem(`${CHECKOUT_SESSION_PREFIX}${id}`);
+}
+
 export function savePaidCheckout(paymentKey: string, paid: PaidCheckout) {
   sessionStorage.setItem(`${PAID_CHECKOUT_PREFIX}${paymentKey}`, JSON.stringify(paid));
 }
@@ -105,6 +109,10 @@ export function loadPaidCheckout(paymentKey: string): PaidCheckout | null {
   }
 }
 
+export function clearPaidCheckout(paymentKey: string) {
+  sessionStorage.removeItem(`${PAID_CHECKOUT_PREFIX}${paymentKey}`);
+}
+
 export function saveCheckoutDraft(key: string, draft: CheckoutDraft) {
   sessionStorage.setItem(`${CHECKOUT_DRAFT_PREFIX}${key}`, JSON.stringify(draft));
 }
@@ -117,6 +125,10 @@ export function loadCheckoutDraft(key: string): CheckoutDraft | null {
   } catch {
     return null;
   }
+}
+
+export function clearCheckoutDraft(key: string) {
+  sessionStorage.removeItem(`${CHECKOUT_DRAFT_PREFIX}${key}`);
 }
 
 export function paymentKeyFor(base: string, scope: 'required_items' | 'all_items'): string {

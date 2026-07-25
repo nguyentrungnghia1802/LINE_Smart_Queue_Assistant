@@ -17,7 +17,7 @@ import { notificationOutboxRepository } from '../notifications/notification-outb
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { paymentsService } from '../payments/payments.service';
 
-import { resolveOrderPaymentStatus } from './orders.payment';
+import { assertPaymentTransactionUnused, resolveOrderPaymentStatus } from './orders.payment';
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
 
 interface OrderActorIdentity {
@@ -127,9 +127,7 @@ export const ordersService = {
       if (paymentTransaction.organization_id !== org.id) {
         throw AppError.badRequest('Payment transaction does not belong to this organization');
       }
-      if (paymentTransaction.order_id) {
-        throw AppError.conflict('Payment transaction has already been used');
-      }
+      assertPaymentTransactionUnused(paymentTransaction.order_id);
       if (paymentTransaction.status !== 'paid') {
         throw AppError.badRequest('Payment transaction has not been verified as paid');
       }
@@ -199,9 +197,7 @@ export const ordersService = {
         if (lockedPayment.organization_id !== org.id) {
           throw AppError.badRequest('Payment transaction does not belong to this organization');
         }
-        if (lockedPayment.order_id) {
-          throw AppError.conflict('Payment transaction has already been used');
-        }
+        assertPaymentTransactionUnused(lockedPayment.order_id);
         if (lockedPayment.status !== 'paid') {
           throw AppError.badRequest('Payment transaction has not been verified as paid');
         }

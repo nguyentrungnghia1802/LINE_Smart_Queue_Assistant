@@ -148,6 +148,9 @@ visible in development and test builds, or only when
 9. API links the transaction to the order and marks covered order items paid.
 10. If the covered items equal the full cart, the order is paid even when checkout used the
     `required_items` option. A mixed cart remains unpaid only while an uncovered balance exists.
+11. After order creation succeeds, the frontend synchronously removes the completed cart draft,
+    checkout session, and paid transaction reference before opening the ticket. Booking history is
+    retained separately.
 
 Production invariant: a browser return cannot establish payment. Only the server's verified provider state may produce a paid transaction that order creation can consume.
 
@@ -161,10 +164,15 @@ transaction, so the same verified payment cannot create two bookings under concu
 
 1. Browser creates a stable local device key and a booking-group UUID.
 2. First reservation creates an independent order/ticket and optionally the server booking group.
-3. A later reservation creates another independent order/ticket using the same group ID.
+3. A later reservation starts with a clean cart/payment attempt and creates another independent
+   order/ticket using the same group ID.
 4. The authenticated customer history API resolves the group by internal user identity, supports pagination across devices, and returns each order/ticket independently.
 5. Tenant staff may inspect a related group from the staff workspace; customer ownership and staff organization scope are enforced server-side.
 6. Cancellation, queue state, item/payment records, and receipts remain per order.
+
+A paid transaction can be attached to only one order. Legacy browser state that references an
+already attached transaction is discarded, the cart remains available for a new checkout, and the
+API returns the stable `PAYMENT_ALREADY_USED` conflict code.
 
 Anonymous browser drafts may still use a local grouping key, but cross-device history requires authenticated LINE/system identity.
 
