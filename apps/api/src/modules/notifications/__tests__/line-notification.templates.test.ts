@@ -8,10 +8,13 @@ import {
 } from '../line-notification.templates';
 
 describe('line-notification.templates', () => {
-  it('builds LIFF ticket deep links with liff.state', () => {
-    expect(buildTicketDeepLink('entry-123', { liffId: '1234567890-AbCdEfGh' })).toBe(
-      'https://liff.line.me/1234567890-AbCdEfGh?liff.state=%2Fliff%2Ftickets%2Fentry-123'
-    );
+  it('builds LIFF ticket permanent links relative to the endpoint path', () => {
+    expect(
+      buildTicketDeepLink('entry-123', {
+        liffId: '1234567890-AbCdEfGh',
+        liffEndpointPath: '/liff',
+      })
+    ).toBe('https://liff.line.me/1234567890-AbCdEfGh/tickets/entry-123');
   });
 
   it('falls back to web origin when LIFF ID is not configured', () => {

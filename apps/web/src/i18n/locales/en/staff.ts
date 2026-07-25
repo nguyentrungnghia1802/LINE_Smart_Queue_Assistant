@@ -16,6 +16,7 @@ export const staff = {
     noOrder: 'No order',
     selectTicket: 'Select a ticket to view details',
     customer: 'Customer',
+    lineName: 'LINE display name',
     contactUnavailable: 'Not provided',
     relatedBookingsLabel: 'Related bookings',
     group: 'Group',

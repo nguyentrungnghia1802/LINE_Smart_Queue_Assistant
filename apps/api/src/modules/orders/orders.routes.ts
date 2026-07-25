@@ -29,9 +29,10 @@ import {
 
 export const ordersRouter = Router();
 
-// Public: create order (guest customers scanning QR)
+// LINE-authenticated customer: create order after QR/LIFF entry.
 ordersRouter.post(
   '/',
+  requireAuth,
   publicWriteRateLimiter,
   idempotencyMiddleware(),
   validate(CreateOrderSchema),

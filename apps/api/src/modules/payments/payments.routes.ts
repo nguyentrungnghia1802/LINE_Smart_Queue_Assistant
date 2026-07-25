@@ -30,6 +30,7 @@ export const paymentsRouter = Router();
 
 paymentsRouter.post(
   '/intents',
+  requireAuth,
   publicWriteRateLimiter,
   idempotencyMiddleware(),
   validate(CreatePaymentIntentSchema),

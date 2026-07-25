@@ -67,11 +67,10 @@ Clients branch on `error.code` and localize it. `error.message` is diagnostic te
 
 ### Authentication
 
-| Method | Path                    | Access               | Purpose                                                                                      |
-| ------ | ----------------------- | -------------------- | -------------------------------------------------------------------------------------------- |
-| POST   | `/api/v1/auth/line`     | Public, strict limit | Verify LINE ID token, find/create linked customer, optionally sync verified email, issue JWT |
-| POST   | `/api/v1/auth/login`    | Public, strict limit | Email/password login                                                                         |
-| POST   | `/api/v1/auth/register` | Public, strict limit | Register customer account                                                                    |
+| Method | Path                 | Access               | Purpose                                                                                      |
+| ------ | -------------------- | -------------------- | -------------------------------------------------------------------------------------------- |
+| POST   | `/api/v1/auth/line`  | Public, strict limit | Verify LINE ID token, find/create linked customer, optionally sync verified email, issue JWT |
+| POST   | `/api/v1/auth/login` | Public, strict limit | Email/password login for admin, manager, and staff; customer role is rejected                |
 
 ### Platform admin
 
@@ -214,19 +213,19 @@ An already attached payment transaction returns `409 PAYMENT_ALREADY_USED`. Cust
 discard that stale paid-checkout reference and start a new payment attempt; they may preserve the
 current cart for recovery but must not resubmit the consumed transaction.
 
-For authenticated `POST /orders`, only a `customer` JWT is accepted. The controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified linked `line_user_id` on the new queue entry. Guest orders keep both recipient fields empty unless a separately verified identity flow is used. An authenticated staff, manager, or admin receives `403 CUSTOMER_ACCOUNT_REQUIRED` before any order, stock, queue, or payment work starts.
+`POST /orders` requires a `customer` JWT with an active verified LINE link. The controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified linked `line_user_id` on the new queue entry. Missing auth returns `401 LINE_AUTH_REQUIRED`, a business role returns `403 CUSTOMER_ACCOUNT_REQUIRED`, and a customer without an active LINE link returns `403 LINE_ACCOUNT_REQUIRED`, before order, stock, queue, or payment work starts.
 
 In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has completed and the authenticated LINE-derived JWT is present. The request body must still never include `lineUserId`.
 
 ### Payments
 
-| Method | Path                                        | Access                      | Purpose                                        |
-| ------ | ------------------------------------------- | --------------------------- | ---------------------------------------------- |
-| POST   | `/api/v1/payments/intents`                  | Public, limited, idempotent | Create server-side payment intent/transaction  |
-| POST   | `/api/v1/payments/demo/complete`            | Public, limited             | Complete demo payment with server-issued token |
-| GET    | `/api/v1/payments/:transactionId/return`    | Public                      | Read verified payment return status            |
-| POST   | `/api/v1/payments/:transactionId/reconcile` | Manager/admin               | Reconcile linked order/items from transaction  |
-| POST   | `/api/v1/payments/webhooks/:provider`       | Signed provider webhook     | Idempotent provider callback processing        |
+| Method | Path                                        | Access                    | Purpose                                        |
+| ------ | ------------------------------------------- | ------------------------- | ---------------------------------------------- |
+| POST   | `/api/v1/payments/intents`                  | LINE customer, idempotent | Create server-side payment intent/transaction  |
+| POST   | `/api/v1/payments/demo/complete`            | Public, limited           | Complete demo payment with server-issued token |
+| GET    | `/api/v1/payments/:transactionId/return`    | Public                    | Read verified payment return status            |
+| POST   | `/api/v1/payments/:transactionId/reconcile` | Manager/admin             | Reconcile linked order/items from transaction  |
+| POST   | `/api/v1/payments/webhooks/:provider`       | Signed provider webhook   | Idempotent provider callback processing        |
 
 Payment intent creation accepts `orgSlug`, selected `items`, `scope`, `provider`, `method`, `currency`, optional `returnUrl`, and optional `cartSignature`. The API reloads products and computes amount/coverage. Demo mode returns a `demoToken`; the browser must send it to `/payments/demo/complete`, and the server verifies it before marking the transaction paid. Future PSPs must update the same transaction state machine through signed webhooks or server-side verification.
 
@@ -279,6 +278,7 @@ The upload request currently carries a browser-compressed data URL for compatibi
 | Method  | Path                                          | Access                            | Purpose                                                           |
 | ------- | --------------------------------------------- | --------------------------------- | ----------------------------------------------------------------- |
 | POST    | `/api/v1/line/webhook`                        | LINE signed webhook, strict limit | Verify signature and process supported events                     |
+| POST    | `/api/v1/line/friendship`                     | Authenticated linked customer     | Synchronize current Official Account friendship after LIFF login  |
 | GET     | `/api/v1/notifications`                       | Authenticated                     | List notifications with validated query                           |
 | GET/PUT | `/api/v1/line/preferences`                    | Authenticated linked customer     | Read/update LINE notification consent and event preferences       |
 | GET/PUT | `/api/v1/line/location-consent`               | Authenticated customer            | Read/update location snapshot consent                             |

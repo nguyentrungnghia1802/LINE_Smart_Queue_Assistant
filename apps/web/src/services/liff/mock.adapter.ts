@@ -57,6 +57,10 @@ export class MockLiffAdapter implements LiffAdapter {
     return Promise.resolve({ ...MOCK_PROFILE });
   }
 
+  async getFriendship(): Promise<boolean> {
+    return Promise.resolve(true);
+  }
+
   getAccessToken(): string | null {
     return this._loggedIn ? MOCK_TOKEN : null;
   }

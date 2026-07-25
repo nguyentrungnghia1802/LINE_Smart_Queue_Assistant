@@ -17,12 +17,12 @@ describe('ordersRepository.findByQueueEntry', () => {
     jest.clearAllMocks();
   });
 
-  it('joins the authenticated customer email into the staff order result', async () => {
+  it('joins the verified LINE display name into the staff order result', async () => {
     mockQuery.mockResolvedValue({
       rows: [
         {
           id: 'order-1',
-          customer_email: 'customer@example.com',
+          customer_line_display_name: 'LINE 山田',
           items_json: [],
         },
       ],
@@ -35,8 +35,8 @@ describe('ordersRepository.findByQueueEntry', () => {
     const result = await ordersRepository.findByQueueEntry('entry-1');
 
     const sql = String(mockQuery.mock.calls[0]?.[0]);
-    expect(sql).toContain('LEFT JOIN users u ON u.id = o.customer_user_id');
-    expect(sql).toContain('u.email AS customer_email');
-    expect(result?.customer_email).toBe('customer@example.com');
+    expect(sql).toContain('LEFT JOIN line_accounts la ON la.user_id = o.customer_user_id');
+    expect(sql).toContain('la.display_name AS customer_line_display_name');
+    expect(result?.customer_line_display_name).toBe('LINE 山田');
   });
 });

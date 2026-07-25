@@ -106,6 +106,38 @@ export function LiffCustomerJoinPage() {
   );
 }
 
+export function CustomerLineEntryPage() {
+  const { orgSlug, token } = useParams<{ orgSlug?: string; token?: string }>();
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuthStore();
+  const customerLineEntryUrl = token
+    ? getCustomerLineEntryUrl(`/liff/qr/${token}`)
+    : orgSlug
+      ? getCustomerLineEntryUrl(`/liff/q/${orgSlug}`)
+      : null;
+  const isBusinessAccount = isAuthenticated && user?.role !== UserRole.CUSTOMER;
+
+  useEffect(() => {
+    if (isBusinessAccount || !customerLineEntryUrl) return;
+    if (customerLineEntryUrl.startsWith('/')) {
+      navigate(customerLineEntryUrl, { replace: true });
+      return;
+    }
+    window.location.replace(customerLineEntryUrl);
+  }, [customerLineEntryUrl, isBusinessAccount, navigate]);
+
+  if (isBusinessAccount) {
+    return (
+      <CustomerAccountRequiredPage
+        customerLineEntryUrl={customerLineEntryUrl}
+        dashboardPath={dashboardPathForRole(user?.role)}
+      />
+    );
+  }
+
+  return <CustomerLineRedirectState isConfigured={Boolean(customerLineEntryUrl)} />;
+}
+
 export function CustomerJoinPage({
   mode = 'public',
   liffAuthStatus = 'guest',
@@ -861,6 +893,27 @@ export function CustomerJoinPage({
           )}
         </form>
       </main>
+    </div>
+  );
+}
+
+function CustomerLineRedirectState({ isConfigured }: Readonly<{ isConfigured: boolean }>) {
+  const { t } = useTranslation(['customer', 'common']);
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[var(--app-bg)] px-4">
+      <div className="w-full max-w-md rounded-2xl border border-white/80 bg-white p-8 text-center shadow-[var(--shadow-soft)]">
+        <BrandLogo decorative className="mx-auto h-14 w-14" />
+        <h1 className="mt-5 text-xl font-bold text-gray-950">
+          {isConfigured
+            ? t('booking.openingLine', { ns: 'customer' })
+            : t('booking.lineEntryUnavailable', { ns: 'customer' })}
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-gray-500">
+          {isConfigured
+            ? t('booking.openingLineHint', { ns: 'customer' })
+            : t('booking.lineEntryUnavailableHint', { ns: 'customer' })}
+        </p>
+      </div>
     </div>
   );
 }

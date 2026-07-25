@@ -6,6 +6,15 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Replaced customer email registration/login with verified LINE-only authentication, required the
+  LINE-derived customer JWT for payment intents and bookings, and kept email/password access for
+  staff, managers, and admins.
+- Added a paired local-only LIFF mock login that uses the same ID-token-to-system-JWT contract even
+  when a real LIFF ID is present in the developer environment.
+- Replaced `liff.state` QR/deeplink construction with endpoint-relative LIFF permanent links so a
+  `/liff` endpoint cannot resolve to `/liff/liff/...`.
+- Replaced customer email in the staff order workspace with the linked LINE display name while
+  retaining the separately entered booking name and telephone number.
 - Fixed manager product create/update/delete by accepting trusted same-origin media paths, aligning authenticated audit actors with the database enum, invalidating locale-aware catalog caches, preserving prepayment selections, returning to the product list after creation, and showing field/delete diagnostics.
 - Restricted QR booking and direct queue admission to guests or customer accounts, added an explicit LIFF customer entry for authenticated business roles, and preserved their existing dashboard session.
 - Fixed manager booking fallback URLs to use configured `WEB_ORIGIN` instead of a legacy localhost default, made legacy queue QR displays LIFF-first, and documented the required production web-image LIFF build arguments.
@@ -30,7 +39,9 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### LINE Messaging
 
-- Made LIFF the primary manager print/copy QR and customer login entry, enabled automatic external-browser LIFF login, and retained public/email customer flows as explicit development fallbacks.
+- Made LIFF the only customer authentication path, redirected QR/web entries through LINE, and
+  synchronized Official Account friendship after login without overriding explicit notification
+  preferences.
 - Added a safe token verification and optional direct test-message command.
 - Propagated the server-verified LINE user ID into queue entries created by authenticated orders.
 - Documented the separate LINE Login, Messaging API push, and webhook credential roles.

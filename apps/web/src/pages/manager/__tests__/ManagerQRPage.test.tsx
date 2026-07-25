@@ -15,7 +15,7 @@ vi.mock('../../../services/apiClient', () => ({
 
 vi.mock('../../../services/liff/entryUrl', () => ({
   buildLiffEntryUrl: (_liffId: string | undefined, route: string) =>
-    `https://liff.line.me/liff-test?liff.state=${encodeURIComponent(route)}`,
+    `https://liff.line.me/liff-test${route.replace(/^\/liff/, '')}`,
 }));
 
 vi.mock('qrcode.react', () => ({
@@ -44,7 +44,7 @@ describe('ManagerQRPage', () => {
   it('uses LIFF for the primary printable QR and keeps the public URL as fallback', async () => {
     renderPage();
 
-    const expectedLiffUrl = 'https://liff.line.me/liff-test?liff.state=%2Fliff%2Fqr%2Fstore-token';
+    const expectedLiffUrl = 'https://liff.line.me/liff-test/qr/store-token';
     expect(await screen.findByTestId('qr-value')).toHaveTextContent(expectedLiffUrl);
     expect(screen.getByText('LINE受付（推奨）')).toBeInTheDocument();
     const expectedPublicUrl = `${window.location.origin}/qr/store-token`;

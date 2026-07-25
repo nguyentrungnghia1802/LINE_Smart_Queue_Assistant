@@ -32,6 +32,11 @@ export class RealLiffAdapter implements LiffAdapter {
     };
   }
 
+  async getFriendship(): Promise<boolean> {
+    const friendship = await liff.getFriendship();
+    return friendship.friendFlag;
+  }
+
   getAccessToken(): string | null {
     return liff.getAccessToken();
   }

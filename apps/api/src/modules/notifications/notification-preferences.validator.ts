@@ -8,3 +8,9 @@ export const UpdateNotificationPreferencesSchema = z.object({
 });
 
 export type UpdateNotificationPreferencesDto = z.infer<typeof UpdateNotificationPreferencesSchema>;
+
+export const SyncLineFriendshipSchema = z.object({
+  friendFlag: z.boolean(),
+});
+
+export type SyncLineFriendshipDto = z.infer<typeof SyncLineFriendshipSchema>;

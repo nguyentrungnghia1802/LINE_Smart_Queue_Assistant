@@ -95,6 +95,9 @@ export const customer = {
     continueAsCustomerWithLine: 'Bắt đầu tiếp nhận với LINE với tư cách khách hàng',
     returnToDashboard: 'Trở về trang chủ',
     lineEntryUnavailable: 'Cần cấu hình tiếp nhận LINE. Vui lòng liên hệ quản trị viên.',
+    lineEntryUnavailableHint: 'Hãy nhờ nhân viên cửa hàng kiểm tra cấu hình tiếp nhận LINE.',
+    openingLine: 'Đang mở tiếp nhận bằng LINE',
+    openingLineHint: 'Sau khi xác thực LINE, bạn có thể chọn sản phẩm và dịch vụ ngay.',
   },
   ticket: {
     notFound: 'Không tìm thấy lượt',

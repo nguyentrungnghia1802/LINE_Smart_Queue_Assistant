@@ -16,6 +16,7 @@ export const staff = {
     noOrder: 'Không có đơn',
     selectTicket: 'Chọn mã lượt để xem chi tiết',
     customer: 'Khách hàng',
+    lineName: 'Tên hiển thị LINE',
     contactUnavailable: 'Chưa đăng ký',
     relatedBookingsLabel: 'Đặt chỗ liên quan',
     group: 'Nhóm',

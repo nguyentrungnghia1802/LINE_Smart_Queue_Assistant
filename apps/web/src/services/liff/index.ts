@@ -14,7 +14,8 @@ import { MockLiffAdapter } from './mock.adapter';
 import { RealLiffAdapter } from './real.adapter';
 import type { LiffAdapter } from './types';
 
-const isMock = import.meta.env.VITE_LIFF_MOCK === 'true';
+const mockSetting = import.meta.env.VITE_LIFF_MOCK;
+const isMock = mockSetting === 'true' || (import.meta.env.DEV && mockSetting !== 'false');
 
 /**
  * Singleton adapter instance.

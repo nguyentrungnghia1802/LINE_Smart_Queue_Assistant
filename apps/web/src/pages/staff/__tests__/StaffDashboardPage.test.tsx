@@ -50,7 +50,7 @@ describe('StaffDashboardPage', () => {
             order_number: 'ORD-0001',
             customer_name: '山田 太郎',
             customer_phone: '09000000000',
-            customer_email: 'customer@example.com',
+            customer_line_display_name: 'LINE 山田',
             status: 'pending',
             subtotal: '3000',
             payment_status: 'unpaid',
@@ -66,11 +66,11 @@ describe('StaffDashboardPage', () => {
     });
   });
 
-  it('shows the authenticated customer email in the selected order', async () => {
+  it('shows the LINE display name in the selected order', async () => {
     renderPage();
 
-    expect(await screen.findByText('customer@example.com')).toBeInTheDocument();
-    expect(screen.getByText('メール')).toBeInTheDocument();
+    expect(await screen.findByText('LINE 山田')).toBeInTheDocument();
+    expect(screen.getByText('LINE表示名')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '次の番号を呼び出す' })).not.toBeInTheDocument();
   });
 
@@ -91,7 +91,7 @@ describe('StaffDashboardPage', () => {
             order_number: 'ORD-0001',
             customer_name: '山田 太郎',
             customer_phone: '09000000000',
-            customer_email: 'customer@example.com',
+            customer_line_display_name: 'LINE 山田',
             status: 'pending',
             subtotal: '3000',
             payment_status: 'paid',
@@ -217,7 +217,7 @@ describe('StaffDashboardPage', () => {
             order_number: 'ORD-0005',
             customer_name: '山田 太郎',
             customer_phone: '09000000000',
-            customer_email: 'customer@example.com',
+            customer_line_display_name: 'LINE 山田',
             status: 'pending',
             subtotal: '3000',
             payment_status: 'unpaid',

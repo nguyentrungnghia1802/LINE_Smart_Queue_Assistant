@@ -1,4 +1,5 @@
 const LIFF_URL_BASE = 'https://liff.line.me';
+const DEFAULT_LIFF_ENDPOINT_PATH = '/liff';
 
 export function sanitizeLiffRoute(route: string): string | null {
   const normalized = route.trim();
@@ -6,12 +7,38 @@ export function sanitizeLiffRoute(route: string): string | null {
   return normalized;
 }
 
-export function buildLiffEntryUrl(liffId: string | undefined, route: string): string | null {
-  const normalizedLiffId = liffId?.trim();
-  const normalizedRoute = sanitizeLiffRoute(route);
-  if (!normalizedLiffId || !normalizedRoute) return null;
+export function normalizeLiffEndpointPath(endpointPath?: string): string {
+  const trimmed = endpointPath?.trim();
+  if (trimmed === '/') return '';
 
-  return `${LIFF_URL_BASE}/${normalizedLiffId}?liff.state=${encodeURIComponent(normalizedRoute)}`;
+  const normalized = trimmed?.replace(/\/+$/, '');
+  if (!normalized) return DEFAULT_LIFF_ENDPOINT_PATH;
+  if (!normalized.startsWith('/') || normalized.startsWith('//')) {
+    return DEFAULT_LIFF_ENDPOINT_PATH;
+  }
+  return normalized;
+}
+
+export function toLiffAdditionalPath(route: string, endpointPath?: string): string | null {
+  const normalizedRoute = sanitizeLiffRoute(route);
+  if (!normalizedRoute) return null;
+
+  const normalizedEndpointPath = normalizeLiffEndpointPath(endpointPath);
+  if (!normalizedEndpointPath) return normalizedRoute;
+  if (!normalizedRoute.startsWith(`${normalizedEndpointPath}/`)) return null;
+  return normalizedRoute.slice(normalizedEndpointPath.length);
+}
+
+export function buildLiffEntryUrl(
+  liffId: string | undefined,
+  route: string,
+  endpointPath = import.meta.env.VITE_LIFF_ENDPOINT_PATH
+): string | null {
+  const normalizedLiffId = liffId?.trim();
+  const additionalPath = toLiffAdditionalPath(route, endpointPath);
+  if (!normalizedLiffId || !additionalPath) return null;
+
+  return `${LIFF_URL_BASE}/${normalizedLiffId}${additionalPath}`;
 }
 
 /**
@@ -23,9 +50,11 @@ export function buildLiffEntryUrl(liffId: string | undefined, route: string): st
 export function getCustomerLineEntryUrl(route: string): string | null {
   const normalizedRoute = sanitizeLiffRoute(route);
   if (!normalizedRoute) return null;
+  if (import.meta.env.VITE_LIFF_MOCK === 'true') return normalizedRoute;
 
-  return (
-    buildLiffEntryUrl(import.meta.env.VITE_LIFF_ID, normalizedRoute) ??
-    (import.meta.env.VITE_LIFF_MOCK === 'true' ? normalizedRoute : null)
+  return buildLiffEntryUrl(
+    import.meta.env.VITE_LIFF_ID,
+    normalizedRoute,
+    import.meta.env.VITE_LIFF_ENDPOINT_PATH
   );
 }

@@ -28,7 +28,7 @@ interface Order {
   order_number: string;
   customer_name: string | null;
   customer_phone: string | null;
-  customer_email?: string | null;
+  customer_line_display_name?: string | null;
   status: string;
   subtotal: string;
   payment_status: string;
@@ -367,10 +367,10 @@ export function StaffDashboardPage() {
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                        {t('labels.email', { ns: 'common' })}
+                        {t('dashboard.lineName')}
                       </p>
-                      <p className="mt-1 break-all font-bold text-gray-900">
-                        {selected.order.customer_email ??
+                      <p className="mt-1 break-words font-bold text-gray-900">
+                        {selected.order.customer_line_display_name ??
                           t('dashboard.contactUnavailable', { ns: 'staff' })}
                       </p>
                     </div>

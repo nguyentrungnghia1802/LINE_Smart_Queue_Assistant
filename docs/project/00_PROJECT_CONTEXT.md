@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-07-16.
+Last verified against the repository on 2026-07-26.
 
 ## 1. Problem
 
@@ -29,25 +29,25 @@ Physical queues make customers wait near a counter with little visibility. Busin
 
 The project is a working local/demo modular monolith, not yet a production-complete payment or notification platform.
 
-| Area                      | Status                                              | Meaning                                                                                                                                                                                                                                                                                                          |
-| ------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Organization/admin        | Implemented                                         | Admin list, detail, registration, manager assignment, update, soft deactivation                                                                                                                                                                                                                                  |
-| Catalog and QR booking    | Implemented                                         | Products/services, stock display, quantity selection, organization slug/token entry, and LIFF-first customer booking                                                                                                                                                                                             |
-| Queue and staff operation | Implemented                                         | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                                                                                                                                                                                                                |
-| Orders and inventory      | Operational lifecycle implemented                   | Atomic reserve/decrement, consume on fulfillment, release/restore on cancellation or no-show, expiry worker, transition history, and idempotent guarded transitions                                                                                                                                              |
-| Payment                   | Phase 6 foundation implemented                      | Server-created payment intents, demo provider, signed demo completion, provider abstraction, payment state machine, webhook idempotency log, and reconciliation exist; no real PSP account is connected yet                                                                                                      |
-| LINE                      | Phase 5 code implemented; real-device setup pending | LIFF login verifies ID tokens, LIFF booking stores linked LINE recipients, webhook events are signature-checked, lifecycle push uses durable PostgreSQL outbox delivery with Flex Messages, text fallback and ticket deeplinks, and Rich Menu sync/LIFF Home navigation exist; LINE Console/E2E is still pending |
-| Location alerts           | Privacy-aware mock-provider flow implemented        | Explicit verified-user consent, one-time snapshot, distance alert worker, durable LINE enqueue, retry state, configurable retention and deletion exist; no paid travel-time provider is connected                                                                                                                |
-| Booking history           | Implemented                                         | Authenticated server-side group history is paginated across devices; customers and tenant staff can inspect independent orders/tickets without merging payment, cancellation, or receipt state                                                                                                                   |
-| ETA                       | Measured heuristic implemented                      | Position/workload calculation, 30-second updater, persisted forecast history, version/confidence/explanation, retention, and manager API/dashboard                                                                                                                                                               |
-| Staffing recommendation   | Measured heuristic baseline implemented             | Eight-week weekday/hour demand and service-duration aggregates produce explainable staffing suggestions; this is deliberately not described as ML                                                                                                                                                                |
-| Deployment                | Local/Compose ready                                 | Docker and health checks exist; production infrastructure and secret management are environment-specific                                                                                                                                                                                                         |
+| Area                      | Status                                              | Meaning                                                                                                                                                                                                                                                                                                 |
+| ------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Organization/admin        | Implemented                                         | Admin list, detail, registration, manager assignment, update, soft deactivation                                                                                                                                                                                                                         |
+| Catalog and QR booking    | Implemented                                         | Products/services, stock display, quantity selection, organization slug/token entry, and LIFF-first customer booking                                                                                                                                                                                    |
+| Queue and staff operation | Implemented                                         | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                                                                                                                                                                                                       |
+| Orders and inventory      | Operational lifecycle implemented                   | Atomic reserve/decrement, consume on fulfillment, release/restore on cancellation or no-show, expiry worker, transition history, and idempotent guarded transitions                                                                                                                                     |
+| Payment                   | Phase 6 foundation implemented                      | Server-created payment intents, demo provider, signed demo completion, provider abstraction, payment state machine, webhook idempotency log, and reconciliation exist; no real PSP account is connected yet                                                                                             |
+| LINE                      | Customer login deployed; message acceptance partial | LIFF login verifies ID tokens, customer booking requires linked LINE identity, webhook events are signature-checked, lifecycle push uses the durable PostgreSQL outbox with Flex/text fallback, and Rich Menu/LIFF Home code exists; full notification and Rich Menu physical-device acceptance remains |
+| Location alerts           | Privacy-aware mock-provider flow implemented        | Explicit verified-user consent, one-time snapshot, distance alert worker, durable LINE enqueue, retry state, configurable retention and deletion exist; no paid travel-time provider is connected                                                                                                       |
+| Booking history           | Implemented                                         | Authenticated server-side group history is paginated across devices; customers and tenant staff can inspect independent orders/tickets without merging payment, cancellation, or receipt state                                                                                                          |
+| ETA                       | Measured heuristic implemented                      | Position/workload calculation, 30-second updater, persisted forecast history, version/confidence/explanation, retention, and manager API/dashboard                                                                                                                                                      |
+| Staffing recommendation   | Measured heuristic baseline implemented             | Eight-week weekday/hour demand and service-duration aggregates produce explainable staffing suggestions; this is deliberately not described as ML                                                                                                                                                       |
+| Deployment                | Local/Compose ready                                 | Docker and health checks exist; production infrastructure and secret management are environment-specific                                                                                                                                                                                                |
 
 ## 5. Implemented features
 
-- Email/password authentication for admin, manager, staff, and customer roles.
+- Email/password authentication for admin, manager, and staff roles; customer email login is rejected.
 - LINE LIFF login with server-side ID-token verification and linked `line_accounts` records.
-- LINE-first QR entry by organization slug or stable generated token, with public fallback routes.
+- LINE-only customer authentication: public organization slug/token entries redirect to LIFF, while local development uses the paired LIFF mock identity.
 - Localized customer, staff, manager, and admin portals with persisted language selection.
 - Organization registration with a Gmail manager and compressed logo data URL/URL support.
 - Product/service CRUD, prepayment flag, service duration, finite or unlimited stock, and active state.
@@ -55,7 +55,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Atomic order, queue-entry, order-item, payment-transaction, inventory-reservation, and optional location writes.
 - Per-item payment status and full-order payment status for required-only or all-item checkout.
 - Server-side payment intent boundary with demo provider, localized payment method UI, webhook callback, return status, and reconciliation hooks.
-- Staff order details, item images, manual payment/status controls, queue actions, and receipt printing.
+- Staff order details with booking name, telephone, verified LINE display name, item images, manual payment/status controls, queue actions, and receipt printing.
 - LINE push for booking-created, approaching, called, serving, cancelled, completed, and no-show ticket events on queue entries that contain a verified linked LINE user ID.
 - Centralized Japanese, Vietnamese, and English LINE Flex Message and text fallback templates for ticket lifecycle notifications, with Japanese as the final locale fallback.
 - Durable LINE notification outbox/delivery log in PostgreSQL with unique event keys, worker claim, retry/backoff, sent/failed state, and mock-mode delivery.
@@ -128,4 +128,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 
 Historical files under `docs/archive` are evidence of earlier plans, not current product truth.
 
-Production release evidence is tracked with `docs/checklists/PRODUCTION_READINESS.md`. LINE Console and physical-device acceptance use the independent `docs/checklists/LINE_REAL_DEVICE_E2E.md`; they remain pending until executed against real staging configuration.
+Production release evidence is tracked with `docs/checklists/PRODUCTION_READINESS.md`. LINE Login has
+been exercised on the deployed HTTPS environment. Messaging, Rich Menu, preferences, and deeplink
+acceptance still use the independent `docs/checklists/LINE_REAL_DEVICE_E2E.md` and must be completed
+against the intended Official Account configuration.
