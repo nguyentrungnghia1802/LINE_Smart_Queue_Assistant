@@ -147,6 +147,17 @@ describe('HomePage', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/liff/qr/demo-queue-lab-2026');
   });
 
+  it('does not select an organization when no default booking path is configured', async () => {
+    vi.stubEnv('VITE_LIFF_DEFAULT_BOOKING_PATH', '');
+    renderHome();
+
+    await userEvent.click(screen.getByRole('button', { name: /予約する/ }));
+
+    expect(
+      screen.getByText('予約を開始するには、店舗のQRコードを読み取ってください。')
+    ).toBeInTheDocument();
+  });
+
   it('resolves the current ticket route from Rich Menu mode without a fixed entry ID', async () => {
     renderHome({ initialEntry: '/liff/home?mode=ticket', tickets: [makeTicket()] });
 

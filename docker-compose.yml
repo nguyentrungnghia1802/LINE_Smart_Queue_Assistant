@@ -65,7 +65,8 @@ services:
         VITE_API_URL: ${VITE_API_URL:-}
         VITE_APP_NAME: ${VITE_APP_NAME:-LINE Smart Queue Assistant}
         VITE_LIFF_ID: ${VITE_LIFF_ID:-}
-        VITE_LIFF_DEFAULT_BOOKING_PATH: ${VITE_LIFF_DEFAULT_BOOKING_PATH:-/liff/qr/demo-queue-lab-2026}
+        # Optional single-store demo fallback. Keep empty for multi-organization production.
+        VITE_LIFF_DEFAULT_BOOKING_PATH: ${VITE_LIFF_DEFAULT_BOOKING_PATH:-}
         VITE_LIFF_ENDPOINT_PATH: ${VITE_LIFF_ENDPOINT_PATH:-/liff}
         VITE_LIFF_MOCK: ${VITE_LIFF_MOCK:-false}
         VITE_PAYMENT_MODE: ${VITE_PAYMENT_MODE:-demo}

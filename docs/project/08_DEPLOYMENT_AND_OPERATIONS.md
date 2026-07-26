@@ -64,8 +64,9 @@ Browser-visible configuration:
 - `VITE_LIFF_DEFAULT_BOOKING_PATH`
 - payment mode/redirect base URL and webhook timing limits (identifiers/URLs only, never keys)
 
-For production web builds, keep `VITE_API_URL` empty, set `VITE_LIFF_ENDPOINT_PATH=/liff`, and
-provide a real `VITE_LIFF_ID`. Frontend request
+For production web builds, keep `VITE_API_URL` empty, set `VITE_LIFF_ENDPOINT_PATH=/liff`, provide
+a real `VITE_LIFF_ID`, and keep `VITE_LIFF_DEFAULT_BOOKING_PATH` empty for multi-organization
+deployments. Frontend request
 paths already start with `/api/v1`; nginx proxies `/api/*` to the internal `api:4000` service and
 preserves that prefix. Setting `VITE_API_URL=/api` would incorrectly produce
 `/api/api/v1/...`. Every `VITE_*` value is compiled into the browser bundle at build time and
@@ -128,10 +129,12 @@ Docker Hub repositories are `trungnghia2703/line-smart-queue-api` and
 
 Use `--env-file deploy/.env` when invoking the file from the repository root. Without it, Compose interpolation may read a different `.env` from the current working directory even though the API container's `env_file` is resolved from the deploy directory.
 
-The web image must be built ahead of time with public Vite values such as an empty `VITE_API_URL`
-for same-origin routing, `VITE_LIFF_ID`, `VITE_LIFF_ENDPOINT_PATH=/liff`,
-`VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_PAYMENT_MODE`, and
-`VITE_PAYMENT_REDIRECT_BASE_URL`. `VITE_LIFF_ID` must equal the runtime API's
+The web image must be built ahead of time with a real public `VITE_LIFF_ID`. The Dockerfile
+provides production-safe defaults for the other public values: empty `VITE_API_URL` for
+same-origin routing, `VITE_LIFF_ENDPOINT_PATH=/liff`, empty
+`VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_LIFF_MOCK=false`, `VITE_PAYMENT_MODE=demo`, and an empty
+`VITE_PAYMENT_REDIRECT_BASE_URL`. Therefore the normal production build command only needs to
+override `VITE_LIFF_ID`. `VITE_LIFF_ID` must equal the runtime API's
 `LINE_LOGIN_LIFF_ID`; it is
 compiled into the image and cannot be supplied later through production Compose. In LINE
 Developers Console, set the LIFF endpoint to the deployed HTTPS base path such as
@@ -145,6 +148,11 @@ to the web origin unless both `VITE_LIFF_ENDPOINT_PATH` and `LINE_LIFF_ENDPOINT_
 changed to `/` and the permanent-link tests are rerun. The recommended production configuration is
 the `/liff` endpoint because it isolates the LIFF application surface from business-role routes and
 keeps callback/deeplink behavior deterministic.
+
+`VITE_LIFF_DEFAULT_BOOKING_PATH` is only an optional single-store demo convenience. It must not
+contain a demo organization token in a shared production image. Manager QR links are generated
+per organization as `/liff/qr/:publicQrToken`; a generic LIFF Home without organization context
+asks the customer to scan the intended store QR instead of selecting a tenant implicitly.
 
 The current local media adapter writes to `/app/var/media`, backed by the persistent `media_data` volume. nginx proxies `/media/*` to the API so generated media URLs stay on the public web origin. This volume is a Compose durability baseline, not a substitute for production object storage, backup, scanning, and CDN policy.
 
