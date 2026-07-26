@@ -1,12 +1,16 @@
+import { Building2, LayoutDashboard } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link, Navigate, NavLink, Outlet } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
-import { BrandLogo } from '../../components/BrandLogo';
-import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
-import { AccountMenu } from '../../components/layout/AccountMenu';
+import { RoleAppShell, type RoleNavItem } from '../../components/layout/RoleAppShell';
 import { useAuthStore } from '../../store/authStore';
+
+const ADMIN_NAV_ITEMS: RoleNavItem[] = [
+  { to: '/admin', labelKey: 'nav.dashboard', icon: LayoutDashboard, end: true },
+  { to: '/admin/orgs', labelKey: 'nav.organizations', icon: Building2 },
+];
 
 export function AdminLayout() {
   const { t } = useTranslation('common');
@@ -23,36 +27,5 @@ export function AdminLayout() {
     );
   }
 
-  const navClass = ({ isActive }: { isActive: boolean }) =>
-    `rounded-full px-3 py-2 text-sm font-semibold transition ${
-      isActive ? 'bg-gray-950 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
-    }`;
-
-  return (
-    <div className="min-h-screen bg-[var(--app-bg)]">
-      <header className="sticky top-0 z-20 border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
-          <Link to="/admin" className="flex items-center gap-3 font-bold text-gray-950">
-            <BrandLogo decorative />
-            <span>{t('brandName')}</span>
-          </Link>
-          <nav className="flex items-center gap-1">
-            <NavLink to="/admin" end className={navClass}>
-              {t('nav.dashboard')}
-            </NavLink>
-            <NavLink to="/admin/orgs" className={navClass}>
-              {t('nav.organizations')}
-            </NavLink>
-          </nav>
-          <div className="ml-auto flex items-center gap-3">
-            <LanguageSwitcher compact />
-            <AccountMenu />
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <Outlet />
-      </main>
-    </div>
-  );
+  return <RoleAppShell homePath="/admin" navItems={ADMIN_NAV_ITEMS} />;
 }
