@@ -6,6 +6,11 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Replaced admin-driven organization registration with a public product site, three-step business
+  application, server-calculated demo subscription payment, and an admin approval inbox. Approval
+  atomically provisions the organization, generated slug/QR token, work-email manager, and
+  membership; rejection clears the pending credential hash and demo-refunds the application.
+
 - Standardized Admin, Manager, Staff, legacy app, Customer, and LIFF responsive navigation with
   desktop role tabs, safe-area-aware mobile bottom tabs, and Lucide icons.
 - Reflowed the Staff queue selector for phone screens and added mobile card/form/modal treatments

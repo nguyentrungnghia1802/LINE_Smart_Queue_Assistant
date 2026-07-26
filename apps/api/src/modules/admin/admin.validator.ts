@@ -55,30 +55,14 @@ export const UpdateOrganizationSchema = CreateOrganizationSchema.partial().refin
 
 export const CreateManagerSchema = z.object({
   displayName: z.string().min(1).max(120),
-  email: z
-    .string()
-    .email()
-    .refine((value) => value.toLowerCase().endsWith('@gmail.com'), {
-      message: 'Manager email must be a Gmail address',
-    }),
+  email: z.string().trim().toLowerCase().email().max(254),
   password: z.string().min(6).max(128),
-});
-
-export const CreateOrganizationRegistrationSchema = z.object({
-  organization: CreateOrganizationSchema,
-  manager: CreateManagerSchema,
 });
 
 export const UpdateManagerSchema = z
   .object({
     displayName: z.string().min(1).max(120).optional(),
-    email: z
-      .string()
-      .email()
-      .refine((value) => value.toLowerCase().endsWith('@gmail.com'), {
-        message: 'Manager email must be a Gmail address',
-      })
-      .optional(),
+    email: z.string().trim().toLowerCase().email().max(254).optional(),
     password: z.string().min(6).max(128).optional(),
     isActive: z.boolean().optional(),
   })
@@ -88,8 +72,5 @@ export const UpdateManagerSchema = z
 
 export type CreateManagerDto = z.infer<typeof CreateManagerSchema>;
 export type CreateOrganizationDto = z.infer<typeof CreateOrganizationSchema>;
-export type CreateOrganizationRegistrationDto = z.infer<
-  typeof CreateOrganizationRegistrationSchema
->;
 export type UpdateManagerDto = z.infer<typeof UpdateManagerSchema>;
 export type UpdateOrganizationDto = z.infer<typeof UpdateOrganizationSchema>;

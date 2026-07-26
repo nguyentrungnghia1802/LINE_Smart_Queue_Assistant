@@ -76,17 +76,24 @@ Clients branch on `error.code` and localize it. `error.message` is diagnostic te
 
 All paths require `admin`.
 
-| Method | Path                                                  | Purpose                                          |
-| ------ | ----------------------------------------------------- | ------------------------------------------------ |
-| GET    | `/api/v1/admin/organizations`                         | List organizations                               |
-| POST   | `/api/v1/admin/organizations`                         | Create organization without manager              |
-| POST   | `/api/v1/admin/organizations/register`                | Atomically create organization and Gmail manager |
-| PATCH  | `/api/v1/admin/organizations/:orgId`                  | Update organization                              |
-| DELETE | `/api/v1/admin/organizations/:orgId`                  | Soft-deactivate organization                     |
-| GET    | `/api/v1/admin/organizations/:orgId/managers`         | List managers                                    |
-| POST   | `/api/v1/admin/organizations/:orgId/managers`         | Create manager/membership                        |
-| PATCH  | `/api/v1/admin/organizations/:orgId/managers/:userId` | Update manager profile/password/active state     |
-| DELETE | `/api/v1/admin/organizations/:orgId/managers/:userId` | Deactivate manager/membership                    |
+| Method | Path                                                  | Purpose                                      |
+| ------ | ----------------------------------------------------- | -------------------------------------------- |
+| GET    | `/api/v1/admin/organizations`                         | List organizations                           |
+| PATCH  | `/api/v1/admin/organizations/:orgId`                  | Update organization                          |
+| DELETE | `/api/v1/admin/organizations/:orgId`                  | Soft-deactivate organization                 |
+| GET    | `/api/v1/admin/organizations/:orgId/managers`         | List managers                                |
+| POST   | `/api/v1/admin/organizations/:orgId/managers`         | Create manager/membership                    |
+| PATCH  | `/api/v1/admin/organizations/:orgId/managers/:userId` | Update manager profile/password/active state |
+| DELETE | `/api/v1/admin/organizations/:orgId/managers/:userId` | Deactivate manager/membership                |
+
+### Organization service applications
+
+| Method | Path                                                       | Access                | Purpose                                                         |
+| ------ | ---------------------------------------------------------- | --------------------- | --------------------------------------------------------------- |
+| POST   | `/api/v1/organization-applications`                        | Public, write-limited | Submit business/work-email/plan details with server demo price  |
+| GET    | `/api/v1/organization-applications?status=...`             | Admin                 | List pending/approved/rejected applications                     |
+| POST   | `/api/v1/organization-applications/:applicationId/approve` | Admin                 | Atomically provision tenant and manager from a paid application |
+| POST   | `/api/v1/organization-applications/:applicationId/reject`  | Admin                 | Reject, clear pending credential hash, and demo-refund          |
 
 ### Organizations and public entry
 

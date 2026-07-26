@@ -1,0 +1,281 @@
+import {
+  ArrowRight,
+  BarChart3,
+  BellRing,
+  Check,
+  Clock3,
+  HeartPulse,
+  MessageCircle,
+  Scissors,
+  ShoppingBag,
+  Store,
+  Utensils,
+} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+
+import { BrandLogo } from '../../components/BrandLogo';
+import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
+import { useAuthStore } from '../../store/authStore';
+
+const PLAN_PRICES = { starter: 9_800, standard: 29_800, scale: 59_800 } as const;
+
+export function MarketingHomePage() {
+  const { t, i18n } = useTranslation(['marketing', 'common']);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const currency = new Intl.NumberFormat(i18n.resolvedLanguage ?? 'ja', {
+    style: 'currency',
+    currency: 'JPY',
+    maximumFractionDigits: 0,
+  });
+
+  return (
+    <div className="min-h-screen bg-white text-gray-950">
+      <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
+          <Link to="/" className="flex min-w-0 items-center gap-2.5">
+            <BrandLogo className="h-9 w-9" />
+            <span className="truncate text-sm font-bold sm:text-base">Smart Queue Assistant</span>
+          </Link>
+          <nav
+            className="ml-auto hidden items-center gap-6 lg:flex"
+            aria-label={t('accessibility.mainNavigation', { ns: 'common' })}
+          >
+            <a className="text-sm font-semibold text-gray-600 hover:text-gray-950" href="#product">
+              {t('nav.product')}
+            </a>
+            <a
+              className="text-sm font-semibold text-gray-600 hover:text-gray-950"
+              href="#solutions"
+            >
+              {t('nav.solutions')}
+            </a>
+            <a className="text-sm font-semibold text-gray-600 hover:text-gray-950" href="#pricing">
+              {t('nav.pricing')}
+            </a>
+          </nav>
+          <div className="ml-auto flex items-center gap-2 lg:ml-4">
+            <LanguageSwitcher compact />
+            <Link
+              to={isAuthenticated ? '/dashboard' : '/login'}
+              className="hidden rounded-md border border-gray-300 px-3 py-2 text-sm font-bold text-gray-800 hover:bg-gray-50 sm:inline-flex"
+            >
+              {isAuthenticated ? t('nav.dashboard') : t('nav.login')}
+            </Link>
+            <Link
+              to="/business/register"
+              className="rounded-md bg-gray-950 px-3 py-2 text-sm font-bold text-white hover:bg-gray-800"
+            >
+              <span className="hidden md:inline">{t('nav.businessSignup')}</span>
+              <ArrowRight className="h-4 w-4 md:hidden" aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section
+          className="relative flex min-h-[78svh] items-end overflow-hidden bg-cover bg-center"
+          style={{ backgroundImage: "url('/img/landing-hero.webp')" }}
+        >
+          <div className="absolute inset-0 bg-gray-950/55" aria-hidden="true" />
+          <div className="relative mx-auto w-full max-w-7xl px-4 pb-16 pt-24 sm:px-6 sm:pb-20 lg:pb-24">
+            <div className="max-w-3xl text-white">
+              <p className="text-sm font-bold uppercase text-emerald-300">{t('hero.eyebrow')}</p>
+              <h1 className="mt-4 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
+                {t('hero.title')}
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-gray-100 sm:text-lg">
+                {t('hero.description')}
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  to="/business/register"
+                  className="inline-flex items-center gap-2 rounded-md bg-line-green px-5 py-3 text-sm font-bold text-white hover:bg-brand-600"
+                >
+                  {t('hero.primary')}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+                <a
+                  href="#product"
+                  className="rounded-md border border-white/70 bg-white/10 px-5 py-3 text-sm font-bold text-white backdrop-blur hover:bg-white/20"
+                >
+                  {t('hero.secondary')}
+                </a>
+              </div>
+              <p className="mt-7 flex items-center gap-2 text-sm text-gray-200">
+                <Check className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                {t('hero.trusted')}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="product"
+          className="scroll-mt-20 border-b border-gray-200 bg-white py-20 sm:py-24"
+        >
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="max-w-3xl">
+              <p className="text-sm font-bold uppercase text-brand-700">{t('product.eyebrow')}</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{t('product.title')}</h2>
+              <p className="mt-4 text-base leading-7 text-gray-600">{t('product.description')}</p>
+            </div>
+            <div className="mt-12 grid border-y border-gray-200 md:grid-cols-3 md:divide-x md:divide-gray-200">
+              <Feature
+                icon={MessageCircle}
+                title={t('product.features.line.title')}
+                description={t('product.features.line.description')}
+              />
+              <Feature
+                icon={Clock3}
+                title={t('product.features.queue.title')}
+                description={t('product.features.queue.description')}
+              />
+              <Feature
+                icon={BarChart3}
+                title={t('product.features.analytics.title')}
+                description={t('product.features.analytics.description')}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section id="solutions" className="scroll-mt-20 bg-gray-950 py-20 text-white sm:py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <p className="text-sm font-bold uppercase text-emerald-300">{t('solutions.eyebrow')}</p>
+            <h2 className="mt-3 max-w-2xl text-3xl font-bold sm:text-4xl">
+              {t('solutions.title')}
+            </h2>
+            <div className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-gray-700 lg:grid-cols-4">
+              <Solution icon={Scissors} label={t('solutions.salon')} />
+              <Solution icon={HeartPulse} label={t('solutions.clinic')} />
+              <Solution icon={Utensils} label={t('solutions.restaurant')} />
+              <Solution icon={ShoppingBag} label={t('solutions.counter')} />
+            </div>
+          </div>
+        </section>
+
+        <section id="pricing" className="scroll-mt-20 bg-gray-50 py-20 sm:py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="max-w-3xl">
+              <p className="text-sm font-bold uppercase text-brand-700">{t('pricing.eyebrow')}</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{t('pricing.title')}</h2>
+              <p className="mt-4 text-sm text-gray-500">{t('pricing.demoNotice')}</p>
+            </div>
+            <div className="mt-10 grid gap-5 lg:grid-cols-3">
+              {(Object.keys(PLAN_PRICES) as Array<keyof typeof PLAN_PRICES>).map((plan) => (
+                <article
+                  key={plan}
+                  className={`rounded-lg border bg-white p-6 ${
+                    plan === 'standard'
+                      ? 'border-brand-500 shadow-[var(--shadow-soft)]'
+                      : 'border-gray-200'
+                  }`}
+                >
+                  <div className="flex min-h-7 items-center justify-between gap-3">
+                    <h3 className="text-xl font-bold">{t(`pricing.${plan}.name`)}</h3>
+                    {plan === 'standard' && (
+                      <span className="rounded bg-brand-100 px-2 py-1 text-xs font-bold text-brand-800">
+                        {t('pricing.standard.badge')}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-3 min-h-12 text-sm leading-6 text-gray-600">
+                    {t(`pricing.${plan}.description`)}
+                  </p>
+                  <p className="mt-6 text-3xl font-bold">
+                    {currency.format(PLAN_PRICES[plan])}
+                    <span className="text-sm font-medium text-gray-500">
+                      {t('pricing.perMonth')}
+                    </span>
+                  </p>
+                  <ul className="mt-6 space-y-3">
+                    {(t(`pricing.${plan}.features`, { returnObjects: true }) as string[]).map(
+                      (feature) => (
+                        <li key={feature} className="flex gap-2 text-sm text-gray-700">
+                          <Check
+                            className="mt-0.5 h-4 w-4 shrink-0 text-brand-600"
+                            aria-hidden="true"
+                          />
+                          {feature}
+                        </li>
+                      )
+                    )}
+                  </ul>
+                  <Link
+                    to={`/business/register?plan=${plan}`}
+                    className={`mt-8 inline-flex w-full items-center justify-center rounded-md px-4 py-3 text-sm font-bold ${
+                      plan === 'standard'
+                        ? 'bg-gray-950 text-white hover:bg-gray-800'
+                        : 'border border-gray-300 text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    {t('pricing.choose')}
+                  </Link>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-gray-200 bg-emerald-50 py-16 sm:py-20">
+          <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-3xl">
+              <h2 className="text-3xl font-bold text-gray-950">{t('cta.title')}</h2>
+              <p className="mt-3 text-gray-600">{t('cta.description')}</p>
+            </div>
+            <Link
+              to="/business/register"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-gray-950 px-5 py-3 text-sm font-bold text-white hover:bg-gray-800"
+            >
+              {t('cta.action')}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      <footer className="bg-white py-12">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 md:grid-cols-[1fr_auto]">
+          <div className="max-w-lg">
+            <div className="flex items-center gap-3">
+              <BrandLogo className="h-10 w-10" />
+              <span className="font-bold">Smart Queue Assistant</span>
+            </div>
+            <p className="mt-4 text-sm leading-6 text-gray-600">{t('footer.description')}</p>
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-gray-600">
+            <a href="#product">{t('footer.product')}</a>
+            <Link to="/business/register">{t('nav.businessSignup')}</Link>
+            <Link to="/login">{t('nav.login')}</Link>
+          </div>
+          <p className="text-xs text-gray-500 md:col-span-2">{t('footer.copyright')}</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function Feature({
+  icon: Icon,
+  title,
+  description,
+}: Readonly<{ icon: typeof BellRing; title: string; description: string }>) {
+  return (
+    <article className="border-b border-gray-200 py-8 md:border-b-0 md:px-8 first:md:pl-0 last:md:pr-0">
+      <Icon className="h-7 w-7 text-brand-600" aria-hidden="true" />
+      <h3 className="mt-5 text-lg font-bold">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-gray-600">{description}</p>
+    </article>
+  );
+}
+
+function Solution({ icon: Icon, label }: Readonly<{ icon: typeof Store; label: string }>) {
+  return (
+    <div className="flex min-h-40 flex-col justify-between bg-gray-900 p-5">
+      <Icon className="h-7 w-7 text-emerald-300" aria-hidden="true" />
+      <p className="mt-8 font-bold">{label}</p>
+    </div>
+  );
+}
