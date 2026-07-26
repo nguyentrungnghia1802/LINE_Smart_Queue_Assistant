@@ -8,18 +8,21 @@ import { auth as enAuth } from './locales/en/auth';
 import { common as enCommon } from './locales/en/common';
 import { customer as enCustomer } from './locales/en/customer';
 import { manager as enManager } from './locales/en/manager';
+import { marketing as enMarketing } from './locales/en/marketing';
 import { staff as enStaff } from './locales/en/staff';
 import { admin as jaAdmin } from './locales/ja/admin';
 import { auth as jaAuth } from './locales/ja/auth';
 import { common as jaCommon } from './locales/ja/common';
 import { customer as jaCustomer } from './locales/ja/customer';
 import { manager as jaManager } from './locales/ja/manager';
+import { marketing as jaMarketing } from './locales/ja/marketing';
 import { staff as jaStaff } from './locales/ja/staff';
 import { admin as viAdmin } from './locales/vi/admin';
 import { auth as viAuth } from './locales/vi/auth';
 import { common as viCommon } from './locales/vi/common';
 import { customer as viCustomer } from './locales/vi/customer';
 import { manager as viManager } from './locales/vi/manager';
+import { marketing as viMarketing } from './locales/vi/marketing';
 import { staff as viStaff } from './locales/vi/staff';
 
 export const LOCALE_STORAGE_KEY = 'line-queue-locale';
@@ -61,6 +64,7 @@ export const appResources = {
     staff: jaStaff,
     manager: jaManager,
     admin: jaAdmin,
+    marketing: jaMarketing,
   },
   vi: {
     common: viCommon,
@@ -69,6 +73,7 @@ export const appResources = {
     staff: viStaff,
     manager: viManager,
     admin: viAdmin,
+    marketing: viMarketing,
   },
   en: {
     common: enCommon,
@@ -77,6 +82,7 @@ export const appResources = {
     staff: enStaff,
     manager: enManager,
     admin: enAdmin,
+    marketing: enMarketing,
   },
 } as const;
 
@@ -85,7 +91,7 @@ void i18n.use(initReactI18next).init({
   lng: detectClientLocale(),
   fallbackLng: DEFAULT_LOCALE,
   defaultNS: 'common',
-  ns: ['common', 'auth', 'customer', 'staff', 'manager', 'admin'],
+  ns: ['common', 'auth', 'customer', 'staff', 'manager', 'admin', 'marketing'],
   interpolation: { escapeValue: false },
   returnNull: false,
 });

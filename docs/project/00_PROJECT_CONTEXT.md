@@ -8,13 +8,14 @@ Physical queues make customers wait near a counter with little visibility. Busin
 
 ## 2. Target users
 
-| Actor           | Need                                                                                                                 |
-| --------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Customer        | Select products/services, satisfy required prepayment, reserve a place, track the ticket, and receive LINE reminders |
-| Staff           | See the active queue and order, call/serve/complete customers, update payment, and print receipts                    |
-| Manager         | Configure one organization, catalog, staff, queues, QR access, and operational analytics                             |
-| Platform admin  | Register and manage organizations and their manager accounts without reading tenant customer or revenue data         |
-| System operator | Deploy, monitor, back up, restore, and troubleshoot the platform                                                     |
+| Actor              | Need                                                                                                                 |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Customer           | Select products/services, satisfy required prepayment, reserve a place, track the ticket, and receive LINE reminders |
+| Staff              | See the active queue and order, call/serve/complete customers, update payment, and print receipts                    |
+| Manager            | Configure one organization, catalog, staff, queues, QR access, and operational analytics                             |
+| Business applicant | Review the product, choose a plan, submit organization/work-email details, and complete demo payment                 |
+| Platform admin     | Review applications and manage approved organizations/managers without reading tenant customer or revenue data       |
+| System operator    | Deploy, monitor, back up, restore, and troubleshoot the platform                                                     |
 
 ## 3. Product goals
 
@@ -31,7 +32,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 
 | Area                      | Status                                              | Meaning                                                                                                                                                                                                                                                                                                 |
 | ------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Organization/admin        | Implemented                                         | Admin list, detail, registration, manager assignment, update, soft deactivation                                                                                                                                                                                                                         |
+| Organization onboarding   | Implemented                                         | Public product site and server-priced demo-paid application; admin approval atomically creates organization, work-email manager, and membership                                                                                                                                                         |
 | Catalog and QR booking    | Implemented                                         | Products/services, stock display, quantity selection, organization slug/token entry, and LIFF-first customer booking                                                                                                                                                                                    |
 | Queue and staff operation | Implemented                                         | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                                                                                                                                                                                                       |
 | Orders and inventory      | Operational lifecycle implemented                   | Atomic reserve/decrement, consume on fulfillment, release/restore on cancellation or no-show, expiry worker, transition history, and idempotent guarded transitions                                                                                                                                     |
@@ -51,7 +52,9 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Localized customer, staff, manager, and admin portals with persisted language selection.
 - Shared responsive role navigation with full desktop tabs, icon-labelled mobile bottom navigation,
   safe-area spacing, and mobile card/list variants for dense manager operations.
-- Organization registration with a Gmail manager and compressed logo data URL/URL support.
+- Public business onboarding with organization/contact/address/usage/plan details, a work-email
+  manager credential stored only as a hash, optional compressed logo, server-calculated demo
+  payment, and admin approval/rejection.
 - Product/service CRUD, prepayment flag, service duration, finite or unlimited stock, and active state.
 - Queue CRUD, opening state, capacity configuration, ticket prefix/counter, skip/no-show controls, and ETA configuration.
 - Atomic order, queue-entry, order-item, payment-transaction, inventory-reservation, and optional location writes.
@@ -67,7 +70,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - LINE webhook signature verification and basic follow, unfollow, and message command handling.
 - Scheduled ETA refresh, approaching-turn scan, called-message retry scan, durable notification delivery, and daily counter reset.
 - Rate limits, request IDs, structured logging, basic Prometheus text metrics, health/readiness endpoints, and audit logs.
-- Playwright browser coverage for LIFF mock authentication, required-item demo payment, booking/ticket redirect, staff transitions, durable mock notification delivery, receipt access, admin registration, manager QR/settings, complete role navigation, and desktop/mobile overflow checks.
+- Playwright browser coverage for LIFF mock authentication, required-item demo payment, booking/ticket redirect, staff transitions, durable mock notification delivery, receipt access, public application/admin approval, manager QR/settings, complete role navigation, and desktop/mobile overflow checks.
 - Database structures for booking groups, location snapshots/alerts, forecast history, and staffing recommendations.
 - Japan-oriented organization addresses, `Asia/Tokyo` defaults, normalized weekly hours, and exception-day configuration.
 

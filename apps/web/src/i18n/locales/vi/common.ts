@@ -12,6 +12,7 @@ export const common = {
     account: 'Tài khoản',
     products: 'Sản phẩm',
     organizations: 'Tổ chức',
+    applications: 'Xét duyệt',
     users: 'Người dùng',
     admin: 'Quản trị',
     staff: 'Nhân viên',
