@@ -60,6 +60,7 @@ describe('LINE credential namespaces', () => {
     expect(line.loginChannelId).toBe('login-channel-new');
     expect(line.loginLiffId).toBe('login-liff-new');
     expect(line.messagingChannelSecret).toBe('messaging-secret-new');
+    expect(line.messagingChannelSecretSource).toBe('LINE_MESSAGING_CHANNEL_SECRET');
     expect(line.messagingChannelAccessToken).toBe('messaging-token-new');
   });
 
@@ -76,6 +77,7 @@ describe('LINE credential namespaces', () => {
     expect(line.loginChannelId).toBe('legacy-login-channel');
     expect(line.loginLiffId).toBe('legacy-liff');
     expect(line.messagingChannelSecret).toBe('legacy-secret');
+    expect(line.messagingChannelSecretSource).toBe('LINE_CHANNEL_SECRET (legacy)');
     expect(line.messagingChannelAccessToken).toBe('legacy-token');
   });
 });

@@ -73,6 +73,26 @@ must be treated as public configuration, not as a secret.
 
 Rotate any credential that has appeared in Git history, logs, screenshots, tickets, or examples.
 
+### LINE webhook verification troubleshooting
+
+The production webhook URL is
+`https://<web-origin>/api/v1/line/webhook`. A LINE Console verification request with a valid
+signature and an empty `events` array returns `200`. The API logs one of these safe diagnostic
+events without logging the signature, body, or secret:
+
+- `line.webhook.verification_acknowledged`: signature passed and the verification request returned
+  `200`;
+- `line.webhook.signature_invalid`: the configured secret does not match the Messaging API channel
+  that signed the request;
+- `line.webhook.signature_missing`: the request did not contain `x-line-signature`;
+- `line.webhook.secret_missing`: no Messaging API Channel Secret is configured.
+
+Inspect the running container with `docker compose logs --tail=100 api`. If the diagnostic
+`secretSource` is `LINE_CHANNEL_SECRET (legacy)`, migrate `deploy/.env` to
+`LINE_MESSAGING_CHANNEL_SECRET` and copy the Channel Secret from the **Messaging API channel**
+Basic settings, never from the LINE Login channel. Recreate the API container after changing an
+environment variable.
+
 ## 3. Docker deployment
 
 Production-like Compose:

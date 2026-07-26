@@ -50,6 +50,7 @@ jest.mock('../../../config', () => ({
     nodeEnv: 'test',
     line: {
       messagingChannelSecret: 'test-channel-secret',
+      messagingChannelSecretSource: 'LINE_MESSAGING_CHANNEL_SECRET',
       messagingChannelAccessToken: '',
       loginChannelId: '',
     },
