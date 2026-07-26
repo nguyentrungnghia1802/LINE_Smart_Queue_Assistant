@@ -8,6 +8,7 @@ import { lineRouter } from '../modules/line/line.routes';
 import { mediaRouter } from '../modules/media/media.routes';
 import { notificationsRouter } from '../modules/notifications/notifications.routes';
 import { ordersRouter } from '../modules/orders/orders.routes';
+import { organizationApplicationsRouter } from '../modules/organization-applications/organization-applications.routes';
 import { orgsRouter } from '../modules/orgs/orgs.routes';
 import { paymentsRouter } from '../modules/payments/payments.routes';
 import { productsRouter } from '../modules/products/products.routes';
@@ -32,6 +33,7 @@ v1Router.use('/queues', queuesRouter); // plural:   admin queue management
 v1Router.use('/staff', staffRouter); // staff/admin queue operations
 v1Router.use('/users', usersRouter);
 v1Router.use('/notifications', notificationsRouter);
+v1Router.use('/organization-applications', organizationApplicationsRouter);
 v1Router.use('/line', lineRouter);
 v1Router.use('/media', mediaRouter);
 v1Router.use('/products', productsRouter);

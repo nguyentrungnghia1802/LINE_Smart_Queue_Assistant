@@ -1,4 +1,4 @@
-import { Building2, LayoutDashboard } from 'lucide-react';
+import { Building2, ClipboardCheck, LayoutDashboard } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
 
@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/authStore';
 const ADMIN_NAV_ITEMS: RoleNavItem[] = [
   { to: '/admin', labelKey: 'nav.dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/orgs', labelKey: 'nav.organizations', icon: Building2 },
+  { to: '/admin/applications', labelKey: 'nav.applications', icon: ClipboardCheck },
 ];
 
 export function AdminLayout() {

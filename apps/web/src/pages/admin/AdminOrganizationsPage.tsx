@@ -35,10 +35,10 @@ export function AdminOrganizationsPage() {
           <p className="mt-1 text-sm text-gray-500">{t('organizations.listDescription')}</p>
         </div>
         <Link
-          to="/admin/orgs/register"
-          className="inline-flex items-center justify-center rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          to="/admin/applications"
+          className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-800 hover:bg-gray-50"
         >
-          {t('organizations.register')}
+          {t('applications.viewApplications')}
         </Link>
       </div>
 

@@ -53,8 +53,10 @@ export class UsersRepository extends BaseRepository {
     return this.queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [id]);
   }
 
-  async findByEmail(email: string): Promise<UserRow | null> {
-    return this.queryOne<UserRow>('SELECT * FROM users WHERE email = $1', [email]);
+  async findByEmail(email: string, client?: PoolClient): Promise<UserRow | null> {
+    return client
+      ? this.queryOneTx<UserRow>(client, 'SELECT * FROM users WHERE email = $1', [email])
+      : this.queryOne<UserRow>('SELECT * FROM users WHERE email = $1', [email]);
   }
 
   /**
