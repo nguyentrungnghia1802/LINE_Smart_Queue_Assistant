@@ -26,7 +26,7 @@ export const handleWebhook = asyncHandler(async (req: Request, res: Response) =>
     throw AppError.unauthorized('Missing X-Line-Signature header');
   }
 
-  if (!config.line.channelSecret) {
+  if (!config.line.messagingChannelSecret) {
     throw AppError.serviceUnavailable('LINE webhook channel secret is not configured');
   }
 
@@ -35,7 +35,7 @@ export const handleWebhook = asyncHandler(async (req: Request, res: Response) =>
   // (should not happen in production; guards against misconfiguration).
   const rawBody: Buffer | string = req.rawBody ?? JSON.stringify(req.body);
 
-  if (!verifyLineSignature(rawBody, signature, config.line.channelSecret)) {
+  if (!verifyLineSignature(rawBody, signature, config.line.messagingChannelSecret)) {
     throw AppError.unauthorized('Invalid LINE signature');
   }
 

@@ -25,12 +25,19 @@ export const config = {
   },
 
   line: {
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN ?? '',
-    channelSecret: process.env.LINE_CHANNEL_SECRET ?? '',
+    /** Messaging API channel access token used for push/reply and Rich Menu APIs. */
+    messagingChannelAccessToken:
+      process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN ??
+      process.env.LINE_CHANNEL_ACCESS_TOKEN ??
+      '',
+    /** Messaging API channel secret used only for webhook signature verification. */
+    messagingChannelSecret:
+      process.env.LINE_MESSAGING_CHANNEL_SECRET ?? process.env.LINE_CHANNEL_SECRET ?? '',
     /** LINE Login / LIFF channel ID — required to verify OIDC id_tokens. */
-    channelId: process.env.LINE_CHANNEL_ID ?? '',
+    loginChannelId: process.env.LINE_LOGIN_CHANNEL_ID ?? process.env.LINE_CHANNEL_ID ?? '',
     /** LIFF app ID used to generate customer deep links in LINE push messages. */
-    liffId: process.env.LINE_LIFF_ID ?? process.env.VITE_LIFF_ID ?? '',
+    loginLiffId:
+      process.env.LINE_LOGIN_LIFF_ID ?? process.env.LINE_LIFF_ID ?? process.env.VITE_LIFF_ID ?? '',
     /** Path configured in the LINE Developers Console LIFF Endpoint URL. */
     liffEndpointPath: process.env.LINE_LIFF_ENDPOINT_PATH ?? '/liff',
     /** Local PNG/JPEG image used by the explicit Rich Menu sync command. */
