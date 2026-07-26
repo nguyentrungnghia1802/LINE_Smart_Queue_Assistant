@@ -33,7 +33,7 @@ export function AccountMenu({ compact = false }: Readonly<AccountMenuProps>) {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
+        className="flex h-10 items-center gap-2 rounded-full border border-gray-200 bg-white px-2 text-sm text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 sm:px-2.5"
         aria-haspopup="menu"
         aria-expanded={open}
       >
@@ -45,12 +45,14 @@ export function AccountMenu({ compact = false }: Readonly<AccountMenuProps>) {
             {displayName}
           </span>
         )}
-        <span
-          aria-hidden="true"
-          className={`h-2 w-2 rotate-45 border-b-2 border-r-2 border-gray-400 transition-transform ${
-            open ? 'translate-y-0.5 rotate-[225deg]' : '-translate-y-0.5'
-          }`}
-        />
+        {!compact && (
+          <span
+            aria-hidden="true"
+            className={`h-2 w-2 rotate-45 border-b-2 border-r-2 border-gray-400 transition-transform ${
+              open ? 'translate-y-0.5 rotate-[225deg]' : '-translate-y-0.5'
+            }`}
+          />
+        )}
       </button>
 
       {open && (

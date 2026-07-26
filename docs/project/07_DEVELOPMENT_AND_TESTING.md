@@ -180,6 +180,9 @@ npm run test:ui -w apps/web
 
 Critical regression scenarios:
 
+- every Admin, Manager, Staff, Customer, and LIFF primary destination remains reachable at desktop
+  and phone viewports without page-level horizontal overflow;
+
 - Required-only vs all-item payment and draft restoration.
 - Finite stock race/rollback and unlimited stock behavior.
 - Cross-organization access attempts for every staff/manager command.
