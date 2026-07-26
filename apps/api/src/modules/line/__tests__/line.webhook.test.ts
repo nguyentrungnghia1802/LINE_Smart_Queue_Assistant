@@ -49,9 +49,10 @@ jest.mock('../../../config', () => ({
   config: {
     nodeEnv: 'test',
     line: {
-      channelSecret: 'test-channel-secret',
-      channelAccessToken: '',
-      channelId: '',
+      messagingChannelSecret: 'test-channel-secret',
+      messagingChannelSecretSource: 'LINE_MESSAGING_CHANNEL_SECRET',
+      messagingChannelAccessToken: '',
+      loginChannelId: '',
     },
     cors: { origin: 'http://localhost:5173' },
     jwt: { secret: 'test-jwt-secret', expiresIn: '7d' },

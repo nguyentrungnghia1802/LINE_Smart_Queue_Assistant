@@ -19,14 +19,41 @@ Backend-only secrets:
 
 - `DATABASE_URL` or database credentials
 - `JWT_SECRET`
-- `LINE_CHANNEL_SECRET`
-- `LINE_CHANNEL_ACCESS_TOKEN`
-- `LINE_CHANNEL_ID`
-- `LINE_LIFF_ID`
+- `LINE_MESSAGING_CHANNEL_SECRET`
+- `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`
 - `LINE_RICH_MENU_IMAGE_PATH` or an equivalent deployment-mounted Rich Menu PNG/JPEG asset path
 - future PSP API/webhook keys and current demo payment webhook secret
 
-`LINE_CHANNEL_ACCESS_TOKEN` authorizes outbound Messaging API calls and Rich Menu management. `LINE_CHANNEL_SECRET` verifies inbound webhook signatures and must come from the same Messaging API channel as the token. `LINE_CHANNEL_ID` is the separate LINE Login channel ID used for LIFF ID-token verification. `LINE_LIFF_ID` is the public LIFF app ID used by the backend to generate ticket deeplinks in LINE messages and Rich Menu LIFF routes.
+LINE production configuration is intentionally separated by channel:
+
+| LINE Console source                                        | Variable                                   | Secret              | Where to provide it                    |
+| ---------------------------------------------------------- | ------------------------------------------ | ------------------- | -------------------------------------- |
+| LINE Login channel, Basic settings, Channel ID             | `LINE_LOGIN_CHANNEL_ID`                    | No                  | Server `deploy/.env`                   |
+| LINE Login channel, LIFF app, LIFF ID                      | `LINE_LOGIN_LIFF_ID`                       | No                  | Server `deploy/.env`                   |
+| Same LIFF app ID                                           | `VITE_LIFF_ID`                             | No, browser-visible | Web image build argument               |
+| Messaging API channel, Basic settings, Channel secret      | `LINE_MESSAGING_CHANNEL_SECRET`            | Yes                 | Server `deploy/.env` or secret manager |
+| Messaging API channel, Messaging API, Channel access token | `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`      | Yes                 | Server `deploy/.env` or secret manager |
+| Messaging API channel, Webhook settings                    | `https://<web-origin>/api/v1/line/webhook` | No                  | LINE Developers Console                |
+
+`LINE_MESSAGING_CHANNEL_ACCESS_TOKEN` authorizes outbound push/reply and Rich Menu operations.
+`LINE_MESSAGING_CHANNEL_SECRET` verifies inbound webhook signatures; both must come from the same
+Messaging API channel. `LINE_LOGIN_CHANNEL_ID` verifies LIFF ID tokens.
+`LINE_LOGIN_LIFF_ID` lets the backend generate LINE deeplinks.
+
+The current ID-token verification request does not use the LINE Login Channel Secret. Developer
+`Your user ID`, Assertion Signing Key, and its public/private keys are also not runtime
+configuration for the current long-lived Messaging API token flow.
+
+The runtime temporarily accepts legacy `LINE_CHANNEL_ID`, `LINE_LIFF_ID`, `LINE_CHANNEL_SECRET`,
+and `LINE_CHANNEL_ACCESS_TOKEN` names for migration. New deployments must use the namespaced
+variables above; a new value takes precedence over its legacy alias.
+
+For native local API development and the root Compose stack, copy `.env.example` to the repository
+root as `.env`. For the production image-based stack, place runtime values in the untracked
+`deploy/.env` file and invoke Compose with `--env-file deploy/.env`. The public `VITE_LIFF_ID` is
+different: provide it as a web-image build argument (and optionally in `apps/web/.env.local` for a
+native local Vite process). Never place the Messaging API secret or access token in a `VITE_*`
+variable.
 
 Browser-visible configuration:
 
@@ -45,6 +72,26 @@ preserves that prefix. Setting `VITE_API_URL=/api` would incorrectly produce
 must be treated as public configuration, not as a secret.
 
 Rotate any credential that has appeared in Git history, logs, screenshots, tickets, or examples.
+
+### LINE webhook verification troubleshooting
+
+The production webhook URL is
+`https://<web-origin>/api/v1/line/webhook`. A LINE Console verification request with a valid
+signature and an empty `events` array returns `200`. The API logs one of these safe diagnostic
+events without logging the signature, body, or secret:
+
+- `line.webhook.verification_acknowledged`: signature passed and the verification request returned
+  `200`;
+- `line.webhook.signature_invalid`: the configured secret does not match the Messaging API channel
+  that signed the request;
+- `line.webhook.signature_missing`: the request did not contain `x-line-signature`;
+- `line.webhook.secret_missing`: no Messaging API Channel Secret is configured.
+
+Inspect the running container with `docker compose logs --tail=100 api`. If the diagnostic
+`secretSource` is `LINE_CHANNEL_SECRET (legacy)`, migrate `deploy/.env` to
+`LINE_MESSAGING_CHANNEL_SECRET` and copy the Channel Secret from the **Messaging API channel**
+Basic settings, never from the LINE Login channel. Recreate the API container after changing an
+environment variable.
 
 ## 3. Docker deployment
 
@@ -84,7 +131,8 @@ Use `--env-file deploy/.env` when invoking the file from the repository root. Wi
 The web image must be built ahead of time with public Vite values such as an empty `VITE_API_URL`
 for same-origin routing, `VITE_LIFF_ID`, `VITE_LIFF_ENDPOINT_PATH=/liff`,
 `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_PAYMENT_MODE`, and
-`VITE_PAYMENT_REDIRECT_BASE_URL`. `VITE_LIFF_ID` must equal the runtime API's `LINE_LIFF_ID`; it is
+`VITE_PAYMENT_REDIRECT_BASE_URL`. `VITE_LIFF_ID` must equal the runtime API's
+`LINE_LOGIN_LIFF_ID`; it is
 compiled into the image and cannot be supplied later through production Compose. In LINE
 Developers Console, set the LIFF endpoint to the deployed HTTPS base path such as
 `https://<web-origin>/liff`. Permanent links then append endpoint-relative paths such as
@@ -204,7 +252,10 @@ Check linked `line_user_id`, Official Account relationship, access token, channe
 
 ### Rich Menu missing or outdated
 
-Check the intended Official Account, `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_LIFF_ID`, `WEB_ORIGIN`, and `LINE_RICH_MENU_IMAGE_PATH`. Rerun `npm run line:rich-menu:sync`; use `-- --replace` only when intentionally replacing the managed menu. The API process does not create or update Rich Menus on startup.
+Check the intended Official Account, `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`,
+`LINE_LOGIN_LIFF_ID`, `WEB_ORIGIN`, and `LINE_RICH_MENU_IMAGE_PATH`. Rerun
+`npm run line:rich-menu:sync`; use `-- --replace` only when intentionally replacing the managed
+menu. The API process does not create or update Rich Menus on startup.
 
 ### Duplicate LINE messages
 

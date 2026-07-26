@@ -12,10 +12,12 @@ export function createLineRichMenuAdapter(): ILineRichMenuAdapter {
     return new MockLineRichMenuAdapter();
   }
 
-  if (!config.line.channelAccessToken) {
-    logger.warn('LINE_CHANNEL_ACCESS_TOKEN is not set — Rich Menu sync will use the mock adapter.');
+  if (!config.line.messagingChannelAccessToken) {
+    logger.warn(
+      'LINE_MESSAGING_CHANNEL_ACCESS_TOKEN is not set — Rich Menu sync will use the mock adapter.'
+    );
     return new MockLineRichMenuAdapter();
   }
 
-  return new LineRichMenuSdkAdapter(config.line.channelAccessToken);
+  return new LineRichMenuSdkAdapter(config.line.messagingChannelAccessToken);
 }
