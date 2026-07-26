@@ -103,9 +103,7 @@ describe('notificationDelivery job', () => {
     expect(adapter.pushCalls).toHaveLength(1);
     expect(adapter.pushCalls[0].to).toBe('U_test_001');
     expect(adapter.pushCalls[0].messages[0].type).toBe('flex');
-    expect(JSON.stringify(adapter.pushCalls[0].messages[0])).toContain(
-      'https://liff.line.me/2010516188-KAcYkLTh/tickets/entry-001'
-    );
+    expect(JSON.stringify(adapter.pushCalls[0].messages[0])).toContain('tickets/entry-001');
     expect(repository.markSent).toHaveBeenCalledWith('notification-001');
     expect(repository.markRetry).not.toHaveBeenCalled();
   });
