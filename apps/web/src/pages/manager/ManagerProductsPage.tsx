@@ -69,7 +69,74 @@ export function ManagerProductsPage() {
         <p className="text-gray-400 text-sm">{t('products.empty')}</p>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="divide-y divide-gray-100 md:hidden">
+            {products.map((product) => (
+              <article key={product.id} className="p-4">
+                <div className="flex min-w-0 gap-3">
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt=""
+                      className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-sm font-bold text-gray-400">
+                      {product.name.slice(0, 1)}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h2 className="truncate font-bold text-gray-900">{product.name}</h2>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {product.product_type === 'service'
+                            ? t('labels.service', { ns: 'common' })
+                            : t('labels.product', { ns: 'common' })}
+                          {' · '}
+                          {t('units.minutes', {
+                            ns: 'common',
+                            count: product.service_time_minutes,
+                          })}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-sm font-bold text-gray-950">
+                        {formatCurrency(Number(product.price), i18n.resolvedLanguage ?? 'ja')}
+                      </p>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      {t('products.stock')}: {product.stock_quantity ?? '∞'}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-3 gap-2 border-t border-gray-100 pt-3">
+                  <Link
+                    to={`/manager/products/${product.id}`}
+                    className="rounded-lg bg-gray-100 px-2 py-2 text-center text-xs font-semibold text-gray-700"
+                  >
+                    {t('actions.open', { ns: 'common' })}
+                  </Link>
+                  <Link
+                    to={`/manager/products/${product.id}/edit`}
+                    className="rounded-lg bg-blue-50 px-2 py-2 text-center text-xs font-semibold text-blue-700"
+                  >
+                    {t('actions.edit', { ns: 'common' })}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteError('');
+                      setConfirmId(product.id);
+                    }}
+                    className="rounded-lg bg-red-50 px-2 py-2 text-xs font-semibold text-red-600"
+                  >
+                    {t('actions.delete', { ns: 'common' })}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <table className="hidden w-full text-sm md:table">
             <thead>
               <tr className="bg-gray-50 text-left text-gray-500 border-b border-gray-200">
                 <th className="px-4 py-3 font-medium">{t('labels.name', { ns: 'common' })}</th>
@@ -153,8 +220,8 @@ export function ManagerProductsPage() {
 
       {/* Confirm delete modal */}
       {confirmId && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-80 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl sm:p-6">
             <p className="text-sm text-gray-700 mb-4">{t('products.deleteConfirm')}</p>
             {deleteError && (
               <p

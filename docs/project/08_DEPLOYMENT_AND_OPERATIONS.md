@@ -92,6 +92,12 @@ Developers Console, set the LIFF endpoint to the deployed HTTPS base path such a
 secrets such as `JWT_SECRET`, database credentials, LINE channel secret/access token, and provider
 webhook keys are runtime API secrets only.
 
+Keeping `/liff` in the LINE Developers Console endpoint is intentional. Do not shorten the endpoint
+to the web origin unless both `VITE_LIFF_ENDPOINT_PATH` and `LINE_LIFF_ENDPOINT_PATH` are explicitly
+changed to `/` and the permanent-link tests are rerun. The recommended production configuration is
+the `/liff` endpoint because it isolates the LIFF application surface from business-role routes and
+keeps callback/deeplink behavior deterministic.
+
 The current local media adapter writes to `/app/var/media`, backed by the persistent `media_data` volume. nginx proxies `/media/*` to the API so generated media URLs stay on the public web origin. This volume is a Compose durability baseline, not a substitute for production object storage, backup, scanning, and CDN policy.
 
 For a real production environment, use managed PostgreSQL/object storage, TLS ingress, restricted network/security groups, centralized secrets/logs, and a deployment orchestrator. Compose is a packaging baseline, not high-availability infrastructure.
