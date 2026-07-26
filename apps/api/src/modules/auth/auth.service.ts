@@ -112,6 +112,9 @@ export const authService = {
     const organization = membership
       ? await organizationsRepository.findById(membership.organization_id)
       : null;
+    const branchIds = membership
+      ? await organizationsRepository.findBranchIdsForUser(userRow.id, membership.organization_id)
+      : [];
 
     const payload: TokenPayload = {
       sub: userRow.id,
@@ -128,6 +131,8 @@ export const authService = {
       email: userRow.email ?? undefined,
       preferredLocale: userRow.preferred_locale,
       organizationLocale: organization?.default_locale,
+      isOrganizationOwner: membership?.is_owner ?? false,
+      branchIds,
     };
 
     return { token, user };

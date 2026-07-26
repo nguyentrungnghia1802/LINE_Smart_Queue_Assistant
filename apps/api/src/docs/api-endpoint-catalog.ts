@@ -22,13 +22,51 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     auth: false,
     validator: 'EmailPasswordLoginSchema',
   }),
+  endpoint('get', '/api/v1/auth/account-action', 'auth', {
+    auth: false,
+    validator: 'InspectAccountActionSchema',
+  }),
+  endpoint('post', '/api/v1/auth/activate-account', 'auth', {
+    auth: false,
+    validator: 'CompleteAccountActionSchema',
+  }),
+  endpoint('post', '/api/v1/auth/forgot-password', 'auth', {
+    auth: false,
+    validator: 'ForgotPasswordSchema',
+  }),
+  endpoint('post', '/api/v1/auth/reset-password', 'auth', {
+    auth: false,
+    validator: 'CompleteAccountActionSchema',
+  }),
+  endpoint('get', '/api/v1/branches', 'branches'),
+  endpoint('post', '/api/v1/branches', 'branches', { validator: 'CreateBranchSchema' }),
+  endpoint('get', '/api/v1/branches/audit', 'branches', {
+    validator: 'AuditLogQuerySchema',
+  }),
+  endpoint('post', '/api/v1/branches/{branchId}/managers', 'branches', {
+    validator: 'InviteBranchManagerSchema',
+  }),
+  endpoint('delete', '/api/v1/branches/{branchId}/managers/{userId}', 'branches'),
   endpoint('get', '/api/v1/admin/organizations', 'admin'),
-  endpoint('post', '/api/v1/admin/organizations', 'admin', {
-    validator: 'CreateOrganizationSchema',
+  endpoint('post', '/api/v1/organization-applications', 'organization-applications', {
+    auth: false,
+    validator: 'CreateOrganizationApplicationSchema',
   }),
-  endpoint('post', '/api/v1/admin/organizations/register', 'admin', {
-    validator: 'CreateOrganizationRegistrationSchema',
+  endpoint('get', '/api/v1/organization-applications', 'organization-applications', {
+    validator: 'OrganizationApplicationListQuerySchema',
   }),
+  endpoint(
+    'post',
+    '/api/v1/organization-applications/{applicationId}/approve',
+    'organization-applications',
+    { validator: 'ReviewOrganizationApplicationSchema' }
+  ),
+  endpoint(
+    'post',
+    '/api/v1/organization-applications/{applicationId}/reject',
+    'organization-applications',
+    { validator: 'ReviewOrganizationApplicationSchema' }
+  ),
   endpoint('patch', '/api/v1/admin/organizations/{orgId}', 'admin', {
     validator: 'UpdateOrganizationSchema',
   }),

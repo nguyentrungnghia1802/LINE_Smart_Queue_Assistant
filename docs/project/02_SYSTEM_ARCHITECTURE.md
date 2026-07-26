@@ -39,21 +39,22 @@ Docker Compose supplies these local/production-like boundaries; it is not the fi
 
 The API entry is `apps/api/src/server.ts`; `app.ts` composes middleware, health routes, docs, and `/api/v1` modules.
 
-| Module          | Responsibility                                                 |
-| --------------- | -------------------------------------------------------------- |
-| `auth`          | Business email/password login and customer LINE ID-token login |
-| `admin`         | Platform organization and manager lifecycle                    |
-| `orgs`          | Public organization lookup and manager settings                |
-| `products`      | Catalog and finite/unlimited inventory configuration           |
-| `queues`        | Manager queue configuration                                    |
-| `queue`         | Customer ticket operations and shared ticket transitions       |
-| `staff`         | Organization-scoped operational queue board/actions            |
-| `orders`        | Reservation/order/payment/item/inventory/location transaction  |
-| `users`         | Profiles and manager-owned staff accounts                      |
-| `line`          | Webhook signature handling, reply/push transport               |
-| `notifications` | Notification listing and queue lifecycle messaging             |
-| `eta`           | Pure wait-time calculation                                     |
-| `skip-penalty`  | Skip/no-show policy behavior                                   |
+| Module                      | Responsibility                                                  |
+| --------------------------- | --------------------------------------------------------------- |
+| `auth`                      | Business email/password login and customer LINE ID-token login  |
+| `admin`                     | Approved organization and manager lifecycle                     |
+| `organization-applications` | Public submission, server-side demo pricing, and admin approval |
+| `orgs`                      | Public organization lookup and manager settings                 |
+| `products`                  | Catalog and finite/unlimited inventory configuration            |
+| `queues`                    | Manager queue configuration                                     |
+| `queue`                     | Customer ticket operations and shared ticket transitions        |
+| `staff`                     | Organization-scoped operational queue board/actions             |
+| `orders`                    | Reservation/order/payment/item/inventory/location transaction   |
+| `users`                     | Profiles and manager-owned staff accounts                       |
+| `line`                      | Webhook signature handling, reply/push transport                |
+| `notifications`             | Notification listing and queue lifecycle messaging              |
+| `eta`                       | Pure wait-time calculation                                      |
+| `skip-penalty`              | Skip/no-show policy behavior                                    |
 
 Dependency direction:
 
@@ -74,13 +75,16 @@ Routes and controllers must not contain domain policy. Repositories must not kno
 - Staff: `/staff`, `/staff/products`
 - Manager: `/manager/*`
 - Platform admin: `/admin/*`
+- Public product/onboarding: `/`, `/business/register`
 - Legacy/general authenticated workspace: `/app/*`
 
 Frontend responsibilities are split into route pages, reusable components/layouts, API services, LIFF adapters, hooks, Zustand auth state, and browser checkout helpers. TanStack Query owns server-state fetching/caching. Browser storage currently preserves checkout drafts and local booking-group history; it is not authoritative business storage.
 
 ## 5. Data ownership
 
-- PostgreSQL owns organizations, identities, memberships, products, queues, tickets, orders, payments, stock reservations, notifications, penalties, history, and audit data.
+- PostgreSQL owns organization applications, organizations, identities, memberships, products,
+  queues, tickets, orders, payments, stock reservations, notifications, penalties, history, and
+  audit data. Pending application passwords are hashes and are cleared after review.
 - LINE owns LINE account identity and chat transport; the system stores only linked identifiers/profile snapshots needed for the service.
 - The browser owns temporary checkout session/draft state and a local device key. Server validation remains authoritative.
 - Future payment providers own settlement state; verified webhooks must update local transaction/order/item records.

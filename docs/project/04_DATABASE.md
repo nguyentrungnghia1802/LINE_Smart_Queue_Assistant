@@ -17,13 +17,14 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 11. `000011_forecasting_baseline.js`
 12. `000012_media_storage.js`
 13. `000013_internationalization.js`
+14. `000014_organization_applications.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
 ## 2. Logical ERD
 
 ```text
-organizations 1---* organization_members *---1 users 1---0..1 line_accounts
+organization_applications 0..1---1 organizations 1---* organization_members *---1 users 1---0..1 line_accounts
       |                                            |
       |---* products                               |
       |---* queues 1---* queue_entries ------------+
@@ -48,6 +49,7 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 | Table                         | Key purpose                                                                  | Important constraints                                                       |
 | ----------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `organizations`               | Tenant, slug/token, locale, Japan address, branding, location, LINE/settings | Unique slug/token; `default_locale`; `Asia/Tokyo` default; soft active flag |
+| `organization_applications`   | Public business details, plan/demo payment, and admin review                 | Status/payment checks; pending-email uniqueness; reviewer/organization FKs  |
 | `organization_business_hours` | Weekly local opening schedule                                                | Unique tenant/weekday; closed/open time consistency                         |
 | `organization_exception_days` | Holidays and exceptional opening/closure dates                               | Unique tenant/date; closed/open time consistency                            |
 | `users`                       | Platform identity, role, password/profile, preferred locale                  | Unique optional email; nullable `preferred_locale`; active flag             |
@@ -108,6 +110,9 @@ organizations 1---* organization_members *---1 users 1---0..1 line_accounts
 ## 5. Critical constraints and indexes
 
 - `organizations.slug` and `public_qr_token` are globally unique.
+- Only one pending organization application can exist per normalized work email.
+- Application approval requires `payment_status = 'paid'`; reviewed state requires reviewer/time,
+  and the pending manager password hash is cleared after either review outcome.
 - Product stock cannot be negative; services cannot carry finite stock.
 - Queue ticket number/code uniqueness is scoped to queue as defined by migrations.
 - Active queue-entry lookup indexes support customer/LINE and queue/status ordering.
@@ -138,7 +143,8 @@ An insufficient-stock update affects zero rows, raises a conflict, and rolls bac
 ### Other transactional workflows
 
 - LINE user creation and account linking use one transaction.
-- Organization plus initial manager/membership registration uses one transaction.
+- Organization application approval locks the application and creates the organization, initial
+  manager, membership, and reviewed state in one transaction.
 - Queue join counter, entry creation, and booking-created notification outbox enqueue use one transaction.
 - Queue/order lifecycle transitions that produce customer LINE notifications write the state change and outbox row in the same transaction. External LINE API delivery happens only after commit through the worker.
 - Customer/operator cancellation locks the order and refundable payment transactions, records
@@ -159,7 +165,10 @@ Queue capacity, call-next, daily ticket numbering, and organization order number
 
 ## 8. Sensitive data
 
-Sensitive or regulated fields include password hashes, email/phone, LINE user IDs/profile URLs, coordinates, IP/user agent audit data, payment external IDs, redirect URLs, and raw provider payloads. Do not seed production data, log secrets, or expose raw payloads through general APIs.
+Sensitive or regulated fields include pending application/manager password hashes, email/phone,
+LINE user IDs/profile URLs, coordinates, IP/user agent audit data, payment external IDs, redirect
+URLs, and raw provider payloads. Application list/response contracts never expose password hashes.
+Do not seed production data, log secrets, or expose raw payloads through general APIs.
 
 ## 9. Migration workflow
 
@@ -195,3 +204,14 @@ The default `npm run db:seed` profile creates one Japan-localized organization p
 - Real per-organization payment/LINE provider secrets need a managed encrypted configuration boundary.
 - Forecast calibration still needs production history and measured accuracy review before any ML claim.
 - Advanced notification operations UI, manual replay/cancel controls, and long-term notification retention policy are not implemented.
+
+# Account lifecycle schema (migration 000015)
+
+- `organizations.activation_status` separates pending activation, active, and suspended tenants.
+- `users.account_status` and invitation/profile fields model invited, active, and disabled business accounts.
+- `organization_members.is_owner` identifies the immutable organization owner manager.
+- `organization_branches` and `branch_memberships` scope managers and staff to physical branches.
+- `queues.branch_id` is required; a partial unique index enforces one active queue per branch.
+- `account_action_tokens` stores only SHA-256 token hashes and supports single-use activation/reset links.
+- `email_outbox` provides durable, retryable delivery. Its action token is encrypted at rest and cleared after successful delivery.
+- Baseline seeding creates only the admin account. Organization/demo queue data requires the explicit `--demo` seed profile.

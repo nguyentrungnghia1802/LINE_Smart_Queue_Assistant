@@ -4,6 +4,7 @@
 
 ```text
 Organization
+  ^-- approved OrganizationApplication
   |--< OrganizationMember >-- User --0..1-- LineAccount
   |--< Product
   |--< Queue --< QueueEntry >--0..1-- Order --< OrderItem >-- Product
@@ -24,6 +25,7 @@ Organization
 | Entity                                  | Responsibility                                                                  |
 | --------------------------------------- | ------------------------------------------------------------------------------- |
 | Organization                            | Tenant identity, public routes/token, branding, location, timezone, settings    |
+| OrganizationApplication                 | Public business application, plan/demo payment, review, and provisioning source |
 | User                                    | Platform identity and global role                                               |
 | OrganizationMember                      | Active manager/staff role within one tenant                                     |
 | LineAccount                             | Verified LINE user link for login/profile/push targeting                        |
@@ -42,6 +44,20 @@ Organization
 | WaitTimeForecast/StaffingRecommendation | Model output history; runtime producer not implemented                          |
 
 ## 2. State machines
+
+### Organization application
+
+| Current   | Action                          | Next       | Actor           |
+| --------- | ------------------------------- | ---------- | --------------- |
+| new       | Submit valid server-priced form | `pending`  | Public business |
+| `pending` | Approve paid application        | `approved` | Platform admin  |
+| `pending` | Reject and demo-refund          | `rejected` | Platform admin  |
+
+Submission stores business/contact/address/usage/plan data and a bcrypt manager password hash. It
+does not create a tenant. Approval locks the application and atomically creates the organization,
+generated slug/QR token, manager account, and active membership, then removes the pending password
+hash. Rejection removes the hash and marks a paid demo application refunded. Reviewed applications
+cannot be processed twice.
 
 ### Queue
 
@@ -295,3 +311,12 @@ The PostgreSQL-locked forecasting job aggregates the previous eight weeks by org
 - Rich Menu sync failure: log a clear operational error and exit the sync command without affecting the running API.
 - Database unavailable: `/ready` returns `503`; Vite proxy errors indicate the API is not accepting connections.
 - Payment provider uncertainty: keep transaction pending/failed; never infer success from redirect alone.
+
+# Business account lifecycle and branches
+
+- A public organization application never accepts or stores a manager password.
+- Admin approval atomically creates an inactive organization, its main branch, one closed queue, an invited owner-manager membership, and an account-activation email outbox record.
+- The owner manager activates the tenant by opening the single-use email link and choosing a password. Owner managers cannot remove themselves.
+- An owner manager may create branches and invite one or more branch managers. Every branch must retain at least one assigned manager and has exactly one active queue in the current scope.
+- Managers invite staff to an assigned branch. Invitees set their own password; staff removal is soft deactivation and records the acting manager in `audit_logs`.
+- Customers continue to authenticate through LINE. Admin, owner manager, manager, and staff use the shared business login screen.

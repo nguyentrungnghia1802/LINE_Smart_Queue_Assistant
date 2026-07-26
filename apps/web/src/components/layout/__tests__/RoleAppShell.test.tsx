@@ -47,9 +47,7 @@ describe('RoleAppShell', () => {
       expect(within(navigation).getByRole('link', { name: '設定' })).toBeInTheDocument();
     }
 
-    expect(navigations[1]).toHaveStyle({
-      gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
-    });
+    expect(navigations[1]).toHaveClass('overflow-x-auto');
     expect(screen.getByRole('heading', { name: 'Manager content' })).toBeInTheDocument();
   });
 });

@@ -48,6 +48,9 @@ export async function currentUserMiddleware(
     const organization = membership
       ? await organizationsRepository.findById(membership.organization_id)
       : null;
+    const branchIds = membership
+      ? await organizationsRepository.findBranchIdsForUser(userRow.id, membership.organization_id)
+      : [];
     const role = userRow.role as UserRole;
     let verifiedLineUserId = payload.lineUserId;
 
@@ -71,6 +74,8 @@ export async function currentUserMiddleware(
       email: userRow.email ?? undefined,
       preferredLocale: userRow.preferred_locale,
       organizationLocale: organization?.default_locale,
+      isOrganizationOwner: membership?.is_owner ?? false,
+      branchIds,
     };
 
     req.user = user;

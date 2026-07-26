@@ -2,11 +2,12 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import { LiffLayout } from './components/layout/LiffLayout';
 import { RootLayout } from './components/layout/RootLayout';
+import { AccountLifecyclePage } from './pages/AccountLifecyclePage';
 import { AccountPage } from './pages/AccountPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
+import { AdminOrganizationApplicationsPage } from './pages/admin/AdminOrganizationApplicationsPage';
 import { AdminOrganizationDetailPage } from './pages/admin/AdminOrganizationDetailPage';
-import { AdminOrganizationRegisterPage } from './pages/admin/AdminOrganizationRegisterPage';
 import { AdminOrganizationsPage } from './pages/admin/AdminOrganizationsPage';
 import { CustomerDashboardPage } from './pages/customer/CustomerDashboardPage';
 import { CustomerLineEntryPage, LiffCustomerJoinPage } from './pages/customer/CustomerJoinPage';
@@ -20,6 +21,8 @@ import { QueueJoinPage } from './pages/liff/QueueJoinPage';
 import { TicketStatusPage } from './pages/liff/TicketStatusPage';
 import { LoginPage } from './pages/LoginPage';
 import { CreateQueuePage } from './pages/manager/CreateQueuePage';
+import { ManagerAuditPage } from './pages/manager/ManagerAuditPage';
+import { ManagerBranchesPage } from './pages/manager/ManagerBranchesPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { ManagerLayout } from './pages/manager/ManagerLayout';
 import { ManagerProductDetailPage } from './pages/manager/ManagerProductDetailPage';
@@ -30,6 +33,8 @@ import { ManagerSettingsPage } from './pages/manager/ManagerSettingsPage';
 import { ManagerUsersPage } from './pages/manager/ManagerUsersPage';
 import { QRDisplayPage } from './pages/manager/QRDisplayPage';
 import { QueueSettingsPage } from './pages/manager/QueueSettingsPage';
+import { BusinessRegistrationPage } from './pages/marketing/BusinessRegistrationPage';
+import { MarketingHomePage } from './pages/marketing/MarketingHomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { PaymentDemoPage } from './pages/PaymentDemoPage';
 import { PublicJoinPage } from './pages/public/PublicJoinPage';
@@ -53,9 +58,16 @@ export const router = createBrowserRouter([
     element: <Navigate to="/login" replace />,
   },
   {
+    path: '/business/register',
+    element: <BusinessRegistrationPage />,
+  },
+  {
     path: '/account',
     element: <AccountPage />,
   },
+  { path: '/activate-account', element: <AccountLifecyclePage /> },
+  { path: '/forgot-password', element: <AccountLifecyclePage /> },
+  { path: '/reset-password', element: <AccountLifecyclePage /> },
 
   // ── Public (no auth required) ─────────────────────────────────────────────
   { path: '/join/:queueId', element: <PublicJoinPage /> },
@@ -81,6 +93,8 @@ export const router = createBrowserRouter([
       { path: 'queues/:id/display', element: <QRDisplayPage /> },
       { path: 'queues/:id/settings', element: <QueueSettingsPage /> },
       { path: 'users', element: <ManagerUsersPage /> },
+      { path: 'branches', element: <ManagerBranchesPage /> },
+      { path: 'audit', element: <ManagerAuditPage /> },
       { path: 'qr', element: <ManagerQRPage /> },
       { path: 'settings', element: <ManagerSettingsPage /> },
     ],
@@ -127,7 +141,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AdminDashboardPage /> },
       { path: 'orgs', element: <AdminOrganizationsPage /> },
-      { path: 'orgs/register', element: <AdminOrganizationRegisterPage /> },
+      { path: 'applications', element: <AdminOrganizationApplicationsPage /> },
       { path: 'orgs/:orgId', element: <AdminOrganizationDetailPage /> },
     ],
   },
@@ -135,7 +149,7 @@ export const router = createBrowserRouter([
   // ── Staff / manager dashboard ─────────────────────────────────────────────
   {
     path: '/',
-    element: <RoleRedirectPage />,
+    element: <MarketingHomePage />,
   },
 
   {
@@ -153,7 +167,7 @@ export const router = createBrowserRouter([
   },
 
   // ── Convenience redirect ──────────────────────────────────────────────────
-  { path: '/dashboard', element: <Navigate to="/app" replace /> },
+  { path: '/dashboard', element: <RoleRedirectPage /> },
 
   // ── 404 ───────────────────────────────────────────────────────────────────
   {

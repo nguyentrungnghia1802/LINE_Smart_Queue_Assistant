@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 export const CreateQueueSchema = z.object({
   orgId: z.string().uuid(),
+  branchId: z.string().uuid(),
   name: z.string().min(1).max(120),
   description: z.string().max(500).optional(),
   status: z.enum(['open', 'paused', 'closed']).default('open'),
