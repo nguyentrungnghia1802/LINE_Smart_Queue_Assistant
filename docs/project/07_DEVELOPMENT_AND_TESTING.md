@@ -142,7 +142,9 @@ The minimal profile (`npm run db:seed`) creates only the organization, users, an
 Any seeded customer row is fixture data, not an email-login path. Use the local LIFF mock flow to
 create or link the customer session through `/api/v1/auth/line`.
 
-The full profile (`npm run db:seed:demo`) also creates the public demo paths and Japan-localized catalog/queue/order fixtures:
+The full profile (`npm run db:seed:demo`) also creates the public demo paths, Japan-localized
+catalog/queue/order fixtures, and followed notification preferences for its linked demo LINE
+accounts. Existing notification preferences are never overwritten when the seed is rerun:
 
 - Organization slug: `queue-lab-demo`
 - QR token: `demo-queue-lab-2026`

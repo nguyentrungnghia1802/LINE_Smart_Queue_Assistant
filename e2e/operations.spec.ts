@@ -26,10 +26,6 @@ test('staff transitions a ticket and LINE delivery stays on the durable mock out
   await login(page, 'staff@gmail.com');
   await expect(page).toHaveURL(/\/staff$/);
 
-  const callNext = page.getByRole('button', { name: '次の番号を呼び出す' });
-  if (await callNext.isEnabled()) {
-    await callNext.click();
-  }
   await expect(page.getByText('呼び出し中').first()).toBeVisible();
   const calledEntry = page.getByRole('button', { name: /^[A-Z]+\d+\s+呼び出し中/ }).first();
   await expect(calledEntry).toBeEnabled();
