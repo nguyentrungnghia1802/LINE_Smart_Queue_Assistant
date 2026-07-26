@@ -25,7 +25,7 @@ can truyen LIFF ID cong khai:
 
 ```powershell
 docker build --no-cache `
-  --build-arg "VITE_LIFF_ID=YOUR_LINE_LOGIN_LIFF_ID" `
+  --build-arg "VITE_LIFF_ID=2010516188-KAcYkLTh" `
   -t trungnghia2703/line-smart-queue-web:latest `
   -f .\docker\web\Dockerfile .
 

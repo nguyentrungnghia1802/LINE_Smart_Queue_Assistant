@@ -155,6 +155,7 @@ Internationalization tests cover locale precedence, Japanese fallback, Intl form
 ## 8. Validation commands
 
 ```bash
+npm run audit:ci
 npm run lint
 npm run typecheck
 npm run test
@@ -165,6 +166,13 @@ npm run openapi:check
 npm run spell:check
 npm run e2e:all
 ```
+
+`npm run audit:ci` audits dependencies shipped to production and fails on new
+high/critical advisories. Its single explicit allowlist entry is documented in
+`audit-ci.jsonc`: the React Router advisory requires RSC actions, which this
+Vite SPA does not use. Development tooling is validated by the test/lint gates
+but omitted from the production dependency audit. Do not add an advisory to the
+allowlist without recording why it is unreachable and when it can be removed.
 
 Target one workspace:
 
