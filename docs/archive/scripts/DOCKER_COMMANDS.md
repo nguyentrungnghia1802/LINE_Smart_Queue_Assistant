@@ -17,19 +17,15 @@ docker push trungnghia2703/line-smart-queue-api:latest
 
 ### Build va push Web tu local
 
-Luu y: production phai build Web voi `VITE_API_URL=` rong, khong duoc de
-`/api`, neu khong se de sinh loi goi API thanh `/api/api/v1/...`.
+Image production dung chung cho moi organization. QR cua tung organization tu
+tao route `/liff/qr/<publicQrToken>`, vi vay khong duoc dong cung token demo vao
+image Web. `Dockerfile` da co cac mac dinh production an toan: API cung origin,
+LIFF endpoint `/liff`, LIFF mock tat va payment demo. Lenh build thong thuong chi
+can truyen LIFF ID cong khai:
 
 ```powershell
 docker build --no-cache `
-  --build-arg VITE_API_URL= `
-  --build-arg "VITE_APP_NAME=LINE Smart Queue Assistant" `
   --build-arg "VITE_LIFF_ID=YOUR_LINE_LOGIN_LIFF_ID" `
-  --build-arg VITE_LIFF_DEFAULT_BOOKING_PATH=/liff/qr/demo-queue-lab-2026 `
-  --build-arg VITE_LIFF_ENDPOINT_PATH=/liff `
-  --build-arg VITE_LIFF_MOCK=false `
-  --build-arg VITE_PAYMENT_MODE=demo `
-  --build-arg VITE_PAYMENT_REDIRECT_BASE_URL= `
   -t trungnghia2703/line-smart-queue-web:latest `
   -f .\docker\web\Dockerfile .
 
@@ -236,14 +232,7 @@ docker build --no-cache `
 docker push trungnghia2703/line-smart-queue-api:latest
 
 docker build --no-cache `
-  --build-arg VITE_API_URL= `
-  --build-arg "VITE_APP_NAME=LINE Smart Queue Assistant" `
   --build-arg "VITE_LIFF_ID=YOUR_LINE_LOGIN_LIFF_ID" `
-  --build-arg VITE_LIFF_DEFAULT_BOOKING_PATH=/liff/qr/demo-queue-lab-2026 `
-  --build-arg VITE_LIFF_ENDPOINT_PATH=/liff `
-  --build-arg VITE_LIFF_MOCK=false `
-  --build-arg VITE_PAYMENT_MODE=demo `
-  --build-arg VITE_PAYMENT_REDIRECT_BASE_URL= `
   -t trungnghia2703/line-smart-queue-web:latest `
   -f .\docker\web\Dockerfile .
 
