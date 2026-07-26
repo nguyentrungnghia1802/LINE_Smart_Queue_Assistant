@@ -277,14 +277,55 @@ Stop fulfillment/refund automation for affected transactions, compare provider d
 
 Disable affected product, inspect order and inventory-reservation history, reconcile atomically, and investigate cancellation/retry/concurrency path. Do not manually edit only `products.stock_quantity` without an audit trail.
 
-## 10. CI/CD current state and target
+## 10. CI/CD
 
-GitHub Actions provides two required quality surfaces:
+`.github/workflows/ci.yml` runs on every pushed branch and pull request. It
+provides two required quality surfaces:
 
 - full-history Gitleaks secret scanning;
 - dependency audit, format, lint, typecheck, OpenAPI drift validation, API coverage thresholds, web/shared tests, clean PostgreSQL migration/status, repeated seed smoke, build, and mock-integration Playwright desktop/mobile E2E.
 
-CI uses PostgreSQL 16 and does not receive real LINE, PSP, or customer credentials. Remaining production delivery work is container/image scanning, immutable image publication and provenance, staging deployment against sandbox integrations, manual production approval, and rollback metadata.
+CI uses PostgreSQL 16 and does not receive real LINE, PSP, SMTP, SSH, or customer
+credentials. `npm run audit:ci` blocks new high/critical advisories in
+production dependencies and keeps its single narrow, reviewed exception in
+`audit-ci.jsonc`.
+
+`.github/workflows/deploy.yml` starts only after `CI Quality Gates` succeeds for
+`main`. It checks out the exact tested commit, publishes API and Web images with
+both `latest` and `sha-<full-commit>` tags, then connects to the production host,
+pulls images, applies migrations, recreates API/Web, and verifies container
+health. Configure a GitHub Environment named `production`; use required
+reviewers there when manual approval is desired.
+
+Production GitHub Actions variables:
+
+| Variable                 | Example                 | Purpose                             |
+| ------------------------ | ----------------------- | ----------------------------------- |
+| `DOCKERHUB_USERNAME`     | `trungnghia2703`        | Docker Hub image namespace          |
+| `VITE_LIFF_ID`           | LINE Login LIFF ID      | Public Web build-time configuration |
+| `PRODUCTION_DEPLOY_PATH` | `/opt/line-smart-queue` | Server directory containing Compose |
+
+Production GitHub Actions secrets:
+
+| Secret                       | Purpose                                                |
+| ---------------------------- | ------------------------------------------------------ |
+| `DOCKERHUB_TOKEN`            | Docker Hub access token with push permission           |
+| `PRODUCTION_SSH_HOST`        | Production hostname or IP                              |
+| `PRODUCTION_SSH_PORT`        | SSH port; may be omitted to use `22`                   |
+| `PRODUCTION_SSH_USER`        | Restricted deployment user                             |
+| `PRODUCTION_SSH_PRIVATE_KEY` | Private half of a dedicated deployment key             |
+| `PRODUCTION_SSH_KNOWN_HOSTS` | Pinned server host-key line from trusted `ssh-keyscan` |
+
+The matching public key belongs in the deployment user's
+`~/.ssh/authorized_keys`. Give that user only the Docker/Compose permissions
+needed under the deploy directory. Keep runtime values such as database, JWT,
+LINE Messaging, SMTP, and payment secrets in the server-side `.env`; the
+workflow does not copy or regenerate that file. If Docker Hub repositories are
+private, log the server into Docker Hub once with a read-only token.
+
+Remaining delivery hardening includes container/image scanning, signed image
+provenance, staging deployment against sandbox integrations, automated rollback
+metadata, and tested production backup/restore procedures.
 
 ## 11. Production readiness checklist
 
