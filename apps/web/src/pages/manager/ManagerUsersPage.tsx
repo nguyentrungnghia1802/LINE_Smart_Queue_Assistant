@@ -81,7 +81,62 @@ export function ManagerUsersPage() {
         <p className="text-gray-400 text-sm">{t('users.empty')}</p>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="divide-y divide-gray-100 sm:hidden">
+            {staffUsers.map((staffUser) => (
+              <article key={staffUser.id} className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-950 text-sm font-bold text-white">
+                    {staffUser.display_name.slice(0, 1).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate font-bold text-gray-900">{staffUser.display_name}</h2>
+                    <p className="mt-0.5 truncate text-xs text-gray-500">
+                      {staffUser.email ?? '—'}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-brand-700">
+                      {t(`nav.${staffUser.role}`, {
+                        ns: 'common',
+                        defaultValue: staffUser.role,
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingUserId(staffUser.id);
+                      setShowAdd(true);
+                      setForm({
+                        displayName: staffUser.display_name,
+                        email: staffUser.email ?? '',
+                        password: '',
+                      });
+                      setAddError('');
+                    }}
+                    className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700"
+                  >
+                    {t('actions.edit', { ns: 'common' })}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        window.confirm(t('users.deleteConfirm', { name: staffUser.display_name }))
+                      ) {
+                        deleteMutation.mutate(staffUser.id);
+                      }
+                    }}
+                    className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"
+                  >
+                    {t('actions.delete', { ns: 'common' })}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <table className="hidden w-full text-sm sm:table">
             <thead>
               <tr className="bg-gray-50 text-left text-gray-500 border-b border-gray-200">
                 <th className="px-4 py-3 font-medium">{t('labels.name', { ns: 'common' })}</th>
@@ -136,8 +191,8 @@ export function ManagerUsersPage() {
 
       {/* Add staff modal */}
       {showAdd && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-80 shadow-xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-sm space-y-4 overflow-y-auto rounded-xl bg-white p-5 shadow-xl sm:p-6">
             <h2 className="font-semibold text-gray-900">
               {editingUserId ? t('users.edit') : t('users.add')}
             </h2>

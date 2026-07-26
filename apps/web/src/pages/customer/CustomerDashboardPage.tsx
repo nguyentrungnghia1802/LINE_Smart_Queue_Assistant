@@ -1,10 +1,9 @@
+import { TicketCheck } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
-import { BrandLogo } from '../../components/BrandLogo';
-import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
-import { AccountMenu } from '../../components/layout/AccountMenu';
+import { RoleAppShell, type RoleNavItem } from '../../components/layout/RoleAppShell';
 import { get } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
 
@@ -26,6 +25,10 @@ type Ticket = {
   aheadCount: number;
   estimatedWaitSeconds: number;
 };
+
+const CUSTOMER_NAV_ITEMS: RoleNavItem[] = [
+  { to: '/customer', labelKey: 'nav.tickets', icon: TicketCheck, end: true },
+];
 
 export function CustomerDashboardPage() {
   const { t } = useTranslation(['customer', 'common']);
@@ -120,44 +123,8 @@ export function CustomerDashboardPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)]">
-      <header className="sticky top-0 z-20 border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-3 sm:gap-4 sm:px-6">
-          <Link
-            to="/customer"
-            className="flex min-w-0 items-center gap-2.5 font-bold text-gray-950"
-          >
-            <BrandLogo decorative className="h-9 w-9" />
-            <span className="hidden truncate text-base sm:inline">
-              {t('brandName', { ns: 'common' })}
-            </span>
-          </Link>
-
-          <nav
-            aria-label={t('accessibility.mainNavigation', { ns: 'common' })}
-            className="ml-auto flex items-center"
-          >
-            <NavLink
-              to="/customer"
-              end
-              className={({ isActive }) =>
-                `rounded-full px-3 py-2 text-sm font-semibold transition ${
-                  isActive ? 'bg-gray-950 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
-                }`
-              }
-            >
-              {t('nav.tickets', { ns: 'common' })}
-            </NavLink>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <LanguageSwitcher compact />
-            <AccountMenu compact />
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
+    <RoleAppShell homePath="/customer" navItems={CUSTOMER_NAV_ITEMS}>
+      <div className="mx-auto max-w-6xl space-y-5">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-700">
             {t('nav.tickets', { ns: 'common' })}
@@ -241,7 +208,7 @@ export function CustomerDashboardPage() {
             )}
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </RoleAppShell>
   );
 }
