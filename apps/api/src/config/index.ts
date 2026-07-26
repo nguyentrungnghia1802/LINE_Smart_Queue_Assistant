@@ -33,6 +33,12 @@ export const config = {
     /** Messaging API channel secret used only for webhook signature verification. */
     messagingChannelSecret:
       process.env.LINE_MESSAGING_CHANNEL_SECRET ?? process.env.LINE_CHANNEL_SECRET ?? '',
+    /** Safe diagnostic label; never contains the credential value. */
+    messagingChannelSecretSource: process.env.LINE_MESSAGING_CHANNEL_SECRET
+      ? 'LINE_MESSAGING_CHANNEL_SECRET'
+      : process.env.LINE_CHANNEL_SECRET
+        ? 'LINE_CHANNEL_SECRET (legacy)'
+        : 'missing',
     /** LINE Login / LIFF channel ID — required to verify OIDC id_tokens. */
     loginChannelId: process.env.LINE_LOGIN_CHANNEL_ID ?? process.env.LINE_CHANNEL_ID ?? '',
     /** LIFF app ID used to generate customer deep links in LINE push messages. */
