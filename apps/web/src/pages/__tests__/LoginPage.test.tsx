@@ -61,7 +61,7 @@ describe('LoginPage', () => {
     renderPage();
 
     const link = screen.getByRole('link', { name: 'パスワードをお忘れですか？' });
-    expect(link).toHaveAttribute('href', '#');
+    expect(link).toHaveAttribute('href', '/forgot-password');
   });
 
   it('renders the language switcher on the login page', () => {

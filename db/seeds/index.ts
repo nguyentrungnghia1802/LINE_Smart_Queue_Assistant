@@ -67,13 +67,15 @@ async function main(): Promise<void> {
       await client.query('TRUNCATE TABLE organizations, users RESTART IDENTITY CASCADE');
     }
 
-    log('[seed] 001 - organizations');
-    await seedOrganizations(client);
-
-    log('[seed] 002 - users + organization members');
-    await seedUsers(client);
+    log('[seed] 001 - administrator account');
+    await seedUsers(client, false);
 
     if (demoRequested) {
+      log('[seed:demo] 002 - organization');
+      await seedOrganizations(client);
+
+      log('[seed:demo] 002b - organization members');
+      await seedUsers(client, true);
       log('[seed:demo] 003 - LINE accounts');
       await seedLineAccounts(client);
 
@@ -99,9 +101,7 @@ async function main(): Promise<void> {
         ? '[seed] Demo profile completed successfully.'
         : '[seed] Baseline completed successfully; no catalog, queue, order, or notification data was created.'
     );
-    log(
-      '[seed] Demo accounts: admin@gmail.com / manager@gmail.com / staff@gmail.com / customer@gmail.com - password: 123456'
-    );
+    log('[seed] Administrator: admin@gmail.com - change the seed password after first login.');
   } catch (error) {
     await client.query('ROLLBACK');
     logError('[seed] Failed. Rolled back.');

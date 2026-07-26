@@ -42,7 +42,6 @@ describe('BusinessRegistrationPage', () => {
     fill('番地・建物名', '千代田1-1');
     fireEvent.click(screen.getByRole('button', { name: '次へ' }));
 
-    fill(/管理者パスワード/, 'secure-password');
     fireEvent.click(screen.getByRole('button', { name: '次へ' }));
 
     fireEvent.click(
@@ -62,6 +61,7 @@ describe('BusinessRegistrationPage', () => {
       termsAccepted: true,
     });
     expect(payload).not.toHaveProperty('slug');
+    expect(payload).not.toHaveProperty('password');
     expect(await screen.findByText('審査を受け付けました')).toBeInTheDocument();
   });
 });

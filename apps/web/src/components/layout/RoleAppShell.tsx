@@ -82,8 +82,7 @@ export function RoleAppShell({
 
       <nav
         aria-label={t('accessibility.mainNavigation')}
-        className="safe-bottom fixed inset-x-0 bottom-0 z-40 grid border-t border-gray-200 bg-white/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden"
-        style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
+        className="safe-bottom fixed inset-x-0 bottom-0 z-40 flex snap-x snap-mandatory overflow-x-auto border-t border-gray-200 bg-white/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden"
       >
         {navItems.map(({ to, labelKey, icon: Icon, end }) => (
           <NavLink
@@ -92,7 +91,7 @@ export function RoleAppShell({
             end={end}
             title={t(labelKey)}
             className={({ isActive }) =>
-              `relative flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-center transition-colors ${
+              `relative flex min-h-16 min-w-[4.75rem] flex-1 snap-start flex-col items-center justify-center gap-1 px-1 py-2 text-center transition-colors ${
                 isActive ? 'text-brand-700' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
               }`
             }

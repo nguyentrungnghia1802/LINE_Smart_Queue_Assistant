@@ -57,6 +57,38 @@ export const config = {
     ),
   },
 
+  email: {
+    mode: (process.env.EMAIL_TRANSPORT ??
+      (process.env.NODE_ENV === 'production' ? 'disabled' : 'mock')) as
+      | 'disabled'
+      | 'mock'
+      | 'smtp',
+    fromName: process.env.EMAIL_FROM_NAME ?? 'LINE Smart Queue Assistant',
+    fromAddress: process.env.EMAIL_FROM_ADDRESS ?? 'no-reply@example.invalid',
+    smtp: {
+      host: process.env.SMTP_HOST ?? '',
+      port: Number.parseInt(process.env.SMTP_PORT ?? '587', 10),
+      secure: process.env.SMTP_SECURE === 'true',
+      user: process.env.SMTP_USER ?? '',
+      password: process.env.SMTP_PASSWORD ?? '',
+    },
+    tokenEncryptionKey: process.env.EMAIL_TOKEN_ENCRYPTION_KEY ?? '',
+    activationTtlHours: Number.parseInt(process.env.ACCOUNT_ACTIVATION_TTL_HOURS ?? '72', 10),
+    passwordResetTtlMinutes: Number.parseInt(process.env.PASSWORD_RESET_TTL_MINUTES ?? '60', 10),
+    deliveryBatchSize: Number.parseInt(process.env.EMAIL_DELIVERY_BATCH_SIZE ?? '20', 10),
+    workerIntervalMs: Number.parseInt(process.env.EMAIL_WORKER_INTERVAL_MS ?? '15000', 10),
+    maxAttempts: Number.parseInt(process.env.EMAIL_MAX_ATTEMPTS ?? '5', 10),
+    retryBaseSeconds: Number.parseInt(process.env.EMAIL_RETRY_BASE_SECONDS ?? '30', 10),
+    processingTimeoutSeconds: Number.parseInt(
+      process.env.EMAIL_PROCESSING_TIMEOUT_SECONDS ?? '300',
+      10
+    ),
+    mockOutputDir: path.resolve(
+      __dirname,
+      process.env.EMAIL_MOCK_OUTPUT_DIR ?? '../../../../var/email-preview'
+    ),
+  },
+
   payments: {
     mode: (process.env.PAYMENT_MODE ?? 'demo') as 'demo' | 'external',
     demoWebhookSecret:

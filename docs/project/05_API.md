@@ -160,7 +160,9 @@ The current customer LIFF UI treats `/queue/join` as a legacy/direct queue path.
 
 ### Staff operations
 
-All paths require staff/manager/admin and organization ownership.
+All paths require staff/manager/admin and organization ownership. Owner managers may operate every
+branch; branch managers and staff are restricted to queue and entry IDs assigned through their
+active branch memberships.
 
 | Method | Path                                      | Purpose                                                                                                      |
 | ------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -318,3 +320,14 @@ The upload request currently carries a browser-compressed data URL for compatibi
 - Breaking request/response/state semantics require migration strategy and potentially `/api/v2`.
 - Update routes, validators, service behavior, frontend clients/types, tests, Swagger, and this document together.
 - Add real PSP adapters only after provider-specific auth, signature/idempotency, privacy, refund, and audit contracts are defined.
+
+# Account and branch APIs
+
+- `GET /api/v1/auth/account-action?token=...` inspects an activation/reset link without consuming it.
+- `POST /api/v1/auth/activate-account` consumes an activation token and sets the invited account password.
+- `POST /api/v1/auth/forgot-password` always returns an accepted response to prevent account enumeration.
+- `POST /api/v1/auth/reset-password` consumes a reset token and updates an active business account password.
+- `GET|POST /api/v1/branches` lists branches or lets the organization owner create a branch with its first manager and queue.
+- `POST /api/v1/branches/:branchId/managers` and `DELETE /api/v1/branches/:branchId/managers/:userId` manage branch-manager assignments; owner-only.
+- `GET /api/v1/branches/audit` returns owner-only personnel and branch audit history.
+- `POST /api/v1/users/staff` now creates an invitation with profile and branch assignment. It no longer accepts a manager-selected password.

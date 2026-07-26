@@ -18,6 +18,8 @@ export const common = {
     staff: 'Nhân viên',
     orders: 'Đơn hàng',
     qr: 'Mã QR',
+    branches: 'Chi nhánh',
+    audit: 'Nhật ký',
   },
   actions: {
     login: 'Đăng nhập',

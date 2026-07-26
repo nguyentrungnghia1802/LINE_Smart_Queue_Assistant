@@ -39,6 +39,7 @@ import { config } from '../config';
 import { logger } from '../utils/logger';
 
 import { runCounterReset } from './counterReset.job';
+import { runEmailDelivery } from './emailDelivery.job';
 import { runEtaUpdater } from './etaUpdater.job';
 import { runForecasting } from './forecasting.job';
 import { runInventoryExpiry } from './inventoryExpiry.job';
@@ -131,6 +132,16 @@ export const scheduler = {
         intervalMs: config.forecasts.intervalMs,
         run: async () => void (await withAdvisoryJobLock('forecasting', runForecasting)),
       });
+
+    if (config.email.mode !== 'disabled') {
+      runner.schedule({
+        name: 'emailDelivery',
+        intervalMs: config.email.workerIntervalMs,
+        run: runEmailDelivery,
+      });
+    } else {
+      logger.warn('scheduler: email delivery is disabled; outbox rows will remain pending');
+    }
 
     logger.info({ jobs: runner.count }, 'scheduler: started');
     running = true;

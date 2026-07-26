@@ -311,3 +311,12 @@ The PostgreSQL-locked forecasting job aggregates the previous eight weeks by org
 - Rich Menu sync failure: log a clear operational error and exit the sync command without affecting the running API.
 - Database unavailable: `/ready` returns `503`; Vite proxy errors indicate the API is not accepting connections.
 - Payment provider uncertainty: keep transaction pending/failed; never infer success from redirect alone.
+
+# Business account lifecycle and branches
+
+- A public organization application never accepts or stores a manager password.
+- Admin approval atomically creates an inactive organization, its main branch, one closed queue, an invited owner-manager membership, and an account-activation email outbox record.
+- The owner manager activates the tenant by opening the single-use email link and choosing a password. Owner managers cannot remove themselves.
+- An owner manager may create branches and invite one or more branch managers. Every branch must retain at least one assigned manager and has exactly one active queue in the current scope.
+- Managers invite staff to an assigned branch. Invitees set their own password; staff removal is soft deactivation and records the acting manager in `audit_logs`.
+- Customers continue to authenticate through LINE. Admin, owner manager, manager, and staff use the shared business login screen.

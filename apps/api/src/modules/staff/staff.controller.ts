@@ -19,7 +19,12 @@ function reqLog(req: Request) {
 /** Staff queue overview — waiting list, called entry, serving entry. */
 export const getQueueOverview = asyncHandler(async (req: Request, res: Response) => {
   const { queueId } = req.params as unknown as QueueIdParam;
-  const overview = await staffService.getQueueOverview(queueId, req.user?.organizationId);
+  const overview = await staffService.getQueueOverview(
+    queueId,
+    req.user?.organizationId,
+    req.user?.branchIds,
+    req.user?.isOrganizationOwner
+  );
 
   reqLog(req).debug({ queueId, waitingCount: overview.waitingCount }, 'staff.overview');
 
@@ -32,7 +37,13 @@ export const getQueueOverview = asyncHandler(async (req: Request, res: Response)
 export const callNext = asyncHandler(async (req: Request, res: Response) => {
   const { queueId } = req.params as unknown as QueueIdParam;
   if (!req.user) throw AppError.unauthorized();
-  const entry = await staffService.callNext(queueId, req.user.id, req.user.organizationId);
+  const entry = await staffService.callNext(
+    queueId,
+    req.user.id,
+    req.user.organizationId,
+    req.user.branchIds,
+    req.user.isOrganizationOwner
+  );
 
   reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_code }, 'staff.callNext');
 
@@ -45,7 +56,13 @@ export const callNext = asyncHandler(async (req: Request, res: Response) => {
 export const serveEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
   if (!req.user) throw AppError.unauthorized();
-  const entry = await staffService.serve(entryId, req.user.id, req.user.organizationId);
+  const entry = await staffService.serve(
+    entryId,
+    req.user.id,
+    req.user.organizationId,
+    req.user.branchIds,
+    req.user.isOrganizationOwner
+  );
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.serve');
 
@@ -58,7 +75,13 @@ export const serveEntry = asyncHandler(async (req: Request, res: Response) => {
 export const completeEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
   if (!req.user) throw AppError.unauthorized();
-  const entry = await staffService.complete(entryId, req.user.id, req.user.organizationId);
+  const entry = await staffService.complete(
+    entryId,
+    req.user.id,
+    req.user.organizationId,
+    req.user.branchIds,
+    req.user.isOrganizationOwner
+  );
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.complete');
 
@@ -71,7 +94,13 @@ export const completeEntry = asyncHandler(async (req: Request, res: Response) =>
 export const deferEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
   if (!req.user) throw AppError.unauthorized();
-  const entry = await staffService.deferCalled(entryId, req.user.id, req.user.organizationId);
+  const entry = await staffService.deferCalled(
+    entryId,
+    req.user.id,
+    req.user.organizationId,
+    req.user.branchIds,
+    req.user.isOrganizationOwner
+  );
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.defer');
 
@@ -84,7 +113,13 @@ export const deferEntry = asyncHandler(async (req: Request, res: Response) => {
 export const noShowEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
   if (!req.user) throw AppError.unauthorized();
-  const entry = await staffService.markNoShow(entryId, req.user.id, req.user.organizationId);
+  const entry = await staffService.markNoShow(
+    entryId,
+    req.user.id,
+    req.user.organizationId,
+    req.user.branchIds,
+    req.user.isOrganizationOwner
+  );
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.noShow');
 
@@ -97,7 +132,13 @@ export const noShowEntry = asyncHandler(async (req: Request, res: Response) => {
 export const cancelEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
   if (!req.user) throw AppError.unauthorized();
-  const entry = await staffService.cancelEntry(entryId, req.user.id, req.user.organizationId);
+  const entry = await staffService.cancelEntry(
+    entryId,
+    req.user.id,
+    req.user.organizationId,
+    req.user.branchIds,
+    req.user.isOrganizationOwner
+  );
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.cancel');
 
@@ -116,7 +157,11 @@ export const getMyQueue = asyncHandler(async (req: Request, res: Response) => {
     return;
   }
 
-  const overview = await staffService.getMyQueueOverview(orgId);
+  const overview = await staffService.getMyQueueOverview(
+    orgId,
+    req.user?.branchIds ?? [],
+    req.user?.isOrganizationOwner ?? false
+  );
 
   reqLog(req).debug(
     {

@@ -51,3 +51,11 @@ Record the environment, release commit, tester, timestamp, device model, OS vers
 ## Exit criteria
 
 Pass only when all applicable boxes are checked on at least one supported iOS device and one supported Android device in staging, failures have linked issues, and the release owner approves the evidence. Mock Playwright results remain a separate automated gate.
+
+# Current implementation readiness
+
+- Webhook verification uses the unmodified raw request body, HMAC-SHA256, and constant-time signature comparison.
+- Queue notifications are committed to PostgreSQL before a worker calls LINE; queue/order transactions do not call LINE directly.
+- Push delivery uses a stable `X-Line-Retry-Key` per outbox delivery payload, with a separate deterministic key for text fallback.
+- Flex messages, Japanese/English/Vietnamese fallback text, LIFF ticket deep links, notification preferences, bounded retry, and delivery metrics are implemented.
+- Console configuration and a real-device follow/login/push test remain deployment responsibilities.

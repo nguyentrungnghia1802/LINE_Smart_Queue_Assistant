@@ -1,0 +1,43 @@
+import { z } from 'zod';
+
+import { JapanesePhoneSchema } from '../shared/shared.validator';
+
+const ManagerInvitationSchema = z.object({
+  displayName: z.string().trim().min(2).max(120),
+  email: z.string().trim().toLowerCase().email().max(254),
+  phone: JapanesePhoneSchema,
+  jobTitle: z.string().trim().max(120).nullable().optional(),
+});
+
+export const CreateBranchSchema = z.object({
+  name: z.string().trim().min(2).max(160),
+  phone: JapanesePhoneSchema,
+  email: z.string().trim().toLowerCase().email().max(254).nullable().optional(),
+  postalCode: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{3}-?[0-9]{4}$/),
+  prefecture: z.string().trim().min(1).max(20),
+  city: z.string().trim().min(1).max(100),
+  addressLine1: z.string().trim().min(1).max(200),
+  addressLine2: z.string().trim().max(200).nullable().optional(),
+  managers: z.array(ManagerInvitationSchema).min(1).max(10),
+});
+
+export const InviteBranchManagerSchema = ManagerInvitationSchema;
+
+export const BranchIdParamSchema = z.object({
+  branchId: z.string().uuid(),
+});
+
+export const BranchManagerParamSchema = z.object({
+  branchId: z.string().uuid(),
+  userId: z.string().uuid(),
+});
+
+export const AuditLogQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+});
+
+export type CreateBranchDto = z.infer<typeof CreateBranchSchema>;
+export type InviteBranchManagerDto = z.infer<typeof InviteBranchManagerSchema>;

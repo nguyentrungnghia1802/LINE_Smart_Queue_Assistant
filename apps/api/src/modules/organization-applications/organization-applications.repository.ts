@@ -31,7 +31,6 @@ export interface OrganizationApplicationRow {
   billing_cycle: 'monthly' | 'annual';
   default_locale: SupportedLocale;
   logo_url: string | null;
-  manager_password_hash: string | null;
   payment_provider: string;
   payment_status: OrganizationApplicationPaymentStatus;
   payment_reference: string;
@@ -67,7 +66,6 @@ interface CreateApplicationParams {
   billingCycle: 'monthly' | 'annual';
   defaultLocale: SupportedLocale;
   logoUrl?: string | null;
-  managerPasswordHash: string;
   paymentReference: string;
   amountYen: number;
 }
@@ -80,11 +78,11 @@ export class OrganizationApplicationsRepository extends BaseRepository {
          website_url, contact_name, contact_title, work_email, phone, postal_code,
          prefecture, city, address_line1, address_line2, location_count,
          expected_monthly_customers, plan_code, billing_cycle, default_locale, logo_url,
-         manager_password_hash, payment_provider, payment_status, payment_reference, amount_yen
+         payment_provider, payment_status, payment_reference, amount_yen
        )
        VALUES (
          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,
-         $22,'demo','paid',$23,$24
+         'demo','paid',$22,$23
        )
        RETURNING *`,
       [
@@ -109,7 +107,6 @@ export class OrganizationApplicationsRepository extends BaseRepository {
         params.billingCycle,
         params.defaultLocale,
         params.logoUrl ?? null,
-        params.managerPasswordHash,
         params.paymentReference,
         params.amountYen,
       ]
@@ -165,8 +162,7 @@ export class OrganizationApplicationsRepository extends BaseRepository {
            organization_id = $2,
            reviewed_by = $3,
            reviewed_at = NOW(),
-           review_note = $4,
-           manager_password_hash = NULL
+           review_note = $4
        WHERE id = $1
        RETURNING *`,
       [id, organizationId, reviewerId, note]
@@ -187,7 +183,6 @@ export class OrganizationApplicationsRepository extends BaseRepository {
            reviewed_by = $2,
            reviewed_at = NOW(),
            review_note = $3,
-           manager_password_hash = NULL,
            payment_status = CASE WHEN payment_status = 'paid' THEN 'refunded' ELSE payment_status END
        WHERE id = $1
        RETURNING *`,

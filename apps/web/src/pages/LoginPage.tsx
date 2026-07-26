@@ -1,7 +1,7 @@
 import { isAxiosError } from 'axios';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
@@ -165,12 +165,12 @@ export function LoginPage() {
                 </button>
               </div>
               <div className="mt-2 flex justify-end">
-                <a
-                  href="#"
+                <Link
+                  to="/forgot-password"
                   className="text-sm font-medium text-gray-500 transition hover:text-brand-700"
                 >
                   {t('login.forgotPassword', { ns: 'auth' })}
-                </a>
+                </Link>
               </div>
             </div>
 

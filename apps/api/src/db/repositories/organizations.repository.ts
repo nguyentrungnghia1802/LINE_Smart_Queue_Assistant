@@ -28,6 +28,7 @@ export interface OrganizationRow {
   payment_info: string | null;
   public_qr_token: string | null;
   is_active: boolean;
+  activation_status?: 'pending_activation' | 'active' | 'suspended';
   created_at: Date;
   updated_at: Date;
 }
@@ -37,6 +38,10 @@ export interface OrgMemberRow {
   organization_id: string;
   user_id: string;
   role: string;
+  is_active?: boolean;
+  is_owner?: boolean;
+  invited_at?: Date | null;
+  activated_at?: Date | null;
   joined_at: Date;
 }
 
@@ -60,6 +65,8 @@ export interface CreateOrganizationParams {
   lineChannelId?: string;
   lineOaBasicId?: string;
   settings?: Record<string, unknown>;
+  isActive?: boolean;
+  activationStatus?: 'pending_activation' | 'active' | 'suspended';
 }
 
 // ── Repository ─────────────────────────────────────────────────────────────────
@@ -114,9 +121,9 @@ export class OrganizationsRepository extends BaseRepository {
         (
           name, slug, public_qr_token, logo_url, phone, address, payment_info,
           timezone, default_locale, line_channel_id, line_oa_basic_id, settings, postal_code,
-          prefecture, city, address_line1, address_line2
+          prefecture, city, address_line1, address_line2, is_active, activation_status
         )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *
     `;
     const args = [
@@ -137,6 +144,8 @@ export class OrganizationsRepository extends BaseRepository {
       params.city ?? null,
       params.addressLine1 ?? null,
       params.addressLine2 ?? null,
+      params.isActive ?? true,
+      params.activationStatus ?? 'active',
     ];
     const rows = client
       ? await this.queryTx<OrganizationRow>(client, sql, args)
@@ -159,27 +168,37 @@ export class OrganizationsRepository extends BaseRepository {
    * Check whether userId has a given role (or any role) in organizationId.
    * Used by auth middleware on every staff/manager request.
    */
-  async findMember(organizationId: string, userId: string): Promise<OrgMemberRow | null> {
-    return this.queryOne<OrgMemberRow>(
-      `SELECT * FROM organization_members
-       WHERE organization_id = $1 AND user_id = $2`,
-      [organizationId, userId]
-    );
+  async findMember(
+    organizationId: string,
+    userId: string,
+    client?: PoolClient
+  ): Promise<OrgMemberRow | null> {
+    const sql = 'SELECT * FROM organization_members WHERE organization_id = $1 AND user_id = $2';
+    return client
+      ? this.queryOneTx<OrgMemberRow>(client, sql, [organizationId, userId])
+      : this.queryOne<OrgMemberRow>(sql, [organizationId, userId]);
   }
 
   async addMember(
     organizationId: string,
     userId: string,
     role: 'manager' | 'staff' = 'staff',
-    client?: PoolClient
+    client?: PoolClient,
+    options: { isActive?: boolean; isOwner?: boolean } = {}
   ): Promise<OrgMemberRow> {
     const sql = `
-      INSERT INTO organization_members (organization_id, user_id, role)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (organization_id, user_id) DO UPDATE SET role = EXCLUDED.role
+      INSERT INTO organization_members
+        (organization_id, user_id, role, is_active, is_owner, invited_at, activated_at)
+      VALUES ($1, $2, $3, $4, $5, CASE WHEN $4 THEN NULL ELSE NOW() END, CASE WHEN $4 THEN NOW() ELSE NULL END)
+      ON CONFLICT (organization_id, user_id) DO UPDATE SET
+        role = EXCLUDED.role,
+        is_active = EXCLUDED.is_active,
+        is_owner = EXCLUDED.is_owner,
+        invited_at = EXCLUDED.invited_at,
+        activated_at = EXCLUDED.activated_at
       RETURNING *
     `;
-    const args = [organizationId, userId, role];
+    const args = [organizationId, userId, role, options.isActive ?? true, options.isOwner ?? false];
     const rows = client
       ? await this.queryTx<OrgMemberRow>(client, sql, args)
       : await this.query<OrgMemberRow>(sql, args);
@@ -198,6 +217,19 @@ export class OrganizationsRepository extends BaseRepository {
       `SELECT * FROM organization_members WHERE user_id = $1 AND is_active = TRUE ORDER BY joined_at LIMIT 1`,
       [userId]
     );
+  }
+
+  async findBranchIdsForUser(userId: string, organizationId: string): Promise<string[]> {
+    const rows = await this.query<{ branch_id: string }>(
+      `SELECT branch_id
+       FROM branch_memberships
+       WHERE user_id = $1
+         AND organization_id = $2
+         AND is_active = TRUE
+       ORDER BY assigned_at`,
+      [userId, organizationId]
+    );
+    return rows.map((row) => row.branch_id);
   }
 
   async setMemberActive(organizationId: string, userId: string, isActive: boolean): Promise<void> {
