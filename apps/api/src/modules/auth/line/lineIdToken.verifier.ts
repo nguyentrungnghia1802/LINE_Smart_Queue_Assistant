@@ -48,7 +48,7 @@ export async function verifyLineIdToken(idToken: string): Promise<LineVerifiedPr
 
   const body = new URLSearchParams({
     id_token: idToken,
-    client_id: config.line.channelId,
+    client_id: config.line.loginChannelId,
   });
 
   let res: Response;

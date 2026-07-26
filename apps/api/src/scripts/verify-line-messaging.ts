@@ -6,10 +6,10 @@ interface LineBotInfo {
 }
 
 async function main(): Promise<void> {
-  const token = config.line.channelAccessToken.trim();
+  const token = config.line.messagingChannelAccessToken.trim();
 
   if (!token) {
-    throw new Error('LINE_CHANNEL_ACCESS_TOKEN is not configured.');
+    throw new Error('LINE_MESSAGING_CHANNEL_ACCESS_TOKEN is not configured.');
   }
 
   const headers = { Authorization: `Bearer ${token}` };
