@@ -8,7 +8,7 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { sendCreated, sendNoContent, sendSuccess } from '../../utils/response';
 
 import { usersService } from './users.service';
-import { CreateUserDto } from './users.validator';
+import type { CreateUserDto, InviteStaffDto, UpdateStaffDto } from './users.validator';
 
 export const getUser = asyncHandler(async (req: Request, res: Response) => {
   const actor = req.user;
@@ -63,58 +63,30 @@ export const deactivateUser = asyncHandler(async (req: Request, res: Response) =
 
 /** Manager creates a staff account and adds them to their org. */
 export const createStaff = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = req.user?.organizationId;
-  if (!orgId) {
-    res
-      .status(400)
-      .json({ success: false, error: { code: 'NO_ORG', message: 'User has no organization' } });
-    return;
-  }
-  const { displayName, email, password } = req.body as {
-    displayName: string;
-    email: string;
-    password: string;
-  };
-  const user = await usersService.createStaff(orgId, { displayName, email, password });
+  if (!req.user) throw AppError.unauthorized();
+  const user = await usersService.createStaff(req.user, req.body as InviteStaffDto);
   sendCreated(res, user);
 });
 
 /** Manager updates a staff member's active status. */
 export const updateStaffStatus = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = req.user?.organizationId;
-  if (!orgId) {
-    res
-      .status(400)
-      .json({ success: false, error: { code: 'NO_ORG', message: 'User has no organization' } });
-    return;
-  }
+  if (!req.user) throw AppError.unauthorized();
   const { userId } = req.params as { userId: string };
   const { isActive } = req.body as { isActive: boolean };
-  const user = await usersService.updateStaffStatus(orgId, userId, isActive);
+  const user = await usersService.updateStaffStatus(req.user, userId, isActive);
   sendSuccess(res, user);
 });
 
 export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = req.user?.organizationId;
-  if (!orgId) {
-    throw AppError.badRequest('User has no organization');
-  }
+  if (!req.user) throw AppError.unauthorized();
   const { userId } = req.params as { userId: string };
-  const { displayName, email, password } = req.body as {
-    displayName?: string;
-    email?: string;
-    password?: string;
-  };
-  const user = await usersService.updateStaff(orgId, userId, { displayName, email, password });
+  const user = await usersService.updateStaff(req.user, userId, req.body as UpdateStaffDto);
   sendSuccess(res, user);
 });
 
 export const removeStaff = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = req.user?.organizationId;
-  if (!orgId) {
-    throw AppError.badRequest('User has no organization');
-  }
+  if (!req.user) throw AppError.unauthorized();
   const { userId } = req.params as { userId: string };
-  await usersService.removeStaff(orgId, userId);
+  await usersService.removeStaff(req.user, userId);
   sendNoContent(res);
 });

@@ -1,4 +1,13 @@
-import { LayoutDashboard, ListOrdered, PackageSearch, QrCode, Settings, Users } from 'lucide-react';
+import {
+  Building2,
+  ClipboardList,
+  LayoutDashboard,
+  ListOrdered,
+  PackageSearch,
+  QrCode,
+  Settings,
+  Users,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
 
@@ -34,5 +43,16 @@ export function ManagerLayout() {
     );
   }
 
-  return <RoleAppShell homePath="/manager" navItems={MANAGER_NAV_ITEMS} />;
+  const ownerItems: RoleNavItem[] = user.isOrganizationOwner
+    ? [
+        { to: '/manager/branches', labelKey: 'nav.branches', icon: Building2 },
+        { to: '/manager/audit', labelKey: 'nav.audit', icon: ClipboardList },
+      ]
+    : [];
+  return (
+    <RoleAppShell
+      homePath="/manager"
+      navItems={[...MANAGER_NAV_ITEMS.slice(0, 4), ...ownerItems, ...MANAGER_NAV_ITEMS.slice(4)]}
+    />
+  );
 }

@@ -89,7 +89,7 @@ export const marketing = {
       'お申し込み後、運営チームが内容を確認します。承認後に管理者アカウントが有効になります。',
     back: '製品サイトへ戻る',
     step: 'ステップ {{current}} / {{total}}',
-    steps: { business: '事業者情報', plan: 'プランとアカウント', review: '確認・お支払い' },
+    steps: { business: '事業者情報', plan: 'プラン選択', review: '確認・お支払い' },
     sections: {
       company: '会社・店舗情報',
       contact: 'ご担当者',
@@ -129,7 +129,7 @@ export const marketing = {
       other: 'その他',
     },
     hints: {
-      workEmail: '承認後、このメールアドレスが管理者ログインになります。',
+      workEmail: '承認後、このメールアドレスへアカウント有効化リンクを送信します。',
       password: '10文字以上で設定してください。承認まで暗号化して保管します。',
       logo: 'PNG・JPEG・WebP。アップロード時に自動圧縮します。',
     },
@@ -146,7 +146,8 @@ export const marketing = {
     success: {
       eyebrow: 'お申し込み完了',
       title: '審査を受け付けました',
-      description: '運営チームが内容を確認します。承認後、登録した会社メールでログインできます。',
+      description:
+        '運営チームが内容を確認します。承認後、登録した会社メールへ有効化リンクを送信します。',
       reference: '受付番号',
       payment: 'デモ決済完了',
       home: '製品サイトへ戻る',

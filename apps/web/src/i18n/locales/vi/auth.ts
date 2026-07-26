@@ -34,4 +34,31 @@ export const auth = {
     organizationId: 'ID tổ chức',
     userId: 'ID người dùng',
   },
+  lifecycle: {
+    email: 'Email công việc',
+    password: 'Mật khẩu mới (tối thiểu 10 ký tự)',
+    confirmPassword: 'Xác nhận mật khẩu mới',
+    context: '{{name}} tại {{organization}} ({{email}})',
+    invalidLink: 'Liên kết không hợp lệ hoặc đã hết hạn.',
+    failed: 'Không thể hoàn tất yêu cầu. Vui lòng thử lại.',
+    back: 'Quay lại đăng nhập',
+    activate: {
+      title: 'Kích hoạt tài khoản',
+      description: 'Đang kiểm tra liên kết mời.',
+      submit: 'Bắt đầu sử dụng',
+      success: 'Tài khoản đã được kích hoạt. Bạn có thể đăng nhập.',
+    },
+    reset: {
+      title: 'Đặt lại mật khẩu',
+      description: 'Đang kiểm tra liên kết đặt lại.',
+      submit: 'Cập nhật mật khẩu',
+      success: 'Mật khẩu đã được cập nhật.',
+    },
+    forgot: {
+      title: 'Quên mật khẩu?',
+      description: 'Chúng tôi sẽ gửi liên kết đặt lại đến email công việc đã đăng ký.',
+      submit: 'Gửi liên kết',
+      success: 'Nếu tài khoản tồn tại, email đặt lại đã được gửi.',
+    },
+  },
 } as const;

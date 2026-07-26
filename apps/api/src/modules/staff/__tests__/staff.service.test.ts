@@ -103,10 +103,12 @@ const mockNoShowTicket = queueService.noShowTicket as jest.MockedFunction<
 const QUEUE_ID = '00000000-0000-0000-0000-000000000001';
 const ENTRY_ID = '00000000-0000-0000-0000-000000000002';
 const ACTOR_ID = '00000000-0000-0000-0000-000000000003';
+const BRANCH_ID = '00000000-0000-0000-0000-000000000004';
 
 const baseQueue: QueueRow = {
   id: QUEUE_ID,
   organization_id: '00000000-0000-0000-0000-000000000010',
+  branch_id: BRANCH_ID,
   name: 'Test Queue',
   description: null,
   status: 'open',
@@ -223,6 +225,17 @@ describe('staffService.getQueueOverview', () => {
     await expect(staffService.getQueueOverview(QUEUE_ID)).rejects.toMatchObject({
       statusCode: 404,
     });
+  });
+
+  it('rejects staff assigned to a different branch', async () => {
+    await expect(
+      staffService.getQueueOverview(
+        QUEUE_ID,
+        baseQueue.organization_id,
+        ['00000000-0000-0000-0000-000000000099'],
+        false
+      )
+    ).rejects.toMatchObject({ statusCode: 403 });
   });
 });
 

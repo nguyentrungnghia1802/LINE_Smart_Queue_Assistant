@@ -46,6 +46,48 @@ export interface EnrichedQueueOverview {
 
 const STAFF_QUEUE_PREVIEW_LIMIT = 8;
 
+function assertBranchAccess(
+  branchId: string | undefined,
+  actorBranchIds: string[],
+  isOrganizationOwner: boolean
+): void {
+  if (!isOrganizationOwner && (!branchId || !actorBranchIds.includes(branchId))) {
+    throw AppError.forbidden('Queue is outside your assigned branches');
+  }
+}
+
+async function assertQueueAccess(
+  queueId: string,
+  actorOrganizationId?: string,
+  actorBranchIds: string[] = [],
+  isOrganizationOwner = true
+) {
+  const queue = await queuesRepository.findById(queueId);
+  if (!queue) throw AppError.notFound('Queue');
+  if (actorOrganizationId && queue.organization_id !== actorOrganizationId) {
+    throw AppError.forbidden('Queue is outside your organization');
+  }
+  assertBranchAccess(queue.branch_id, actorBranchIds, isOrganizationOwner);
+  return queue;
+}
+
+async function assertEntryAccess(
+  entryId: string,
+  actorOrganizationId?: string,
+  actorBranchIds: string[] = [],
+  isOrganizationOwner = true
+) {
+  const entry = await queueEntriesRepository.findById(entryId);
+  if (!entry) throw AppError.notFound('Ticket');
+  const queue = await assertQueueAccess(
+    entry.queue_id,
+    actorOrganizationId,
+    actorBranchIds,
+    isOrganizationOwner
+  );
+  return { entry, queue };
+}
+
 /**
  * Record a staff action in the audit log.
  * Fire-and-forget: a logging failure must never roll back the queue operation.
@@ -78,12 +120,18 @@ export const staffService = {
    * Get a live overview of a queue for the staff board.
    * Returns waiting list, currently called entry, and currently serving entry.
    */
-  async getQueueOverview(queueId: string, actorOrganizationId?: string): Promise<QueueOverview> {
-    const queue = await queuesRepository.findById(queueId);
-    if (!queue) throw AppError.notFound('Queue');
-    if (actorOrganizationId && queue.organization_id !== actorOrganizationId) {
-      throw AppError.forbidden('Queue is outside your organization');
-    }
+  async getQueueOverview(
+    queueId: string,
+    actorOrganizationId?: string,
+    actorBranchIds: string[] = [],
+    isOrganizationOwner = true
+  ): Promise<QueueOverview> {
+    const queue = await assertQueueAccess(
+      queueId,
+      actorOrganizationId,
+      actorBranchIds,
+      isOrganizationOwner
+    );
 
     const [waitingCount, totalActiveCount, calledEntry, servingEntry] = await Promise.all([
       queueEntriesRepository.countWaiting(queueId),
@@ -113,8 +161,13 @@ export const staffService = {
   async callNext(
     queueId: string,
     actorUserId: string,
-    actorOrganizationId?: string
+    actorOrganizationId?: string,
+    actorBranchIds: string[] = [],
+    isOrganizationOwner = true
   ): Promise<QueueEntryRow> {
+    if (!isOrganizationOwner) {
+      await assertQueueAccess(queueId, actorOrganizationId, actorBranchIds, isOrganizationOwner);
+    }
     const entry = await queueService.callNextTicket(
       queueId,
       undefined,
@@ -132,8 +185,13 @@ export const staffService = {
   async serve(
     entryId: string,
     actorUserId: string,
-    actorOrganizationId?: string
+    actorOrganizationId?: string,
+    actorBranchIds: string[] = [],
+    isOrganizationOwner = true
   ): Promise<QueueEntryRow> {
+    if (!isOrganizationOwner) {
+      await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds, isOrganizationOwner);
+    }
     const entry = await queueService.serveTicket({ entryId, actorUserId, actorOrganizationId });
     auditStaff(actorUserId, 'serve', 'queue_entry', entry.id, {
       ticket: entry.ticket_code,
@@ -145,8 +203,13 @@ export const staffService = {
   async complete(
     entryId: string,
     actorUserId: string,
-    actorOrganizationId?: string
+    actorOrganizationId?: string,
+    actorBranchIds: string[] = [],
+    isOrganizationOwner = true
   ): Promise<QueueEntryRow> {
+    if (!isOrganizationOwner) {
+      await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds, isOrganizationOwner);
+    }
     const entry = await queueService.completeTicket({ entryId, actorUserId, actorOrganizationId });
     auditStaff(actorUserId, 'complete', 'queue_entry', entry.id, {
       ticket: entry.ticket_code,
@@ -158,8 +221,13 @@ export const staffService = {
   async deferCalled(
     entryId: string,
     actorUserId: string,
-    actorOrganizationId?: string
+    actorOrganizationId?: string,
+    actorBranchIds: string[] = [],
+    isOrganizationOwner = true
   ): Promise<QueueEntryRow> {
+    if (!isOrganizationOwner) {
+      await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds, isOrganizationOwner);
+    }
     const entry = await queueService.deferCalledTicket({
       entryId,
       actorUserId,
@@ -178,8 +246,13 @@ export const staffService = {
   async markNoShow(
     entryId: string,
     actorUserId: string,
-    actorOrganizationId?: string
+    actorOrganizationId?: string,
+    actorBranchIds: string[] = [],
+    isOrganizationOwner = true
   ): Promise<QueueEntryRow> {
+    if (!isOrganizationOwner) {
+      await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds, isOrganizationOwner);
+    }
     const entry = await queueService.noShowTicket({ entryId, actorUserId, actorOrganizationId });
     auditStaff(actorUserId, 'no_show', 'queue_entry', entry.id, {
       ticket: entry.ticket_code,
@@ -194,16 +267,16 @@ export const staffService = {
   async cancelEntry(
     entryId: string,
     actorUserId: string,
-    actorOrganizationId?: string
+    actorOrganizationId?: string,
+    actorBranchIds: string[] = [],
+    isOrganizationOwner = true
   ): Promise<QueueEntryRow> {
-    // Staff cancel — load entry first to confirm it exists, then cancel
-    const entry = await queueEntriesRepository.findById(entryId);
-    if (!entry) throw AppError.notFound('Ticket');
-    const queue = await queuesRepository.findById(entry.queue_id);
-    if (!queue) throw AppError.notFound('Queue');
-    if (actorOrganizationId && queue.organization_id !== actorOrganizationId) {
-      throw AppError.forbidden('Ticket is outside your organization');
-    }
+    const { entry, queue } = await assertEntryAccess(
+      entryId,
+      actorOrganizationId,
+      actorBranchIds,
+      isOrganizationOwner
+    );
 
     if (!['waiting', 'called'].includes(entry.status)) {
       throw AppError.conflict(
@@ -252,13 +325,24 @@ export const staffService = {
    * Get the org's active queue enriched with orders for each entry.
    * Used by the staff dashboard to show the full picture in one request.
    */
-  async getMyQueueOverview(organizationId: string): Promise<EnrichedQueueOverview | null> {
-    const queues = await queuesRepository.findActiveByOrg(organizationId);
+  async getMyQueueOverview(
+    organizationId: string,
+    branchIds: string[] = [],
+    isOrganizationOwner = true
+  ): Promise<EnrichedQueueOverview | null> {
+    const queues = isOrganizationOwner
+      ? await queuesRepository.findActiveByOrg(organizationId)
+      : await queuesRepository.findActiveByBranches(organizationId, branchIds);
     if (queues.length === 0) return null;
     const overviews = await Promise.all(
       queues.map(async (queue) => ({
         queue,
-        overview: await this.getQueueOverview(queue.id, organizationId),
+        overview: await this.getQueueOverview(
+          queue.id,
+          organizationId,
+          branchIds,
+          isOrganizationOwner
+        ),
       }))
     );
     const selected =

@@ -22,6 +22,31 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     auth: false,
     validator: 'EmailPasswordLoginSchema',
   }),
+  endpoint('get', '/api/v1/auth/account-action', 'auth', {
+    auth: false,
+    validator: 'InspectAccountActionSchema',
+  }),
+  endpoint('post', '/api/v1/auth/activate-account', 'auth', {
+    auth: false,
+    validator: 'CompleteAccountActionSchema',
+  }),
+  endpoint('post', '/api/v1/auth/forgot-password', 'auth', {
+    auth: false,
+    validator: 'ForgotPasswordSchema',
+  }),
+  endpoint('post', '/api/v1/auth/reset-password', 'auth', {
+    auth: false,
+    validator: 'CompleteAccountActionSchema',
+  }),
+  endpoint('get', '/api/v1/branches', 'branches'),
+  endpoint('post', '/api/v1/branches', 'branches', { validator: 'CreateBranchSchema' }),
+  endpoint('get', '/api/v1/branches/audit', 'branches', {
+    validator: 'AuditLogQuerySchema',
+  }),
+  endpoint('post', '/api/v1/branches/{branchId}/managers', 'branches', {
+    validator: 'InviteBranchManagerSchema',
+  }),
+  endpoint('delete', '/api/v1/branches/{branchId}/managers/{userId}', 'branches'),
   endpoint('get', '/api/v1/admin/organizations', 'admin'),
   endpoint('post', '/api/v1/organization-applications', 'organization-applications', {
     auth: false,

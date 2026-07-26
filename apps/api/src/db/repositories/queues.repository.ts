@@ -11,6 +11,7 @@ import { BaseRepository } from './base.repository';
 export interface QueueRow {
   id: string;
   organization_id: string;
+  branch_id?: string;
   name: string;
   description: string | null;
   status: string;
@@ -36,6 +37,7 @@ export interface QueueRow {
 
 export interface CreateQueueParams {
   organizationId: string;
+  branchId: string;
   name: string;
   description?: string;
   status?: 'open' | 'paused' | 'closed';
@@ -117,17 +119,18 @@ export class QueuesRepository extends BaseRepository {
     );
   }
 
-  async create(params: CreateQueueParams): Promise<QueueRow> {
+  async create(params: CreateQueueParams, client?: PoolClient): Promise<QueueRow> {
     const sql = `
       INSERT INTO queues
-        (organization_id, name, description, status, prefix, queue_type,
+        (organization_id, branch_id, name, description, status, prefix, queue_type,
          max_capacity, avg_service_seconds, notify_ahead_positions,
          allow_skip, max_skips_before_penalty, opens_at, closes_at, settings)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
       RETURNING *
     `;
-    const rows = await this.query<QueueRow>(sql, [
+    const args = [
       params.organizationId,
+      params.branchId,
       params.name,
       params.description ?? null,
       params.status ?? 'open',
@@ -141,15 +144,41 @@ export class QueuesRepository extends BaseRepository {
       params.opensAt ?? null,
       params.closesAt ?? null,
       JSON.stringify(params.settings ?? {}),
-    ]);
+    ];
+    const rows = client
+      ? await this.queryTx<QueueRow>(client, sql, args)
+      : await this.query<QueueRow>(sql, args);
     const queue = this.firstOrThrow(rows, 'queues.create');
-    await this.query(
-      `INSERT INTO queue_translations (queue_id, locale, name, description)
+    const translationSql = `INSERT INTO queue_translations (queue_id, locale, name, description)
        VALUES ($1,'ja',$2,$3)
-       ON CONFLICT (queue_id, locale) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description`,
-      [queue.id, queue.name, queue.description]
-    );
+       ON CONFLICT (queue_id, locale) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description`;
+    const translationArgs = [queue.id, queue.name, queue.description];
+    if (client) await this.queryTx(client, translationSql, translationArgs);
+    else await this.query(translationSql, translationArgs);
     return queue;
+  }
+
+  async findActiveByBranches(
+    organizationId: string,
+    branchIds: string[],
+    locale: SupportedLocale = 'ja'
+  ): Promise<QueueRow[]> {
+    if (branchIds.length === 0) return [];
+    return this.query<QueueRow>(
+      `SELECT q.*,
+              COALESCE(requested.name, tenant_default.name, japanese.name, q.name) AS name,
+              COALESCE(requested.description, tenant_default.description, japanese.description, q.description) AS description
+       FROM queues q
+       JOIN organizations o ON o.id = q.organization_id
+       LEFT JOIN queue_translations requested ON requested.queue_id = q.id AND requested.locale = $3
+       LEFT JOIN queue_translations tenant_default ON tenant_default.queue_id = q.id AND tenant_default.locale = o.default_locale
+       LEFT JOIN queue_translations japanese ON japanese.queue_id = q.id AND japanese.locale = 'ja'
+       WHERE q.organization_id = $1
+         AND q.branch_id = ANY($2::uuid[])
+         AND q.is_active = TRUE
+       ORDER BY q.created_at, q.id`,
+      [organizationId, branchIds, locale]
+    );
   }
 
   /** All queues (active and inactive) for an org — used by admin views. */

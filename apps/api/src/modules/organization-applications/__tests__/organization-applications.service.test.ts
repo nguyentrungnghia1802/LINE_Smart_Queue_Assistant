@@ -1,8 +1,11 @@
 import type { PoolClient } from 'pg';
 
 import { organizationsRepository } from '../../../db/repositories/organizations.repository';
+import { queuesRepository } from '../../../db/repositories/queues.repository';
 import { usersRepository } from '../../../db/repositories/users.repository';
 import { withTransaction } from '../../../db/transaction';
+import { issueAccountAction } from '../../account-lifecycle/account-lifecycle.service';
+import { branchesRepository } from '../../branches/branches.repository';
 import {
   type OrganizationApplicationRow,
   organizationApplicationsRepository,
@@ -11,7 +14,10 @@ import { organizationApplicationsService } from '../organization-applications.se
 
 jest.mock('../../../db/repositories/organizations.repository');
 jest.mock('../../../db/repositories/users.repository');
+jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
+jest.mock('../../account-lifecycle/account-lifecycle.service');
+jest.mock('../../branches/branches.repository');
 jest.mock('../organization-applications.repository');
 
 const mockFindPendingByEmail =
@@ -31,8 +37,8 @@ const mockMarkApproved = organizationApplicationsRepository.markApproved as jest
 const mockFindUserByEmail = usersRepository.findByEmail as jest.MockedFunction<
   typeof usersRepository.findByEmail
 >;
-const mockCreateUser = usersRepository.createWithPassword as jest.MockedFunction<
-  typeof usersRepository.createWithPassword
+const mockCreateUser = usersRepository.createInvited as jest.MockedFunction<
+  typeof usersRepository.createInvited
 >;
 const mockCreateOrganization = organizationsRepository.create as jest.MockedFunction<
   typeof organizationsRepository.create
@@ -41,6 +47,16 @@ const mockAddMember = organizationsRepository.addMember as jest.MockedFunction<
   typeof organizationsRepository.addMember
 >;
 const mockWithTransaction = withTransaction as jest.MockedFunction<typeof withTransaction>;
+const mockCreateBranch = branchesRepository.create as jest.MockedFunction<
+  typeof branchesRepository.create
+>;
+const mockAssignMember = branchesRepository.assignMember as jest.MockedFunction<
+  typeof branchesRepository.assignMember
+>;
+const mockCreateQueue = queuesRepository.create as jest.MockedFunction<
+  typeof queuesRepository.create
+>;
+const mockIssueAction = issueAccountAction as jest.MockedFunction<typeof issueAccountAction>;
 
 const APPLICATION_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const REVIEWER_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -74,7 +90,6 @@ function makeApplication(
     billing_cycle: 'annual',
     default_locale: 'ja',
     logo_url: null,
-    manager_password_hash: 'stored-password-hash',
     payment_provider: 'demo',
     payment_status: 'paid',
     payment_reference: 'demo-payment-reference',
@@ -111,7 +126,6 @@ const validDto = {
   billingCycle: 'annual' as const,
   defaultLocale: 'ja' as const,
   logoUrl: null,
-  password: 'secure-password',
   termsAccepted: true as const,
 };
 
@@ -140,7 +154,7 @@ describe('organizationApplicationsService', () => {
       expect.objectContaining({
         workEmail: 'owner@example.jp',
         amountYen: 298_000,
-        managerPasswordHash: expect.any(String),
+        paymentReference: expect.stringMatching(/^demo-/),
       })
     );
   });
@@ -162,7 +176,6 @@ describe('organizationApplicationsService', () => {
       organization_id: ORGANIZATION_ID,
       reviewed_by: REVIEWER_ID,
       reviewed_at: new Date(),
-      manager_password_hash: null,
     });
     mockFindByIdForUpdate.mockResolvedValue(application);
     mockCreateOrganization.mockResolvedValue({
@@ -176,6 +189,10 @@ describe('organizationApplicationsService', () => {
       role: 'manager',
     } as never);
     mockAddMember.mockResolvedValue({ id: 'membership-id' } as never);
+    mockCreateBranch.mockResolvedValue({ id: 'branch-id', name: 'Main' } as never);
+    mockAssignMember.mockResolvedValue(undefined);
+    mockCreateQueue.mockResolvedValue({ id: 'queue-id', name: 'Queue' } as never);
+    mockIssueAction.mockResolvedValue(undefined);
     mockMarkApproved.mockResolvedValue(reviewed);
 
     const result = await organizationApplicationsService.approve(APPLICATION_ID, REVIEWER_ID, {
@@ -192,7 +209,8 @@ describe('organizationApplicationsService', () => {
     expect(mockCreateUser).toHaveBeenCalledWith(
       expect.objectContaining({
         email: application.work_email,
-        passwordHash: application.manager_password_hash,
+        role: 'manager',
+        invitedBy: REVIEWER_ID,
       }),
       expect.anything()
     );
@@ -200,9 +218,14 @@ describe('organizationApplicationsService', () => {
       ORGANIZATION_ID,
       MANAGER_ID,
       'manager',
+      expect.anything(),
+      expect.objectContaining({ isOwner: true, isActive: false })
+    );
+    expect(mockIssueAction).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: MANAGER_ID, purpose: 'account_activation' }),
       expect.anything()
     );
-    expect(result.application.manager_password_hash).toBeUndefined();
+    expect(result.application.status).toBe('approved');
   });
 
   it('does not approve an application without a paid server-side payment', async () => {

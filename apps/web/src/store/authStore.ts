@@ -13,6 +13,8 @@ export interface AuthUser {
   organizationId?: string;
   preferredLocale?: SupportedLocale | null;
   organizationLocale?: SupportedLocale;
+  isOrganizationOwner?: boolean;
+  branchIds?: string[];
 }
 
 interface AuthState {
