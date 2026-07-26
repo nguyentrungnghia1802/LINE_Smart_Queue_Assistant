@@ -621,66 +621,96 @@ export function CustomerJoinPage({
   }
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)] pb-28">
-      <header className="border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
-        <div className="mx-auto flex min-h-18 max-w-6xl items-center gap-3 px-4 py-3 sm:gap-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <BrandLogo decorative className="h-10 w-10" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-gray-950 sm:text-base">
-                {t('brandName', { ns: 'common' })}
-              </p>
-              <p className="truncate text-xs font-medium text-brand-700">
-                {t('booking.receptionPage', { ns: 'customer' })}
-              </p>
+    <div
+      className={
+        isLiffMode ? 'min-h-full bg-[var(--app-bg)] pb-4' : 'min-h-screen bg-[var(--app-bg)] pb-28'
+      }
+    >
+      {!isLiffMode && (
+        <header className="border-b border-white/80 bg-white/90 shadow-sm backdrop-blur">
+          <div className="mx-auto flex min-h-18 max-w-6xl items-center gap-3 px-4 py-3 sm:gap-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <BrandLogo decorative className="h-10 w-10" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-gray-950 sm:text-base">
+                  {t('brandName', { ns: 'common' })}
+                </p>
+                <p className="truncate text-xs font-medium text-brand-700">
+                  {t('booking.receptionPage', { ns: 'customer' })}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="hidden h-8 w-px shrink-0 bg-gray-200 md:block" aria-hidden="true" />
-          <div className="hidden min-w-0 items-center gap-2 md:flex">
-            {org.logoUrl ? (
-              <img src={org.logoUrl} alt={org.name} className="h-9 w-9 rounded-lg object-cover" />
+            <div className="hidden h-8 w-px shrink-0 bg-gray-200 md:block" aria-hidden="true" />
+            <div className="hidden min-w-0 items-center gap-2 md:flex">
+              {org.logoUrl ? (
+                <img src={org.logoUrl} alt={org.name} className="h-9 w-9 rounded-lg object-cover" />
+              ) : (
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100 text-sm font-bold text-brand-700">
+                  {org.name[0]}
+                </div>
+              )}
+              <div className="min-w-0">
+                <h1 className="truncate text-sm font-bold text-gray-900">{org.name}</h1>
+                {org.address && <p className="truncate text-xs text-gray-500">{org.address}</p>}
+              </div>
+            </div>
+            {isLiffMode ? (
+              <button
+                type="button"
+                onClick={() => navigate('/liff/home')}
+                className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                {t('nav.home', { ns: 'common' })}
+              </button>
             ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-100 text-sm font-bold text-brand-700">
+              isAuthenticated && (
+                <button
+                  type="button"
+                  onClick={() => navigate(dashboardPathForRole(user?.role))}
+                  className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  {t('nav.dashboard', { ns: 'common' })}
+                </button>
+              )
+            )}
+            {!isLiffMode && (
+              <div className={isAuthenticated ? undefined : 'ml-auto'}>
+                <LanguageSwitcher compact />
+              </div>
+            )}
+          </div>
+        </header>
+      )}
+
+      <main
+        className={`mx-auto grid max-w-6xl gap-5 py-3 sm:py-5 lg:grid-cols-[minmax(0,1fr)_360px] ${
+          isLiffMode ? 'px-0' : 'px-4'
+        }`}
+      >
+        {isLiffMode && (
+          <section className="flex min-w-0 items-center gap-3 rounded-xl border border-white/80 bg-white px-4 py-3 shadow-sm lg:col-span-2">
+            {org.logoUrl ? (
+              <img
+                src={org.logoUrl}
+                alt=""
+                className="h-10 w-10 shrink-0 rounded-lg object-cover"
+              />
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-sm font-bold text-brand-700">
                 {org.name[0]}
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="truncate text-sm font-bold text-gray-900">{org.name}</h1>
+              <h1 className="truncate text-base font-bold text-gray-950">{org.name}</h1>
               {org.address && <p className="truncate text-xs text-gray-500">{org.address}</p>}
             </div>
-          </div>
-          {isLiffMode ? (
-            <button
-              type="button"
-              onClick={() => navigate('/liff/home')}
-              className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-            >
-              {t('nav.home', { ns: 'common' })}
-            </button>
-          ) : (
-            isAuthenticated && (
-              <button
-                type="button"
-                onClick={() => navigate(dashboardPathForRole(user?.role))}
-                className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-              >
-                {t('nav.dashboard', { ns: 'common' })}
-              </button>
-            )
-          )}
-          {!isLiffMode && (
-            <div className={isAuthenticated ? undefined : 'ml-auto'}>
-              <LanguageSwitcher compact />
-            </div>
-          )}
-        </div>
-      </header>
+          </section>
+        )}
 
-      <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           {queue ? (
             <section className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-gray-950">{queue.name}</h2>
                   <p className="mt-1 text-sm text-gray-500">

@@ -174,7 +174,10 @@ The platform role does not replace tenant membership. Staff and manager operatio
 8. LINE ticket notifications contain the system name, ticket code, status, people ahead, ETA, next action, and a LIFF ticket button; text fallback remains available.
 9. Rich Menu buttons open `/liff/home`, booking start, current ticket resolution, and usage guidance without hard-coded entry IDs.
 10. Admin organization registration creates the organization, manager user, and active membership together.
-11. All primary pages remain usable at mobile and desktop widths; copy uses `ja`, `vi`, or `en` resources with Japanese fallback.
+11. All primary pages remain usable at mobile and desktop widths. Business-role destinations stay
+    visible in the desktop header and in an icon-labelled mobile bottom navigation; dense queue,
+    product, user, form, and modal surfaces reflow without page-level horizontal overflow. Copy
+    uses `ja`, `vi`, or `en` resources with Japanese fallback.
 12. Health/readiness clearly distinguish a live process from a usable database connection.
 13. A staff, manager, or admin opening a QR booking page cannot create a booking or direct queue ticket with that business JWT, can return to their own dashboard, and is offered the current QR route in LINE LIFF.
 14. After a successful booking, reopening the same QR/LIFF entry starts a clean booking attempt.

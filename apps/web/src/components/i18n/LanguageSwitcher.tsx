@@ -28,7 +28,9 @@ export function LanguageSwitcher({ compact = false }: Readonly<{ compact?: boole
         aria-label={t('language.label')}
         value={locale}
         onChange={(event) => void changeLanguage(event.target.value as SupportedLocale)}
-        className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm font-medium text-gray-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        className={`h-10 rounded-lg border border-gray-200 bg-white px-2 text-sm font-semibold text-gray-800 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 ${
+          compact ? 'max-w-28 sm:max-w-36' : ''
+        }`}
       >
         {SUPPORTED_LOCALES.map((item) => (
           <option key={item} value={item}>

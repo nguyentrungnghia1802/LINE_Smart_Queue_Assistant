@@ -6,6 +6,12 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Standardized Admin, Manager, Staff, legacy app, Customer, and LIFF responsive navigation with
+  desktop role tabs, safe-area-aware mobile bottom tabs, and Lucide icons.
+- Reflowed the Staff queue selector for phone screens and added mobile card/form/modal treatments
+  for dense manager product, user, queue, and settings workflows.
+- Confirmed `/liff` as the recommended LINE Console endpoint and documented its required
+  frontend/backend endpoint-path pairing.
 - Replaced customer email registration/login with verified LINE-only authentication, required the
   LINE-derived customer JWT for payment intents and bookings, and kept email/password access for
   staff, managers, and admins.

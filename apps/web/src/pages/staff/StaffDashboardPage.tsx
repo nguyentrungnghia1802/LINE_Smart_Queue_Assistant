@@ -228,31 +228,34 @@ export function StaffDashboardPage() {
   const selected = selectedEntry;
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] min-w-0 flex-row overflow-hidden bg-[var(--app-bg)]">
-      {/* Left sidebar: queue entries */}
-      <aside className="flex w-24 shrink-0 flex-col border-r border-gray-200 bg-white sm:w-80">
+    <div className="flex h-[calc(100dvh-8.25rem)] min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-bg)] lg:h-[calc(100dvh-4rem)] md:flex-row">
+      {/* Queue selector: horizontal on phones, left rail on larger screens */}
+      <aside className="flex w-full shrink-0 flex-col border-b border-gray-200 bg-white md:w-72 md:border-b-0 md:border-r xl:w-80">
         {/* Queue header */}
-        <div className="border-b border-gray-100 px-2 py-3 sm:px-4">
-          <div className="flex items-center justify-center sm:justify-between">
-            <h2 className="text-center text-xs font-semibold text-gray-700 sm:text-left sm:text-sm">
-              <span className="hidden sm:inline">
+        <div className="border-b border-gray-100 px-3 py-2.5 md:px-4 md:py-3">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center text-xs font-semibold text-gray-700 md:text-sm">
+              <span className="hidden md:inline">
                 {queueData?.queueName ?? t('dashboard.queueFallback')}
               </span>
-              <span className="sm:hidden">{t('dashboard.waitingShort')}</span>
-              <span className="mt-1 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-600 px-1.5 text-xs text-white sm:ml-2 sm:mt-0 sm:h-5 sm:min-w-5">
+              <span className="md:hidden">{t('dashboard.waitingShort')}</span>
+              <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 text-xs text-white">
                 {queueData?.totalActiveCount ?? queueData?.waitingCount ?? 0}
               </span>
             </h2>
+            <p className="text-[11px] font-medium text-gray-400 md:hidden">
+              {t('dashboard.selectTicket')}
+            </p>
           </div>
         </div>
-        <div className="flex-1 overflow-hidden">
+        <div className="flex min-h-0 overflow-x-auto overscroll-x-contain md:flex-1 md:flex-col md:overflow-x-hidden md:overflow-y-auto">
           {isLoading && (
-            <p className="text-gray-400 text-sm px-4 py-6 text-center">
+            <p className="w-full px-4 py-4 text-center text-sm text-gray-400 md:py-6">
               {t('states.loading', { ns: 'common' })}
             </p>
           )}
           {!isLoading && allEntries.length === 0 && (
-            <p className="text-gray-400 text-sm px-4 py-6 text-center">
+            <p className="w-full px-4 py-4 text-center text-sm text-gray-400 md:py-6">
               {t('dashboard.noCustomers')}
             </p>
           )}
@@ -262,38 +265,38 @@ export function StaffDashboardPage() {
               <button
                 key={entry.id}
                 onClick={() => setSelectedEntryId(entry.id)}
-                className={`w-full border-b border-gray-50 px-2 py-3 text-left transition-colors hover:bg-gray-50 sm:px-4 ${
+                className={`w-28 shrink-0 border-r border-gray-100 px-3 py-2.5 text-left transition-colors hover:bg-gray-50 md:w-full md:border-b md:border-r-0 md:px-4 md:py-3 ${
                   selected?.id === entry.id
-                    ? 'border-l-4 border-l-brand-500 bg-brand-50 pl-1 sm:pl-3'
+                    ? 'border-b-2 border-b-brand-500 bg-brand-50 md:border-b-gray-100 md:border-l-4 md:border-l-brand-500 md:pl-3'
                     : ''
                 }`}
               >
-                <div className="flex flex-col items-center gap-1 sm:flex-row sm:justify-between">
-                  <span className="font-mono text-sm font-bold text-gray-800 sm:text-base">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-sm font-bold text-gray-800 md:text-base">
                     {entry.ticket_code}
                   </span>
                   <span
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] sm:px-2 sm:text-xs ${QUEUE_STATUS_COLORS[entry.status] ?? 'bg-gray-100 text-gray-500'}`}
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] md:px-2 md:text-xs ${QUEUE_STATUS_COLORS[entry.status] ?? 'bg-gray-100 text-gray-500'}`}
                   >
-                    <span className="hidden sm:inline">
+                    <span className="hidden md:inline">
                       {QUEUE_STATUS_LABELS[entry.status]
                         ? t(QUEUE_STATUS_LABELS[entry.status], { ns: 'common' })
                         : entry.status}
                     </span>
-                    <span className="sm:hidden">{entry.status.slice(0, 1).toUpperCase()}</span>
+                    <span className="md:hidden">{entry.status.slice(0, 1).toUpperCase()}</span>
                   </span>
                 </div>
                 {ord ? (
-                  <div className="hidden sm:block">
-                    <p className="text-sm text-gray-500 mt-0.5 truncate">
+                  <div>
+                    <p className="mt-0.5 truncate text-xs text-gray-500 md:text-sm">
                       {ord.customer_name ?? t('dashboard.guest', { ns: 'staff' })}
                     </p>
-                    <p className="text-sm font-medium text-gray-700 mt-0.5">
+                    <p className="mt-0.5 hidden text-sm font-medium text-gray-700 md:block">
                       {formatCurrency(ord.subtotal)}
                     </p>
                   </div>
                 ) : (
-                  <p className="mt-0.5 hidden text-xs text-gray-400 sm:block">
+                  <p className="mt-0.5 hidden text-xs text-gray-400 md:block">
                     {t('dashboard.noOrder')}
                   </p>
                 )}
@@ -304,7 +307,7 @@ export function StaffDashboardPage() {
       </aside>
 
       {/* Main: selected entry detail */}
-      <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-6">
+      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6">
         {!selected ? (
           <div className="flex items-center justify-center h-full text-gray-400">
             {t('dashboard.selectTicket')}

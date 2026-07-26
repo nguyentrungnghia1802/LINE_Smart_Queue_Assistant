@@ -56,21 +56,21 @@ describe('ManagerProductsPage', () => {
     vi.mocked(get).mockReset().mockResolvedValueOnce([product]).mockResolvedValue([]);
     renderPage();
 
-    expect(await screen.findByText('ヘアカット')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '削除' }));
+    expect(await screen.findAllByText('ヘアカット')).toHaveLength(2);
+    fireEvent.click(screen.getAllByRole('button', { name: '削除' })[0]);
     const deleteButtons = screen.getAllByRole('button', { name: '削除' });
     fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => expect(del).toHaveBeenCalledWith('/api/v1/products/product-id'));
-    await waitFor(() => expect(screen.queryByText('ヘアカット')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryAllByText('ヘアカット')).toHaveLength(0));
   });
 
   it('shows a localized stable error code when deletion fails', async () => {
     vi.mocked(del).mockRejectedValue(new ApiClientError('INTERNAL_ERROR', 500));
     renderPage();
 
-    await screen.findByText('ヘアカット');
-    fireEvent.click(screen.getByRole('button', { name: '削除' }));
+    await screen.findAllByText('ヘアカット');
+    fireEvent.click(screen.getAllByRole('button', { name: '削除' })[0]);
     const deleteButtons = screen.getAllByRole('button', { name: '削除' });
     fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
