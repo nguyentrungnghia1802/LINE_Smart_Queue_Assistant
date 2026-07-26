@@ -254,9 +254,9 @@ ILineMessagingAdapter
 
 The `notifications.event_key` unique constraint makes enqueue idempotent for lifecycle events such as `queue_entry:{entryId}:called`. Workers claim due rows with PostgreSQL row locks, increment `attempt_count`, and update the row to `sent`, `pending` with a later `next_retry_at`, or `failed`. If a process restarts while a row is `processing`, a later worker can reclaim it after the configured processing timeout. Delivery errors are sanitized before storage/logging and never include channel tokens or sensitive provider payloads.
 
-Notification ticket links prefer `LINE_LIFF_ID` and generate endpoint-relative permanent links such
-as `https://liff.line.me/{LINE_LIFF_ID}/tickets/:entryId` for the default `/liff` endpoint. When the
-LIFF ID is not configured, the backend falls back to `WEB_ORIGIN` plus
+Notification ticket links prefer `LINE_LOGIN_LIFF_ID` and generate endpoint-relative permanent
+links such as `https://liff.line.me/{LINE_LOGIN_LIFF_ID}/tickets/:entryId` for the default `/liff`
+endpoint. When the LIFF ID is not configured, the backend falls back to `WEB_ORIGIN` plus
 `/liff/tickets/:entryId`.
 
 Ticket lifecycle notifications currently cover booking-created, ETA warning, called, serving, completed, cancelled, and no-show events. Each Flex Message shows the system name, ticket code, current status, people ahead, ETA, next action guidance, and a button that opens the LIFF ticket detail.
@@ -267,7 +267,7 @@ Ticket lifecycle notifications currently cover booking-created, ETA warning, cal
 LINE Rich Menu tap
           |
           v
-https://liff.line.me/{LINE_LIFF_ID}/home...
+https://liff.line.me/{LINE_LOGIN_LIFF_ID}/home...
           |
           v
 LIFF initializes + exchanges ID token for system JWT
@@ -278,7 +278,10 @@ LIFF initializes + exchanges ID token for system JWT
           +-- 利用案内       -> /liff/home?section=guide
 ```
 
-The Rich Menu definition never points to `/liff/tickets/:entryId` because the entry ID is customer-specific and must be resolved at runtime. When `LINE_LIFF_ID` is missing, menu URIs fall back to `WEB_ORIGIN` plus the same `/liff/*` route. Rich Menu creation/upload/default-setting is an operator command, not an API startup side effect.
+The Rich Menu definition never points to `/liff/tickets/:entryId` because the entry ID is
+customer-specific and must be resolved at runtime. When `LINE_LOGIN_LIFF_ID` is missing, menu URIs
+fall back to `WEB_ORIGIN` plus the same `/liff/*` route. Rich Menu
+creation/upload/default-setting is an operator command, not an API startup side effect.
 
 ## 10. Location warning flow
 

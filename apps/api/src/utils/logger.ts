@@ -49,6 +49,8 @@ export const logger = pino(
         '*.secret',
         'channelAccessToken',
         'channelSecret',
+        'messagingChannelAccessToken',
+        'messagingChannelSecret',
       ],
       censor: '[REDACTED]',
     },
