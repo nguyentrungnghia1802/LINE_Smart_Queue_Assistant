@@ -8,6 +8,8 @@ import { AppError } from '../../utils/AppError';
 import { mediaRepository } from './media.repository';
 import type { MediaStorage } from './media-storage';
 
+type SharpMetadata = Awaited<ReturnType<ReturnType<typeof sharp>['metadata']>>;
+
 interface MediaRepositoryBoundary {
   create: typeof mediaRepository.create;
   findById: typeof mediaRepository.findById;
@@ -37,7 +39,7 @@ export class MediaService {
       throw AppError.badRequest('The image exceeds the maximum file size');
     }
 
-    let metadata: sharp.Metadata;
+    let metadata: SharpMetadata;
     try {
       metadata = await sharp(original, {
         failOn: 'warning',
