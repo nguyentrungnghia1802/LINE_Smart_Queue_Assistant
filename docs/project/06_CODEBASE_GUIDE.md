@@ -127,11 +127,14 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 3. Put visible copy in domain resources under `apps/web/src/i18n/locales/<locale>`; do not hard-code display text in components.
 4. Keep backend LINE copy in `modules/notifications/templates/<locale>.ts`.
 5. Handle loading, empty, error, disabled, success, and retry states.
-6. Use responsive constraints; staff side queue remains a left rail that compacts on small screens.
+6. Use `RoleAppShell` for business-role navigation. It keeps role tabs in the desktop header and
+   exposes every destination in the safe-area-aware mobile bottom navigation. Staff queue entries
+   use a left rail from tablet widths and a horizontal ticket selector on phones.
 7. Use semantic controls and existing icon library/style conventions.
 8. Standalone auth/public/customer entry pages outside shared role layouts must still expose the same compact language switcher used by role layouts. Public pages typically use `StandalonePageTopBar`; login keeps the control independently at the viewport's top-right so the authentication card remains vertically centered.
 9. Add API methods/hooks outside the page and component tests for risky behavior.
-10. Verify desktop and mobile routes in a browser.
+10. Verify desktop and mobile routes in a browser, including navigation visibility, page-level
+    horizontal overflow, modal fit, and fixed-navigation content clearance.
 
 ## 9. Error, logging, and transactions
 

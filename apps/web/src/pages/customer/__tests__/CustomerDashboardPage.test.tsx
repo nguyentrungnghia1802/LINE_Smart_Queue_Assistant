@@ -45,7 +45,7 @@ describe('CustomerDashboardPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('combobox', { name: '言語' })).toBeInTheDocument();
     });
-    expect(screen.getByRole('navigation', { name: 'メインナビゲーション' })).toBeInTheDocument();
+    expect(screen.getAllByRole('navigation', { name: 'メインナビゲーション' })).toHaveLength(2);
     expect(screen.getByRole('link', { name: 'Smart Queue Assistant' })).toHaveAttribute(
       'href',
       '/customer'

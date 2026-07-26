@@ -49,6 +49,8 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - LINE LIFF login with server-side ID-token verification and linked `line_accounts` records.
 - LINE-only customer authentication: public organization slug/token entries redirect to LIFF, while local development uses the paired LIFF mock identity.
 - Localized customer, staff, manager, and admin portals with persisted language selection.
+- Shared responsive role navigation with full desktop tabs, icon-labelled mobile bottom navigation,
+  safe-area spacing, and mobile card/list variants for dense manager operations.
 - Organization registration with a Gmail manager and compressed logo data URL/URL support.
 - Product/service CRUD, prepayment flag, service duration, finite or unlimited stock, and active state.
 - Queue CRUD, opening state, capacity configuration, ticket prefix/counter, skip/no-show controls, and ETA configuration.
@@ -65,7 +67,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - LINE webhook signature verification and basic follow, unfollow, and message command handling.
 - Scheduled ETA refresh, approaching-turn scan, called-message retry scan, durable notification delivery, and daily counter reset.
 - Rate limits, request IDs, structured logging, basic Prometheus text metrics, health/readiness endpoints, and audit logs.
-- Playwright browser coverage for LIFF mock authentication, required-item demo payment, booking/ticket redirect, staff transitions, durable mock notification delivery, receipt access, admin registration, manager QR/settings, and desktop/mobile overflow checks.
+- Playwright browser coverage for LIFF mock authentication, required-item demo payment, booking/ticket redirect, staff transitions, durable mock notification delivery, receipt access, admin registration, manager QR/settings, complete role navigation, and desktop/mobile overflow checks.
 - Database structures for booking groups, location snapshots/alerts, forecast history, and staffing recommendations.
 - Japan-oriented organization addresses, `Asia/Tokyo` defaults, normalized weekly hours, and exception-day configuration.
 
