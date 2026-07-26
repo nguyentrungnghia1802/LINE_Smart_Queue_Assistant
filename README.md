@@ -34,7 +34,8 @@ This project solves that by moving the customer-facing flow into QR and LINE whi
 - Shows ticket code, current status, people ahead, ETA, selected items, and payment state.
 - Gives staff a queue workspace for calling, serving, completing, cancelling, marking no-show, updating payment, and printing receipts.
 - Gives managers organization tools for products, queues, QR, settings, users, analytics, and operations.
-- Gives platform admins organization registration and management without exposing tenant customer/revenue data.
+- Provides a public product site and business service application, then gives platform admins an
+  approval-only organization onboarding workflow without exposing tenant customer/revenue data.
 - Keeps order, queue entry, payment transaction, and finite-stock inventory changes consistent through PostgreSQL transactions.
 - Sends LINE lifecycle notifications through a durable PostgreSQL outbox with retry/backoff and text fallback.
 

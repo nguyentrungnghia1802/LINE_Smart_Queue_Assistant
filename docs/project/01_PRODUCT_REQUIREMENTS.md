@@ -19,6 +19,7 @@ Status labels in this document mean:
 | Staff                       | Operational data and actions for their active organization membership                 |
 | Manager                     | Staff capabilities plus configuration and management for their organization           |
 | Platform admin              | Cross-tenant organization and manager administration only                             |
+| Business applicant          | Public product discovery and organization service application                         |
 | Scheduler/system            | ETA updates, notification scans, and counter resets                                   |
 
 The platform role does not replace tenant membership. Staff and manager operations must verify both role and organization ownership.
@@ -48,12 +49,14 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | ---------- | --------------------------------------------------------------------------------------- | ------------------------------------------ |
 | FR-ORG-001 | Admin sees an organization list, not an implicit single-organization editor             | Implemented                                |
 | FR-ORG-002 | Admin opens a separate detail view for full organization information                    | Implemented                                |
-| FR-ORG-003 | Admin registers an organization and initial Gmail manager atomically                    | Implemented                                |
-| FR-ORG-004 | Admin uploads/compresses a logo and never manually enters a QR token                    | Implemented                                |
+| FR-ORG-003 | A business submits a public service application with work email, plan, and demo payment | Implemented                                |
+| FR-ORG-004 | Admin approves or rejects applications but does not manually register new organizations | Implemented                                |
 | FR-ORG-005 | The system generates a unique slug and public QR token                                  | Implemented                                |
 | FR-ORG-006 | Manager edits only their own organization settings                                      | Implemented                                |
 | FR-ORG-007 | Organization stores location, business hours, holiday rules, and provider configuration | Implemented; real provider secrets pending |
 | FR-ORG-008 | Manager print/copy actions prefer LIFF QR and expose public web booking as a fallback   | Implemented                                |
+| FR-ORG-009 | Approval atomically creates the organization, manager user, and active membership       | Implemented                                |
+| FR-ORG-010 | Pending application credentials are hashed and removed after review                     | Implemented                                |
 
 ### Catalog and inventory
 
@@ -133,8 +136,10 @@ The platform role does not replace tenant membership. Staff and manager operatio
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | BR-TENANT-001   | Every tenant-owned read/write must be restricted to the actor's organization.                                                        |
 | BR-ORG-001      | `slug` and generated `public_qr_token` are globally unique. QR token is not user-entered.                                            |
-| BR-ORG-002      | Organization registration and initial manager membership succeed or fail in one transaction.                                         |
-| BR-USER-001     | A manager registered through the admin organization flow must use a Gmail address.                                                   |
+| BR-ORG-002      | Application approval and initial manager membership succeed or fail in one transaction.                                              |
+| BR-ORG-003      | Public applicants do not choose tenant slug or QR token; both are generated only after approval.                                     |
+| BR-USER-001     | The applicant supplies a valid work email; the system never invents the manager email address.                                       |
+| BR-USER-002     | A pending manager password is stored only as a bcrypt hash and cleared after approval/rejection.                                     |
 | BR-QUEUE-001    | Only an open/active queue accepts new tickets.                                                                                       |
 | BR-QUEUE-002    | A queue entry follows only allowed state transitions; terminal entries cannot return to waiting.                                     |
 | BR-QUEUE-003    | Calling next selects the earliest eligible waiting ticket and must not call two tickets through one race.                            |
@@ -173,7 +178,7 @@ The platform role does not replace tenant membership. Staff and manager operatio
 7. Staff state changes for a LINE-linked customer send locale-aware queue messages without reverting queue state on delivery failure.
 8. LINE ticket notifications contain the system name, ticket code, status, people ahead, ETA, next action, and a LIFF ticket button; text fallback remains available.
 9. Rich Menu buttons open `/liff/home`, booking start, current ticket resolution, and usage guidance without hard-coded entry IDs.
-10. Admin organization registration creates the organization, manager user, and active membership together.
+10. Admin approval of a paid pending application creates the organization, manager user, and active membership together.
 11. All primary pages remain usable at mobile and desktop widths. Business-role destinations stay
     visible in the desktop header and in an icon-labelled mobile bottom navigation; dense queue,
     product, user, form, and modal surfaces reflow without page-level horizontal overflow. Copy

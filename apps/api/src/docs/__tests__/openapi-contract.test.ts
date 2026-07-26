@@ -14,6 +14,7 @@ const routeModules = [
   ['line/line.routes.ts', '/line'],
   ['media/media.routes.ts', '/media'],
   ['notifications/notifications.routes.ts', '/notifications'],
+  ['organization-applications/organization-applications.routes.ts', '/organization-applications'],
   ['orders/orders.routes.ts', '/orders'],
   ['orgs/orgs.routes.ts', '/orgs'],
   ['payments/payments.routes.ts', '/payments'],

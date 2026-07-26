@@ -5,8 +5,8 @@ import { RootLayout } from './components/layout/RootLayout';
 import { AccountPage } from './pages/AccountPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
+import { AdminOrganizationApplicationsPage } from './pages/admin/AdminOrganizationApplicationsPage';
 import { AdminOrganizationDetailPage } from './pages/admin/AdminOrganizationDetailPage';
-import { AdminOrganizationRegisterPage } from './pages/admin/AdminOrganizationRegisterPage';
 import { AdminOrganizationsPage } from './pages/admin/AdminOrganizationsPage';
 import { CustomerDashboardPage } from './pages/customer/CustomerDashboardPage';
 import { CustomerLineEntryPage, LiffCustomerJoinPage } from './pages/customer/CustomerJoinPage';
@@ -30,6 +30,8 @@ import { ManagerSettingsPage } from './pages/manager/ManagerSettingsPage';
 import { ManagerUsersPage } from './pages/manager/ManagerUsersPage';
 import { QRDisplayPage } from './pages/manager/QRDisplayPage';
 import { QueueSettingsPage } from './pages/manager/QueueSettingsPage';
+import { BusinessRegistrationPage } from './pages/marketing/BusinessRegistrationPage';
+import { MarketingHomePage } from './pages/marketing/MarketingHomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { PaymentDemoPage } from './pages/PaymentDemoPage';
 import { PublicJoinPage } from './pages/public/PublicJoinPage';
@@ -51,6 +53,10 @@ export const router = createBrowserRouter([
   {
     path: '/register',
     element: <Navigate to="/login" replace />,
+  },
+  {
+    path: '/business/register',
+    element: <BusinessRegistrationPage />,
   },
   {
     path: '/account',
@@ -127,7 +133,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AdminDashboardPage /> },
       { path: 'orgs', element: <AdminOrganizationsPage /> },
-      { path: 'orgs/register', element: <AdminOrganizationRegisterPage /> },
+      { path: 'applications', element: <AdminOrganizationApplicationsPage /> },
       { path: 'orgs/:orgId', element: <AdminOrganizationDetailPage /> },
     ],
   },
@@ -135,7 +141,7 @@ export const router = createBrowserRouter([
   // ── Staff / manager dashboard ─────────────────────────────────────────────
   {
     path: '/',
-    element: <RoleRedirectPage />,
+    element: <MarketingHomePage />,
   },
 
   {
@@ -153,7 +159,7 @@ export const router = createBrowserRouter([
   },
 
   // ── Convenience redirect ──────────────────────────────────────────────────
-  { path: '/dashboard', element: <Navigate to="/app" replace /> },
+  { path: '/dashboard', element: <RoleRedirectPage /> },
 
   // ── 404 ───────────────────────────────────────────────────────────────────
   {

@@ -4,6 +4,7 @@
 
 ```text
 Organization
+  ^-- approved OrganizationApplication
   |--< OrganizationMember >-- User --0..1-- LineAccount
   |--< Product
   |--< Queue --< QueueEntry >--0..1-- Order --< OrderItem >-- Product
@@ -24,6 +25,7 @@ Organization
 | Entity                                  | Responsibility                                                                  |
 | --------------------------------------- | ------------------------------------------------------------------------------- |
 | Organization                            | Tenant identity, public routes/token, branding, location, timezone, settings    |
+| OrganizationApplication                 | Public business application, plan/demo payment, review, and provisioning source |
 | User                                    | Platform identity and global role                                               |
 | OrganizationMember                      | Active manager/staff role within one tenant                                     |
 | LineAccount                             | Verified LINE user link for login/profile/push targeting                        |
@@ -42,6 +44,20 @@ Organization
 | WaitTimeForecast/StaffingRecommendation | Model output history; runtime producer not implemented                          |
 
 ## 2. State machines
+
+### Organization application
+
+| Current   | Action                          | Next       | Actor           |
+| --------- | ------------------------------- | ---------- | --------------- |
+| new       | Submit valid server-priced form | `pending`  | Public business |
+| `pending` | Approve paid application        | `approved` | Platform admin  |
+| `pending` | Reject and demo-refund          | `rejected` | Platform admin  |
+
+Submission stores business/contact/address/usage/plan data and a bcrypt manager password hash. It
+does not create a tenant. Approval locks the application and atomically creates the organization,
+generated slug/QR token, manager account, and active membership, then removes the pending password
+hash. Rejection removes the hash and marks a paid demo application refunded. Reviewed applications
+cannot be processed twice.
 
 ### Queue
 

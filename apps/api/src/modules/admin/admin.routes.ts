@@ -11,10 +11,8 @@ import {
 
 import {
   createManager,
-  createOrganization,
   listManagers,
   listOrganizations,
-  registerOrganization,
   removeManager,
   removeOrganization,
   updateManager,
@@ -24,8 +22,6 @@ import {
   AdminOrgIdParamSchema,
   AdminOrgManagerParamSchema,
   CreateManagerSchema,
-  CreateOrganizationRegistrationSchema,
-  CreateOrganizationSchema,
   UpdateManagerSchema,
   UpdateOrganizationSchema,
 } from './admin.validator';
@@ -35,18 +31,6 @@ export const adminRouter = Router();
 adminRouter.use(requireAuth, requireRole(UserRole.ADMIN));
 
 adminRouter.get('/organizations', listOrganizations);
-adminRouter.post(
-  '/organizations',
-  authenticatedActionRateLimiter,
-  validate(CreateOrganizationSchema),
-  createOrganization
-);
-adminRouter.post(
-  '/organizations/register',
-  authenticatedActionRateLimiter,
-  validate(CreateOrganizationRegistrationSchema),
-  registerOrganization
-);
 adminRouter.patch(
   '/organizations/:orgId',
   authenticatedActionRateLimiter,

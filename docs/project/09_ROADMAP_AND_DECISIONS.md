@@ -209,4 +209,22 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 - What SLOs define acceptable booking latency, notification delay, and availability?
 - Should platform admin metrics include staff/user counts only, and which aggregate tenant health fields are allowed?
 
+## ADR-016: Public business onboarding with admin approval
+
+**Status:** Accepted
+
+**Context:** Letting a platform admin invent organization details, manager email, and password is
+not a professional SaaS acquisition flow and makes data ownership unclear.
+
+**Decision:** Use `/` as the public product site and `/business/register` as a three-step service
+application. Applicants provide their organization details, work email, manager password, expected
+usage, and plan. The server calculates and records demo payment. Admins only approve or reject.
+Approval creates the tenant, manager, and membership atomically; slugs and QR tokens remain
+server-generated.
+
+**Consequences:** Pending applications contain commercially sensitive contact data and a bcrypt
+password hash, so their API is admin-only and the hash is never returned. The hash is cleared after
+review. Demo subscription payment is not a real settlement claim; a production subscription PSP,
+email verification, terms versioning, and transactional approval email remain future work.
+
 Decide these before implementing the corresponding P0/P1 contracts; record each material choice as a new ADR.

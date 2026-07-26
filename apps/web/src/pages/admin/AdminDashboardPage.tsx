@@ -14,6 +14,13 @@ export function AdminDashboardPage() {
     queryKey: ['admin-orgs'],
     queryFn: () => get<OrgRow[]>(`${API_BASE_PATH}/admin/organizations`),
   });
+  const { data: pendingApplications = [], isLoading: applicationsLoading } = useQuery<
+    Array<{ id: string }>
+  >({
+    queryKey: ['organization-applications', 'pending'],
+    queryFn: () =>
+      get<Array<{ id: string }>>(`${API_BASE_PATH}/organization-applications?status=pending`),
+  });
 
   const missingContact = orgs.filter((org) => !org.phone || !org.address).length;
   const missingPayment = orgs.filter((org) => !org.payment_info).length;
@@ -33,10 +40,10 @@ export function AdminDashboardPage() {
           </p>
         </div>
         <Link
-          to="/admin/orgs/register"
+          to="/admin/applications"
           className="inline-flex items-center justify-center rounded-xl bg-gray-950 px-4 py-2 text-sm font-bold text-white hover:bg-gray-800"
         >
-          {t('organizations.register')}
+          {t('applications.viewApplications')}
         </Link>
       </div>
 
@@ -46,8 +53,9 @@ export function AdminDashboardPage() {
           value={isLoading ? '...' : String(orgs.length)}
         />
         <MetricCard
-          label={t('dashboard.logoConfigured')}
-          value={isLoading ? '...' : String(withLogo)}
+          label={t('applications.pendingCount')}
+          value={applicationsLoading ? '...' : String(pendingApplications.length)}
+          tone="amber"
         />
         <MetricCard
           label={t('dashboard.contactMissing')}

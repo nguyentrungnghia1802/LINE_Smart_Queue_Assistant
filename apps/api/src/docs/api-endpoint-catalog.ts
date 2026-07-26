@@ -23,12 +23,25 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     validator: 'EmailPasswordLoginSchema',
   }),
   endpoint('get', '/api/v1/admin/organizations', 'admin'),
-  endpoint('post', '/api/v1/admin/organizations', 'admin', {
-    validator: 'CreateOrganizationSchema',
+  endpoint('post', '/api/v1/organization-applications', 'organization-applications', {
+    auth: false,
+    validator: 'CreateOrganizationApplicationSchema',
   }),
-  endpoint('post', '/api/v1/admin/organizations/register', 'admin', {
-    validator: 'CreateOrganizationRegistrationSchema',
+  endpoint('get', '/api/v1/organization-applications', 'organization-applications', {
+    validator: 'OrganizationApplicationListQuerySchema',
   }),
+  endpoint(
+    'post',
+    '/api/v1/organization-applications/{applicationId}/approve',
+    'organization-applications',
+    { validator: 'ReviewOrganizationApplicationSchema' }
+  ),
+  endpoint(
+    'post',
+    '/api/v1/organization-applications/{applicationId}/reject',
+    'organization-applications',
+    { validator: 'ReviewOrganizationApplicationSchema' }
+  ),
   endpoint('patch', '/api/v1/admin/organizations/{orgId}', 'admin', {
     validator: 'UpdateOrganizationSchema',
   }),
