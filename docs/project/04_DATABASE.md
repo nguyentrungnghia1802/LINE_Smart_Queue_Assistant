@@ -204,3 +204,14 @@ The default `npm run db:seed` profile creates one Japan-localized organization p
 - Real per-organization payment/LINE provider secrets need a managed encrypted configuration boundary.
 - Forecast calibration still needs production history and measured accuracy review before any ML claim.
 - Advanced notification operations UI, manual replay/cancel controls, and long-term notification retention policy are not implemented.
+
+# Account lifecycle schema (migration 000015)
+
+- `organizations.activation_status` separates pending activation, active, and suspended tenants.
+- `users.account_status` and invitation/profile fields model invited, active, and disabled business accounts.
+- `organization_members.is_owner` identifies the immutable organization owner manager.
+- `organization_branches` and `branch_memberships` scope managers and staff to physical branches.
+- `queues.branch_id` is required; a partial unique index enforces one active queue per branch.
+- `account_action_tokens` stores only SHA-256 token hashes and supports single-use activation/reset links.
+- `email_outbox` provides durable, retryable delivery. Its action token is encrypted at rest and cleared after successful delivery.
+- Baseline seeding creates only the admin account. Organization/demo queue data requires the explicit `--demo` seed profile.

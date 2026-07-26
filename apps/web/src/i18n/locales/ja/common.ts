@@ -18,6 +18,8 @@ export const common = {
     staff: 'スタッフ',
     orders: '注文',
     qr: 'QR表示',
+    branches: '支店',
+    audit: '操作ログ',
   },
   actions: {
     login: 'ログイン',

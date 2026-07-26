@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg';
 
-import { ORG_ID, PUBLIC_QR_TOKEN } from './_ids';
+import { BRANCHES, ORG_ID, PUBLIC_QR_TOKEN } from './_ids';
 
 export async function seed(client: PoolClient): Promise<void> {
   await client.query(
@@ -70,5 +70,29 @@ export async function seed(client: PoolClient): Promise<void> {
        opens_at = EXCLUDED.opens_at,
        closes_at = EXCLUDED.closes_at`,
     [ORG_ID]
+  );
+
+  await client.query(
+    `INSERT INTO organization_branches (
+       id, organization_id, name, code, phone, email, postal_code, prefecture,
+       city, address_line1, timezone, is_active
+     ) VALUES
+       ($2, $1, '東京本店', 'tokyo-main', '0900000000', 'tokyo@example.com',
+        '100-0001', '東京都', '千代田区', '千代田1-1', 'Asia/Tokyo', TRUE),
+       ($3, $1, '東京優先受付', 'tokyo-vip', '0900000000', 'tokyo@example.com',
+        '100-0001', '東京都', '千代田区', '千代田1-1', 'Asia/Tokyo', TRUE)
+     ON CONFLICT (id) DO UPDATE SET
+       name = EXCLUDED.name,
+       code = EXCLUDED.code,
+       phone = EXCLUDED.phone,
+       email = EXCLUDED.email,
+       postal_code = EXCLUDED.postal_code,
+       prefecture = EXCLUDED.prefecture,
+       city = EXCLUDED.city,
+       address_line1 = EXCLUDED.address_line1,
+       timezone = EXCLUDED.timezone,
+       is_active = TRUE,
+       updated_at = NOW()`,
+    [ORG_ID, BRANCHES.TOKYO_MAIN, BRANCHES.TOKYO_VIP]
   );
 }

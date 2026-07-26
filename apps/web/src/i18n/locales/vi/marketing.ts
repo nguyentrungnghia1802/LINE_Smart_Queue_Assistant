@@ -100,7 +100,7 @@ export const marketing = {
       'Sau khi gửi, đội ngũ vận hành sẽ xét duyệt. Tài khoản quản lý chỉ được kích hoạt khi hồ sơ được duyệt.',
     back: 'Về trang sản phẩm',
     step: 'Bước {{current}} / {{total}}',
-    steps: { business: 'Doanh nghiệp', plan: 'Gói và tài khoản', review: 'Xác nhận và thanh toán' },
+    steps: { business: 'Doanh nghiệp', plan: 'Chọn gói', review: 'Xác nhận và thanh toán' },
     sections: {
       company: 'Thông tin công ty/cửa hàng',
       contact: 'Người phụ trách',
@@ -140,7 +140,7 @@ export const marketing = {
       other: 'Khác',
     },
     hints: {
-      workEmail: 'Email này sẽ dùng để đăng nhập quản lý sau khi được duyệt.',
+      workEmail: 'Sau khi duyệt, hệ thống sẽ gửi liên kết kích hoạt đến email này.',
       password: 'Tối thiểu 10 ký tự và được lưu dưới dạng mã băm trong thời gian chờ.',
       logo: 'PNG, JPEG hoặc WebP. Ảnh được tự động nén khi tải lên.',
     },
@@ -159,7 +159,7 @@ export const marketing = {
       eyebrow: 'Đăng ký thành công',
       title: 'Hồ sơ đang chờ xét duyệt',
       description:
-        'Đội ngũ vận hành sẽ kiểm tra. Sau khi được duyệt, bạn có thể đăng nhập bằng email công việc đã đăng ký.',
+        'Đội ngũ vận hành sẽ kiểm tra. Sau khi duyệt, liên kết kích hoạt sẽ được gửi đến email công việc.',
       reference: 'Mã hồ sơ',
       payment: 'Đã thanh toán demo',
       home: 'Về trang sản phẩm',

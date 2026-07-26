@@ -1,10 +1,23 @@
-import bcrypt from 'bcryptjs';
-
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
+import { withTransaction } from '../../db/transaction';
+import type { AuthUser } from '../../types/auth.types';
 import { AppError } from '../../utils/AppError';
+import { issueAccountAction } from '../account-lifecycle/account-lifecycle.service';
+import { branchesRepository } from '../branches/branches.repository';
 
-import { CreateUserDto } from './users.validator';
+import type { CreateUserDto, InviteStaffDto, UpdateStaffDto } from './users.validator';
+
+function organizationId(actor: AuthUser) {
+  if (!actor.organizationId) throw AppError.badRequest('User has no organization');
+  return actor.organizationId;
+}
+
+function assertBranchAccess(actor: AuthUser, branchId: string) {
+  if (!actor.isOrganizationOwner && !(actor.branchIds ?? []).includes(branchId)) {
+    throw AppError.forbidden('You cannot manage staff outside your assigned branch');
+  }
+}
 
 export const usersService = {
   async getUser(id: string) {
@@ -49,28 +62,75 @@ export const usersService = {
    * Create a staff account and add them to the organization.
    * Manager-only action.
    */
-  async createStaff(orgId: string, data: { displayName: string; email: string; password: string }) {
-    const existing = await usersRepository.findByEmail(data.email);
-    if (existing) throw AppError.conflict('A user with this email already exists');
-
-    const passwordHash = await bcrypt.hash(data.password, 10);
-
-    const user = await usersRepository.createWithPassword({
-      displayName: data.displayName,
-      email: data.email,
-      role: 'staff',
-      passwordHash,
+  async createStaff(actor: AuthUser, data: InviteStaffDto) {
+    const orgId = organizationId(actor);
+    assertBranchAccess(actor, data.branchId);
+    return withTransaction(async (client) => {
+      const branch = await branchesRepository.findById(data.branchId, orgId, client);
+      if (!branch) throw AppError.notFound('Branch');
+      if (await usersRepository.findByEmail(data.email, client)) {
+        throw AppError.conflict('A user with this email already exists');
+      }
+      const org = await client.query<{ name: string; default_locale: 'ja' | 'vi' | 'en' }>(
+        'SELECT name, default_locale FROM organizations WHERE id = $1',
+        [orgId]
+      );
+      const user = await usersRepository.createInvited(
+        {
+          displayName: data.displayName,
+          email: data.email,
+          phone: data.phone,
+          role: 'staff',
+          addressLine1: data.currentAddress,
+          jobTitle: data.jobTitle,
+          employeeCode: data.employeeCode,
+          invitedBy: actor.id,
+        },
+        client
+      );
+      await organizationsRepository.addMember(orgId, user.id, 'staff', client, {
+        isActive: false,
+        isOwner: false,
+      });
+      await branchesRepository.assignMember(
+        {
+          organizationId: orgId,
+          branchId: data.branchId,
+          userId: user.id,
+          role: 'staff',
+          assignedBy: actor.id,
+          isActive: false,
+        },
+        client
+      );
+      await issueAccountAction(
+        {
+          userId: user.id,
+          recipientEmail: data.email,
+          displayName: data.displayName,
+          organizationName: org.rows[0]?.name ?? 'Smart Queue Assistant',
+          locale: org.rows[0]?.default_locale ?? 'ja',
+          purpose: 'account_activation',
+          createdBy: actor.id,
+        },
+        client
+      );
+      await client.query(
+        `INSERT INTO audit_logs
+           (actor_id, action, resource_type, resource_id, organization_id, changes)
+         VALUES ($1,'staff_invited','organization_member',$2,$3,$4)`,
+        [actor.id, user.id, orgId, JSON.stringify({ branchId: data.branchId })]
+      );
+      return user;
     });
-
-    await organizationsRepository.addMember(orgId, user.id, 'staff');
-
-    return user;
   },
 
   /**
    * Toggle a staff member's active status.
    */
-  async updateStaffStatus(orgId: string, userId: string, isActive: boolean) {
+  async updateStaffStatus(actor: AuthUser, userId: string, isActive: boolean) {
+    const orgId = organizationId(actor);
+    if (actor.id === userId) throw AppError.forbidden('You cannot change your own account status');
     // Verify the user is a member of this org
     const member = await organizationsRepository.findMember(orgId, userId);
     if (!member) throw AppError.notFound('Staff member not found in this organization');
@@ -78,15 +138,15 @@ export const usersService = {
     const user = await usersRepository.findById(userId);
     if (!user) throw AppError.notFound('User not found');
 
-    await usersRepository.setActive(userId, isActive);
+    if (isActive) {
+      throw AppError.conflict('Disabled staff must be invited again through the invitation flow');
+    }
+    await this.removeStaff(actor, userId);
     return usersRepository.findById(userId);
   },
 
-  async updateStaff(
-    orgId: string,
-    userId: string,
-    data: { displayName?: string; email?: string; password?: string }
-  ) {
+  async updateStaff(actor: AuthUser, userId: string, data: UpdateStaffDto) {
+    const orgId = organizationId(actor);
     const member = await organizationsRepository.findMember(orgId, userId);
     if (!member) throw AppError.notFound('Staff member not found in this organization');
     if (member.role !== 'staff')
@@ -101,25 +161,51 @@ export const usersService = {
         throw AppError.conflict('A user with this email already exists');
     }
 
-    const updated = await usersRepository.updateProfile(userId, {
-      displayName: data.displayName,
-      email: data.email,
+    return withTransaction(async (client) => {
+      const updated = await usersRepository.updateEmployeeProfile(userId, data, client);
+      await client.query(
+        `INSERT INTO audit_logs
+           (actor_id, action, resource_type, resource_id, organization_id, changes)
+         VALUES ($1,'staff_updated','organization_member',$2,$3,$4)`,
+        [actor.id, userId, orgId, JSON.stringify({ fields: Object.keys(data) })]
+      );
+      return updated ?? usersRepository.findById(userId);
     });
-
-    if (data.password && data.password.trim()) {
-      const passwordHash = await bcrypt.hash(data.password, 10);
-      await usersRepository.setPassword(userId, passwordHash);
-    }
-
-    return updated ?? usersRepository.findById(userId);
   },
 
-  async removeStaff(orgId: string, userId: string) {
-    const member = await organizationsRepository.findMember(orgId, userId);
-    if (!member) throw AppError.notFound('Staff member not found in this organization');
-    if (member.role !== 'staff')
-      throw AppError.badRequest('Only staff accounts can be removed here');
-
-    await organizationsRepository.setMemberActive(orgId, userId, false);
+  async removeStaff(actor: AuthUser, userId: string) {
+    const orgId = organizationId(actor);
+    if (actor.id === userId) throw AppError.forbidden('You cannot remove your own account');
+    await withTransaction(async (client) => {
+      const member = await organizationsRepository.findMember(orgId, userId, client);
+      if (!member) throw AppError.notFound('Staff member not found in this organization');
+      if (member.role !== 'staff') {
+        throw AppError.badRequest('Only staff accounts can be removed here');
+      }
+      await client.query(
+        `UPDATE branch_memberships
+         SET is_active = FALSE, deactivated_at = NOW()
+         WHERE organization_id = $1 AND user_id = $2`,
+        [orgId, userId]
+      );
+      await client.query(
+        `UPDATE organization_members SET is_active = FALSE
+         WHERE organization_id = $1 AND user_id = $2`,
+        [orgId, userId]
+      );
+      await client.query(
+        `UPDATE users
+         SET is_active = FALSE, account_status = 'disabled',
+             deactivated_at = NOW(), deactivated_by = $3, updated_at = NOW()
+         WHERE id = $2`,
+        [orgId, userId, actor.id]
+      );
+      await client.query(
+        `INSERT INTO audit_logs
+           (actor_id, action, resource_type, resource_id, organization_id, changes)
+         VALUES ($1,'staff_removed','organization_member',$2,$3,'{}')`,
+        [actor.id, userId, orgId]
+      );
+    });
   },
 };

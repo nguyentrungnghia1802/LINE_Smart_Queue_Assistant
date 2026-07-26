@@ -105,7 +105,7 @@ export const marketing = {
       'Our operations team reviews each application. The manager account is activated only after approval.',
     back: 'Back to product site',
     step: 'Step {{current}} of {{total}}',
-    steps: { business: 'Business', plan: 'Plan and account', review: 'Review and payment' },
+    steps: { business: 'Business', plan: 'Choose a plan', review: 'Review and payment' },
     sections: {
       company: 'Company and location',
       contact: 'Primary contact',
@@ -145,7 +145,7 @@ export const marketing = {
       other: 'Other',
     },
     hints: {
-      workEmail: 'This becomes the manager login after approval.',
+      workEmail: 'After approval, an account activation link is sent to this address.',
       password:
         'Use at least 10 characters. It is stored as a hash while the application is pending.',
       logo: 'PNG, JPEG, or WebP. Images are compressed automatically.',
@@ -165,7 +165,7 @@ export const marketing = {
       eyebrow: 'Application received',
       title: 'Your application is under review',
       description:
-        'Our operations team will review it. Once approved, sign in with the work email you registered.',
+        'Our operations team will review it. Once approved, an activation link is sent to the work email.',
       reference: 'Application reference',
       payment: 'Demo payment complete',
       home: 'Back to product site',

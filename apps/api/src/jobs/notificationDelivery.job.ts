@@ -111,7 +111,11 @@ export async function deliverOutboxNotification(
     const sent = await lineNotificationService.pushTicketNotification(
       row.line_user_id,
       buildTemplateFromOutbox(row),
-      { entryId: row.queue_entry_id ?? undefined, eventType: row.event_type },
+      {
+        entryId: row.queue_entry_id ?? undefined,
+        eventType: row.event_type,
+        retryKey: row.id,
+      },
       adapter
     );
 

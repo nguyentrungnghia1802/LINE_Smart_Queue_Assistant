@@ -8,6 +8,7 @@ import type { TicketNotificationTemplate } from './line-notification.templates';
 export interface LineNotificationContext {
   entryId?: string;
   eventType?: string;
+  retryKey?: string;
 }
 
 async function tryPushMessages(
@@ -18,7 +19,10 @@ async function tryPushMessages(
   options: { countFailure: boolean; failureMessage: string }
 ): Promise<boolean> {
   try {
-    await adapter.pushMessage(lineUserId, messages, { notificationDisabled: false });
+    await adapter.pushMessage(lineUserId, messages, {
+      notificationDisabled: false,
+      retryKey: context.retryKey,
+    });
     metricsService.increment('notifications_sent_total');
     logger.info(
       {
@@ -88,10 +92,13 @@ export const lineNotificationService = {
 
     if (flexSent) return true;
 
+    const textContext = context.retryKey
+      ? { ...context, retryKey: alternateRetryKey(context.retryKey) }
+      : context;
     return tryPushMessages(
       lineUserId,
       [{ type: 'text', text: notification.textMessage }],
-      context,
+      textContext,
       adapter,
       {
         countFailure: true,
@@ -100,3 +107,9 @@ export const lineNotificationService = {
     );
   },
 };
+
+function alternateRetryKey(value: string): string {
+  const last = value.at(-1) ?? '0';
+  const replacement = ((Number.parseInt(last, 16) || 0) ^ 1).toString(16);
+  return `${value.slice(0, -1)}${replacement}`;
+}

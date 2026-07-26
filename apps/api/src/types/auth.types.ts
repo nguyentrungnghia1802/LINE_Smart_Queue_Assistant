@@ -22,4 +22,8 @@ export interface AuthUser {
   preferredLocale?: SupportedLocale | null;
   /** Tenant default locale for staff and manager sessions. */
   organizationLocale?: SupportedLocale;
+  /** True only for the immutable owner-manager membership of the organization. */
+  isOrganizationOwner?: boolean;
+  /** Active branch assignments used to scope branch queue operations. */
+  branchIds?: string[];
 }

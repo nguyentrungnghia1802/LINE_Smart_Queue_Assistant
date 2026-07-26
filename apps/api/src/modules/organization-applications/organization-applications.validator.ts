@@ -42,7 +42,6 @@ export const CreateOrganizationApplicationSchema = z.object({
   billingCycle: z.enum(['monthly', 'annual']),
   defaultLocale: z.enum(['ja', 'vi', 'en']).default('ja'),
   logoUrl: LogoUrlSchema.nullable().optional(),
-  password: z.string().min(10).max(128),
   termsAccepted: z.literal(true),
 });
 

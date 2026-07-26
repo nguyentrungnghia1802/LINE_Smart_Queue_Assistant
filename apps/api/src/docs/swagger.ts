@@ -53,9 +53,10 @@ const adminQueueSchemas = {
 
   CreateQueueRequest: {
     type: 'object',
-    required: ['orgId', 'name'],
+    required: ['orgId', 'branchId', 'name'],
     properties: {
       orgId: { type: 'string', format: 'uuid' },
+      branchId: { type: 'string', format: 'uuid' },
       name: { type: 'string', minLength: 1, maxLength: 120 },
       description: { type: 'string', maxLength: 500 },
       status: { type: 'string', enum: ['open', 'paused', 'closed'], default: 'open' },
@@ -114,6 +115,7 @@ export const swaggerSpec = {
     { name: 'line', description: 'LINE Messaging API webhook' },
     { name: 'payments', description: 'Payment intent, webhook, return, and reconciliation' },
     { name: 'auth', description: 'System and verified LINE authentication' },
+    { name: 'branches', description: 'Organization branch and personnel assignments' },
     { name: 'admin', description: 'Platform organization administration' },
     { name: 'bookings', description: 'Customer booking groups and history' },
     { name: 'forecasts', description: 'Measured heuristic wait and staffing outputs' },
