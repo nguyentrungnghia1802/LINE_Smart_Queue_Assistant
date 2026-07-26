@@ -230,6 +230,17 @@ The full LINE-first experience requires both LINE Login/LIFF and Messaging API:
 - Messaging API sends queue notifications into the customer's LINE chat.
 - Rich Menu opens LIFF routes such as Home, Booking, Current Ticket, and Usage Guide.
 
+Production uses explicitly namespaced configuration:
+
+| Capability    | Server/build variable                                                                  |
+| ------------- | -------------------------------------------------------------------------------------- |
+| LINE Login    | `LINE_LOGIN_CHANNEL_ID`, `LINE_LOGIN_LIFF_ID`, public build arg `VITE_LIFF_ID`         |
+| Messaging API | `LINE_MESSAGING_CHANNEL_SECRET`, `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`                 |
+| Webhook       | Console URL `https://<web-origin>/api/v1/line/webhook`; no additional credential value |
+
+The current LIFF ID-token exchange needs the LINE Login Channel ID, not the LINE Login Channel
+Secret. Messaging credentials are backend-only secrets and must never use a `VITE_*` name.
+
 Useful commands:
 
 ```bash

@@ -3,7 +3,7 @@
  *
  * Selection logic (evaluated once at startup):
  *   • NODE_ENV=test                    → MockLineAdapter (no HTTP, safe in CI)
- *   • LINE_CHANNEL_ACCESS_TOKEN unset  → MockLineAdapter with a startup warning
+ *   • LINE_MESSAGING_CHANNEL_ACCESS_TOKEN unset → MockLineAdapter with a startup warning
  *   • otherwise                        → LineSdkAdapter (real LINE API calls)
  *
  * Import `lineMessagingAdapter` wherever you need to send messages.
@@ -22,16 +22,16 @@ function createAdapter(): ILineMessagingAdapter {
     return new MockLineAdapter();
   }
 
-  if (!config.line.channelAccessToken) {
+  if (!config.line.messagingChannelAccessToken) {
     logger.warn(
-      'LINE_CHANNEL_ACCESS_TOKEN is not set — push messages are disabled. ' +
+      'LINE_MESSAGING_CHANNEL_ACCESS_TOKEN is not set — push messages are disabled. ' +
         'Set the variable in .env to enable real LINE notifications.'
     );
     // Return a no-op mock so the app starts cleanly instead of crashing.
     return new MockLineAdapter();
   }
 
-  return new LineSdkAdapter(config.line.channelAccessToken);
+  return new LineSdkAdapter(config.line.messagingChannelAccessToken);
 }
 
 export const lineMessagingAdapter: ILineMessagingAdapter = createAdapter();
