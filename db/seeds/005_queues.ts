@@ -1,20 +1,21 @@
 import type { PoolClient } from 'pg';
 
-import { ORG_ID, QUEUES } from './_ids';
+import { BRANCHES, ORG_ID, QUEUES } from './_ids';
 
 export async function seed(client: PoolClient): Promise<void> {
   await client.query(
     `
       INSERT INTO queues (
-        id, organization_id, name, description, status, queue_type, prefix,
+        id, organization_id, branch_id, name, description, status, queue_type, prefix,
         max_capacity, daily_ticket_counter, avg_service_seconds,
         notify_ahead_positions, allow_skip, max_skips_before_penalty,
         auto_no_show_minutes, opens_at, closes_at, settings, is_active
       )
       VALUES
-        ($1, $3, '受付カウンターA', '通常受付', 'open', 'walk_in', 'A', 200, 8, 900, 3, TRUE, 2, 5, '09:00', '18:00', '{"demo":true}'::jsonb, TRUE),
-        ($2, $3, '優先受付', '優先対応用の受付', 'open', 'priority', 'VIP', 50, 3, 600, 2, TRUE, 1, 3, '09:00', '18:00', '{"demo":true}'::jsonb, TRUE)
+        ($1, $3, $4, '受付カウンターA', '通常受付', 'open', 'walk_in', 'A', 200, 8, 900, 3, TRUE, 2, 5, '09:00', '18:00', '{"demo":true}'::jsonb, TRUE),
+        ($2, $3, $5, '優先受付', '優先対応用の受付', 'open', 'priority', 'VIP', 50, 3, 600, 2, TRUE, 1, 3, '09:00', '18:00', '{"demo":true}'::jsonb, TRUE)
       ON CONFLICT (id) DO UPDATE SET
+        branch_id = EXCLUDED.branch_id,
         name = EXCLUDED.name,
         description = EXCLUDED.description,
         status = EXCLUDED.status,
@@ -33,7 +34,7 @@ export async function seed(client: PoolClient): Promise<void> {
         is_active = TRUE,
         updated_at = NOW();
     `,
-    [QUEUES.COUNTER_A, QUEUES.VIP_LANE, ORG_ID]
+    [QUEUES.COUNTER_A, QUEUES.VIP_LANE, ORG_ID, BRANCHES.TOKYO_MAIN, BRANCHES.TOKYO_VIP]
   );
   await client.query(
     `INSERT INTO queue_translations (queue_id, locale, name, description) VALUES

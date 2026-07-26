@@ -28,11 +28,15 @@ export class LineSdkAdapter implements ILineMessagingAdapter {
     messages: LineMessage[],
     options: LineMessageOptions = {}
   ): Promise<void> {
-    await this.post('/message/push', {
-      to,
-      messages,
-      notificationDisabled: options.notificationDisabled ?? false,
-    });
+    await this.post(
+      '/message/push',
+      {
+        to,
+        messages,
+        notificationDisabled: options.notificationDisabled ?? false,
+      },
+      options.retryKey ? { 'X-Line-Retry-Key': options.retryKey } : undefined
+    );
   }
 
   async replyMessage(
@@ -47,13 +51,18 @@ export class LineSdkAdapter implements ILineMessagingAdapter {
     });
   }
 
-  private async post(path: string, body: unknown): Promise<void> {
+  private async post(
+    path: string,
+    body: unknown,
+    additionalHeaders?: Record<string, string>
+  ): Promise<void> {
     const res = await fetch(`${LINE_API_BASE}${path}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         // Authorization header intentionally NOT spread into a logged object.
         Authorization: this.authHeader,
+        ...additionalHeaders,
       },
       body: JSON.stringify(body),
     });

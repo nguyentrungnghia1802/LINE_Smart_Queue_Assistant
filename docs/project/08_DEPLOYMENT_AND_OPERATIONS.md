@@ -243,3 +243,9 @@ The canonical executable release gate is `docs/checklists/PRODUCTION_READINESS.m
 - Multi-replica scheduler ownership or single-worker guarantee.
 - End-to-end and load tests with defined SLOs.
 - On-call ownership, dashboards, alerts, and incident communication.
+
+# Transactional email configuration
+
+Local development uses `EMAIL_TRANSPORT=mock` and writes preview HTML files under `var/email-preview`. Production must set `EMAIL_TRANSPORT=smtp`, sender details, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and an independent `EMAIL_TOKEN_ENCRYPTION_KEY` of at least 32 random characters. These are backend secrets and must never use a `VITE_*` name.
+
+The scheduler claims durable `email_outbox` rows after the business transaction commits. Failed messages use bounded exponential retry and do not roll back organization or personnel operations.

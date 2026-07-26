@@ -133,7 +133,7 @@ describe('POST /api/v1/staff/entries/:entryId/complete', () => {
       success: true,
       data: { entry: { id: ENTRY_ID, status: 'served' } },
     });
-    expect(mockComplete).toHaveBeenCalledWith(ENTRY_ID, USER_ID, ORG_ID);
+    expect(mockComplete).toHaveBeenCalledWith(ENTRY_ID, USER_ID, ORG_ID, undefined, false);
   });
 
   it('returns a useful field error for an invalid entry UUID', async () => {
@@ -158,6 +158,6 @@ describe('POST /api/v1/staff/entries/:entryId/defer', () => {
       success: true,
       data: { entry: { id: ENTRY_ID, status: 'waiting' } },
     });
-    expect(mockDefer).toHaveBeenCalledWith(ENTRY_ID, USER_ID, ORG_ID);
+    expect(mockDefer).toHaveBeenCalledWith(ENTRY_ID, USER_ID, ORG_ID, undefined, false);
   });
 });

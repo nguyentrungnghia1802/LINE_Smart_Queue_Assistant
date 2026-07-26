@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import { LiffLayout } from './components/layout/LiffLayout';
 import { RootLayout } from './components/layout/RootLayout';
+import { AccountLifecyclePage } from './pages/AccountLifecyclePage';
 import { AccountPage } from './pages/AccountPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
@@ -20,6 +21,8 @@ import { QueueJoinPage } from './pages/liff/QueueJoinPage';
 import { TicketStatusPage } from './pages/liff/TicketStatusPage';
 import { LoginPage } from './pages/LoginPage';
 import { CreateQueuePage } from './pages/manager/CreateQueuePage';
+import { ManagerAuditPage } from './pages/manager/ManagerAuditPage';
+import { ManagerBranchesPage } from './pages/manager/ManagerBranchesPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { ManagerLayout } from './pages/manager/ManagerLayout';
 import { ManagerProductDetailPage } from './pages/manager/ManagerProductDetailPage';
@@ -62,6 +65,9 @@ export const router = createBrowserRouter([
     path: '/account',
     element: <AccountPage />,
   },
+  { path: '/activate-account', element: <AccountLifecyclePage /> },
+  { path: '/forgot-password', element: <AccountLifecyclePage /> },
+  { path: '/reset-password', element: <AccountLifecyclePage /> },
 
   // ── Public (no auth required) ─────────────────────────────────────────────
   { path: '/join/:queueId', element: <PublicJoinPage /> },
@@ -87,6 +93,8 @@ export const router = createBrowserRouter([
       { path: 'queues/:id/display', element: <QRDisplayPage /> },
       { path: 'queues/:id/settings', element: <QueueSettingsPage /> },
       { path: 'users', element: <ManagerUsersPage /> },
+      { path: 'branches', element: <ManagerBranchesPage /> },
+      { path: 'audit', element: <ManagerAuditPage /> },
       { path: 'qr', element: <ManagerQRPage /> },
       { path: 'settings', element: <ManagerSettingsPage /> },
     ],

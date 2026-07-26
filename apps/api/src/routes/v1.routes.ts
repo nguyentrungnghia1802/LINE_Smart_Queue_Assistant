@@ -1,8 +1,10 @@
 import { Router } from 'express';
 
+import { accountLifecycleRouter } from '../modules/account-lifecycle/account-lifecycle.routes';
 import { adminRouter } from '../modules/admin/admin.routes';
 import { authRouter } from '../modules/auth/auth.routes';
 import { bookingGroupsRouter } from '../modules/bookings/booking-groups.routes';
+import { branchesRouter } from '../modules/branches/branches.routes';
 import { forecastsRouter } from '../modules/forecasts/forecasts.routes';
 import { lineRouter } from '../modules/line/line.routes';
 import { mediaRouter } from '../modules/media/media.routes';
@@ -24,6 +26,8 @@ import { usersRouter } from '../modules/users/users.routes';
  */
 export const v1Router = Router();
 
+v1Router.use('/auth', accountLifecycleRouter);
+v1Router.use('/branches', branchesRouter);
 v1Router.use('/auth', authRouter);
 v1Router.use('/booking-groups', bookingGroupsRouter);
 v1Router.use('/forecasts', forecastsRouter);

@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Eye, EyeOff, ImagePlus, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Check, ImagePlus, ShieldCheck } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -34,7 +34,6 @@ type FormState = {
   billingCycle: BillingCycle;
   defaultLocale: SupportedLocale;
   logoUrl: string;
-  password: string;
   termsAccepted: boolean;
 };
 
@@ -53,7 +52,6 @@ export function BusinessRegistrationPage() {
   const requestedPlan = searchParams.get('plan') as PlanCode | null;
   const formRef = useRef<HTMLFormElement>(null);
   const [step, setStep] = useState(1);
-  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const [error, setError] = useState('');
@@ -80,7 +78,6 @@ export function BusinessRegistrationPage() {
     billingCycle: 'monthly',
     defaultLocale: ((i18n.resolvedLanguage ?? 'ja').split('-')[0] as SupportedLocale) || 'ja',
     logoUrl: '',
-    password: '',
     termsAccepted: false,
   });
 
@@ -470,29 +467,6 @@ export function BusinessRegistrationPage() {
                       {t(`pricing.${cycle}`)}
                     </label>
                   ))}
-                </div>
-              </FormSection>
-              <FormSection title={t('registration.sections.account')}>
-                <div className="relative">
-                  <Field
-                    label={t('registration.fields.password')}
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    minLength={10}
-                    value={form.password}
-                    onChange={(value) => update('password', value)}
-                    hint={t('registration.hints.password')}
-                    error={fieldErrors['password']?.[0]}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((value) => !value)}
-                    className="absolute right-3 top-8 flex h-8 w-8 items-center justify-center text-gray-500"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
                 </div>
               </FormSection>
               <FormSection title={t('registration.sections.logo')} last>

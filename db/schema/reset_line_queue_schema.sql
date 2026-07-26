@@ -166,6 +166,7 @@ CREATE TABLE organizations (
   address_line2     TEXT,
   settings          JSONB NOT NULL DEFAULT '{}',
   is_active         BOOLEAN NOT NULL DEFAULT TRUE,
+  activation_status TEXT NOT NULL DEFAULT 'active' CHECK (activation_status IN ('pending_activation','active','suspended')),
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -220,6 +221,18 @@ CREATE TABLE users (
   password_hash  TEXT,
   preferred_locale TEXT CHECK (preferred_locale IS NULL OR preferred_locale IN ('ja','vi','en')),
   is_active      BOOLEAN NOT NULL DEFAULT TRUE,
+  account_status TEXT NOT NULL DEFAULT 'active' CHECK (account_status IN ('invited','active','disabled')),
+  postal_code TEXT,
+  prefecture TEXT,
+  city TEXT,
+  address_line1 TEXT,
+  address_line2 TEXT,
+  job_title TEXT,
+  employee_code TEXT,
+  invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  activated_at TIMESTAMPTZ,
+  deactivated_at TIMESTAMPTZ,
+  deactivated_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -244,9 +257,54 @@ CREATE TABLE organization_members (
   user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   role             org_member_role NOT NULL DEFAULT 'staff',
   is_active        BOOLEAN NOT NULL DEFAULT TRUE,
+  is_owner         BOOLEAN NOT NULL DEFAULT FALSE CHECK (is_owner = FALSE OR role = 'manager'),
+  invited_at       TIMESTAMPTZ,
+  activated_at     TIMESTAMPTZ,
   joined_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   CONSTRAINT org_members_unique UNIQUE (organization_id, user_id)
+);
+
+CREATE UNIQUE INDEX uq_organization_members_owner ON organization_members (organization_id)
+WHERE is_owner = TRUE AND is_active = TRUE;
+CREATE UNIQUE INDEX uq_users_normalized_email ON users (LOWER(email)) WHERE email IS NOT NULL;
+
+CREATE TABLE organization_branches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  code TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT,
+  postal_code TEXT NOT NULL CHECK (postal_code ~ '^[0-9]{3}-?[0-9]{4}$'),
+  prefecture TEXT NOT NULL,
+  city TEXT NOT NULL,
+  address_line1 TEXT NOT NULL,
+  address_line2 TEXT,
+  timezone TEXT NOT NULL DEFAULT 'Asia/Tokyo',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (organization_id, code),
+  UNIQUE (id, organization_id),
+  CHECK (code ~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$')
+);
+CREATE TRIGGER trg_organization_branches_updated_at BEFORE UPDATE ON organization_branches FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE branch_memberships (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL,
+  branch_id UUID NOT NULL,
+  user_id UUID NOT NULL,
+  role org_member_role NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  assigned_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deactivated_at TIMESTAMPTZ,
+  FOREIGN KEY (branch_id, organization_id) REFERENCES organization_branches(id, organization_id) ON DELETE CASCADE,
+  FOREIGN KEY (organization_id, user_id) REFERENCES organization_members(organization_id, user_id) ON DELETE CASCADE,
+  UNIQUE (branch_id, user_id)
 );
 
 CREATE TABLE line_accounts (
@@ -287,7 +345,6 @@ CREATE TABLE organization_applications (
   billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ('monthly','annual')),
   default_locale TEXT NOT NULL DEFAULT 'ja' CHECK (default_locale IN ('ja','vi','en')),
   logo_url TEXT,
-  manager_password_hash TEXT,
   payment_provider TEXT NOT NULL DEFAULT 'demo',
   payment_status TEXT NOT NULL DEFAULT 'paid' CHECK (payment_status IN ('pending','paid','failed','refunded')),
   payment_reference TEXT NOT NULL UNIQUE,
@@ -309,6 +366,39 @@ CREATE TABLE organization_applications (
 CREATE TRIGGER trg_organization_applications_updated_at
 BEFORE UPDATE ON organization_applications
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE account_action_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  purpose TEXT NOT NULL CHECK (purpose IN ('account_activation','password_reset')),
+  token_hash CHAR(64) NOT NULL UNIQUE,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (expires_at > created_at)
+);
+
+CREATE TABLE email_outbox (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_key TEXT NOT NULL UNIQUE,
+  recipient_email TEXT NOT NULL,
+  template_key TEXT NOT NULL CHECK (template_key IN ('account_activation','password_reset')),
+  locale TEXT NOT NULL DEFAULT 'ja' CHECK (locale IN ('ja','vi','en')),
+  template_data JSONB NOT NULL DEFAULT '{}',
+  encrypted_action_token TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','processing','sent','failed','cancelled')),
+  attempt_count INT NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+  max_attempts INT NOT NULL DEFAULT 5 CHECK (max_attempts > 0),
+  next_retry_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  processing_started_at TIMESTAMPTZ,
+  sent_at TIMESTAMPTZ,
+  last_error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TRIGGER trg_email_outbox_updated_at BEFORE UPDATE ON email_outbox FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE media_assets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -371,6 +461,7 @@ CREATE TRIGGER trg_product_translations_updated_at BEFORE UPDATE ON product_tran
 CREATE TABLE queues (
   id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id            UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  branch_id                  UUID NOT NULL,
   name                       TEXT NOT NULL,
   description                TEXT,
   status                     queue_status NOT NULL DEFAULT 'closed',
@@ -398,8 +489,10 @@ CREATE TABLE queues (
   CONSTRAINT queues_notify_ahead_positive CHECK (notify_ahead_positions > 0),
   CONSTRAINT queues_max_skips_non_negative CHECK (max_skips_before_penalty >= 0),
   CONSTRAINT queues_auto_no_show_minutes_positive CHECK (auto_no_show_minutes IS NULL OR auto_no_show_minutes > 0),
-  CONSTRAINT queues_hours_valid CHECK (opens_at IS NULL OR closes_at IS NULL OR opens_at < closes_at)
+  CONSTRAINT queues_hours_valid CHECK (opens_at IS NULL OR closes_at IS NULL OR opens_at < closes_at),
+  FOREIGN KEY (branch_id, organization_id) REFERENCES organization_branches(id, organization_id) ON DELETE RESTRICT
 );
+CREATE UNIQUE INDEX uq_queues_active_branch ON queues(branch_id) WHERE is_active = TRUE;
 
 COMMENT ON COLUMN queues.auto_no_show_minutes IS
   'Grace period in minutes before a called ticket is auto-marked no_show. NULL = use app/global default.';

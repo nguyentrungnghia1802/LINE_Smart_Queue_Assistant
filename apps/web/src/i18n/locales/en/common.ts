@@ -18,6 +18,8 @@ export const common = {
     staff: 'Staff',
     orders: 'Orders',
     qr: 'QR code',
+    branches: 'Branches',
+    audit: 'Audit log',
   },
   actions: {
     login: 'Log in',

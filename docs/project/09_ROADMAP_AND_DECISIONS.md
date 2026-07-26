@@ -228,3 +228,11 @@ review. Demo subscription payment is not a real settlement claim; a production s
 email verification, terms versioning, and transactional approval email remain future work.
 
 Decide these before implementing the corresponding P0/P1 contracts; record each material choice as a new ADR.
+
+# ADR-017: Invitation-based business identities and branch scope
+
+**Status:** accepted (2026-07-27)
+
+Business applicants do not choose credentials in the public form. Approval creates an invited owner manager, and a single-use email action activates the organization after the owner chooses a password. Admin/manager/staff share one business login UI; customers remain LINE-only. Branch assignments provide operational scope, with one queue per branch for this phase. Account deletion is soft deactivation with an audit actor.
+
+This supersedes the credential-storage portion of ADR-016. Production email requires an external SMTP account, but local mock delivery remains available without a paid provider.

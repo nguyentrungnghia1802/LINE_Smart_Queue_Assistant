@@ -34,4 +34,31 @@ export const auth = {
     organizationId: '組織ID',
     userId: 'ユーザーID',
   },
+  lifecycle: {
+    email: '業務用メールアドレス',
+    password: '新しいパスワード（10文字以上）',
+    confirmPassword: '新しいパスワード（確認）',
+    context: '{{organization}} の {{name}} 様（{{email}}）',
+    invalidLink: 'リンクが無効または期限切れです。',
+    failed: '処理に失敗しました。もう一度お試しください。',
+    back: 'ログインへ戻る',
+    activate: {
+      title: 'アカウントを有効化',
+      description: '招待リンクを確認しています。',
+      submit: '利用を開始する',
+      success: 'アカウントが有効になりました。ログインできます。',
+    },
+    reset: {
+      title: 'パスワードを再設定',
+      description: '再設定リンクを確認しています。',
+      submit: 'パスワードを更新',
+      success: 'パスワードを更新しました。',
+    },
+    forgot: {
+      title: 'パスワードをお忘れですか？',
+      description: '登録済みの業務用メールアドレスへ再設定リンクを送信します。',
+      submit: '再設定リンクを送信',
+      success: '該当するアカウントがある場合、メールを送信しました。',
+    },
+  },
 } as const;

@@ -11,6 +11,15 @@ interface UserRow {
   email: string | null;
   role: string;
   is_active: boolean;
+  account_status: 'invited' | 'active' | 'disabled';
+  phone: string | null;
+  address_line1: string | null;
+  job_title: string | null;
+  employee_code: string | null;
+}
+interface Branch {
+  id: string;
+  name: string;
 }
 
 export function ManagerUsersPage() {
@@ -21,13 +30,26 @@ export function ManagerUsersPage() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [form, setForm] = useState({ displayName: '', email: '', password: '' });
+  const emptyForm = {
+    displayName: '',
+    email: '',
+    phone: '',
+    currentAddress: '',
+    jobTitle: '',
+    employeeCode: '',
+    branchId: '',
+  };
+  const [form, setForm] = useState(emptyForm);
   const [addError, setAddError] = useState('');
 
   const { data: users = [], isLoading } = useQuery<UserRow[]>({
     queryKey: ['users-staff', orgId],
     queryFn: () => get<UserRow[]>(`/api/v1/users?orgId=${orgId}&role=staff`),
     enabled: !!orgId,
+  });
+  const { data: branches = [] } = useQuery<Branch[]>({
+    queryKey: ['branches'],
+    queryFn: () => get<Branch[]>('/api/v1/branches'),
   });
 
   const staffUsers = useMemo(() => users.filter((u) => u.role === 'staff'), [users]);
@@ -37,7 +59,7 @@ export function ManagerUsersPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['users-staff', orgId] });
       setShowAdd(false);
-      setForm({ displayName: '', email: '', password: '' });
+      setForm(emptyForm);
       setAddError('');
     },
     onError: (err: { message?: string }) =>
@@ -45,12 +67,22 @@ export function ManagerUsersPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => patch(`/api/v1/users/staff/${editingUserId}`, form),
+    mutationFn: () => {
+      const profile = {
+        displayName: form.displayName,
+        email: form.email,
+        phone: form.phone,
+        currentAddress: form.currentAddress,
+        jobTitle: form.jobTitle,
+        employeeCode: form.employeeCode || null,
+      };
+      return patch(`/api/v1/users/staff/${editingUserId}`, profile);
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['users-staff', orgId] });
       setEditingUserId(null);
       setShowAdd(false);
-      setForm({ displayName: '', email: '', password: '' });
+      setForm(emptyForm);
       setAddError('');
     },
     onError: (err: { message?: string }) =>
@@ -110,7 +142,11 @@ export function ManagerUsersPage() {
                       setForm({
                         displayName: staffUser.display_name,
                         email: staffUser.email ?? '',
-                        password: '',
+                        phone: staffUser.phone ?? '',
+                        currentAddress: staffUser.address_line1 ?? '',
+                        jobTitle: staffUser.job_title ?? '',
+                        employeeCode: staffUser.employee_code ?? '',
+                        branchId: branches[0]?.id ?? '',
                       });
                       setAddError('');
                     }}
@@ -162,7 +198,11 @@ export function ManagerUsersPage() {
                           setForm({
                             displayName: u.display_name,
                             email: u.email ?? '',
-                            password: '',
+                            phone: u.phone ?? '',
+                            currentAddress: u.address_line1 ?? '',
+                            jobTitle: u.job_title ?? '',
+                            employeeCode: u.employee_code ?? '',
+                            branchId: branches[0]?.id ?? '',
                           });
                           setAddError('');
                         }}
@@ -206,10 +246,28 @@ export function ManagerUsersPage() {
               },
               { label: 'Email *', key: 'email', type: 'email', placeholder: 'nv@salon.com' },
               {
-                label: t('users.passwordRequired'),
-                key: 'password',
-                type: 'password',
-                placeholder: '••••••••',
+                label: t('users.phoneRequired'),
+                key: 'phone',
+                type: 'tel',
+                placeholder: '09012345678',
+              },
+              {
+                label: t('users.addressRequired'),
+                key: 'currentAddress',
+                type: 'text',
+                placeholder: t('users.addressPlaceholder'),
+              },
+              {
+                label: t('users.jobTitleRequired'),
+                key: 'jobTitle',
+                type: 'text',
+                placeholder: t('users.jobTitlePlaceholder'),
+              },
+              {
+                label: t('users.employeeCode'),
+                key: 'employeeCode',
+                type: 'text',
+                placeholder: 'ST-001',
               },
             ].map(({ label, key, type, placeholder }) => (
               <div key={key}>
@@ -223,6 +281,28 @@ export function ManagerUsersPage() {
                 />
               </div>
             ))}
+            {!editingUserId && (
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">
+                  {t('users.branchRequired')}
+                </label>
+                <select
+                  required
+                  value={form.branchId}
+                  onChange={(event) =>
+                    setForm((value) => ({ ...value, branchId: event.target.value }))
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="">{t('users.selectBranch')}</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {addError && <p className="text-xs text-red-500">{addError}</p>}
 
@@ -249,7 +329,10 @@ export function ManagerUsersPage() {
                   updateMutation.isPending ||
                   !form.displayName ||
                   !form.email ||
-                  (!editingUserId && !form.password)
+                  !form.phone ||
+                  !form.currentAddress ||
+                  !form.jobTitle ||
+                  (!editingUserId && !form.branchId)
                 }
                 className="flex-1 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
               >

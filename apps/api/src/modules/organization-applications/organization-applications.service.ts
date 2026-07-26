@@ -1,11 +1,12 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 
-import bcrypt from 'bcryptjs';
-
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
+import { queuesRepository } from '../../db/repositories/queues.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
+import { issueAccountAction } from '../account-lifecycle/account-lifecycle.service';
+import { branchesRepository } from '../branches/branches.repository';
 
 import {
   type OrganizationApplicationRow,
@@ -80,7 +81,6 @@ export const organizationApplicationsService = {
       throw AppError.conflict('An account with this work email already exists');
     }
 
-    const managerPasswordHash = await bcrypt.hash(dto.password, 10);
     let application: OrganizationApplicationRow;
     try {
       application = await organizationApplicationsRepository.create({
@@ -105,7 +105,6 @@ export const organizationApplicationsService = {
         billingCycle: dto.billingCycle,
         defaultLocale: dto.defaultLocale,
         logoUrl: dto.logoUrl,
-        managerPasswordHash,
         paymentReference: `demo-${randomUUID()}`,
         amountYen: calculateAmount(dto.planCode, dto.billingCycle),
       });
@@ -128,10 +127,7 @@ export const organizationApplicationsService = {
 
   async list(status: OrganizationApplicationStatusFilter) {
     const applications = await organizationApplicationsRepository.list(status);
-    return applications.map((application) => ({
-      ...application,
-      manager_password_hash: undefined,
-    }));
+    return applications;
   },
 
   async approve(applicationId: string, reviewerId: string, dto: ReviewOrganizationApplicationDto) {
@@ -143,10 +139,6 @@ export const organizationApplicationsService = {
         if (application.payment_status !== 'paid') {
           throw AppError.conflict('The application payment has not been completed');
         }
-        if (!application.manager_password_hash) {
-          throw AppError.conflict('The manager credentials are no longer available');
-        }
-
         const existingUser = await usersRepository.findByEmail(application.work_email, client);
         if (existingUser) {
           throw AppError.conflict('An account with this work email already exists');
@@ -181,20 +173,76 @@ export const organizationApplicationsService = {
               billingCycle: application.billing_cycle,
               applicationReference: application.reference_code,
             },
+            isActive: false,
+            activationStatus: 'pending_activation',
           },
           client
         );
 
-        const manager = await usersRepository.createWithPassword(
+        const manager = await usersRepository.createInvited(
           {
             displayName: application.contact_name,
             email: application.work_email,
+            phone: application.phone,
             role: 'manager',
-            passwordHash: application.manager_password_hash,
+            jobTitle: application.contact_title,
+            invitedBy: reviewerId,
           },
           client
         );
-        await organizationsRepository.addMember(organization.id, manager.id, 'manager', client);
+        await organizationsRepository.addMember(organization.id, manager.id, 'manager', client, {
+          isActive: false,
+          isOwner: true,
+        });
+        const branch = await branchesRepository.create(
+          {
+            organizationId: organization.id,
+            name: `${application.trade_name} 本店`,
+            code: 'main',
+            phone: application.phone,
+            email: application.work_email,
+            postalCode: application.postal_code,
+            prefecture: application.prefecture,
+            city: application.city,
+            addressLine1: application.address_line1,
+            addressLine2: application.address_line2,
+            createdBy: reviewerId,
+          },
+          client
+        );
+        await branchesRepository.assignMember(
+          {
+            organizationId: organization.id,
+            branchId: branch.id,
+            userId: manager.id,
+            role: 'manager',
+            assignedBy: reviewerId,
+            isActive: false,
+          },
+          client
+        );
+        const queue = await queuesRepository.create(
+          {
+            organizationId: organization.id,
+            branchId: branch.id,
+            name: `${application.trade_name} 受付`,
+            status: 'closed',
+            prefix: 'A',
+          },
+          client
+        );
+        await issueAccountAction(
+          {
+            userId: manager.id,
+            recipientEmail: application.work_email,
+            displayName: application.contact_name,
+            organizationName: application.trade_name,
+            locale: application.default_locale,
+            purpose: 'account_activation',
+            createdBy: reviewerId,
+          },
+          client
+        );
         const reviewedApplication = await organizationApplicationsRepository.markApproved(
           application.id,
           organization.id,
@@ -204,8 +252,10 @@ export const organizationApplicationsService = {
         );
 
         return {
-          application: { ...reviewedApplication, manager_password_hash: undefined },
+          application: reviewedApplication,
           organization,
+          branch,
+          queue,
           manager: {
             id: manager.id,
             display_name: manager.display_name,
