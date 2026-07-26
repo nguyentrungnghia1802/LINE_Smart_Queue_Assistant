@@ -65,6 +65,13 @@ describe('production web reverse proxy configuration', () => {
 
     expect(compose).toContain('VITE_API_URL: ${VITE_API_URL:-}');
     expect(compose).not.toContain('VITE_API_URL: ${VITE_API_URL:-/api}');
+    expect(compose).toContain(
+      'VITE_LIFF_DEFAULT_BOOKING_PATH: ${VITE_LIFF_DEFAULT_BOOKING_PATH:-}'
+    );
+    expect(compose).not.toContain(
+      'VITE_LIFF_DEFAULT_BOOKING_PATH: ${VITE_LIFF_DEFAULT_BOOKING_PATH:-/liff/qr/'
+    );
+    expect(dockerfile).toContain('ARG VITE_LIFF_DEFAULT_BOOKING_PATH=');
 
     const authStore = readRepoFile('apps/web/src/store/authStore.ts');
     expect(authStore).toContain("'/api/v1/auth/login'");
