@@ -24,7 +24,7 @@ healthRouter.get('/health', async (_req, res) => {
   }
 
   const notificationConfigured = Boolean(
-    config.line.channelAccessToken && config.line.channelSecret
+    config.line.messagingChannelAccessToken && config.line.messagingChannelSecret
   );
 
   const status = dbStatus === 'connected' ? 'ok' : 'degraded';

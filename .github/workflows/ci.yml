@@ -46,8 +46,8 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/line_queue_test
       JWT_SECRET: ci-only-jwt-secret-never-use-in-production
       DEMO_PAYMENT_WEBHOOK_SECRET: ci-only-payment-secret
-      LINE_CHANNEL_ACCESS_TOKEN: ''
-      LINE_CHANNEL_SECRET: ci-only-line-secret
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: ''
+      LINE_MESSAGING_CHANNEL_SECRET: ci-only-line-secret
       LINE_ID_TOKEN_VERIFICATION_MODE: mock
       MEDIA_STORAGE_MODE: mock
       CORS_ORIGIN: http://127.0.0.1:5174

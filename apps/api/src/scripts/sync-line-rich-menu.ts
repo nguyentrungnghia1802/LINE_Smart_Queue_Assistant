@@ -11,7 +11,7 @@ function hasFlag(name: string): boolean {
 async function main(): Promise<void> {
   const replace = hasFlag('--replace');
   const definition = buildSmartQueueRichMenuDefinition({
-    liffId: config.line.liffId,
+    liffId: config.line.loginLiffId,
     liffEndpointPath: config.line.liffEndpointPath,
     webOrigin: config.web.origin,
   });

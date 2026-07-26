@@ -37,7 +37,7 @@ export default defineConfig({
         CORS_ORIGIN: 'http://127.0.0.1:5174',
         WEB_ORIGIN: 'http://127.0.0.1:5174',
         JWT_SECRET: process.env.JWT_SECRET ?? 'e2e-only-jwt-secret-not-for-production',
-        LINE_CHANNEL_ACCESS_TOKEN: '',
+        LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: '',
         LINE_ID_TOKEN_VERIFICATION_MODE: 'mock',
         LINE_ID_TOKEN_MOCK_VALUE: 'mock-liff-id-token',
         LINE_ID_TOKEN_MOCK_USER_ID: e2eLineUserId,

@@ -14,7 +14,11 @@ npm install
 cp .env.example .env
 ```
 
-Required production-like values include database credentials, a strong JWT secret, CORS/web origin, LINE Login channel ID, LINE Messaging channel secret/access token, frontend LIFF ID, backend `LINE_LIFF_ID` for notification/Rich Menu deep links, and `LINE_RICH_MENU_IMAGE_PATH` for real Rich Menu sync. `VITE_*` variables are compiled into browser code and must never contain secrets.
+Required production-like values include database credentials, a strong JWT secret, CORS/web
+origin, `LINE_LOGIN_CHANNEL_ID`, `LINE_MESSAGING_CHANNEL_SECRET`,
+`LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`, frontend `VITE_LIFF_ID`, backend
+`LINE_LOGIN_LIFF_ID` for notification/Rich Menu deep links, and `LINE_RICH_MENU_IMAGE_PATH` for real
+Rich Menu sync. `VITE_*` variables are compiled into browser code and must never contain secrets.
 
 LINE notification delivery is durable by default. Local defaults are usually enough, but the worker can be tuned with `LINE_NOTIFICATION_BATCH_SIZE`, `LINE_NOTIFICATION_WORKER_INTERVAL_MS`, `LINE_NOTIFICATION_MAX_ATTEMPTS`, `LINE_NOTIFICATION_RETRY_BASE_SECONDS`, and `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS`.
 
@@ -117,7 +121,11 @@ npm run line:rich-menu:sync
 npm run line:rich-menu:sync -- --replace
 ```
 
-The command builds the centralized menu for `ホーム`, `予約する`, `現在の受付`, and `利用案内`, reuses an existing menu with the same managed name, removes duplicates, uploads the configured image, and sets it as default. When `LINE_CHANNEL_ACCESS_TOKEN` is missing or `NODE_ENV=test`, the mock adapter is used. Do not commit the token, and do not log it while debugging.
+The command builds the centralized menu for `ホーム`, `予約する`, `現在の受付`, and `利用案内`,
+reuses an existing menu with the same managed name, removes duplicates, uploads the configured
+image, and sets it as default. When `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN` is missing or
+`NODE_ENV=test`, the mock adapter is used. Do not commit the token, and do not log it while
+debugging.
 
 Set `LINE_RICH_MENU_IMAGE_PATH` to a local PNG/JPEG with a production-valid LINE Rich Menu size before syncing against a real Official Account. If the image path is omitted, a generated placeholder is only suitable for mock/dev behavior.
 
@@ -260,11 +268,13 @@ to IPv6 inside Alpine while the API listener is bound to IPv4, producing a false
 
 ### LINE push silently mocked
 
-The API intentionally uses a mock when `LINE_CHANNEL_ACCESS_TOKEN` is empty or `NODE_ENV=test`. Read startup logs and `/health.notificationService`.
+The API intentionally uses a mock when `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN` is empty or
+`NODE_ENV=test`. Read startup logs and `/health.notificationService`.
 
 ### Rich Menu sync uses mock mode
 
-Cause: `LINE_CHANNEL_ACCESS_TOKEN` is empty or the command is running under `NODE_ENV=test`.
+Cause: `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN` is empty or the command is running under
+`NODE_ENV=test`.
 
 Check the environment file loaded by the API workspace. The sync command should print a summary, not the token.
 

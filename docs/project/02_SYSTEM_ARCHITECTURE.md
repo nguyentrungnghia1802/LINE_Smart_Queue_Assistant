@@ -166,7 +166,8 @@ The browser return URL is a user experience signal, not proof of payment.
 
 - Helmet, configured CORS, JSON size limits, request IDs, rate limits, Zod validation, and standard error envelopes.
 - Password hashing and JWT signing occur only on the API.
-- LINE webhook verification uses captured raw request bytes and `LINE_CHANNEL_SECRET`.
+- LINE webhook verification uses captured raw request bytes and
+  `LINE_MESSAGING_CHANNEL_SECRET`.
 - `VITE_*` values are public; LINE/JWT/database/provider secrets are backend-only.
 - Organization membership and resource ownership are required in addition to role checks.
 - Audit records cover sensitive manager/organization actions; coverage should expand with payment/location operations.
