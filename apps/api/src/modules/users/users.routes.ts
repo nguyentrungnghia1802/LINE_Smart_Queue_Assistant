@@ -17,7 +17,14 @@ import {
   updateStaff,
   updateStaffStatus,
 } from './users.controller';
-import { CreateUserSchema, UpdateMyProfileSchema } from './users.validator';
+import {
+  CreateUserSchema,
+  InviteStaffSchema,
+  StaffUserParamSchema,
+  UpdateMyProfileSchema,
+  UpdateStaffSchema,
+  UpdateStaffStatusSchema,
+} from './users.validator';
 
 export const usersRouter = Router();
 
@@ -39,6 +46,7 @@ usersRouter.post(
   requireAuth,
   requireRole(UserRole.MANAGER, UserRole.ADMIN),
   authenticatedActionRateLimiter,
+  validate(InviteStaffSchema),
   createStaff
 );
 usersRouter.patch(
@@ -46,6 +54,8 @@ usersRouter.patch(
   requireAuth,
   requireRole(UserRole.MANAGER, UserRole.ADMIN),
   authenticatedActionRateLimiter,
+  validate(StaffUserParamSchema, 'params'),
+  validate(UpdateStaffStatusSchema),
   updateStaffStatus
 );
 usersRouter.patch(
@@ -53,6 +63,8 @@ usersRouter.patch(
   requireAuth,
   requireRole(UserRole.MANAGER, UserRole.ADMIN),
   authenticatedActionRateLimiter,
+  validate(StaffUserParamSchema, 'params'),
+  validate(UpdateStaffSchema),
   updateStaff
 );
 usersRouter.delete(
@@ -60,6 +72,7 @@ usersRouter.delete(
   requireAuth,
   requireRole(UserRole.MANAGER, UserRole.ADMIN),
   authenticatedActionRateLimiter,
+  validate(StaffUserParamSchema, 'params'),
   removeStaff
 );
 

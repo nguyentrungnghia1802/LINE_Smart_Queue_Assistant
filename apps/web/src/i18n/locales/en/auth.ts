@@ -35,4 +35,31 @@ export const auth = {
     organizationId: 'Organization ID',
     userId: 'User ID',
   },
+  lifecycle: {
+    email: 'Work email',
+    password: 'New password (at least 10 characters)',
+    confirmPassword: 'Confirm new password',
+    context: '{{name}} at {{organization}} ({{email}})',
+    invalidLink: 'This link is invalid or has expired.',
+    failed: 'The request could not be completed. Please try again.',
+    back: 'Back to login',
+    activate: {
+      title: 'Activate account',
+      description: 'Checking your invitation link.',
+      submit: 'Start using the service',
+      success: 'Your account is active. You can now log in.',
+    },
+    reset: {
+      title: 'Reset password',
+      description: 'Checking your reset link.',
+      submit: 'Update password',
+      success: 'Your password has been updated.',
+    },
+    forgot: {
+      title: 'Forgot password?',
+      description: 'We will send a reset link to your registered work email.',
+      submit: 'Send reset link',
+      success: 'If the account exists, a reset email has been sent.',
+    },
+  },
 } as const;

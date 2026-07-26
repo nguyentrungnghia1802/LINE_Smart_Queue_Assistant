@@ -8,7 +8,10 @@ type CounterName =
   | 'notifications_failed_total'
   | 'notifications_outbox_sent_total'
   | 'notifications_outbox_failed_total'
-  | 'notifications_outbox_retry_scheduled_total';
+  | 'notifications_outbox_retry_scheduled_total'
+  | 'email_outbox_sent_total'
+  | 'email_outbox_failed_total'
+  | 'email_outbox_retry_scheduled_total';
 
 const counters: Record<CounterName, number> = {
   requests_total: 0,
@@ -21,6 +24,9 @@ const counters: Record<CounterName, number> = {
   notifications_outbox_sent_total: 0,
   notifications_outbox_failed_total: 0,
   notifications_outbox_retry_scheduled_total: 0,
+  email_outbox_sent_total: 0,
+  email_outbox_failed_total: 0,
+  email_outbox_retry_scheduled_total: 0,
 };
 
 type GaugeName =

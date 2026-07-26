@@ -1,13 +1,16 @@
 import { Router } from 'express';
 
+import { accountLifecycleRouter } from '../modules/account-lifecycle/account-lifecycle.routes';
 import { adminRouter } from '../modules/admin/admin.routes';
 import { authRouter } from '../modules/auth/auth.routes';
 import { bookingGroupsRouter } from '../modules/bookings/booking-groups.routes';
+import { branchesRouter } from '../modules/branches/branches.routes';
 import { forecastsRouter } from '../modules/forecasts/forecasts.routes';
 import { lineRouter } from '../modules/line/line.routes';
 import { mediaRouter } from '../modules/media/media.routes';
 import { notificationsRouter } from '../modules/notifications/notifications.routes';
 import { ordersRouter } from '../modules/orders/orders.routes';
+import { organizationApplicationsRouter } from '../modules/organization-applications/organization-applications.routes';
 import { orgsRouter } from '../modules/orgs/orgs.routes';
 import { paymentsRouter } from '../modules/payments/payments.routes';
 import { productsRouter } from '../modules/products/products.routes';
@@ -23,6 +26,8 @@ import { usersRouter } from '../modules/users/users.routes';
  */
 export const v1Router = Router();
 
+v1Router.use('/auth', accountLifecycleRouter);
+v1Router.use('/branches', branchesRouter);
 v1Router.use('/auth', authRouter);
 v1Router.use('/booking-groups', bookingGroupsRouter);
 v1Router.use('/forecasts', forecastsRouter);
@@ -32,6 +37,7 @@ v1Router.use('/queues', queuesRouter); // plural:   admin queue management
 v1Router.use('/staff', staffRouter); // staff/admin queue operations
 v1Router.use('/users', usersRouter);
 v1Router.use('/notifications', notificationsRouter);
+v1Router.use('/organization-applications', organizationApplicationsRouter);
 v1Router.use('/line', lineRouter);
 v1Router.use('/media', mediaRouter);
 v1Router.use('/products', productsRouter);

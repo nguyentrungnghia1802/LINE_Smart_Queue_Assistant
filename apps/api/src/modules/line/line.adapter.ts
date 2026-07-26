@@ -55,4 +55,6 @@ export interface LineMessageOptions {
    * LINE/OS-level mute settings still remain under the customer's control.
    */
   notificationDisabled?: boolean;
+  /** Stable UUID for provider-side retry deduplication of the same request body. */
+  retryKey?: string;
 }

@@ -37,8 +37,13 @@ export const queuesService = {
   },
 
   async createQueue(orgId: string, dto: CreateQueueDto) {
+    const existing = await queuesRepository.findActiveByBranches(orgId, [dto.branchId]);
+    if (existing.length > 0) {
+      throw AppError.conflict('This branch already has an active queue');
+    }
     const queue = await queuesRepository.create({
       organizationId: orgId,
+      branchId: dto.branchId,
       name: dto.name,
       description: dto.description,
       status: dto.status,

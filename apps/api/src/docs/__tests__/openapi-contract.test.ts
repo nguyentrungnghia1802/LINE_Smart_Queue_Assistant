@@ -8,12 +8,15 @@ import { swaggerSpec } from '../swagger';
 
 const routeModules = [
   ['auth/auth.routes.ts', '/auth'],
+  ['account-lifecycle/account-lifecycle.routes.ts', '/auth'],
   ['admin/admin.routes.ts', '/admin'],
   ['bookings/booking-groups.routes.ts', '/booking-groups'],
+  ['branches/branches.routes.ts', '/branches'],
   ['forecasts/forecasts.routes.ts', '/forecasts'],
   ['line/line.routes.ts', '/line'],
   ['media/media.routes.ts', '/media'],
   ['notifications/notifications.routes.ts', '/notifications'],
+  ['organization-applications/organization-applications.routes.ts', '/organization-applications'],
   ['orders/orders.routes.ts', '/orders'],
   ['orgs/orgs.routes.ts', '/orgs'],
   ['payments/payments.routes.ts', '/payments'],

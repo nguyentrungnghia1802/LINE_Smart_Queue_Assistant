@@ -62,6 +62,7 @@ apps/web/src/
 |-- hooks/                   Query and integration hooks
 |-- pages/
 |   |-- admin/               Platform administration
+|   |-- marketing/           Public product site and business onboarding
 |   |-- manager/             Tenant management
 |   |-- staff/               Operational workspace
 |   |-- customer/, public/   QR customer flow
@@ -72,6 +73,7 @@ apps/web/src/
 |-- types/                   Frontend-only contracts
 |-- utils/                   Checkout storage, payment boundary, logo compression
 |-- public/logo.svg          Shared SQA brand mark and browser favicon
+|-- public/img/landing-hero.webp  Optimized product-site hero asset
 |-- router.tsx               Route map
 |-- index.css                Shared design tokens/global styling
 \-- main.tsx                 Browser entry

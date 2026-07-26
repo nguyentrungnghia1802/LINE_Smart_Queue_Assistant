@@ -13,6 +13,19 @@ export interface UserRow {
   password_hash: string | null;
   role: string;
   is_active: boolean;
+  account_status?: 'invited' | 'active' | 'disabled';
+  phone?: string | null;
+  postal_code?: string | null;
+  prefecture?: string | null;
+  city?: string | null;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  job_title?: string | null;
+  employee_code?: string | null;
+  invited_by?: string | null;
+  activated_at?: Date | null;
+  deactivated_at?: Date | null;
+  deactivated_by?: string | null;
   preferred_locale?: SupportedLocale | null;
   created_at: Date;
   updated_at: Date;
@@ -53,8 +66,13 @@ export class UsersRepository extends BaseRepository {
     return this.queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [id]);
   }
 
-  async findByEmail(email: string): Promise<UserRow | null> {
-    return this.queryOne<UserRow>('SELECT * FROM users WHERE email = $1', [email]);
+  async findByEmail(email: string, client?: PoolClient): Promise<UserRow | null> {
+    const normalized = email.trim().toLowerCase();
+    return client
+      ? this.queryOneTx<UserRow>(client, 'SELECT * FROM users WHERE LOWER(email) = $1', [
+          normalized,
+        ])
+      : this.queryOne<UserRow>('SELECT * FROM users WHERE LOWER(email) = $1', [normalized]);
   }
 
   /**
@@ -84,8 +102,6 @@ export class UsersRepository extends BaseRepository {
        FROM users u
        JOIN organization_members om ON om.user_id = u.id
        WHERE om.organization_id = $1
-         AND om.is_active = TRUE
-         AND u.is_active = TRUE
          ${roleClause}
        ORDER BY u.created_at DESC`,
       params
@@ -124,6 +140,50 @@ export class UsersRepository extends BaseRepository {
       ? await this.queryTx<UserRow>(client, sql, args)
       : await this.query<UserRow>(sql, args);
     return this.firstOrThrow(rows, 'users.createWithPassword');
+  }
+
+  async createInvited(
+    params: {
+      displayName: string;
+      email: string;
+      phone: string;
+      role: 'manager' | 'staff';
+      invitedBy: string;
+      postalCode?: string | null;
+      prefecture?: string | null;
+      city?: string | null;
+      addressLine1?: string | null;
+      addressLine2?: string | null;
+      jobTitle?: string | null;
+      employeeCode?: string | null;
+    },
+    client: PoolClient
+  ): Promise<UserRow> {
+    const rows = await this.queryTx<UserRow>(
+      client,
+      `INSERT INTO users (
+         display_name, email, phone, role, password_hash, is_active, account_status,
+         invited_by, postal_code, prefecture, city, address_line1, address_line2,
+         job_title, employee_code
+       )
+       VALUES ($1,LOWER($2),$3,$4,NULL,FALSE,'invited',$5,$6,$7,$8,$9,$10,$11,$12)
+       RETURNING *`,
+      [
+        params.displayName,
+        params.email,
+        params.phone,
+        params.role,
+        params.invitedBy,
+        params.postalCode ?? null,
+        params.prefecture ?? null,
+        params.city ?? null,
+        params.addressLine1 ?? null,
+        params.addressLine2 ?? null,
+        params.jobTitle ?? null,
+        params.employeeCode ?? null,
+      ]
+    );
+    return this.firstOrThrow(rows, 'users.createInvited');
   }
 
   async setActive(id: string, isActive: boolean): Promise<void> {
@@ -170,6 +230,44 @@ export class UsersRepository extends BaseRepository {
       `UPDATE users SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
       values
     );
+    return rows[0] ?? null;
+  }
+
+  async updateEmployeeProfile(
+    id: string,
+    data: Partial<{
+      displayName: string;
+      email: string;
+      phone: string;
+      currentAddress: string;
+      jobTitle: string;
+      employeeCode: string | null;
+    }>,
+    client?: PoolClient
+  ): Promise<UserRow | null> {
+    const mapping: Array<[keyof typeof data, string]> = [
+      ['displayName', 'display_name'],
+      ['email', 'email'],
+      ['phone', 'phone'],
+      ['currentAddress', 'address_line1'],
+      ['jobTitle', 'job_title'],
+      ['employeeCode', 'employee_code'],
+    ];
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    for (const [key, column] of mapping) {
+      if (data[key] !== undefined) {
+        values.push(key === 'email' ? String(data[key]).toLowerCase() : data[key]);
+        fields.push(`${column} = $${values.length}`);
+      }
+    }
+    if (!fields.length) return this.findById(id);
+    values.push(id);
+    const sql = `UPDATE users SET ${fields.join(', ')}, updated_at = NOW()
+                 WHERE id = $${values.length} RETURNING *`;
+    const rows = client
+      ? await this.queryTx<UserRow>(client, sql, values)
+      : await this.query<UserRow>(sql, values);
     return rows[0] ?? null;
   }
 
