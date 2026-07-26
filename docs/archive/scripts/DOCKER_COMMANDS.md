@@ -1,142 +1,69 @@
-# Docker Build and Server Deployment Commands
+# Cac lenh Docker chinh cho du an
 
-Run local build commands from the repository root. Run server commands from
-`/opt/line-smart-queue`, where `docker-compose.yml` and `.env` are stored.
+Chay lenh build local tu thu muc goc repository. Chay lenh tren server tai
+`/opt/line-smart-queue`, noi dang chua `docker-compose.yml` va `.env`.
 
-## 1. Image and migration model
+## 1. Lenh dung thuong xuyen nhat
 
-The production stack has three images:
-
-- `postgres:16-alpine`;
-- `trungnghia2703/line-smart-queue-api:<release-tag>`;
-- `trungnghia2703/line-smart-queue-web:<release-tag>`.
-
-There is no separate migration image or migration service. Migration files and
-`node-pg-migrate` are included in the API image. Run migrations with a temporary
-container created from the exact API release being deployed.
-
-Use immutable Git tags in production, for example
-`git-5c54ed482de7`. `latest` may also be published for convenience, but the
-server `.env` should reference the immutable tag so a pull cannot silently
-select a different release.
-
-## 2. Build and push from local PowerShell
-
-Create one release tag from the Git commit being built:
-
-```powershell
-$ReleaseTag = "git-$((git rev-parse --short=12 HEAD).Trim())"
-$ApiImage = "trungnghia2703/line-smart-queue-api:$ReleaseTag"
-$WebImage = "trungnghia2703/line-smart-queue-web:$ReleaseTag"
-$LiffId = "YOUR_LINE_LOGIN_LIFF_ID"
-```
-
-Build API:
+### Build va push API tu local
 
 ```powershell
 docker build --no-cache `
-  -t $ApiImage `
   -t trungnghia2703/line-smart-queue-api:latest `
   -f .\docker\api\Dockerfile .
+
+docker push trungnghia2703/line-smart-queue-api:latest
 ```
 
-Build Web. Production must keep `VITE_API_URL` empty because frontend request
-paths already contain `/api/v1` and nginx preserves `/api`:
+### Build va push Web tu local
+
+Luu y: production phai build Web voi `VITE_API_URL=` rong, khong duoc de
+`/api`, neu khong se de sinh loi goi API thanh `/api/api/v1/...`.
 
 ```powershell
 docker build --no-cache `
   --build-arg VITE_API_URL= `
   --build-arg "VITE_APP_NAME=LINE Smart Queue Assistant" `
-  --build-arg "VITE_LIFF_ID=$LiffId" `
+  --build-arg "VITE_LIFF_ID=YOUR_LINE_LOGIN_LIFF_ID" `
   --build-arg VITE_LIFF_DEFAULT_BOOKING_PATH=/liff/qr/demo-queue-lab-2026 `
   --build-arg VITE_LIFF_ENDPOINT_PATH=/liff `
   --build-arg VITE_LIFF_MOCK=false `
   --build-arg VITE_PAYMENT_MODE=demo `
   --build-arg VITE_PAYMENT_REDIRECT_BASE_URL= `
-  -t $WebImage `
   -t trungnghia2703/line-smart-queue-web:latest `
   -f .\docker\web\Dockerfile .
-```
 
-Push the immutable release tags:
-
-```powershell
-docker push $ApiImage
-docker push $WebImage
-```
-
-Optionally update the convenience tags:
-
-```powershell
-docker push trungnghia2703/line-smart-queue-api:latest
 docker push trungnghia2703/line-smart-queue-web:latest
 ```
 
-Before deploying, put the exact same immutable tag in the server `.env`:
-
-```env
-LINE_QUEUE_API_IMAGE=trungnghia2703/line-smart-queue-api:git-<commit>
-LINE_QUEUE_WEB_IMAGE=trungnghia2703/line-smart-queue-web:git-<commit>
-```
-
-Confirm what the server will pull:
-
-```bash
-docker compose config --images
-```
-
-## 3. Full server deployment
-
-Validate Compose and list the resolved images:
+### Tren server: pull va deploy lai API + Web
 
 ```bash
 cd /opt/line-smart-queue
-docker compose config --quiet
-docker compose config --images
-```
-
-Pull every image declared by Compose: PostgreSQL, API, and Web:
-
-```bash
-docker compose pull
-```
-
-Back up PostgreSQL before applying migrations:
-
-```bash
-mkdir -p backups
-docker compose exec -T postgres sh -c \
-  'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
-  > "backups/line_queue_$(date +%Y%m%d_%H%M%S).sql"
-```
-
-Ensure PostgreSQL is running and healthy:
-
-```bash
-docker compose up -d postgres
-docker compose ps postgres
-```
-
-Apply migrations with the newly selected API image:
-
-```bash
+docker compose pull api web
 docker compose run --rm api npm run db:migrate
-```
-
-Start or recreate API and Web:
-
-```bash
 docker compose up -d --force-recreate api web
 docker compose ps
 ```
 
-Do not run seed or reset commands on production.
+### Tren server: pull va deploy lai toan bo stack
 
-## 4. Deploy only what changed
+Dung khi ban muon keo ca `postgres`, `api`, `web` theo dung file compose hien
+tai.
 
-### API changed
+```bash
+cd /opt/line-smart-queue
+docker compose pull
+docker compose run --rm api npm run db:migrate
+docker compose up -d --force-recreate
+docker compose ps
+```
 
-Pull the API image, run its migrations, then recreate only API:
+## 2. Cac lenh deploy theo tung truong hop
+
+### Chi cap nhat API
+
+Dung khi chi co thay doi backend hoac migration.
 
 ```bash
 docker compose pull api
@@ -146,12 +73,9 @@ docker compose ps api
 docker compose logs --tail=100 api
 ```
 
-Running the forward migration command on every API release is safe when there
-are no new migrations; already-applied migrations are skipped.
+### Chi cap nhat Web
 
-### Web changed
-
-Pull and recreate only Web. No database migration is needed:
+Dung khi chi thay doi frontend. Khong can chay migration.
 
 ```bash
 docker compose pull web
@@ -160,7 +84,7 @@ docker compose ps web
 docker compose logs --tail=100 web
 ```
 
-### API and Web changed
+### Cap nhat API + Web
 
 ```bash
 docker compose pull api web
@@ -169,34 +93,22 @@ docker compose up -d --force-recreate --no-deps api web
 docker compose ps
 ```
 
-### Only `.env` changed
+### Chi thay doi file `.env`
 
-`docker compose restart` does not reload environment variables. Recreate the
-affected service:
+`docker compose restart` khong nap lai bien moi truong. Neu sua `.env`, can
+recreate service bi anh huong:
 
 ```bash
 docker compose up -d --force-recreate --no-deps api
+docker compose up -d --force-recreate --no-deps web
 ```
 
-Rebuild and repush the Web image when a `VITE_*` value changes because Vite
-configuration is compiled into the image and cannot be changed by server
-`.env`.
+Luu y: neu thay doi bien `VITE_*`, phai build va push lai image Web tu local,
+vi Vite da nhung cac gia tri nay vao image trong luc build.
 
-### PostgreSQL image changed
+## 3. Kiem tra va van hanh tren server
 
-Do not upgrade PostgreSQL casually. Back up first, read the PostgreSQL upgrade
-notes, and then:
-
-```bash
-docker compose pull postgres
-docker compose up -d postgres
-docker compose ps postgres
-docker compose logs --tail=100 postgres
-```
-
-## 5. Container operations
-
-Show status:
+### Kiem tra trang thai container
 
 ```bash
 docker compose ps
@@ -204,29 +116,7 @@ docker compose top
 docker stats --no-stream
 ```
 
-Start all stopped services:
-
-```bash
-docker compose up -d
-```
-
-Restart a process without changing its image or environment:
-
-```bash
-docker compose restart api
-docker compose restart web
-```
-
-Stop the stack without deleting persistent volumes:
-
-```bash
-docker compose down
-```
-
-Never add `--volumes` on a production server unless permanent database and
-media deletion is explicitly intended and a verified backup exists.
-
-View logs:
+### Xem log
 
 ```bash
 docker compose logs --tail=100 api
@@ -234,7 +124,31 @@ docker compose logs --tail=100 web
 docker compose logs -f --tail=100 api web
 ```
 
-Check health from inside the containers:
+### Khoi dong lai service
+
+```bash
+docker compose restart api
+docker compose restart web
+```
+
+### Up lai stack
+
+```bash
+docker compose up -d
+```
+
+### Dung stack
+
+```bash
+docker compose down
+```
+
+Tuyet doi khong them `--volumes` tren server production, neu ban khong muon xoa
+du lieu database va media.
+
+## 4. Kiem tra health
+
+### Kiem tra ben trong container
 
 ```bash
 docker compose exec -T api wget -qO- http://127.0.0.1:4000/health
@@ -242,93 +156,108 @@ docker compose exec -T api wget -qO- http://127.0.0.1:4000/ready
 docker compose exec -T web wget -qO- http://127.0.0.1/health
 ```
 
-Check the public endpoint:
+### Kiem tra public endpoint
 
 ```bash
 curl -fsS https://playmcjava21.io.vn/health
 curl -I https://playmcjava21.io.vn/
 ```
 
-Inspect the exact running images:
+## 5. Kiem tra image dang chay
 
 ```bash
 docker compose images
-docker inspect "$(docker compose ps -q api)" \
-  --format '{{.Config.Image}} {{.Image}}'
-docker inspect "$(docker compose ps -q web)" \
-  --format '{{.Config.Image}} {{.Image}}'
+docker inspect "$(docker compose ps -q api)" --format '{{.Config.Image}} {{.Image}}'
+docker inspect "$(docker compose ps -q web)" --format '{{.Config.Image}} {{.Image}}'
 ```
 
-## 6. Roll back application images
+## 6. Mo hinh image cua production
 
-Set both image variables in `.env` to a previously verified immutable tag:
+Production stack hien tai gom:
 
-```env
-LINE_QUEUE_API_IMAGE=trungnghia2703/line-smart-queue-api:git-<previous-commit>
-LINE_QUEUE_WEB_IMAGE=trungnghia2703/line-smart-queue-web:git-<previous-commit>
-```
+- `postgres:16-alpine`
+- `trungnghia2703/line-smart-queue-api:latest`
+- `trungnghia2703/line-smart-queue-web:latest`
 
-Then:
+Khong co migration image rieng. Migration nam trong API image, nen moi lan
+deploy backend can chay:
 
 ```bash
-docker compose pull api web
-docker compose up -d --force-recreate --no-deps api web
-docker compose ps
+docker compose run --rm api npm run db:migrate
 ```
 
-Do not automatically migrate the database down during an application rollback.
-Confirm migration compatibility before selecting an older API image.
+## 7. Kiem tra nhanh file server hien tai
 
-## 7. Audit of the provided server files
+File `docker-compose.yml` tren server dang dung topology hop ly:
 
-The supplied `docker-compose.yml` has the correct runtime topology:
+- PostgreSQL va media duoc luu qua volume.
+- API khong public port `4000` ra ngoai.
+- Chi Web public port `8081`.
+- Da co `healthcheck` va `depends_on`.
 
-- PostgreSQL and media use persistent volumes;
-- API port `4000` is not published;
-- only Web port `8081` is published;
-- health checks and dependencies are present.
+File `.env` tren server can luu y cac diem sau:
 
-Fix its opening comment: production Web must be built with
-`VITE_API_URL=` (empty), not `/api`. This comment does not alter the existing
-container behavior, but it can cause the next Web image to be built incorrectly
-as `/api/api/v1/...`.
-
-The supplied `.env` needs these corrections:
-
-1. Replace stale `v1` image references with one exact immutable tag that exists
-   in both Docker Hub repositories. The currently published application release
-   is `git-5c54ed482de7`.
-2. Remove legacy `LINE_CHANNEL_SECRET`. Keep only
-   `LINE_MESSAGING_CHANNEL_SECRET` from the same Messaging API channel used for
-   webhook verification.
-3. Ensure `LINE_ID_TOKEN_VERIFICATION_MODE=line`. The redacted output hides this
-   value because its variable name contains `TOKEN`.
-4. Reissue the Messaging API token and put it in
-   `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`; the previously configured token was
-   rejected by LINE with HTTP `401`.
-5. Keeping `LINE_LIFF_ENDPOINT_PATH=/liff` and an empty
-   `LINE_RICH_MENU_IMAGE_PATH` is valid.
-6. Add a dedicated `DEMO_PAYMENT_WEBHOOK_SECRET`; otherwise demo payment falls
-   back to another application secret.
-7. Account invitation and password-reset email will remain disabled until the
-   production `EMAIL_TRANSPORT`, SMTP variables, and
-   `EMAIL_TOKEN_ENCRYPTION_KEY` from `deploy/.env.example` are configured.
-
-Recommended image values for the currently published release:
+1. `LINE_QUEUE_API_IMAGE` va `LINE_QUEUE_WEB_IMAGE` neu ban chon cach deploy
+   bang `latest` thi giu:
 
 ```env
-LINE_QUEUE_API_IMAGE=trungnghia2703/line-smart-queue-api:git-5c54ed482de7
-LINE_QUEUE_WEB_IMAGE=trungnghia2703/line-smart-queue-web:git-5c54ed482de7
+LINE_QUEUE_API_IMAGE=trungnghia2703/line-smart-queue-api:latest
+LINE_QUEUE_WEB_IMAGE=trungnghia2703/line-smart-queue-web:latest
 ```
 
-After correcting `.env`, use:
+2. `LINE_LIFF_ENDPOINT_PATH=/liff` la dung, nen giu nguyen.
+3. `LINE_RICH_MENU_IMAGE_PATH=` de rong la hop le neu chua dong bo rich menu
+   image bang script rieng.
+4. Nen su dung rieng:
+
+```env
+LINE_MESSAGING_CHANNEL_SECRET=...
+LINE_MESSAGING_CHANNEL_ACCESS_TOKEN=...
+LINE_LOGIN_CHANNEL_ID=...
+LINE_LOGIN_LIFF_ID=...
+```
+
+5. Nen bo bien cu `LINE_CHANNEL_SECRET` neu trong code khong con dung nua, de
+   tranh nham voi secret cua LINE Login va Messaging API.
+6. Ban da quyet dinh dung `DEMO_PAYMENT_WEBHOOK_SECRET`, vay nen dien mot chuoi
+   random rieng, khong dung chung voi `JWT_SECRET`.
+7. Neu chua cau hinh SMTP va `EMAIL_TOKEN_ENCRYPTION_KEY`, thi email kich hoat
+   tai khoan, moi nhan su va quen mat khau se chua hoat dong.
+
+## 8. Mau quy trinh deploy nhanh de dung hang ngay
+
+### Tai local
+
+```powershell
+docker build --no-cache `
+  -t trungnghia2703/line-smart-queue-api:latest `
+  -f .\docker\api\Dockerfile .
+
+docker push trungnghia2703/line-smart-queue-api:latest
+
+docker build --no-cache `
+  --build-arg VITE_API_URL= `
+  --build-arg "VITE_APP_NAME=LINE Smart Queue Assistant" `
+  --build-arg "VITE_LIFF_ID=YOUR_LINE_LOGIN_LIFF_ID" `
+  --build-arg VITE_LIFF_DEFAULT_BOOKING_PATH=/liff/qr/demo-queue-lab-2026 `
+  --build-arg VITE_LIFF_ENDPOINT_PATH=/liff `
+  --build-arg VITE_LIFF_MOCK=false `
+  --build-arg VITE_PAYMENT_MODE=demo `
+  --build-arg VITE_PAYMENT_REDIRECT_BASE_URL= `
+  -t trungnghia2703/line-smart-queue-web:latest `
+  -f .\docker\web\Dockerfile .
+
+docker push trungnghia2703/line-smart-queue-web:latest
+```
+
+### Tren server
 
 ```bash
-docker compose config --quiet
-docker compose config --images
+cd /opt/line-smart-queue
 docker compose pull api web
 docker compose run --rm api npm run db:migrate
-docker compose up -d --force-recreate --no-deps api web
+docker compose up -d --force-recreate api web
 docker compose ps
 docker compose logs --tail=100 api
+docker compose logs --tail=100 web
 ```
