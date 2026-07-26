@@ -26,5 +26,17 @@ export async function seed(client: PoolClient): Promise<void> {
       `,
       [userId, lineUserId, displayName]
     );
+    await client.query(
+      `
+        INSERT INTO line_notification_preferences (
+          user_id, line_user_id, follow_state, notification_enabled,
+          approaching_enabled, called_enabled, lifecycle_enabled,
+          consented_at, consent_source
+        )
+        VALUES ($1, $2, 'followed', TRUE, TRUE, TRUE, TRUE, NOW(), 'legacy_link')
+        ON CONFLICT (user_id) DO NOTHING;
+      `,
+      [userId, lineUserId]
+    );
   }
 }
