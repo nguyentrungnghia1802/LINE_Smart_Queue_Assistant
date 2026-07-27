@@ -280,6 +280,14 @@ The development healthcheck must probe `http://127.0.0.1:4000/health`. Using `lo
 to IPv6 inside Alpine while the API listener is bound to IPv4, producing a false
 `connection refused` result.
 
+### Dashboard/login flicker after reseeding
+
+Cause: a browser tab may still hold a JWT and persisted user state from before the database was
+reset or reseeded. The web app clears both values when an authenticated API request returns `401`,
+so the next visit should settle on the login page instead of bouncing between role dashboards. Local
+and test strict auth limits are intentionally higher than production to avoid reseed/debug loops
+triggering `429 Too many requests`.
+
 ### LINE push silently mocked
 
 The API intentionally uses a mock when `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN` is empty or

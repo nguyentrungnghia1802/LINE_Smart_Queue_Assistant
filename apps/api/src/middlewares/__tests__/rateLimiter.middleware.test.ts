@@ -4,7 +4,11 @@ import request from 'supertest';
 
 import { UserRole } from '@line-queue/shared';
 
-import { authenticatedActionRateLimiter, publicWriteRateLimiter } from '../rateLimiter.middleware';
+import {
+  authenticatedActionRateLimiter,
+  publicWriteRateLimiter,
+  strictRateLimiter,
+} from '../rateLimiter.middleware';
 
 function buildApp(routePath: string, middleware: express.RequestHandler, withUser = false) {
   const app = express();
@@ -59,5 +63,18 @@ describe('rateLimiter middleware', () => {
 
     expect(limitedResponse.status).toBe(429);
     expect(otherUserResponse.status).toBe(201);
+  });
+
+  it('keeps strict auth limiting relaxed outside production for seed/reset development loops', async () => {
+    const app = buildApp('/strict', strictRateLimiter);
+
+    for (let index = 0; index < 20; index += 1) {
+      const response = await request(app).post('/strict');
+      expect(response.status).toBe(201);
+    }
+
+    const nextResponse = await request(app).post('/strict');
+
+    expect(nextResponse.status).toBe(201);
   });
 });
