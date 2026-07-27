@@ -1,13 +1,31 @@
 /**
- * Real LIFF adapter — thin wrapper around @line/liff.
+ * Real LIFF adapter built from the minimal official LIFF modules used here.
  *
- * This is the ONLY file in the project that imports from '@line/liff'.
+ * Avoid importing the full SDK: unused sub-window modules require eval(), which
+ * is intentionally blocked by the production Content Security Policy.
  * All other code goes through the LiffAdapter interface.
  */
 
-import liff from '@line/liff';
+import liff from '@line/liff/core';
+import GetAccessTokenModule from '@line/liff/get-access-token';
+import GetFriendshipModule from '@line/liff/get-friendship';
+import GetIDTokenModule from '@line/liff/get-id-token';
+import GetProfileModule from '@line/liff/get-profile';
+import IsInClientModule from '@line/liff/is-in-client';
+import IsLoggedInModule from '@line/liff/is-logged-in';
+import LoginModule from '@line/liff/login';
+import LogoutModule from '@line/liff/logout';
 
 import type { LiffAdapter, LiffProfile } from './types';
+
+liff.use(new GetAccessTokenModule());
+liff.use(new GetFriendshipModule());
+liff.use(new GetIDTokenModule());
+liff.use(new GetProfileModule());
+liff.use(new IsInClientModule());
+liff.use(new IsLoggedInModule());
+liff.use(new LoginModule());
+liff.use(new LogoutModule());
 
 export class RealLiffAdapter implements LiffAdapter {
   async init(liffId: string): Promise<void> {

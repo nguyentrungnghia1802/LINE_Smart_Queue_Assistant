@@ -37,7 +37,7 @@ export function LoginPage() {
       await login(email, password);
       // get updated user from store after login
       const updatedUser = useAuthStore.getState().user;
-      navigate(updatedUser ? roleHomePath(updatedUser.role) : '/app', { replace: true });
+      navigate(updatedUser ? roleHomePath(updatedUser.role) : '/dashboard', { replace: true });
     } catch (err) {
       setError(resolveLoginErrorMessage(err, t));
     } finally {
@@ -360,6 +360,6 @@ function roleHomePath(role: UserRole): string {
   if (role === UserRole.ADMIN) return '/admin';
   if (role === UserRole.MANAGER) return '/manager';
   if (role === UserRole.STAFF) return '/staff';
-  if (role === UserRole.CUSTOMER) return '/customer';
-  return '/app';
+  if (role === UserRole.CUSTOMER) return '/liff/home';
+  return '/dashboard';
 }

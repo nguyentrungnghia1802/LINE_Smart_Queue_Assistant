@@ -18,7 +18,7 @@ export function AccountPage() {
         ? '/staff'
         : user.role === UserRole.ADMIN
           ? '/admin'
-          : '/customer';
+          : '/liff/home';
 
   return (
     <main className="min-h-screen bg-gray-50">

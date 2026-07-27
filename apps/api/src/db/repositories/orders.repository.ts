@@ -726,7 +726,7 @@ export const ordersRepository = {
              ) AS month
            ),
            completed_orders AS (
-             SELECT DATE_TRUNC('month', o.completed_at) AS month,
+             SELECT DATE_TRUNC('month', o.fulfilled_at) AS month,
                     COUNT(DISTINCT o.id) AS orders,
                     COALESCE(SUM(payment.collected_amount), 0) AS revenue
              FROM orders o
@@ -743,8 +743,8 @@ export const ordersRepository = {
              WHERE o.organization_id = $1
                AND ($2::uuid IS NULL OR q.branch_id = $2)
                AND o.status = 'completed'
-               AND o.completed_at >= DATE_TRUNC('month', NOW()) - INTERVAL '11 months'
-             GROUP BY DATE_TRUNC('month', o.completed_at)
+               AND o.fulfilled_at >= DATE_TRUNC('month', NOW()) - INTERVAL '11 months'
+             GROUP BY DATE_TRUNC('month', o.fulfilled_at)
            )
            SELECT TO_CHAR(months.month, 'YYYY-MM') AS month,
                   COALESCE(completed.orders, 0)::TEXT AS orders,
@@ -826,7 +826,7 @@ export const ordersRepository = {
            WHERE o.organization_id = $1
              AND ($2::uuid IS NULL OR q.branch_id = $2)
              AND o.status = 'completed'
-             AND o.completed_at >= DATE_TRUNC('month', NOW())
+             AND o.fulfilled_at >= DATE_TRUNC('month', NOW())
              AND o.fulfilled_by_user_id IS NOT NULL
            GROUP BY o.fulfilled_by_user_id, o.fulfilled_by_name,
                     o.fulfilled_by_employee_code, user_account.display_name

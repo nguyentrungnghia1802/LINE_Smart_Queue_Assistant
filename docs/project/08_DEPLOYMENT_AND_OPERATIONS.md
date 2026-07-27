@@ -158,6 +158,11 @@ Developers Console, set the LIFF endpoint to the deployed HTTPS base path such a
 secrets such as `JWT_SECRET`, database credentials, LINE channel secret/access token, and provider
 webhook keys are runtime API secrets only.
 
+The production web build also runs a CSP bundle gate. The project uses a minimal LIFF adapter and a
+reviewed CSP-safe replacement for the SDK sub-window iframe bootstrap; do not work around a failed
+gate by adding `unsafe-eval` to host nginx. Review the LIFF SDK change and update the compatibility
+transform instead.
+
 Keeping `/liff` in the LINE Developers Console endpoint is intentional. Do not shorten the endpoint
 to the web origin unless both `VITE_LIFF_ENDPOINT_PATH` and `LINE_LIFF_ENDPOINT_PATH` are explicitly
 changed to `/` and the permanent-link tests are rerun. The recommended production configuration is
@@ -186,7 +191,7 @@ For a real production environment, use managed PostgreSQL/object storage, TLS in
    The API image contains canonical migrations and compiled demo seed scripts so
    deployment tooling can run them without TypeScript development dependencies.
    Production rollout applies migrations explicitly and must not seed demo data.
-3. Run lint, typecheck, tests, build, and contract/migration checks.
+3. Run lint, typecheck, tests, build, CSP bundle validation, and contract/migration checks.
 4. Apply additive migrations with a production-safe role.
    Migration `000013` backfills Japanese translation rows and adds user, organization, and durable notification locale snapshots; verify row counts before enabling language selection.
 5. Deploy API and verify `/health` plus `/ready`.

@@ -66,8 +66,9 @@ apps/web/src/
 |   |-- marketing/           Public product site and business onboarding
 |   |-- manager/             Owner analytics/branches and branch operations
 |   |-- staff/               Operational workspace
-|   |-- customer/, public/   QR customer flow
+|   |-- customer/            Branch QR entry and LIFF booking composition
 |   \-- liff/                LINE LIFF customer flow
+|-- scripts/                 Post-build checks, including CSP bundle validation
 |-- services/                API clients and LIFF real/mock adapters
 |-- store/                   Zustand authentication state
 |-- contexts/                Runtime providers such as LIFF initialization state
@@ -148,7 +149,9 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
    exposes every destination in the safe-area-aware mobile bottom navigation. Staff queue entries
    use a left rail from tablet widths and a horizontal ticket selector on phones.
 7. Use semantic controls and existing icon library/style conventions.
-8. Standalone auth/public/customer entry pages outside shared role layouts must still expose the same compact language switcher used by role layouts. Public pages typically use `StandalonePageTopBar`; login keeps the control independently at the viewport's top-right so the authentication card remains vertically centered.
+8. Standalone auth and customer discovery redirects outside shared role layouts must preserve the
+   compact language switcher where visible. Login keeps the control independently at the
+   viewport's top-right so the authentication card remains vertically centered.
 9. Add API methods/hooks outside the page and component tests for risky behavior.
 10. Verify desktop and mobile routes in a browser, including navigation visibility, page-level
     horizontal overflow, modal fit, and fixed-navigation content clearance.
@@ -170,6 +173,8 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 - `db/schema/reset_line_queue_schema.sql`: destructive and local/dev only.
 - `apps/api/src/app.ts`: middleware ordering affects signatures, auth, limits, and errors.
 - `apps/api/src/routes/v1.routes.ts` and `apps/web/src/router.tsx`: route ordering/coverage.
+- `apps/web/vite-plugins/liffCspPlugin.ts`: reviewed compatibility boundary for the official LIFF
+  message-bus bootstrap; SDK updates must pass the production CSP bundle check.
 - `apps/api/src/modules/orders/orders.service.ts`: coupled payment/stock/order/ticket transaction.
 - `apps/api/src/modules/branches/branch-scope.ts`: owner, branch-manager, and branch-operator scope
   guards used by every branch-owned endpoint.

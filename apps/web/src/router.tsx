@@ -1,7 +1,6 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, redirect } from 'react-router-dom';
 
 import { LiffLayout } from './components/layout/LiffLayout';
-import { RootLayout } from './components/layout/RootLayout';
 import { AccountLifecyclePage } from './pages/AccountLifecyclePage';
 import { AccountPage } from './pages/AccountPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
@@ -9,9 +8,7 @@ import { AdminLayout } from './pages/admin/AdminLayout';
 import { AdminOrganizationApplicationsPage } from './pages/admin/AdminOrganizationApplicationsPage';
 import { AdminOrganizationDetailPage } from './pages/admin/AdminOrganizationDetailPage';
 import { AdminOrganizationsPage } from './pages/admin/AdminOrganizationsPage';
-import { CustomerDashboardPage } from './pages/customer/CustomerDashboardPage';
 import { CustomerLineEntryPage, LiffCustomerJoinPage } from './pages/customer/CustomerJoinPage';
-import { DashboardPage } from './pages/DashboardPage';
 import { HistoryPage } from './pages/liff/HistoryPage';
 import { HomePage } from './pages/liff/HomePage';
 import { LiffInitPage } from './pages/liff/LiffInitPage';
@@ -38,8 +35,6 @@ import { BusinessRegistrationPage } from './pages/marketing/BusinessRegistration
 import { MarketingHomePage } from './pages/marketing/MarketingHomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { PaymentDemoPage } from './pages/PaymentDemoPage';
-import { PublicJoinPage } from './pages/public/PublicJoinPage';
-import { PublicTicketPage } from './pages/public/PublicTicketPage';
 import { QueueDetailPage } from './pages/QueueDetailPage';
 import { QueuesPage } from './pages/QueuesPage';
 import { RoleRedirectPage } from './pages/RoleRedirectPage';
@@ -72,8 +67,14 @@ export const router = createBrowserRouter([
   { path: '/reset-password', element: <AccountLifecyclePage /> },
 
   // ── Public (no auth required) ─────────────────────────────────────────────
-  { path: '/join/:queueId', element: <PublicJoinPage /> },
-  { path: '/ticket/:entryId', element: <PublicTicketPage /> },
+  {
+    path: '/join/:queueId',
+    loader: ({ params }) => redirect(`/liff/join/${encodeURIComponent(params.queueId ?? '')}`),
+  },
+  {
+    path: '/ticket/:entryId',
+    loader: ({ params }) => redirect(`/liff/tickets/${encodeURIComponent(params.entryId ?? '')}`),
+  },
   { path: '/checkout/demo/:sessionId', element: <PaymentDemoPage /> },
   { path: '/q/:orgSlug', element: <CustomerLineEntryPage /> },
   { path: '/qr/:token', element: <CustomerLineEntryPage /> },
@@ -114,11 +115,8 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // ── Customer dashboard ─────────────────────────────────────────────────────
-  {
-    path: '/customer',
-    element: <CustomerDashboardPage />,
-  },
+  // Keep old bookmarks working while customer functionality remains LINE/LIFF-only.
+  { path: '/customer', element: <Navigate to="/liff/home" replace /> },
 
   // ── LIFF customer flow ────────────────────────────────────────────────────
   {
@@ -156,18 +154,7 @@ export const router = createBrowserRouter([
     element: <MarketingHomePage />,
   },
 
-  {
-    path: '/app',
-    element: <RootLayout />,
-    children: [
-      { index: true, element: <DashboardPage /> },
-      { path: 'queues', element: <QueuesPage /> },
-      { path: 'queues/new', element: <CreateQueuePage /> },
-      { path: 'queues/:id', element: <QueueDetailPage /> },
-      { path: 'queues/:id/settings', element: <QueueSettingsPage /> },
-      { path: 'staff/queues/:queueId', element: <StaffQueuePage /> },
-    ],
-  },
+  { path: '/app/*', element: <Navigate to="/dashboard" replace /> },
 
   // ── Convenience redirect ──────────────────────────────────────────────────
   { path: '/dashboard', element: <RoleRedirectPage /> },
