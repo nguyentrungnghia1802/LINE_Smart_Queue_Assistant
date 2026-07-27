@@ -67,10 +67,17 @@ Clients branch on `error.code` and localize it. `error.message` is diagnostic te
 
 ### Authentication
 
-| Method | Path                 | Access               | Purpose                                                                                      |
-| ------ | -------------------- | -------------------- | -------------------------------------------------------------------------------------------- |
-| POST   | `/api/v1/auth/line`  | Public, strict limit | Verify LINE ID token, find/create linked customer, optionally sync verified email, issue JWT |
-| POST   | `/api/v1/auth/login` | Public, strict limit | Email/password login for admin, manager, and staff; customer role is rejected                |
+| Method | Path                   | Access               | Purpose                                                                         |
+| ------ | ---------------------- | -------------------- | ------------------------------------------------------------------------------- |
+| POST   | `/api/v1/auth/line`    | Public, strict limit | Verify LINE ID token, find/create linked customer, issue access/refresh session |
+| POST   | `/api/v1/auth/login`   | Public, strict limit | Email/password login for business roles and issue access/refresh session        |
+| POST   | `/api/v1/auth/refresh` | Refresh cookie       | Rotate refresh token and return new access token/user/session metadata          |
+| POST   | `/api/v1/auth/logout`  | Refresh cookie       | Revoke the current session family and clear the refresh cookie                  |
+
+Login and refresh responses include `token`, `user`, and public `session` timing metadata. The raw
+refresh token is never returned in JSON; it uses a `/api/v1/auth` path-scoped `HttpOnly`,
+`SameSite=Strict` cookie with `Secure` enabled in production. Browser clients send credentials and
+retry one failed authenticated request after a single refresh attempt.
 
 ### Platform admin
 

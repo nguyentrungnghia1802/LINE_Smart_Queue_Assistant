@@ -98,6 +98,11 @@ export const common = {
       'このアカウントはまだ有効化されていません。招待メールをご確認ください。',
     AUTH_ACCOUNT_DISABLED: 'このアカウントは無効化されています。管理者へお問い合わせください。',
     AUTH_INVALID_PASSWORD: 'パスワードが正しくありません。',
+    AUTH_SESSION_REQUIRED: 'セッションが終了しました。もう一度ログインしてください。',
+    AUTH_SESSION_INVALID: 'セッションが無効です。もう一度ログインしてください。',
+    AUTH_SESSION_EXPIRED: '一定時間操作がなかったため、セッションが終了しました。',
+    AUTH_SESSION_REUSED:
+      'セキュリティ保護のためセッションを無効化しました。もう一度ログインしてください。',
     UNAUTHORIZED: '認証が必要です。もう一度ログインしてください。',
     FORBIDDEN: 'この操作を行う権限がありません。',
     CUSTOMER_ACCOUNT_REQUIRED: '受付にはお客様アカウントが必要です。',

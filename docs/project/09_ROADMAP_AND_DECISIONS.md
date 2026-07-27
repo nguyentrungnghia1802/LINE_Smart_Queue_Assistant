@@ -323,3 +323,22 @@ in the staff member's branch.
 capability. Orders, payment coverage, inventory, and public booking validate products against the
 selected queue assignment. The nullable legacy `products.branch_id` remains temporarily for
 compatibility but must not be used as an authorization boundary.
+
+## ADR-023: Role-aware revocable browser sessions
+
+**Status:** accepted (2026-07-28)
+
+**Context:** A single seven-day bearer token stored in local storage cannot support business idle
+timeouts, customer convenience, reliable logout, or server-side revocation without exposing a
+long-lived credential to browser JavaScript.
+
+**Decision:** Issue 15-minute access JWTs and keep them only in frontend memory. Store rotating
+refresh-token hashes in PostgreSQL session families and deliver the raw token only through a
+path-scoped `HttpOnly`, `SameSite=Strict`, production-`Secure` cookie. Business sessions refresh
+while the browser observes activity, expire after 15 idle minutes, and have a 12-hour absolute
+limit. LINE customer sessions have a 30-day absolute limit and remain subject to active LINE-link
+verification. Logout and credential/account lifecycle changes revoke sessions.
+
+**Consequences:** API requests can perform one transparent refresh and retry. Deployment of the
+session migration invalidates legacy JWTs once, requiring reauthentication. PostgreSQL becomes the
+revocation source of truth and an hourly advisory-locked cleanup removes old revoked/expired rows.

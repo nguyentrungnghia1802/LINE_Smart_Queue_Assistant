@@ -105,13 +105,23 @@ email login for customer-role users and exposes no public customer registration 
 
 1. Client posts credentials to `/api/v1/auth/login`.
 2. API validates the hash and active user state.
-3. API issues a signed JWT.
-4. `currentUserMiddleware` resolves optional identity; `requireAuth` and `requireRole` enforce protected routes.
-5. `currentUserMiddleware` reloads active organization membership, owner flag, and branch IDs from
+3. API creates a PostgreSQL `auth_sessions` family, returns a 15-minute signed access JWT, and sets
+   an opaque rotating refresh token in a path-scoped `HttpOnly`, production-`Secure` cookie.
+4. The SPA keeps the access token in memory. It bootstraps or renews access through
+   `/api/v1/auth/refresh`; access and refresh tokens are never persisted in browser storage.
+5. `currentUserMiddleware` verifies the JWT and active session family; `requireAuth` and
+   `requireRole` enforce protected routes.
+6. `currentUserMiddleware` reloads active organization membership, owner flag, and branch IDs from
    PostgreSQL; browser/JWT request bodies do not establish tenant scope.
-6. Owner-only services require `organization_members.is_owner = TRUE`.
-7. Branch manager/staff services require exactly one active branch assignment and constrain every
+7. Owner-only services require `organization_members.is_owner = TRUE`.
+8. Branch manager/staff services require exactly one active branch assignment and constrain every
    resource by both organization ID and branch ID.
+
+Business session refresh extends the idle deadline only while browser interaction is observed.
+Admin, manager, and staff sessions end after 15 idle minutes or 12 absolute hours. Customer
+sessions have a 30-day absolute limit; LIFF can exchange a valid LINE ID token again when needed.
+Refresh rotation retains only SHA-256 token hashes, supports family revocation, tolerates a short
+same-browser concurrent-refresh grace period, and treats later replay as compromise.
 
 ### LINE LIFF
 
@@ -119,8 +129,10 @@ email login for customer-role users and exposes no public customer registration 
 2. Public `/qr` and `/q` routes resolve the requested customer destination and redirect into LINE. LIFF initializes with public `VITE_LIFF_ID`. In real mode, including an external browser, a signed-out customer is automatically sent through LINE Login.
 3. After LINE login, the client obtains an OIDC ID token and posts it to `/api/v1/auth/line`.
 4. API verifies it against the configured LINE Login channel ID and may persist the optional verified email claim when the channel has email permission and the address is not already owned.
-5. API finds or creates the customer and links `line_accounts.line_user_id` transactionally.
-6. `currentUserMiddleware` accepts the JWT LINE claim only when the matching `line_accounts` row still belongs to that user and `is_linked = TRUE`.
+5. API finds or creates the customer, links `line_accounts.line_user_id` transactionally, and
+   creates a 30-day customer refresh session.
+6. `currentUserMiddleware` accepts the JWT LINE claim only when both its session family is active
+   and the matching `line_accounts` row still belongs to that user with `is_linked = TRUE`.
 7. LIFF booking, demo payment return, order creation, and ticket display run in the same `/liff/*` flow. Order and direct queue creation in LIFF are blocked until the system JWT has been issued from the LINE ID token.
 8. After authentication, the client synchronizes the Official Account friendship state without overriding a later explicit notification opt-out.
 9. Queue entries that store that verified linked LINE user ID can be targeted through Messaging API push.

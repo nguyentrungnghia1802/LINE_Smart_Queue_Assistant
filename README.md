@@ -2,7 +2,7 @@
 
 LINE Smart Queue Assistant is a LINE-first queue, reservation, ordering, payment-foundation, and customer-notification platform for Japanese service businesses. Customers reserve from a QR code or LIFF, receive queue updates in LINE chat, and track their ticket without waiting beside the counter. Staff, managers, and platform admins use role-specific browser dashboards.
 
-The project is currently a working modular monolith with a deployed LINE Login/LIFF customer path. Core queue, order, inventory, multilingual UI, LIFF login, LINE notification outbox, Rich Menu navigation, and demo payment flows are implemented. Production PSP integration, complete physical-device messaging acceptance, and real travel-time provider integration are still pending.
+The project is currently a working modular monolith with a deployed LINE Login/LIFF customer path. Core queue, order, inventory, multilingual UI, LIFF login, role-aware revocable browser sessions, LINE notification outbox, Rich Menu navigation, and demo payment flows are implemented. Production PSP integration, complete physical-device messaging acceptance, and real travel-time provider integration are still pending.
 
 ## Table of contents
 

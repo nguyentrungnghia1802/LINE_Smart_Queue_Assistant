@@ -6,6 +6,7 @@ import { organizationsRepository } from '../../../db/repositories/organizations.
 import { usersRepository } from '../../../db/repositories/users.repository';
 import { withTransaction } from '../../../db/transaction';
 import { authService } from '../auth.service';
+import { authSessionService } from '../auth-session.service';
 import * as verifier from '../line/lineIdToken.verifier';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
@@ -14,6 +15,7 @@ jest.mock('../line/lineIdToken.verifier');
 jest.mock('../../../db/repositories/users.repository');
 jest.mock('../../../db/repositories/organizations.repository');
 jest.mock('../../../db/transaction');
+jest.mock('../auth-session.service');
 
 const mockVerify = verifier.verifyLineIdToken as jest.MockedFunction<
   typeof verifier.verifyLineIdToken
@@ -37,6 +39,9 @@ const mockFindMembershipByUserId =
   organizationsRepository.findMembershipByUserId as jest.MockedFunction<
     typeof organizationsRepository.findMembershipByUserId
   >;
+const mockIssueSession = authSessionService.issue as jest.MockedFunction<
+  typeof authSessionService.issue
+>;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -62,6 +67,15 @@ const existingUserRow = {
 describe('authService.loginWithLineToken', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIssueSession.mockResolvedValue({
+      id: 'session-row-id',
+      familyId: 'session-family-id',
+      userId: existingUserRow.id,
+      refreshToken: 'refresh-token',
+      refreshExpiresAt: new Date('2030-01-01T00:00:00.000Z'),
+      kind: 'customer',
+      idleTimeoutMs: 30 * 24 * 60 * 60 * 1000,
+    });
   });
 
   describe('returning user (findByLineUserId returns a row)', () => {
@@ -186,6 +200,15 @@ describe('authService.loginWithLineToken', () => {
 describe('authService.loginWithEmailPassword', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIssueSession.mockResolvedValue({
+      id: 'session-row-id',
+      familyId: 'session-family-id',
+      userId: 'admin-user-id',
+      refreshToken: 'refresh-token',
+      refreshExpiresAt: new Date('2030-01-01T00:00:00.000Z'),
+      kind: 'business',
+      idleTimeoutMs: 15 * 60 * 1000,
+    });
   });
 
   it('logs in admin without organization membership', async () => {

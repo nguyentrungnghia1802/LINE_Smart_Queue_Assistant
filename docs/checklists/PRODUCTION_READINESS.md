@@ -32,6 +32,8 @@ Last reviewed: 2026-07-27. This checklist distinguishes repository verification 
 - [ ] Production secrets are rotated, stored outside Git, and belong to the intended environment.
 - [ ] Database backup and restore drill evidence is current.
 - [ ] Migrations were rehearsed against a production-like database with a rollback plan.
+- [ ] Migration `000021` is applied before the new API starts; business idle expiry, customer
+      30-day refresh, logout revocation, and the one-time legacy-session re-login are verified.
 - [ ] Deployment migrations include branch-scoped queue/catalog/order snapshot changes and are verified before enabling branch-manager workflows.
 - [ ] HTTPS, CORS, edge rate limits, restricted `/metrics` and API docs, and secure headers are verified.
 - [ ] Scheduler ownership, notification backlog alerts, payment mismatch alerts, and incident ownership are configured.

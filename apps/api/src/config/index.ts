@@ -5,6 +5,14 @@ import dotenv from 'dotenv';
 // Load .env from monorepo root when running locally
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
+function positiveInteger(name: string, fallback: number): number {
+  const value = Number.parseInt(process.env[name] ?? String(fallback), 10);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+  return value;
+}
+
 export const config = {
   nodeEnv: (process.env.NODE_ENV ?? 'development') as 'development' | 'production' | 'test',
   port: Number.parseInt(process.env.API_PORT ?? '4000', 10),
@@ -21,7 +29,16 @@ export const config = {
 
   jwt: {
     secret: process.env.JWT_SECRET ?? 'change-me-in-production',
-    expiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
+    accessTokenExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
+  },
+
+  auth: {
+    businessIdleTimeoutMinutes: positiveInteger('AUTH_BUSINESS_IDLE_TIMEOUT_MINUTES', 15),
+    businessAbsoluteTimeoutHours: positiveInteger('AUTH_BUSINESS_ABSOLUTE_TIMEOUT_HOURS', 12),
+    customerSessionDays: positiveInteger('AUTH_CUSTOMER_SESSION_DAYS', 30),
+    refreshCookieName: process.env.AUTH_REFRESH_COOKIE_NAME ?? 'lq_refresh_session',
+    sessionCleanupIntervalMs: positiveInteger('AUTH_SESSION_CLEANUP_INTERVAL_MS', 3_600_000),
+    revokedSessionRetentionDays: positiveInteger('AUTH_REVOKED_SESSION_RETENTION_DAYS', 7),
   },
 
   line: {

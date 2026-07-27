@@ -4,6 +4,7 @@ import { organizationsRepository } from '../../db/repositories/organizations.rep
 import { usersRepository } from '../../db/repositories/users.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
+import { authSessionService } from '../auth/auth-session.service';
 import { organizationApplicationsRepository } from '../organization-applications/organization-applications.repository';
 
 import { UpdateManagerDto } from './admin.validator';
@@ -120,11 +121,15 @@ export const adminService = {
     if (dto.password?.trim()) {
       const passwordHash = await bcrypt.hash(dto.password, 10);
       await usersRepository.setPassword(userId, passwordHash);
+      await authSessionService.revokeAllForUser(userId, 'admin_password_reset');
     }
 
     if (dto.isActive !== undefined) {
       await usersRepository.setActive(userId, dto.isActive);
       await organizationsRepository.setMemberActive(orgId, userId, dto.isActive);
+      if (!dto.isActive) {
+        await authSessionService.revokeAllForUser(userId, 'account_disabled');
+      }
     }
 
     return usersRepository.findById(updated?.id ?? userId);

@@ -38,6 +38,7 @@
 import { config } from '../config';
 import { logger } from '../utils/logger';
 
+import { runAuthSessionCleanup } from './authSessionCleanup.job';
 import { runCounterReset } from './counterReset.job';
 import { runEmailDelivery } from './emailDelivery.job';
 import { runEtaUpdater } from './etaUpdater.job';
@@ -87,6 +88,12 @@ export const scheduler = {
     logger.info('scheduler: starting');
 
     runner
+      .schedule({
+        name: 'authSessionCleanup',
+        intervalMs: config.auth.sessionCleanupIntervalMs,
+        run: async () =>
+          void (await withAdvisoryJobLock('authSessionCleanup', runAuthSessionCleanup)),
+      })
       .schedule({
         name: 'etaUpdater',
         intervalMs: ETA_UPDATER_INTERVAL_MS,

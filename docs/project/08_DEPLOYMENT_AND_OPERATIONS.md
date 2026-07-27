@@ -24,6 +24,21 @@ Backend-only secrets:
 - `LINE_RICH_MENU_IMAGE_PATH` or an equivalent deployment-mounted Rich Menu PNG/JPEG asset path
 - future PSP API/webhook keys and current demo payment webhook secret
 
+Role-aware session settings are non-secret runtime values:
+
+- `JWT_ACCESS_EXPIRES_IN=15m`
+- `AUTH_BUSINESS_IDLE_TIMEOUT_MINUTES=15`
+- `AUTH_BUSINESS_ABSOLUTE_TIMEOUT_HOURS=12`
+- `AUTH_CUSTOMER_SESSION_DAYS=30`
+- `AUTH_SESSION_CLEANUP_INTERVAL_MS=3600000`
+- `AUTH_REVOKED_SESSION_RETENTION_DAYS=7`
+
+Deploy migration `000021` before serving the updated API. It preserves existing business data and
+does not require seed/reset. Access tokens issued by older releases have no session-family claim
+and are intentionally rejected; users sign in once after rollout. The same-origin production proxy
+is required so the path-scoped refresh cookie reaches `/api/v1/auth/*`. Keep CORS credentials
+enabled only for the configured web origin.
+
 LINE production configuration is intentionally separated by channel:
 
 | LINE Console source                                        | Variable                                   | Secret              | Where to provide it                    |
