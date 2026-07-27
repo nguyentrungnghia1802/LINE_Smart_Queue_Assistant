@@ -6,10 +6,11 @@ import { Link } from 'react-router-dom';
 import { QueueCard } from '../components/queue/QueueCard';
 import { Spinner } from '../components/ui/Spinner';
 import { useQueues } from '../hooks/useQueues';
+import { ApiClientError } from '../services/apiClient';
 
 export function QueuesPage() {
   const { t } = useTranslation(['manager', 'common']);
-  const { data: queues, isLoading, isError } = useQueues();
+  const { data: queues, error, isError, isFetching, isLoading, refetch } = useQueues();
   const [search, setSearch] = useState('');
   const visibleQueues = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -50,9 +51,27 @@ export function QueuesPage() {
         </div>
       )}
 
-      {isError && <p className="text-red-600 text-sm">{t('queue.listLoadFailed')}</p>}
+      {isError && (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+        >
+          <p className="font-semibold">{t('queue.listLoadFailed')}</p>
+          {error instanceof ApiClientError && error.message && (
+            <p className="mt-1 text-xs text-red-700">{error.message}</p>
+          )}
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-bold text-red-800 hover:bg-red-100 disabled:opacity-50"
+          >
+            {t('actions.retry', { ns: 'common' })}
+          </button>
+        </div>
+      )}
 
-      {queues && (
+      {!isError && queues && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {visibleQueues.map((q, index) => (
             <QueueCard key={q.id} queue={q} sequence={index + 1} />

@@ -80,5 +80,9 @@ describe('ordersRepository.getStats dashboard analytics', () => {
     for (const call of mockQuery.mock.calls) {
       expect(call[1]).toEqual(['org-1', 'branch-1']);
     }
+
+    const dashboardSql = mockQuery.mock.calls.map(([sql]) => String(sql)).join('\n');
+    expect(dashboardSql).toContain('o.fulfilled_at');
+    expect(dashboardSql).not.toContain('o.completed_at');
   });
 });

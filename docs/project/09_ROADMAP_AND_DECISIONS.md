@@ -77,7 +77,9 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 **Decision:** Verify LINE ID tokens against the Login channel and send notifications through a Messaging API channel/Official Account. Link the verified LINE user ID to the platform user.
 
-**Consequences:** Full notification experience needs both configurations and user eligibility. The customer path is LIFF-first for LINE identity and push eligibility, while public booking remains a fallback without LINE push.
+**Consequences:** Full notification experience needs both configurations and user eligibility. The
+customer path is LIFF-first for LINE identity and push eligibility. Public branch URLs are discovery
+redirects into LIFF, not a second guest-booking application.
 
 ## ADR-004: REST `/api/v1` with polling at current scale
 
