@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate } from 'react-router-dom';
 
+import { UserRole } from '@line-queue/shared';
+
 import { StandalonePageTopBar } from '../components/layout/StandalonePageTopBar';
 import { useAuthStore } from '../store/authStore';
 
@@ -9,6 +11,14 @@ export function AccountPage() {
   const { user, isAuthenticated } = useAuthStore();
 
   if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
+  const dashboardPath =
+    user.role === UserRole.MANAGER
+      ? '/manager'
+      : user.role === UserRole.STAFF
+        ? '/staff'
+        : user.role === UserRole.ADMIN
+          ? '/admin'
+          : '/customer';
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -21,7 +31,10 @@ export function AccountPage() {
             </h1>
             <p className="mt-1 text-sm text-gray-500">{t('account.subtitle', { ns: 'auth' })}</p>
           </div>
-          <Link to="/" className="text-sm font-medium text-brand-700 hover:text-brand-800">
+          <Link
+            to={dashboardPath}
+            className="text-sm font-medium text-brand-700 hover:text-brand-800"
+          >
             {t('account.back', { ns: 'auth' })}
           </Link>
         </div>

@@ -114,18 +114,29 @@ function assertOwnership(
   }
 }
 
-async function assertQueueBelongsToOrg(queueId: string, organizationId?: string) {
+async function assertQueueBelongsToOrg(
+  queueId: string,
+  organizationId?: string,
+  branchId?: string
+) {
   if (!organizationId) throw AppError.forbidden('User has no organization');
   const queue = await queuesRepository.findById(queueId);
   if (!queue) throw AppError.notFound('Queue');
   if (queue.organization_id !== organizationId) {
     throw AppError.forbidden('Queue is outside your organization');
   }
+  if (branchId && queue.branch_id !== branchId) {
+    throw AppError.forbidden('Queue is outside your assigned branch');
+  }
   return queue;
 }
 
-async function assertEntryBelongsToOrg(entry: QueueEntryRow, organizationId?: string) {
-  return assertQueueBelongsToOrg(entry.queue_id, organizationId);
+async function assertEntryBelongsToOrg(
+  entry: QueueEntryRow,
+  organizationId?: string,
+  branchId?: string
+) {
+  return assertQueueBelongsToOrg(entry.queue_id, organizationId, branchId);
 }
 
 async function getWaitingPositionInTransaction(
@@ -468,12 +479,16 @@ export const queueService = {
     queueId: string,
     _adapter?: unknown,
     _log?: unknown,
-    actorOrganizationId?: string
+    actorOrganizationId?: string,
+    actorBranchId?: string
   ): Promise<QueueEntryRow> {
     const queue = await queuesRepository.findById(queueId);
     if (!queue) throw AppError.notFound('Queue');
     if (actorOrganizationId && queue.organization_id !== actorOrganizationId) {
       throw AppError.forbidden('Queue is outside your organization');
+    }
+    if (actorBranchId && queue.branch_id !== actorBranchId) {
+      throw AppError.forbidden('Queue is outside your assigned branch');
     }
 
     return withTransaction(async (client) => {
@@ -501,12 +516,13 @@ export const queueService = {
     entryId: string;
     actorUserId?: string;
     actorOrganizationId?: string;
+    actorBranchId?: string;
   }): Promise<QueueEntryRow> {
     const { entryId, actorOrganizationId } = params;
 
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
-    const queue = await assertEntryBelongsToOrg(entry, actorOrganizationId);
+    const queue = await assertEntryBelongsToOrg(entry, actorOrganizationId, params.actorBranchId);
 
     if (entry.status !== 'called') {
       throw AppError.conflict(
@@ -534,12 +550,13 @@ export const queueService = {
     entryId: string;
     actorUserId?: string;
     actorOrganizationId?: string;
+    actorBranchId?: string;
   }): Promise<QueueEntryRow> {
     const { entryId, actorOrganizationId } = params;
 
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
-    const queue = await assertEntryBelongsToOrg(entry, actorOrganizationId);
+    const queue = await assertEntryBelongsToOrg(entry, actorOrganizationId, params.actorBranchId);
 
     if (entry.status !== 'serving') {
       throw AppError.conflict(

@@ -26,7 +26,7 @@ productsRouter.get('/:id', publicReadRateLimiter, getProduct);
 productsRouter.post(
   '/',
   requireAuth,
-  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.MANAGER),
   authenticatedActionRateLimiter,
   validate(CreateProductSchema),
   createProduct
@@ -35,7 +35,7 @@ productsRouter.post(
 productsRouter.patch(
   '/:id',
   requireAuth,
-  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.MANAGER),
   authenticatedActionRateLimiter,
   validate(UpdateProductSchema),
   updateProduct
@@ -44,7 +44,7 @@ productsRouter.patch(
 productsRouter.delete(
   '/:id',
   requireAuth,
-  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.MANAGER),
   authenticatedActionRateLimiter,
   deleteProduct
 );

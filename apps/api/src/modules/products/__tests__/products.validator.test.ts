@@ -13,6 +13,7 @@ const baseProduct = {
   price: 100000,
   serviceTimeMinutes: 30,
   requiresPrepayment: false,
+  queueIds: ['11111111-1111-4111-8111-111111111111'],
 };
 
 describe('CreateProductSchema — productType field', () => {
@@ -47,6 +48,11 @@ describe('CreateProductSchema — productType field', () => {
 
   it('rejects null productType', () => {
     const result = CreateProductSchema.safeParse({ ...baseProduct, productType: null });
+    expect(result.success).toBe(false);
+  });
+
+  it('requires at least one queue assignment', () => {
+    const result = CreateProductSchema.safeParse({ ...baseProduct, queueIds: [] });
     expect(result.success).toBe(false);
   });
 

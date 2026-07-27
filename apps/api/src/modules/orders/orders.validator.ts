@@ -10,6 +10,8 @@ export const OrderItemSchema = z.object({
 export const CreateOrderSchema = z
   .object({
     orgSlug: z.string().min(1),
+    branchId: z.string().uuid(),
+    queueId: z.string().uuid(),
     customerName: z.string().trim().min(1).max(100),
     customerPhone: JapanesePhoneSchema,
     items: z.array(OrderItemSchema).min(1),

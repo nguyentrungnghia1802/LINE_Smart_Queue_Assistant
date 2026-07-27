@@ -23,8 +23,8 @@ import { CreateQueueSchema, UpdateQueueSchema, UpdateQueueStatusSchema } from '.
 
 export const queuesRouter = Router();
 
-// All queue management routes require authentication + MANAGER or ADMIN role
-queuesRouter.use(requireAuth, requireRole(UserRole.MANAGER, UserRole.ADMIN));
+// Queue configuration belongs to a non-owner manager's assigned branch.
+queuesRouter.use(requireAuth, requireRole(UserRole.MANAGER));
 
 queuesRouter.get('/', listQueues);
 queuesRouter.get('/:id', validate(UUIDParamSchema, 'params'), getQueue);

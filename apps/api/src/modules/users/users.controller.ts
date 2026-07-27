@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { UserRole } from '@line-queue/shared';
 
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
+import { usersRepository } from '../../db/repositories/users.repository';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendCreated, sendNoContent, sendSuccess } from '../../utils/response';
@@ -20,6 +21,12 @@ export const getUser = asyncHandler(async (req: Request, res: Response) => {
     if (!orgId) throw AppError.forbidden();
     const member = await organizationsRepository.findMember(orgId, targetUserId);
     if (!member) throw AppError.forbidden('User is outside your organization');
+    if (!actor.isOrganizationOwner) {
+      const targetBranchId = await usersRepository.findAssignedBranchId(orgId, targetUserId);
+      if (actor.branchIds?.length !== 1 || targetBranchId !== actor.branchIds[0]) {
+        throw AppError.forbidden('User is outside your assigned branch');
+      }
+    }
   }
 
   const user = await usersService.getUser(targetUserId);
@@ -31,13 +38,13 @@ export const listUsers = asyncHandler(async (req: Request, res: Response) => {
   if (!actor) throw AppError.unauthorized();
   const requestedOrgId = req.query['orgId'] as string | undefined;
   const role = req.query['role'] as string | undefined;
-  const orgId = actor.role === UserRole.ADMIN ? requestedOrgId : actor.organizationId;
-
-  if (!orgId) {
-    throw AppError.badRequest('orgId is required');
+  let users;
+  if (actor.role === UserRole.ADMIN) {
+    if (!requestedOrgId) throw AppError.badRequest('orgId is required');
+    users = await usersService.listUsersByOrg(requestedOrgId, role);
+  } else {
+    users = await usersService.listUsersForBranchManager(actor, role);
   }
-
-  const users = await usersService.listUsersByOrg(orgId, role);
   sendSuccess(res, users);
 });
 

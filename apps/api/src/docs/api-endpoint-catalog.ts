@@ -38,6 +38,15 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     auth: false,
     validator: 'CompleteAccountActionSchema',
   }),
+  endpoint('get', '/api/v1/branches/me', 'branches'),
+  endpoint('patch', '/api/v1/branches/me', 'branches', {
+    validator: 'UpdateMyBranchSchema',
+  }),
+  endpoint('get', '/api/v1/branches/me/business-calendar', 'branches'),
+  endpoint('put', '/api/v1/branches/me/business-calendar', 'branches', {
+    validator: 'BusinessCalendarSchema',
+  }),
+  endpoint('get', '/api/v1/branches/analytics', 'branches'),
   endpoint('get', '/api/v1/branches', 'branches'),
   endpoint('post', '/api/v1/branches', 'branches', { validator: 'CreateBranchSchema' }),
   endpoint('get', '/api/v1/branches/audit', 'branches', {

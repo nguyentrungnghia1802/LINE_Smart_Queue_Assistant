@@ -6,14 +6,16 @@ import { useTranslation } from 'react-i18next';
 import { get } from '../../services/apiClient';
 import { buildLiffEntryUrl } from '../../services/liff/entryUrl';
 
-interface OrgInfo {
+interface BranchInfo {
   id: string;
   name: string;
-  slug: string;
-  publicQrToken: string | null;
-  joinUrl: string | null;
-  phone: string | null;
-  address: string | null;
+  public_qr_token: string;
+  phone: string;
+  postal_code: string;
+  prefecture: string;
+  city: string;
+  address_line1: string;
+  address_line2: string | null;
 }
 
 const LIFF_ID = import.meta.env.VITE_LIFF_ID as string | undefined;
@@ -22,19 +24,23 @@ export function ManagerQRPage() {
   const { t } = useTranslation(['manager', 'common']);
   const printRef = useRef<HTMLDivElement>(null);
 
-  // Fetch org info via authenticated endpoint
-  const { data: orgData, isLoading } = useQuery<OrgInfo>({
-    queryKey: ['manager-my-org'],
-    queryFn: () => get<OrgInfo>('/api/v1/orgs/my-org'),
+  const { data: branchData, isLoading } = useQuery<BranchInfo>({
+    queryKey: ['manager-my-branch'],
+    queryFn: () => get<BranchInfo>('/api/v1/branches/me'),
   });
 
-  const publicJoinUrl = orgData?.publicQrToken
-    ? `${window.location.origin}/qr/${orgData.publicQrToken}`
-    : (orgData?.joinUrl ?? `${window.location.origin}/join/demo`);
+  const publicJoinUrl = branchData?.public_qr_token
+    ? `${window.location.origin}/qr/${branchData.public_qr_token}`
+    : `${window.location.origin}/manager`;
 
-  const liffTarget = orgData?.publicQrToken ? `/liff/qr/${orgData.publicQrToken}` : '/liff/home';
+  const liffTarget = branchData?.public_qr_token
+    ? `/liff/qr/${branchData.public_qr_token}`
+    : '/liff/home';
   const liffUrl = buildLiffEntryUrl(LIFF_ID, liffTarget);
   const primaryCustomerUrl = liffUrl ?? publicJoinUrl;
+  const branchAddress = branchData
+    ? `〒${branchData.postal_code} ${branchData.prefecture}${branchData.city}${branchData.address_line1}${branchData.address_line2 ?? ''}`
+    : '';
 
   function handleCopy() {
     void navigator.clipboard.writeText(primaryCustomerUrl);
@@ -107,9 +113,11 @@ export function ManagerQRPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#06C755]">
                 {liffUrl ? t('qr.liffPrimary') : t('qr.publicFallback')}
               </p>
-              <h2 className="mt-3 text-2xl font-bold">{orgData?.name ?? t('qr.storeFallback')}</h2>
-              {orgData?.address && (
-                <p className="mt-2 text-sm leading-6 text-gray-300">{orgData.address}</p>
+              <h2 className="mt-3 text-2xl font-bold">
+                {branchData?.name ?? t('qr.storeFallback')}
+              </h2>
+              {branchAddress && (
+                <p className="mt-2 text-sm leading-6 text-gray-300">{branchAddress}</p>
               )}
               <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs text-gray-400">
@@ -127,11 +135,11 @@ export function ManagerQRPage() {
                 className="print-card flex w-full max-w-[340px] flex-col items-center rounded-2xl border border-gray-100 bg-white p-6 text-center shadow-sm"
               >
                 <p className="store-name text-lg font-extrabold text-gray-950">
-                  {orgData?.name ?? t('qr.storeFallback')}
+                  {branchData?.name ?? t('qr.storeFallback')}
                 </p>
-                {orgData?.address && (
+                {branchAddress && (
                   <p className="store-address mt-1 text-xs leading-5 text-gray-500">
-                    {orgData.address}
+                    {branchAddress}
                   </p>
                 )}
                 <div className="qr-frame mt-5 rounded-2xl border border-gray-100 bg-white p-4">

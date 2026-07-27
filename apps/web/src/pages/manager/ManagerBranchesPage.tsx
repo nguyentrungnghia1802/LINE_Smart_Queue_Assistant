@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
 import { del, get, post } from '../../services/apiClient';
 
@@ -15,7 +16,8 @@ type Branch = {
   address_line1: string;
   manager_count: number;
   staff_count: number;
-  queue_name: string;
+  queue_count: number;
+  queues: Array<{ id: string; name: string; status: string }>;
   managers: Array<{
     id: string;
     displayName: string;
@@ -155,9 +157,15 @@ export function ManagerBranchesPage() {
               </div>
               <div>
                 <dt className="text-gray-500">{t('branches.queue')}</dt>
-                <dd className="truncate font-bold">{branch.queue_name}</dd>
+                <dd className="truncate font-bold">{branch.queue_count}</dd>
               </div>
             </dl>
+            <Link
+              to={`/manager/branches/${branch.id}`}
+              className="mt-4 inline-flex text-sm font-bold text-brand-700"
+            >
+              {t('branches.viewDetails')}
+            </Link>
             <div className="mt-4 border-t pt-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase text-gray-500">

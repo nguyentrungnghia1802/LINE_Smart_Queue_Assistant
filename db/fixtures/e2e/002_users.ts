@@ -7,6 +7,7 @@ const demoUsers = [
   [USERS.ADMIN_1, '管理者デモ', 'admin@gmail.com', '0900000000', 'admin'],
   [USERS.MANAGER_1, 'マネージャーデモ', 'manager@gmail.com', '0900000001', 'manager'],
   [USERS.MANAGER_2, 'マネージャー二郎', 'manager2@gmail.com', '0900000002', 'manager'],
+  [USERS.MANAGER_3, 'マネージャー三郎', 'manager3@gmail.com', '0900000003', 'manager'],
   [USERS.STAFF_1, 'スタッフデモ', 'staff@gmail.com', '0900000011', 'staff'],
   [USERS.STAFF_2, 'スタッフ二郎', 'staff2@gmail.com', '0900000012', 'staff'],
   [USERS.STAFF_3, 'スタッフ三郎', 'staff3@gmail.com', '0900000013', 'staff'],
@@ -18,8 +19,9 @@ const demoUsers = [
 ] as const;
 
 const members = [
-  [USERS.MANAGER_1, 'manager', true],
-  [USERS.MANAGER_2, 'manager', false],
+  [USERS.MANAGER_1, 'manager', false],
+  [USERS.MANAGER_2, 'manager', true],
+  [USERS.MANAGER_3, 'manager', false],
   [USERS.STAFF_1, 'staff', false],
   [USERS.STAFF_2, 'staff', false],
   [USERS.STAFF_3, 'staff', false],
@@ -27,11 +29,9 @@ const members = [
 
 const branchMembers = [
   [BRANCHES.TOKYO_MAIN, USERS.MANAGER_1, 'manager'],
-  [BRANCHES.TOKYO_MAIN, USERS.MANAGER_2, 'manager'],
   [BRANCHES.TOKYO_MAIN, USERS.STAFF_1, 'staff'],
   [BRANCHES.TOKYO_MAIN, USERS.STAFF_2, 'staff'],
-  [BRANCHES.TOKYO_VIP, USERS.MANAGER_1, 'manager'],
-  [BRANCHES.TOKYO_VIP, USERS.MANAGER_2, 'manager'],
+  [BRANCHES.TOKYO_VIP, USERS.MANAGER_3, 'manager'],
   [BRANCHES.TOKYO_VIP, USERS.STAFF_3, 'staff'],
 ] as const;
 

@@ -9,6 +9,8 @@ import { resolveLocale } from '../../i18n/locale';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
+import { requireOrganizationOwner } from '../branches/branch-scope';
+import { branchesRepository, type BranchRow } from '../branches/branches.repository';
 
 import { buildOrganizationBookingUrl } from './org-booking-url';
 import { orgsService } from './orgs.service';
@@ -16,7 +18,7 @@ import { BusinessCalendarDto, UpdateOrgSettingsDto } from './orgs.validator';
 
 // ── Shared helper ─────────────────────────────────────────────────────────────
 
-async function buildOrgResponse(orgId: string, clientLocale?: string) {
+async function buildOrgResponse(orgId: string, clientLocale?: string, selectedBranch?: BranchRow) {
   const baseOrg = await organizationsRepository.findById(orgId);
   if (!baseOrg) throw AppError.notFound('Organization not found');
   const locale = resolveLocale({
@@ -26,20 +28,32 @@ async function buildOrgResponse(orgId: string, clientLocale?: string) {
   const org = await organizationsRepository.findLocalizedById(orgId, locale);
   if (!org) throw AppError.notFound('Organization not found');
 
-  const [queues, products] = await Promise.all([
-    queuesRepository.findOpenByOrg(org.id, locale),
-    productsRepository.findByOrg(org.id, locale),
+  const branch = selectedBranch ?? (await branchesRepository.findFirstByOrganization(org.id));
+  if (!branch) throw AppError.notFound('Organization branch not found');
+  const [queues, isBranchOpen] = await Promise.all([
+    queuesRepository.findActiveByBranches(org.id, [branch.id], locale),
+    branchesRepository.isOpenNow(branch.id),
   ]);
-
-  const queue = queues[0] ?? null;
-  let waitingCount = 0;
-  let avgWaitMinutes = 0;
-
-  if (queue) {
-    const waitingEntries = await queueEntriesRepository.listWaiting(queue.id);
-    waitingCount = waitingEntries.length;
-    avgWaitMinutes = Math.ceil((waitingCount * (queue.avg_service_seconds ?? 300)) / 60);
-  }
+  const queueCatalogs = await Promise.all(
+    queues.map(async (queue) => {
+      const [waitingCount, products] = await Promise.all([
+        queueEntriesRepository.countWaiting(queue.id),
+        productsRepository.findByQueue(queue.id, locale),
+      ]);
+      return {
+        id: queue.id,
+        name: queue.name,
+        description: queue.description,
+        prefix: queue.prefix,
+        status: queue.status,
+        isAcceptingBookings: isBranchOpen && queue.status === 'open',
+        waitingCount,
+        avgWaitMinutes: Math.ceil((waitingCount * (queue.avg_service_seconds ?? 300)) / 60),
+        products,
+      };
+    })
+  );
+  const queue = queueCatalogs[0] ?? null;
 
   return {
     org: {
@@ -57,14 +71,28 @@ async function buildOrgResponse(orgId: string, clientLocale?: string) {
       latitude: org.latitude,
       longitude: org.longitude,
       paymentInfo: org.payment_info,
-      publicQrToken: org.public_qr_token,
+      publicQrToken: branch.public_qr_token,
       defaultLocale: org.default_locale,
       locale,
     },
-    queue: queue
-      ? { id: queue.id, name: queue.name, prefix: queue.prefix, waitingCount, avgWaitMinutes }
-      : null,
-    products,
+    branch: {
+      id: branch.id,
+      name: branch.name,
+      code: branch.code,
+      phone: branch.phone,
+      email: branch.email,
+      postalCode: branch.postal_code,
+      prefecture: branch.prefecture,
+      city: branch.city,
+      addressLine1: branch.address_line1,
+      addressLine2: branch.address_line2,
+      timezone: branch.timezone,
+      publicQrToken: branch.public_qr_token,
+      isOpen: isBranchOpen,
+    },
+    queues: queueCatalogs,
+    queue,
+    products: queue?.products ?? [],
   };
 }
 
@@ -80,6 +108,16 @@ export const getOrgBySlug = asyncHandler(async (req: Request, res: Response) => 
 
 export const getOrgByToken = asyncHandler(async (req: Request, res: Response) => {
   const { token } = req.params;
+  const branch = await branchesRepository.findByPublicToken(token);
+  if (branch) {
+    const result = await buildOrgResponse(
+      branch.organization_id,
+      req.get('accept-language'),
+      branch
+    );
+    sendSuccess(res, result);
+    return;
+  }
   const org = await organizationsRepository.findByPublicToken(token);
   if (!org) throw AppError.notFound('Organization not found');
   const result = await buildOrgResponse(org.id, req.get('accept-language'));
@@ -90,13 +128,8 @@ export const getOrgByToken = asyncHandler(async (req: Request, res: Response) =>
 
 /** Manager's own org info including publicQrToken and join URL. */
 export const getManagerOrg = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = req.user?.organizationId;
-  if (!orgId) {
-    res
-      .status(400)
-      .json({ success: false, error: { code: 'NO_ORG', message: 'User has no organization' } });
-    return;
-  }
+  if (!req.user) throw AppError.unauthorized();
+  const orgId = requireOrganizationOwner(req.user);
 
   const org = await organizationsRepository.findById(orgId);
   if (!org) throw AppError.notFound('Organization not found');
@@ -129,15 +162,9 @@ export const getManagerOrg = asyncHandler(async (req: Request, res: Response) =>
 
 /** Manager updates their organization profile and payment information. */
 export const updateManagerOrg = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = req.user?.organizationId;
-  const actorUserId = req.user?.id;
-  if (!orgId || !actorUserId) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'NO_ORG', message: 'User has no organization' },
-    });
-    return;
-  }
+  if (!req.user) throw AppError.unauthorized();
+  const orgId = requireOrganizationOwner(req.user);
+  const actorUserId = req.user.id;
 
   const org = await orgsService.updateSettings(orgId, req.body as UpdateOrgSettingsDto, {
     actorUserId,
@@ -172,20 +199,19 @@ export const updateManagerOrg = asyncHandler(async (req: Request, res: Response)
 });
 
 export const getManagerBusinessCalendar = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.user?.organizationId) throw AppError.badRequest('Organization is not configured');
-  sendSuccess(res, await orgsService.getBusinessCalendar(req.user.organizationId));
+  if (!req.user) throw AppError.unauthorized();
+  sendSuccess(res, await orgsService.getBusinessCalendar(requireOrganizationOwner(req.user)));
 });
 
 export const updateManagerBusinessCalendar = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.user?.organizationId || !req.user.id) {
-    throw AppError.badRequest('Organization is not configured');
-  }
+  if (!req.user) throw AppError.unauthorized();
+  const organizationId = requireOrganizationOwner(req.user);
   sendSuccess(
     res,
-    await orgsService.updateBusinessCalendar(
-      req.user.organizationId,
-      req.body as BusinessCalendarDto,
-      { actorUserId: req.user.id, ipAddress: req.ip, userAgent: req.get('user-agent') }
-    )
+    await orgsService.updateBusinessCalendar(organizationId, req.body as BusinessCalendarDto, {
+      actorUserId: req.user.id,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    })
   );
 });

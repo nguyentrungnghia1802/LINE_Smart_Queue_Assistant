@@ -8,6 +8,6 @@ import { listStaffingRecommendations, listWaitForecasts } from './forecasts.cont
 
 export const forecastsRouter = Router();
 
-forecastsRouter.use(requireAuth, requireRole(UserRole.MANAGER, UserRole.ADMIN));
+forecastsRouter.use(requireAuth, requireRole(UserRole.MANAGER));
 forecastsRouter.get('/wait', listWaitForecasts);
 forecastsRouter.get('/staffing', listStaffingRecommendations);

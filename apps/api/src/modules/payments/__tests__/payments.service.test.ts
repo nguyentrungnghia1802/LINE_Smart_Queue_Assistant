@@ -3,6 +3,7 @@ import { organizationsRepository } from '../../../db/repositories/organizations.
 import { paymentTransactionsRepository } from '../../../db/repositories/payment-transactions.repository';
 import { productsRepository } from '../../../db/repositories/products.repository';
 import { queuesRepository } from '../../../db/repositories/queues.repository';
+import { branchesRepository } from '../../branches/branches.repository';
 import { canApplyPaymentEvent, paymentsService, resolveRefundState } from '../payments.service';
 
 jest.mock('../../../db/client', () => ({
@@ -15,15 +16,19 @@ jest.mock('../../../db/repositories/payment-transactions.repository');
 jest.mock('../../../db/repositories/organizations.repository');
 jest.mock('../../../db/repositories/products.repository');
 jest.mock('../../../db/repositories/queues.repository');
+jest.mock('../../branches/branches.repository');
 
 const org = {
   id: '11111111-1111-4111-8111-111111111111',
   slug: 'demo-shop',
 };
+const branchId = '66666666-6666-4666-8666-666666666661';
+const queueId = '33333333-3333-4333-8333-333333333331';
 
 const prepaidProduct = {
   id: '44444444-4444-4444-8444-444444444441',
   organization_id: org.id,
+  branch_id: branchId,
   name: '前払いサービス',
   price: '1500',
   is_active: true,
@@ -34,6 +39,7 @@ const prepaidProduct = {
 const normalProduct = {
   id: '44444444-4444-4444-8444-444444444442',
   organization_id: org.id,
+  branch_id: branchId,
   name: '通常商品',
   price: '500',
   is_active: true,
@@ -67,7 +73,16 @@ describe('paymentsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(organizationsRepository.findBySlug).mockResolvedValue(org as never);
-    jest.mocked(queuesRepository.findOpenByOrg).mockResolvedValue([{ id: 'queue-1' }] as never);
+    jest.mocked(queuesRepository.findById).mockResolvedValue({
+      id: queueId,
+      organization_id: org.id,
+      branch_id: branchId,
+      status: 'open',
+    } as never);
+    jest.mocked(branchesRepository.isOpenNow).mockResolvedValue(true);
+    jest
+      .mocked(productsRepository.findByQueue)
+      .mockResolvedValue([prepaidProduct, normalProduct] as never);
     jest.mocked(productsRepository.findById).mockImplementation(async (id: string) => {
       if (id === prepaidProduct.id) return prepaidProduct as never;
       if (id === normalProduct.id) return normalProduct as never;
@@ -86,6 +101,8 @@ describe('paymentsService', () => {
   it('creates a server-side payment intent from product prices and prepayment rules', async () => {
     const intent = await paymentsService.createIntent({
       orgSlug: org.slug,
+      branchId,
+      queueId,
       items: [
         { productId: prepaidProduct.id, quantity: 1 },
         { productId: normalProduct.id, quantity: 1 },
@@ -110,11 +127,13 @@ describe('paymentsService', () => {
   });
 
   it('does not create a payment intent when no queue is accepting bookings', async () => {
-    jest.mocked(queuesRepository.findOpenByOrg).mockResolvedValue([]);
+    jest.mocked(queuesRepository.findById).mockResolvedValue(null);
 
     await expect(
       paymentsService.createIntent({
         orgSlug: org.slug,
+        branchId,
+        queueId,
         items: [{ productId: prepaidProduct.id, quantity: 1 }],
         scope: 'required_items',
         provider: 'demo',
@@ -168,6 +187,21 @@ describe('paymentsService', () => {
   it('keeps partial refunds paid and marks full refunds refunded', () => {
     expect(resolveRefundState(1500, 500)).toEqual({ status: 'paid', refundedAmount: 500 });
     expect(resolveRefundState(1500, 1500)).toEqual({ status: 'refunded', refundedAmount: 1500 });
+  });
+
+  it('rejects reconciliation outside the manager assigned branch', async () => {
+    jest.mocked(paymentTransactionsRepository.findById).mockResolvedValue({
+      ...baseTransaction,
+      organization_id: org.id,
+      metadata: { branchId: 'branch-other', scope: 'all_items', coveredProductIds: [] },
+    } as never);
+
+    await expect(
+      paymentsService.reconcile(baseTransaction.id, {
+        organizationId: org.id,
+        branchId: 'branch-assigned',
+      })
+    ).rejects.toMatchObject({ statusCode: 403, code: 'FORBIDDEN' });
   });
 
   it('reconciles paid transactions to item state and derives the order state from all items', async () => {
