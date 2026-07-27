@@ -76,24 +76,22 @@ Clients branch on `error.code` and localize it. `error.message` is diagnostic te
 
 All paths require `admin`.
 
-| Method | Path                                                  | Purpose                                      |
-| ------ | ----------------------------------------------------- | -------------------------------------------- |
-| GET    | `/api/v1/admin/organizations`                         | List organizations                           |
-| PATCH  | `/api/v1/admin/organizations/:orgId`                  | Update organization                          |
-| DELETE | `/api/v1/admin/organizations/:orgId`                  | Soft-deactivate organization                 |
-| GET    | `/api/v1/admin/organizations/:orgId/managers`         | List managers                                |
-| POST   | `/api/v1/admin/organizations/:orgId/managers`         | Create manager/membership                    |
-| PATCH  | `/api/v1/admin/organizations/:orgId/managers/:userId` | Update manager profile/password/active state |
-| DELETE | `/api/v1/admin/organizations/:orgId/managers/:userId` | Deactivate manager/membership                |
+| Method | Path                                                  | Purpose                                                    |
+| ------ | ----------------------------------------------------- | ---------------------------------------------------------- |
+| GET    | `/api/v1/admin/organizations`                         | List organizations without tenant operational data         |
+| DELETE | `/api/v1/admin/organizations/:orgId`                  | Soft-deactivate organization and every tenant account      |
+| GET    | `/api/v1/admin/organizations/:orgId/managers`         | Read only the immutable organization-owner manager         |
+| PATCH  | `/api/v1/admin/organizations/:orgId/managers/:userId` | Recover/update only the organization-owner manager account |
 
 ### Organization service applications
 
-| Method | Path                                                       | Access                | Purpose                                                                          |
-| ------ | ---------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------------- |
-| POST   | `/api/v1/organization-applications`                        | Public, write-limited | Submit business/work-email/plan details with server demo price                   |
-| GET    | `/api/v1/organization-applications?status=...`             | Admin                 | List pending/approved/rejected applications                                      |
-| POST   | `/api/v1/organization-applications/:applicationId/approve` | Admin                 | Provision inactive tenant, main branch/queue, owner invitation, and email outbox |
-| POST   | `/api/v1/organization-applications/:applicationId/reject`  | Admin                 | Reject and demo-refund the reviewed application                                  |
+| Method | Path                                                       | Access                | Purpose                                                                        |
+| ------ | ---------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------ |
+| POST   | `/api/v1/organization-applications`                        | Public, write-limited | Submit business/work-email/plan details with server demo price                 |
+| GET    | `/api/v1/organization-applications?status=...`             | Admin                 | List pending/approved/rejected applications                                    |
+| PATCH  | `/api/v1/organization-applications/:applicationId`         | Admin                 | Correct original application fields while the application remains pending      |
+| POST   | `/api/v1/organization-applications/:applicationId/approve` | Admin                 | Provision inactive tenant, owner invitation, and email outbox; no branch/queue |
+| POST   | `/api/v1/organization-applications/:applicationId/reject`  | Admin                 | Reject and demo-refund the reviewed application                                |
 
 ### Organizations and public entry
 
@@ -106,18 +104,18 @@ All paths require `admin`.
 
 ### Branches and owner management
 
-| Method | Path                                          | Access         | Purpose                                                                                |
-| ------ | --------------------------------------------- | -------------- | -------------------------------------------------------------------------------------- |
-| GET    | `/api/v1/branches`                            | Owner manager  | List branches, managers, staff counts, and active queues                               |
-| POST   | `/api/v1/branches`                            | Owner manager  | Create branch within the subscribed plan, calendar, default queue, and manager invites |
-| GET    | `/api/v1/branches/analytics`                  | Owner manager  | Revenue trend, total/best/worst branch, and branch performance                         |
-| GET    | `/api/v1/branches/audit`                      | Owner manager  | Personnel and branch audit history                                                     |
-| POST   | `/api/v1/branches/:branchId/managers`         | Owner manager  | Invite another manager into the branch                                                 |
-| DELETE | `/api/v1/branches/:branchId/managers/:userId` | Owner manager  | Remove a non-owner manager while retaining at least one manager                        |
-| GET    | `/api/v1/branches/me`                         | Branch manager | Read only the assigned branch and its active queues                                    |
-| PATCH  | `/api/v1/branches/me`                         | Branch manager | Update assigned branch contact/address fields with audit                               |
-| GET    | `/api/v1/branches/me/business-calendar`       | Branch manager | Read weekly hours and exception dates                                                  |
-| PUT    | `/api/v1/branches/me/business-calendar`       | Branch manager | Replace validated branch calendar with audit                                           |
+| Method | Path                                          | Access         | Purpose                                                                                     |
+| ------ | --------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/branches`                            | Owner manager  | List branches, managers, staff counts, and active queues                                    |
+| POST   | `/api/v1/branches`                            | Owner manager  | Create branch within the plan with map coordinates, calendar, and manager invites; no queue |
+| GET    | `/api/v1/branches/analytics`                  | Owner manager  | Revenue trend, total/best/worst branch, and branch performance                              |
+| GET    | `/api/v1/branches/audit`                      | Owner manager  | Personnel and branch audit history                                                          |
+| POST   | `/api/v1/branches/:branchId/managers`         | Owner manager  | Invite another manager into the branch                                                      |
+| DELETE | `/api/v1/branches/:branchId/managers/:userId` | Owner manager  | Remove a non-owner manager while retaining at least one manager                             |
+| GET    | `/api/v1/branches/me`                         | Branch manager | Read only the assigned branch and its active queues                                         |
+| PATCH  | `/api/v1/branches/me`                         | Branch manager | Update assigned branch contact/address fields with audit                                    |
+| GET    | `/api/v1/branches/me/business-calendar`       | Branch manager | Read weekly hours and exception dates                                                       |
+| PUT    | `/api/v1/branches/me/business-calendar`       | Branch manager | Replace validated branch calendar with audit                                                |
 
 ### Products/services
 
@@ -125,16 +123,17 @@ All paths require `admin`.
 | ------ | ---------------------- | -------------- | ----------------------------------------------------- |
 | GET    | `/api/v1/products`     | Public/scoped  | Public query or assigned-branch manager/staff catalog |
 | GET    | `/api/v1/products/:id` | Public/scoped  | Product detail with branch checks for business actors |
-| POST   | `/api/v1/products`     | Branch manager | Create a branch product and assign at least one queue |
-| PATCH  | `/api/v1/products/:id` | Branch manager | Update assigned-branch product and queue mappings     |
+| POST   | `/api/v1/products`     | Branch manager | Create a product/service in the assigned branch       |
+| PATCH  | `/api/v1/products/:id` | Branch manager | Update an assigned-branch product/service             |
 | DELETE | `/api/v1/products/:id` | Branch manager | Soft-deactivate an assigned-branch product            |
 
 Product `imageUrl` accepts either an HTTP/HTTPS object-storage URL or a same-origin path returned by the media upload API (`/media/...` or `/mock-media/...`). Arbitrary relative paths and data URLs remain invalid. Validation responses use `VALIDATION_ERROR` with `details.fieldErrors`; manager product forms show the error code and affected field without exposing server internals.
 
 Product create, update, and deactivate operations write their authenticated branch-manager actor as audit type `user`, matching the canonical PostgreSQL `audit_actor_type` enum. Catalog writes invalidate every locale-aware organization cache key and public slug cache key so deleted products and prepayment changes are not served from stale catalog data.
 
-Product writes accept `queueIds` but no browser-authoritative organization or branch ID. The API
-derives scope from the branch-manager JWT and verifies every selected queue belongs to that branch.
+Product writes accept no browser-authoritative organization, branch, or queue IDs. The API derives
+scope from the branch-manager JWT. Queue create/update owns the selected `productIds` mapping and
+verifies every product belongs to that branch.
 Product validation rejects finite stock for `service` records and rejects
 `requiresPrepayment=true` when the price is zero. Payment and order item arrays reject duplicate
 product IDs. These rules keep Manager configuration compatible with checkout, inventory, and
@@ -145,14 +144,14 @@ database constraints.
 All paths require a non-owner branch manager with exactly one active branch assignment. The API
 does not accept `orgId` or `branchId` in queue write bodies.
 
-| Method | Path                        | Purpose                                                 |
-| ------ | --------------------------- | ------------------------------------------------------- |
-| GET    | `/api/v1/queues`            | List assigned-branch queues                             |
-| GET    | `/api/v1/queues/:id`        | Assigned-branch queue detail                            |
-| POST   | `/api/v1/queues`            | Create a named queue in the assigned branch             |
-| PATCH  | `/api/v1/queues/:id`        | Update name/description/status/capacity/service minutes |
-| PATCH  | `/api/v1/queues/:id/status` | Change queue status                                     |
-| DELETE | `/api/v1/queues/:id`        | Soft-delete unless it is the branch's last active queue |
+| Method | Path                        | Purpose                                                  |
+| ------ | --------------------------- | -------------------------------------------------------- |
+| GET    | `/api/v1/queues`            | List assigned-branch queues                              |
+| GET    | `/api/v1/queues/:id`        | Assigned-branch queue detail                             |
+| POST   | `/api/v1/queues`            | Create a named queue and its selected product catalog    |
+| PATCH  | `/api/v1/queues/:id`        | Update queue rules, absence grace, and selected products |
+| PATCH  | `/api/v1/queues/:id/status` | Change queue status                                      |
+| DELETE | `/api/v1/queues/:id`        | Soft-delete an assigned-branch queue                     |
 
 ### Customer ticket operations
 
@@ -189,7 +188,7 @@ routes. Every queue, entry, order, and product lookup is constrained by organiza
 | POST   | `/api/v1/staff/queues/:queueId/call-next` | Call next                                                                                           |
 | POST   | `/api/v1/staff/entries/:entryId/serve`    | Start service                                                                                       |
 | POST   | `/api/v1/staff/entries/:entryId/complete` | Complete service                                                                                    |
-| POST   | `/api/v1/staff/entries/:entryId/defer`    | Return a called late arrival behind all current waiting entries and call the next eligible ticket   |
+| POST   | `/api/v1/staff/entries/:entryId/defer`    | Record absence, move back three slots, or cancel/refund on the third absence; then auto-call next   |
 | POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                                                                        |
 | POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                                                                               |
 

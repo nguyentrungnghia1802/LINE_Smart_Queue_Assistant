@@ -305,7 +305,7 @@ describe('StaffDashboardPage', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: '順番を後ろに回す' }));
+    fireEvent.click(await screen.findByRole('button', { name: '3枠後ろへ移動' }));
 
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(

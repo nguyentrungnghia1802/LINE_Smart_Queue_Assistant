@@ -494,7 +494,7 @@ export const queueService = {
 
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
-    const queue = await assertEntryBelongsToOrg(entry, actorOrganizationId, params.actorBranchId);
+    await assertEntryBelongsToOrg(entry, actorOrganizationId, params.actorBranchId);
 
     if (entry.status !== 'called') {
       throw AppError.conflict(
@@ -504,12 +504,6 @@ export const queueService = {
 
     return withTransaction(async (client) => {
       const serving = await queueEntriesRepository.markServing(entryId, client);
-      await queueNotificationService.notifyTicketServing(
-        serving,
-        { organizationId: queue.organization_id },
-        notificationOutboxRepository,
-        client
-      );
       return serving;
     });
   },
@@ -579,8 +573,8 @@ export const queueService = {
   },
 
   /**
-   * Move a called customer behind everyone currently waiting. When another
-   * customer is available, call that next customer in the same transaction.
+   * Move an absent customer three places back. The third absence cancels the
+   * ticket, refunds collected payment, and calls the next waiting customer.
    */
   async deferCalledTicket(params: {
     entryId: string;
@@ -598,9 +592,58 @@ export const queueService = {
       const lockedQueue = await queuesRepository.lockById(queue.id, client);
       if (!lockedQueue) throw AppError.notFound('Queue');
       const waitingBeforeDefer = await queueEntriesRepository.listWaiting(queue.id, client);
-      const deferred = await queueEntriesRepository.deferCalledToBack(
+      const nextAbsenceCount = (entry.absence_count ?? 0) + 1;
+      if (nextAbsenceCount >= (lockedQueue.max_absence_count ?? 3)) {
+        const noShow = await queueEntriesRepository.markNoShow(params.entryId, client, true);
+        if (noShow.order_id) {
+          await paymentsService.refundOrderOnCancellationInClient({
+            orderId: noShow.order_id,
+            organizationId: queue.organization_id,
+            actorId: params.actorUserId,
+            reason: 'Queue ticket cancelled after repeated customer absence',
+            client,
+          });
+          await inventoryService.releaseOrder(
+            noShow.order_id,
+            client,
+            'customer_no_show',
+            params.actorUserId
+          );
+          await client.query(
+            `UPDATE orders
+             SET status = 'cancelled'
+             WHERE id = $1 AND status IN ('pending','processing')`,
+            [noShow.order_id]
+          );
+        }
+        await queueNotificationService.notifyTicketNoShow(
+          noShow,
+          { organizationId: queue.organization_id },
+          notificationOutboxRepository,
+          client
+        );
+        await queueEntriesRepository.archiveToHistory(
+          noShow,
+          'called',
+          'no_show',
+          'automatic_cancellation_after_repeated_absence',
+          client,
+          params.actorUserId
+        );
+        await tryAutoCallNextWaiting(lockedQueue, client);
+        return noShow;
+      }
+
+      const deferred = await queueEntriesRepository.deferCalledBySlots(
         params.entryId,
         queue.id,
+        lockedQueue.absence_deferral_slots ?? 3,
+        client
+      );
+      await queueNotificationService.notifyTicketDeferred(
+        deferred,
+        { organizationId: queue.organization_id },
+        notificationOutboxRepository,
         client
       );
       await queueEntriesRepository.archiveToHistory(
@@ -644,6 +687,13 @@ export const queueService = {
       if (!lockedQueue) throw AppError.notFound('Queue');
       const noShow = await queueEntriesRepository.markNoShow(entryId, client);
       if (noShow.order_id) {
+        await paymentsService.refundOrderOnCancellationInClient({
+          orderId: noShow.order_id,
+          organizationId: queue.organization_id,
+          actorId: params.actorUserId,
+          reason: 'Queue ticket marked as no-show',
+          client,
+        });
         await inventoryService.releaseOrder(
           noShow.order_id,
           client,

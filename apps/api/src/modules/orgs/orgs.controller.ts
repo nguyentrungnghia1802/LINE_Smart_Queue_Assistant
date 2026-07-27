@@ -86,6 +86,8 @@ async function buildOrgResponse(orgId: string, clientLocale?: string, selectedBr
       city: branch.city,
       addressLine1: branch.address_line1,
       addressLine2: branch.address_line2,
+      latitude: branch.latitude,
+      longitude: branch.longitude,
       timezone: branch.timezone,
       publicQrToken: branch.public_qr_token,
       isOpen: isBranchOpen,

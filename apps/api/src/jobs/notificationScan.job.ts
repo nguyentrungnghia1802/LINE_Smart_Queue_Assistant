@@ -53,7 +53,7 @@ const CALLED_RENOTIFY_MIN_AGE_SECONDS = 30;
  *
  * The window-function query returns only entries where
  * `1 ≤ ahead_count ≤ ETA_WARNING_THRESHOLD`. The notification service emits
- * only the configured milestones (currently 5 and 3 people ahead).
+ * only the configured milestone (currently 5 people ahead).
  *
  * `queueNotificationService.notifyEtaWarning` is idempotent because the
  * PostgreSQL outbox rejects duplicate event keys across scans and restarts.

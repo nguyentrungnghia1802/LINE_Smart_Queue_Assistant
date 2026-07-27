@@ -20,7 +20,7 @@ import {
   notificationOutboxRepository,
 } from './notification-outbox.repository';
 
-export const ETA_WARNING_POSITIONS = [5, 3] as const;
+export const ETA_WARNING_POSITIONS = [5] as const;
 export const ETA_WARNING_THRESHOLD = Math.max(...ETA_WARNING_POSITIONS);
 
 interface TicketNotificationSnapshot {
@@ -146,6 +146,22 @@ export const queueNotificationService = {
       { ...snapshot, aheadCount: snapshot.aheadCount ?? 0, estimatedWaitSeconds: 0 },
       repository,
       client
+    );
+  },
+
+  async notifyTicketDeferred(
+    entry: QueueEntryRow,
+    snapshot: TicketNotificationSnapshot = {},
+    repository: NotificationOutboxRepository = notificationOutboxRepository,
+    client?: PoolClient
+  ): Promise<void> {
+    await enqueueTicketNotification(
+      entry,
+      'deferred',
+      snapshot,
+      repository,
+      client,
+      `absence:${entry.absence_count ?? 1}`
     );
   },
 

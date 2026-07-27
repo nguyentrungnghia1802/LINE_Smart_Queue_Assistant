@@ -14,6 +14,8 @@ interface BranchInfo {
   city: string;
   address_line1: string;
   address_line2: string | null;
+  latitude: string | null;
+  longitude: string | null;
 }
 
 interface BusinessCalendar {
@@ -53,6 +55,8 @@ export function BranchManagerSettingsPage() {
     city: '',
     addressLine1: '',
     addressLine2: '',
+    latitude: '',
+    longitude: '',
   });
   const [calendar, setCalendar] = useState<BusinessCalendar | null>(null);
 
@@ -67,6 +71,8 @@ export function BranchManagerSettingsPage() {
       city: branch.data.city,
       addressLine1: branch.data.address_line1,
       addressLine2: branch.data.address_line2 ?? '',
+      latitude: branch.data.latitude ?? '',
+      longitude: branch.data.longitude ?? '',
     });
   }, [branch.data]);
 
@@ -80,6 +86,8 @@ export function BranchManagerSettingsPage() {
         ...form,
         email: form.email || null,
         addressLine2: form.addressLine2 || null,
+        latitude: form.latitude ? Number(form.latitude) : null,
+        longitude: form.longitude ? Number(form.longitude) : null,
       });
       if (calendar) {
         await put('/api/v1/branches/me/business-calendar', calendar);
@@ -104,6 +112,8 @@ export function BranchManagerSettingsPage() {
     ['city', t('branches.fields.city')],
     ['addressLine1', t('branches.fields.addressLine1')],
     ['addressLine2', t('branches.fields.addressLine2')],
+    ['latitude', t('branches.fields.latitude')],
+    ['longitude', t('branches.fields.longitude')],
   ] as const;
 
   return (
@@ -132,8 +142,16 @@ export function BranchManagerSettingsPage() {
               >
                 <span className="mb-1 block text-sm font-medium text-gray-700">{label}</span>
                 <input
-                  required={!['email', 'addressLine2'].includes(key)}
-                  type={key === 'email' ? 'email' : 'text'}
+                  required={!['email', 'addressLine2', 'latitude', 'longitude'].includes(key)}
+                  type={
+                    key === 'email'
+                      ? 'email'
+                      : ['latitude', 'longitude'].includes(key)
+                        ? 'number'
+                        : 'text'
+                  }
+                  step={['latitude', 'longitude'].includes(key) ? '0.000001' : undefined}
+                  placeholder={t(`branches.placeholders.${key}`)}
                   value={form[key]}
                   onChange={(event) =>
                     setForm((current) => ({ ...current, [key]: event.target.value }))
@@ -143,6 +161,16 @@ export function BranchManagerSettingsPage() {
               </label>
             ))}
           </div>
+          {form.latitude && form.longitude && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${form.latitude},${form.longitude}`)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-flex text-sm font-bold text-brand-700"
+            >
+              {t('branches.openMap')}
+            </a>
+          )}
         </section>
 
         <section className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">

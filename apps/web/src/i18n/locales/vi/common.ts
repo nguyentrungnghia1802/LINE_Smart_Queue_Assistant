@@ -92,6 +92,10 @@ export const common = {
     unlimited: 'Không giới hạn',
   },
   errors: {
+    AUTH_ACCOUNT_NOT_FOUND: 'Chưa có tài khoản nào được đăng ký bằng email này.',
+    AUTH_ACCOUNT_NOT_ACTIVATED: 'Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email mời.',
+    AUTH_ACCOUNT_DISABLED: 'Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.',
+    AUTH_INVALID_PASSWORD: 'Mật khẩu không chính xác.',
     UNAUTHORIZED: 'Bạn cần đăng nhập lại.',
     FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
     CUSTOMER_ACCOUNT_REQUIRED: 'Cần tài khoản khách hàng để bắt đầu tiếp nhận.',

@@ -155,7 +155,7 @@ describe('queueNotificationService durable outbox', () => {
     );
   });
 
-  it('uses a distinct durable event key for the three-people-ahead milestone', async () => {
+  it('does not enqueue non-configured ETA milestones', async () => {
     const repository = makeRepository();
     await queueNotificationService.notifyEtaWarning(
       makeEntry(),
@@ -165,13 +165,7 @@ describe('queueNotificationService durable outbox', () => {
       client
     );
 
-    expect(repository.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventKey: 'queue_entry:entry-001:eta_warning:ahead:3',
-        payload: expect.objectContaining({ aheadCount: 3 }),
-      }),
-      client
-    );
+    expect(repository.enqueue).not.toHaveBeenCalled();
   });
 
   it.each([

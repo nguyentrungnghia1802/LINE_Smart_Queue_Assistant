@@ -20,12 +20,6 @@ interface ProductRow {
   stock_quantity: number | null;
   product_type: 'product' | 'service';
   is_active: boolean;
-  queue_ids: string[];
-}
-
-interface QueueRow {
-  id: string;
-  name: string;
 }
 
 interface FormState {
@@ -39,7 +33,6 @@ interface FormState {
   stockQuantity: string;
   productType: 'product' | 'service';
   isActive: boolean;
-  queueIds: string[];
 }
 
 const empty: FormState = {
@@ -53,7 +46,6 @@ const empty: FormState = {
   stockQuantity: '',
   productType: 'service',
   isActive: true,
-  queueIds: [],
 };
 
 export function ManagerProductFormPage() {
@@ -90,11 +82,6 @@ export function ManagerProductFormPage() {
     queryFn: () => get<ProductRow>(`/api/v1/products/${id}`),
     enabled: isEdit,
   });
-  const { data: queues = [] } = useQuery<QueueRow[]>({
-    queryKey: ['manager-queues'],
-    queryFn: () => get<QueueRow[]>('/api/v1/queues'),
-  });
-
   useEffect(() => {
     if (existing) {
       setForm({
@@ -108,7 +95,6 @@ export function ManagerProductFormPage() {
         stockQuantity: existing.stock_quantity !== null ? String(existing.stock_quantity) : '',
         productType: existing.product_type ?? 'service',
         isActive: existing.is_active,
-        queueIds: existing.queue_ids ?? [],
       });
     }
   }, [existing]);
@@ -152,7 +138,6 @@ export function ManagerProductFormPage() {
       requiresPrepayment: form.requiresPrepayment,
       stockQuantity: form.stockQuantity ? parseInt(form.stockQuantity) : undefined,
       productType: form.productType,
-      queueIds: form.queueIds,
     };
     if (isEdit) dto.isActive = form.isActive;
     mutation.mutate(dto);
@@ -186,6 +171,7 @@ export function ManagerProductFormPage() {
             className={inputCls}
             required
             value={form.name}
+            placeholder={t('products.namePlaceholder')}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           />
         )}
@@ -215,6 +201,7 @@ export function ManagerProductFormPage() {
             className={inputCls}
             rows={3}
             value={form.description}
+            placeholder={t('products.descriptionPlaceholder')}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           />
         )}
@@ -250,6 +237,7 @@ export function ManagerProductFormPage() {
             min={form.requiresPrepayment ? 1 : 0}
             required
             value={form.price}
+            placeholder="3500"
             onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
           />
         )}
@@ -261,6 +249,7 @@ export function ManagerProductFormPage() {
             min={1}
             required
             value={form.serviceTimeMinutes}
+            placeholder="30"
             onChange={(e) => setForm((f) => ({ ...f, serviceTimeMinutes: e.target.value }))}
           />
         )}
@@ -271,6 +260,7 @@ export function ManagerProductFormPage() {
             type="number"
             min={1}
             value={form.maxWaitMinutes}
+            placeholder="60"
             onChange={(e) => setForm((f) => ({ ...f, maxWaitMinutes: e.target.value }))}
           />
         )}
@@ -282,34 +272,10 @@ export function ManagerProductFormPage() {
               type="number"
               min={0}
               value={form.stockQuantity}
+              placeholder="100"
               onChange={(e) => setForm((f) => ({ ...f, stockQuantity: e.target.value }))}
             />
           )}
-        {field(
-          t('products.queuesRequired'),
-          <div className="space-y-2 rounded-lg border border-gray-200 p-3">
-            {queues.map((queue) => (
-              <label key={queue.id} className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={form.queueIds.includes(queue.id)}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      queueIds: event.target.checked
-                        ? [...current.queueIds, queue.id]
-                        : current.queueIds.filter((queueId) => queueId !== queue.id),
-                    }))
-                  }
-                />
-                {queue.name}
-              </label>
-            ))}
-            {queues.length === 0 && (
-              <p className="text-xs text-amber-700">{t('products.queueRequiredHint')}</p>
-            )}
-          </div>
-        )}
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input
             type="checkbox"
@@ -349,7 +315,7 @@ export function ManagerProductFormPage() {
           </button>
           <button
             type="submit"
-            disabled={mutation.isPending || form.queueIds.length === 0}
+            disabled={mutation.isPending}
             className="px-6 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
           >
             {mutation.isPending
@@ -378,7 +344,6 @@ function productFieldLabel(t: (key: string) => string, field: string): string {
     serviceTimeMinutes: t('products.serviceTimeRequired'),
     maxWaitMinutes: t('products.maxWait'),
     stockQuantity: t('products.stockOptional'),
-    queueIds: t('products.queuesRequired'),
   };
 
   return labels[field] ?? field;

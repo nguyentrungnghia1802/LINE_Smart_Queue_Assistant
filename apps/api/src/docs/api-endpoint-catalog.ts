@@ -65,6 +65,12 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     validator: 'OrganizationApplicationListQuerySchema',
   }),
   endpoint(
+    'patch',
+    '/api/v1/organization-applications/{applicationId}',
+    'organization-applications',
+    { validator: 'UpdateOrganizationApplicationSchema' }
+  ),
+  endpoint(
     'post',
     '/api/v1/organization-applications/{applicationId}/approve',
     'organization-applications',
@@ -76,18 +82,11 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     'organization-applications',
     { validator: 'ReviewOrganizationApplicationSchema' }
   ),
-  endpoint('patch', '/api/v1/admin/organizations/{orgId}', 'admin', {
-    validator: 'UpdateOrganizationSchema',
-  }),
   endpoint('delete', '/api/v1/admin/organizations/{orgId}', 'admin'),
   endpoint('get', '/api/v1/admin/organizations/{orgId}/managers', 'admin'),
-  endpoint('post', '/api/v1/admin/organizations/{orgId}/managers', 'admin', {
-    validator: 'CreateManagerSchema',
-  }),
   endpoint('patch', '/api/v1/admin/organizations/{orgId}/managers/{userId}', 'admin', {
     validator: 'UpdateManagerSchema',
   }),
-  endpoint('delete', '/api/v1/admin/organizations/{orgId}/managers/{userId}', 'admin'),
 
   endpoint('get', '/api/v1/booking-groups/me', 'bookings', {
     pagination: true,

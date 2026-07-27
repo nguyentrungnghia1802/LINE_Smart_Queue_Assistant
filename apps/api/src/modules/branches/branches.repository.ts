@@ -15,6 +15,8 @@ export interface BranchRow {
   city: string;
   address_line1: string;
   address_line2: string | null;
+  latitude: string | null;
+  longitude: string | null;
   timezone: string;
   is_active: boolean;
   created_by: string | null;
@@ -284,7 +286,9 @@ export class BranchesRepository extends BaseRepository {
     return this.query<BranchAnalyticsRow>(
       `SELECT b.id AS branch_id,
               b.name AS branch_name,
-              COALESCE(SUM(o.subtotal) FILTER (WHERE o.payment_status = 'paid'), 0)::TEXT
+              COALESCE(SUM(o.subtotal) FILTER (
+                WHERE o.payment_status = 'paid' AND o.status = 'completed'
+              ), 0)::TEXT
                 AS total_revenue,
               COUNT(DISTINCT o.id)::INT AS order_count,
               COUNT(DISTINCT o.id) FILTER (WHERE o.status = 'cancelled')::INT
@@ -312,7 +316,9 @@ export class BranchesRepository extends BaseRepository {
   async revenueSeries(organizationId: string, days: number): Promise<BranchRevenuePointRow[]> {
     return this.query<BranchRevenuePointRow>(
       `SELECT series.day::DATE::TEXT AS revenue_date,
-              COALESCE(SUM(o.subtotal) FILTER (WHERE o.payment_status = 'paid'), 0)::TEXT
+              COALESCE(SUM(o.subtotal) FILTER (
+                WHERE o.payment_status = 'paid' AND o.status = 'completed'
+              ), 0)::TEXT
                 AS revenue
        FROM generate_series(
          CURRENT_DATE - ($2::INT - 1),
@@ -353,6 +359,8 @@ export class BranchesRepository extends BaseRepository {
       city: string;
       addressLine1: string;
       addressLine2?: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
       createdBy: string;
     },
     client: PoolClient
@@ -361,9 +369,9 @@ export class BranchesRepository extends BaseRepository {
       client,
       `INSERT INTO organization_branches (
          organization_id, name, code, phone, email, postal_code, prefecture,
-         city, address_line1, address_line2, created_by
+         city, address_line1, address_line2, latitude, longitude, created_by
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        RETURNING *`,
       [
         params.organizationId,
@@ -376,6 +384,8 @@ export class BranchesRepository extends BaseRepository {
         params.city,
         params.addressLine1,
         params.addressLine2 ?? null,
+        params.latitude ?? null,
+        params.longitude ?? null,
         params.createdBy,
       ]
     );
@@ -394,6 +404,8 @@ export class BranchesRepository extends BaseRepository {
       city?: string;
       addressLine1?: string;
       addressLine2?: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
     },
     client: PoolClient
   ): Promise<BranchRow | null> {
@@ -406,6 +418,8 @@ export class BranchesRepository extends BaseRepository {
       city: 'city',
       addressLine1: 'address_line1',
       addressLine2: 'address_line2',
+      latitude: 'latitude',
+      longitude: 'longitude',
     };
     const sets: string[] = [];
     const parameters: unknown[] = [];

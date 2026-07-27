@@ -55,6 +55,7 @@ const LEGACY_TYPE_BY_EVENT: Record<TicketNotificationEventType, string> = {
   completed: 'queue_served',
   cancelled: 'queue_cancelled',
   no_show: 'queue_no_show',
+  deferred: 'queue_skipped',
   location_warning: 'location_warning',
 };
 
