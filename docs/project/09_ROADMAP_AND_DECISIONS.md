@@ -204,7 +204,6 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 - Which Japan PSP is primary: Stripe, KOMOJU, PayPay, or a provider mix?
 - Is one LINE Official Account shared by the platform, or configured per organization?
 - What legally approved location consent, retention period, and deletion UX apply?
-- How should grouped repeat bookings appear in staff workload and customer history?
 - Receipt printing requires a completed, fully paid order; stock consumption occurs when service is completed.
 - What SLOs define acceptable booking latency, notification delay, and availability?
 - Should platform admin metrics include staff/user counts only, and which aggregate tenant health fields are allowed?
@@ -256,3 +255,35 @@ cart.
 service still validates database ownership. Organization-owner dashboards use aggregate branch
 metrics and do not expose customer-level operational records. Existing organization QR/calendar
 fields remain compatibility data while branch QR/calendar are authoritative for new booking flows.
+
+## ADR-019: Active LINE booking groups and immutable fulfillment receipts
+
+**Status:** accepted (2026-07-27)
+
+**Context:** A LINE customer may add reservations while earlier tickets are still active. Staff
+needs one coherent working view without mixing completed history, and receipts must retain the
+business/operator meaning even after branch or user profiles change.
+
+**Decision:** Keep every reservation as an independent order and ticket. The server, not the
+browser, reuses a booking group only for the same verified LINE identity and branch while the group
+contains active queue work. Staff presents those active orders together and excludes terminal
+history. Orders directly store branch/queue scope, immutable organization/branch/queue labels, and
+the staff identity captured at completion. Gross total, collected prepayment, refunds, and remaining
+balance remain separate receipt values.
+
+**Consequences:** Concurrent repeat booking uses a PostgreSQL advisory lock to avoid split groups.
+Historical commercial rows remain independently auditable. Snapshot columns intentionally duplicate
+display data so later profile edits do not rewrite old receipts.
+
+## ADR-020: Subscription branch limits and queue milestone notifications
+
+**Status:** accepted (2026-07-27)
+
+**Decision:** Define subscription limits in the shared package and enforce them inside the
+organization-locked branch creation transaction. Starter permits one branch, Standard permits three,
+and Scale is currently unlimited. Queue approach notifications use distinct durable event keys at
+exactly five and three people ahead. Auto-call runs through one queue-locked service and never calls
+a second customer while another ticket is called or serving.
+
+**Consequences:** UI limits are guidance only; backend enforcement is authoritative and safe under
+concurrent branch creation. Both ETA milestones survive retries without deduplicating each other.

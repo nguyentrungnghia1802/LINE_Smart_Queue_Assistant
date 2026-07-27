@@ -17,6 +17,7 @@ import { inventoryService } from '../../inventory/inventory.service';
 import { queueNotificationService } from '../../notifications/queue-notification.service';
 import { paymentsService } from '../../payments/payments.service';
 import { queueService } from '../../queue/queue.service';
+import { tryAutoCallNextWaiting } from '../../queue/queue-auto-call.service';
 import { staffService } from '../staff.service';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
@@ -39,6 +40,9 @@ jest.mock('../../payments/payments.service', () => ({
     }),
   },
 }));
+jest.mock('../../queue/queue-auto-call.service', () => ({
+  tryAutoCallNextWaiting: jest.fn().mockResolvedValue(null),
+}));
 jest.mock('../../queue/queue.service');
 
 // db/client must be mocked so repository module loads cleanly
@@ -54,6 +58,9 @@ jest.mock('../../../db/client', () => ({
 
 const mockFindQueueById = queuesRepository.findById as jest.MockedFunction<
   typeof queuesRepository.findById
+>;
+const mockLockQueueById = queuesRepository.lockById as jest.MockedFunction<
+  typeof queuesRepository.lockById
 >;
 const mockFindEntryById = queueEntriesRepository.findById as jest.MockedFunction<
   typeof queueEntriesRepository.findById
@@ -172,6 +179,7 @@ beforeEach(() => {
   // Audit log should succeed silently by default
   mockAuditCreate.mockResolvedValue(auditLogRow);
   mockFindQueueById.mockResolvedValue(baseQueue);
+  mockLockQueueById.mockResolvedValue(baseQueue);
   mockCountWaitingEntries.mockResolvedValue(0);
   mockCountActiveEntries.mockResolvedValue(0);
   mockWithTransaction.mockImplementation(async (fn) =>
@@ -389,6 +397,7 @@ describe('staffService.cancelEntry', () => {
       expect.anything(),
       expect.anything()
     );
+    expect(tryAutoCallNextWaiting).toHaveBeenCalledWith(baseQueue, expect.anything());
   });
 
   it('cancels a called entry', async () => {

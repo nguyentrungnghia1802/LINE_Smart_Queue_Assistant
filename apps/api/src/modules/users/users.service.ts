@@ -75,11 +75,8 @@ export const usersService = {
   async createStaff(actor: AuthUser, data: InviteStaffDto) {
     const scope = requireBranchManager(actor);
     const orgId = scope.organizationId;
-    if (data.branchId !== scope.branchId) {
-      throw AppError.forbidden('You cannot manage staff outside your assigned branch');
-    }
     return withTransaction(async (client) => {
-      const branch = await branchesRepository.findById(data.branchId, orgId, client);
+      const branch = await branchesRepository.findById(scope.branchId, orgId, client);
       if (!branch) throw AppError.notFound('Branch');
       if (await usersRepository.findByEmail(data.email, client)) {
         throw AppError.conflict('A user with this email already exists');
@@ -108,7 +105,7 @@ export const usersService = {
       await branchesRepository.assignMember(
         {
           organizationId: orgId,
-          branchId: data.branchId,
+          branchId: scope.branchId,
           userId: user.id,
           role: 'staff',
           assignedBy: actor.id,
@@ -132,7 +129,7 @@ export const usersService = {
         `INSERT INTO audit_logs
            (actor_id, action, resource_type, resource_id, organization_id, changes)
          VALUES ($1,'staff_invited','organization_member',$2,$3,$4)`,
-        [actor.id, user.id, orgId, JSON.stringify({ branchId: data.branchId })]
+        [actor.id, user.id, orgId, JSON.stringify({ branchId: scope.branchId })]
       );
       return user;
     });

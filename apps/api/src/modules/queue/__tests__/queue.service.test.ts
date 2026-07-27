@@ -17,6 +17,7 @@ jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
 jest.mock('../../inventory/inventory.service');
 jest.mock('../../notifications/queue-notification.service', () => ({
+  ETA_WARNING_POSITIONS: [5, 3],
   queueNotificationService: {
     notifyBookingCreated: jest.fn().mockResolvedValue(undefined),
     notifyTicketCancelled: jest.fn().mockResolvedValue(undefined),
@@ -354,7 +355,10 @@ describe('queueService.getMyTickets', () => {
 // ── cancelTicket ──────────────────────────────────────────────────────────────
 
 describe('queueService.cancelTicket', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockLockQueueById.mockResolvedValue(openQueue);
+  });
 
   it('cancels a waiting ticket the actor owns', async () => {
     mockFindEntryById.mockResolvedValue(waitingEntry);

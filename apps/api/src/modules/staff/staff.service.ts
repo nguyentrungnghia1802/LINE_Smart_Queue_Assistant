@@ -14,6 +14,7 @@ import { notificationOutboxRepository } from '../notifications/notification-outb
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { paymentsService } from '../payments/payments.service';
 import { queueService } from '../queue/queue.service';
+import { tryAutoCallNextWaiting } from '../queue/queue-auto-call.service';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -259,6 +260,8 @@ export const staffService = {
     }
 
     const cancelled = await withTransaction(async (client) => {
+      const lockedQueue = await queuesRepository.lockById(queue.id, client);
+      if (!lockedQueue) throw AppError.notFound('Queue');
       const updated = await queueEntriesRepository.markCancelled(entryId, client);
       if (updated.order_id) {
         await paymentsService.refundOrderOnCancellationInClient({
@@ -285,6 +288,7 @@ export const staffService = {
         notificationOutboxRepository,
         client
       );
+      await tryAutoCallNextWaiting(lockedQueue, client);
       return updated;
     });
     metricsService.increment('queue_cancelled_total');

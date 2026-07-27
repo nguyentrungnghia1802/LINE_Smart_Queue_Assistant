@@ -148,8 +148,27 @@ describe('queueNotificationService durable outbox', () => {
     expect(repository.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: 'eta_warning',
-        eventKey: 'queue_entry:entry-001:eta_warning',
+        eventKey: `queue_entry:entry-001:eta_warning:ahead:${ETA_WARNING_THRESHOLD}`,
         payload: expect.objectContaining({ aheadCount: ETA_WARNING_THRESHOLD }),
+      }),
+      client
+    );
+  });
+
+  it('uses a distinct durable event key for the three-people-ahead milestone', async () => {
+    const repository = makeRepository();
+    await queueNotificationService.notifyEtaWarning(
+      makeEntry(),
+      3,
+      { organizationId: 'org-001' },
+      repository,
+      client
+    );
+
+    expect(repository.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventKey: 'queue_entry:entry-001:eta_warning:ahead:3',
+        payload: expect.objectContaining({ aheadCount: 3 }),
       }),
       client
     );

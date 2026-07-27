@@ -260,6 +260,7 @@ export const manager = {
     jobTitleRequired: '役職 *',
     jobTitlePlaceholder: '受付担当',
     employeeCode: '社員番号（任意）',
+    employeeCodeRequired: '社員番号 *',
     branchRequired: '所属支店 *',
     selectBranch: '支店を選択',
   },

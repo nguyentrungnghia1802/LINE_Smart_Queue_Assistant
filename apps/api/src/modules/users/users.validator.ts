@@ -36,8 +36,7 @@ export const InviteStaffSchema = z.object({
   phone: JapanesePhoneSchema,
   currentAddress: z.string().trim().min(1).max(300),
   jobTitle: z.string().trim().min(1).max(120),
-  employeeCode: z.string().trim().max(50).nullable().optional(),
-  branchId: z.string().uuid(),
+  employeeCode: z.string().trim().min(1).max(50),
 });
 
 export const UpdateStaffSchema = z.object({
@@ -46,7 +45,7 @@ export const UpdateStaffSchema = z.object({
   phone: JapanesePhoneSchema.optional(),
   currentAddress: z.string().trim().min(1).max(300).optional(),
   jobTitle: z.string().trim().min(1).max(120).optional(),
-  employeeCode: z.string().trim().max(50).nullable().optional(),
+  employeeCode: z.string().trim().min(1).max(50).optional(),
 });
 
 export const UpdateStaffStatusSchema = z.object({ isActive: z.boolean() });

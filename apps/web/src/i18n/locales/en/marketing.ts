@@ -68,7 +68,7 @@ export const marketing = {
       description: 'For growing teams that need analytics.',
       badge: 'Recommended',
       features: [
-        'Up to 5 locations',
+        'Up to 3 locations',
         'Complete reception flow',
         'Analytics and ETA',
         'Priority support',

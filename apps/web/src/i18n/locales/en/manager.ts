@@ -261,6 +261,7 @@ export const manager = {
     jobTitleRequired: 'Job title *',
     jobTitlePlaceholder: 'Reception staff',
     employeeCode: 'Employee code (optional)',
+    employeeCodeRequired: 'Employee code *',
     branchRequired: 'Branch *',
     selectBranch: 'Select a branch',
   },

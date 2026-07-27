@@ -261,6 +261,7 @@ export const manager = {
     jobTitleRequired: 'Chức danh *',
     jobTitlePlaceholder: 'Nhân viên tiếp nhận',
     employeeCode: 'Mã nhân viên (không bắt buộc)',
+    employeeCodeRequired: 'Mã nhân viên *',
     branchRequired: 'Chi nhánh *',
     selectBranch: 'Chọn chi nhánh',
   },

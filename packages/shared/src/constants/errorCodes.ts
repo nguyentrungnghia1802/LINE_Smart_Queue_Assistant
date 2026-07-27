@@ -19,6 +19,7 @@ export const ERROR_CODES = {
   ORG_NOT_FOUND: 'ORG_NOT_FOUND',
   /** Org is in DISASTER or MAINTENANCE mode — operation rejected */
   ORG_OPERATION_SUSPENDED: 'ORG_OPERATION_SUSPENDED',
+  BRANCH_PLAN_LIMIT_REACHED: 'BRANCH_PLAN_LIMIT_REACHED',
 
   // ── Queue ──────────────────────────────────────────────
   QUEUE_NOT_FOUND: 'QUEUE_NOT_FOUND',

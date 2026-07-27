@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
-import { del, get, post } from '../../services/apiClient';
+import { ApiClientError, del, get, post } from '../../services/apiClient';
 
 type Branch = {
   id: string;
@@ -43,7 +43,7 @@ const initial = {
 };
 
 export function ManagerBranchesPage() {
-  const { t } = useTranslation('manager');
+  const { t } = useTranslation(['manager', 'common']);
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const [inviteBranchId, setInviteBranchId] = useState<string | null>(null);
@@ -236,7 +236,14 @@ export function ManagerBranchesPage() {
                 </label>
               ))}
             </div>
-            {create.error && <p className="mt-4 text-sm text-red-700">{create.error.message}</p>}
+            {create.error && (
+              <p className="mt-4 text-sm text-red-700">
+                {create.error instanceof ApiClientError &&
+                create.error.code === 'BRANCH_PLAN_LIMIT_REACHED'
+                  ? t('errors.BRANCH_PLAN_LIMIT_REACHED', { ns: 'common' })
+                  : create.error.message}
+              </p>
+            )}
             <div className="mt-6 flex justify-end gap-2">
               <button type="button" onClick={() => setOpen(false)} className="px-4 py-2">
                 {t('branches.cancel')}

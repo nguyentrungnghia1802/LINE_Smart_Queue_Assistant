@@ -10,21 +10,19 @@
  * ── Why polling instead of event-driven? ─────────────────────────────────────
  * At MVP scale with a single Express + PostgreSQL instance, interval polling
  * is operationally simpler than a message queue (no Redis) and resilient to
- * missed events (server restarts, in-flight request failures). The anti-
- * duplicate registry ensures each notification fires at most once even when
- * the scanner visits the same entry on successive cycles.
+ * missed events (server restarts, in-flight request failures). The durable
+ * event key ensures each notification is enqueued at most once even when the
+ * scanner visits the same entry on successive cycles.
  *
  * ── Jobs ─────────────────────────────────────────────────────────────────────
  * scanEtaWarnings  — Finds waiting entries within the ETA warning threshold
- *                    and pushes "you're almost up!" notifications. Skips the
+ *                    and enqueues "you're almost up!" notifications. Skips the
  *                    first-in-line entry (ahead_count = 0) — those customers
  *                    receive the "called" notification from staff action.
  *
- * scanCalledRenotify — Finds recently-called entries where initial delivery
- *                      may have failed (e.g. LINE API was temporarily down)
- *                      and re-attempts the push. On server restart the in-
- *                      memory log is cleared, so all currently-called entries
- *                      are re-notified — intentional "at-least-once" delivery.
+ * scanCalledRenotify — Re-enqueues the durable called event for recently
+ *                      called entries. The unique event key makes repeated
+ *                      scans and process restarts idempotent.
  */
 
 import { queueEntriesRepository } from '../db/repositories/queue-entries.repository';
@@ -41,25 +39,24 @@ const CALLED_RENOTIFY_MAX_AGE_MINUTES = 30;
 
 /**
  * Minimum age (seconds) before re-notifying a called entry.
- * Gives the initial delivery (fired synchronously by callNextTicket) time
- * to succeed before the scanner re-attempts.
+ * Gives the transition that initially enqueues the event time to commit before
+ * the scanner checks it again.
  */
 const CALLED_RENOTIFY_MIN_AGE_SECONDS = 30;
 
 // ── Scan: ETA warnings ────────────────────────────────────────────────────────
 
 /**
- * Scan waiting entries near the front of the queue and push ETA warnings.
+ * Scan waiting entries near the front of the queue and enqueue ETA warnings.
  *
  * Runs every `ETA_WARNING_INTERVAL_MS` (see scheduler.ts).
  *
  * The window-function query returns only entries where
- * `1 ≤ ahead_count ≤ ETA_WARNING_THRESHOLD`, so the first-in-line
- * (ahead_count = 0) is excluded.
+ * `1 ≤ ahead_count ≤ ETA_WARNING_THRESHOLD`. The notification service emits
+ * only the configured milestones (currently 5 and 3 people ahead).
  *
- * `queueNotificationService.notifyEtaWarning` is idempotent — the anti-
- * duplicate registry prevents duplicate pushes if the same entry appears on
- * successive scan cycles.
+ * `queueNotificationService.notifyEtaWarning` is idempotent because the
+ * PostgreSQL outbox rejects duplicate event keys across scans and restarts.
  *
  * Exported for direct invocation in integration tests and manual triggers
  * (`scheduler.runOnce()`).
@@ -83,18 +80,17 @@ export async function scanEtaWarnings(): Promise<void> {
 // ── Scan: Called re-notify ────────────────────────────────────────────────────
 
 /**
- * Re-send "your number is called" notifications for entries where the initial
- * push may have failed.
+ * Ensure the durable "your number is called" notification exists for recently
+ * called entries.
  *
  * Runs every `CALLED_RENOTIFY_INTERVAL_MS` (see scheduler.ts).
  *
  * Only entries called within `CALLED_RENOTIFY_MAX_AGE_MINUTES` and at least
  * `CALLED_RENOTIFY_MIN_AGE_SECONDS` ago are candidates. The buffer window
- * avoids racing with the synchronous delivery in `queueService.callNextTicket`.
+ * avoids racing with the transition that originally enqueues the event.
  *
- * `queueNotificationService.notifyTicketCalled` is idempotent — entries whose
- * initial delivery succeeded are skipped because `notificationLogRepository`
- * has already marked them as sent.
+ * `queueNotificationService.notifyTicketCalled` is idempotent through the
+ * notification outbox event-key constraint.
  *
  * Exported for direct invocation in integration tests and manual triggers.
  */

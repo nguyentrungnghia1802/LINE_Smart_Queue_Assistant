@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { PoolClient } from 'pg';
 
 import { config } from '../../config';
@@ -17,6 +19,7 @@ import { locationRepository } from '../location/location.repository';
 import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { paymentsService } from '../payments/payments.service';
+import { tryAutoCallNextWaiting } from '../queue/queue-auto-call.service';
 
 import { assertPaymentTransactionUnused, resolveOrderPaymentStatus } from './orders.payment';
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
@@ -226,20 +229,29 @@ export const ordersService = {
       );
       const ticketCode = `${queue.prefix ?? ''}${String(ticketNumber).padStart(3, '0')}`;
 
-      if (dto.bookingGroupId) {
-        const bookingGroupAccepted = await ordersRepository.ensureBookingGroup(
-          {
-            id: dto.bookingGroupId,
-            organizationId: org.id,
-            customerUserId: actorUserId,
-            customerLineUserId: actor?.lineUserId,
-            localDeviceKey: dto.localDeviceKey,
-          },
-          client
-        );
-        if (!bookingGroupAccepted) {
-          throw AppError.conflict('Booking group belongs to another organization');
-        }
+      const activeBookingGroupId = actor?.lineUserId
+        ? await ordersRepository.findActiveBookingGroupForLineUser(
+            org.id,
+            dto.branchId,
+            actor.lineUserId,
+            client
+          )
+        : null;
+      const bookingGroupId =
+        activeBookingGroupId ??
+        (actor?.lineUserId ? randomUUID() : (dto.bookingGroupId ?? randomUUID()));
+      const bookingGroupAccepted = await ordersRepository.ensureBookingGroup(
+        {
+          id: bookingGroupId,
+          organizationId: org.id,
+          customerUserId: actorUserId,
+          customerLineUserId: actor?.lineUserId,
+          localDeviceKey: dto.localDeviceKey,
+        },
+        client
+      );
+      if (!bookingGroupAccepted) {
+        throw AppError.conflict('Booking group belongs to another organization');
       }
 
       // Create queue entry (link to user if authenticated)
@@ -262,13 +274,15 @@ export const ordersService = {
       const order = await ordersRepository.create(
         {
           organizationId: org.id,
+          branchId: dto.branchId,
+          queueId: queue.id,
           orderNumber: orderNum,
           customerName: dto.customerName,
           customerUserId: actorUserId,
           customerLineUserId: actor?.lineUserId,
           customerPhone: dto.customerPhone,
           subtotal,
-          bookingGroupId: dto.bookingGroupId,
+          bookingGroupId,
           paymentStatus: orderPaymentStatus,
           paymentCode:
             paymentTransaction?.external_transaction_id ??
@@ -395,10 +409,12 @@ export const ordersService = {
         notificationOutboxRepository,
         client
       );
+      const autoCalled = await tryAutoCallNextWaiting(lockedQueue, client);
+      const finalEntry = autoCalled?.id === linkedEntry.id ? autoCalled : linkedEntry;
 
       await client.query('COMMIT');
       invalidateProductCatalog(org.id);
-      return { order: linkedOrder, entry: linkedEntry };
+      return { order: linkedOrder, entry: finalEntry };
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -508,6 +524,9 @@ export const ordersService = {
       const linkedEntry = order.queue_entry_id
         ? await queueEntriesRepository.findById(order.queue_entry_id, client)
         : null;
+      const lockedQueue = linkedEntry
+        ? await queuesRepository.lockById(linkedEntry.queue_id, client)
+        : null;
       if (linkedEntry && !['waiting', 'called'].includes(linkedEntry.status)) {
         throw AppError.conflict(
           `Order cannot be cancelled while queue entry is '${linkedEntry.status}'`
@@ -536,6 +555,9 @@ export const ordersService = {
           notificationOutboxRepository,
           client
         );
+        if (lockedQueue) {
+          await tryAutoCallNextWaiting(lockedQueue, client);
+        }
       }
 
       await client.query('COMMIT');

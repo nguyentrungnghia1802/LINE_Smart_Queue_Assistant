@@ -25,9 +25,15 @@ export interface BookingGroupSummary {
     items: Array<{
       id: string;
       product_name: string;
+      product_image_url: string | null;
+      product_price: string;
+      service_time_minutes: number;
       quantity: number;
       subtotal: string;
       payment_status: string;
+      prepaid_amount: string;
+      refunded_amount: string;
+      requires_prepayment_snapshot: boolean;
     }>;
   }>;
 }
@@ -57,11 +63,19 @@ function groupSelect(orderBranchParameter?: string): string {
                  SELECT jsonb_agg(jsonb_build_object(
                    'id', oi.id,
                    'product_name', oi.product_name,
+                   'product_image_url', product.image_url,
+                   'product_price', oi.product_price,
+                   'service_time_minutes', oi.service_time_minutes,
                    'quantity', oi.quantity,
                    'subtotal', oi.subtotal,
-                   'payment_status', oi.payment_status
+                   'payment_status', oi.payment_status,
+                   'prepaid_amount', oi.prepaid_amount,
+                   'refunded_amount', oi.refunded_amount,
+                   'requires_prepayment_snapshot', oi.requires_prepayment_snapshot
                  ) ORDER BY oi.created_at)
-                 FROM order_items oi WHERE oi.order_id = o.id
+                 FROM order_items oi
+                 LEFT JOIN products product ON product.id = oi.product_id
+                 WHERE oi.order_id = o.id
                ), '[]'::jsonb)
              ) ORDER BY o.created_at DESC
            )
