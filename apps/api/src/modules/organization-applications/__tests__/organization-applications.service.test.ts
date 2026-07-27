@@ -6,6 +6,7 @@ import { usersRepository } from '../../../db/repositories/users.repository';
 import { withTransaction } from '../../../db/transaction';
 import { issueAccountAction } from '../../account-lifecycle/account-lifecycle.service';
 import { branchesRepository } from '../../branches/branches.repository';
+import { emailOutboxRepository } from '../../email/email-outbox.repository';
 import {
   type OrganizationApplicationRow,
   organizationApplicationsRepository,
@@ -18,6 +19,7 @@ jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
 jest.mock('../../account-lifecycle/account-lifecycle.service');
 jest.mock('../../branches/branches.repository');
+jest.mock('../../email/email-outbox.repository');
 jest.mock('../organization-applications.repository');
 
 const mockFindPendingByEmail =
@@ -37,6 +39,9 @@ const mockFindByIdForUpdate =
   >;
 const mockMarkApproved = organizationApplicationsRepository.markApproved as jest.MockedFunction<
   typeof organizationApplicationsRepository.markApproved
+>;
+const mockMarkRejected = organizationApplicationsRepository.markRejected as jest.MockedFunction<
+  typeof organizationApplicationsRepository.markRejected
 >;
 const mockFindUserByEmail = usersRepository.findByEmail as jest.MockedFunction<
   typeof usersRepository.findByEmail
@@ -61,6 +66,9 @@ const mockCreateQueue = queuesRepository.create as jest.MockedFunction<
   typeof queuesRepository.create
 >;
 const mockIssueAction = issueAccountAction as jest.MockedFunction<typeof issueAccountAction>;
+const mockEnqueueEmail = emailOutboxRepository.enqueue as jest.MockedFunction<
+  typeof emailOutboxRepository.enqueue
+>;
 
 const APPLICATION_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const REVIEWER_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -139,6 +147,7 @@ describe('organizationApplicationsService', () => {
     mockFindPendingByEmail.mockResolvedValue(null);
     mockFindUserByEmail.mockResolvedValue(null);
     mockWithTransaction.mockImplementation(async (callback) => callback({} as PoolClient));
+    mockEnqueueEmail.mockResolvedValue({ id: 'email-id' } as never);
   });
 
   it('calculates demo payment server-side and returns no password hash', async () => {
@@ -159,7 +168,16 @@ describe('organizationApplicationsService', () => {
         workEmail: 'owner@example.jp',
         amountYen: 298_000,
         paymentReference: expect.stringMatching(/^demo-/),
-      })
+      }),
+      expect.anything()
+    );
+    expect(mockEnqueueEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventKey: `organization-application:${APPLICATION_ID}:submitted`,
+        recipientEmail: 'owner@example.jp',
+        templateKey: 'organization_application_submitted',
+      }),
+      expect.anything()
     );
   });
 
@@ -278,5 +296,39 @@ describe('organizationApplicationsService', () => {
       organizationApplicationsService.approve(APPLICATION_ID, REVIEWER_ID, {})
     ).rejects.toMatchObject({ statusCode: 409, code: 'CONFLICT' });
     expect(mockCreateOrganization).not.toHaveBeenCalled();
+  });
+
+  it('rejects and enqueues a localized applicant result email', async () => {
+    const application = makeApplication();
+    const rejected = makeApplication({
+      status: 'rejected',
+      reviewed_by: REVIEWER_ID,
+      reviewed_at: new Date(),
+      review_note: 'Missing business documents',
+      payment_status: 'refunded',
+    });
+    mockFindByIdForUpdate.mockResolvedValue(application);
+    mockMarkRejected.mockResolvedValue(rejected);
+
+    await expect(
+      organizationApplicationsService.reject(APPLICATION_ID, REVIEWER_ID, {
+        note: 'Missing business documents',
+      })
+    ).resolves.toEqual(rejected);
+
+    expect(mockMarkRejected).toHaveBeenCalledWith(
+      APPLICATION_ID,
+      REVIEWER_ID,
+      'Missing business documents',
+      expect.anything()
+    );
+    expect(mockEnqueueEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventKey: `organization-application:${APPLICATION_ID}:rejected`,
+        recipientEmail: application.work_email,
+        templateKey: 'organization_application_rejected',
+      }),
+      expect.anything()
+    );
   });
 });

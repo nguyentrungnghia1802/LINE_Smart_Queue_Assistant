@@ -85,7 +85,17 @@ export function BusinessRegistrationPage() {
     const monthly = PLAN_PRICES[form.planCode];
     return form.billingCycle === 'annual' ? monthly * 10 : monthly;
   }, [form.billingCycle, form.planCode]);
+  const locationCountNumber = Number(form.locationCount);
+  const recommendedPlan = useMemo<PlanCode>(() => {
+    if (!Number.isFinite(locationCountNumber) || locationCountNumber <= 1) return 'starter';
+    if (locationCountNumber <= 3) return 'standard';
+    return 'scale';
+  }, [locationCountNumber]);
   const maxLocations = getSubscriptionPlanBranchLimit(form.planCode);
+  const planCapacityExceeded =
+    maxLocations !== null &&
+    Number.isFinite(locationCountNumber) &&
+    locationCountNumber > maxLocations;
   const currency = useMemo(
     () =>
       new Intl.NumberFormat(i18n.resolvedLanguage ?? 'ja', {
@@ -108,6 +118,10 @@ export function BusinessRegistrationPage() {
 
   function nextStep() {
     if (!formRef.current?.reportValidity()) return;
+    if (step === 2 && planCapacityExceeded) {
+      setError(t('registration.planLimit.blocked'));
+      return;
+    }
     setError('');
     setStep((current) => Math.min(3, current + 1));
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -403,7 +417,7 @@ export function BusinessRegistrationPage() {
                     name="locationCount"
                     type="number"
                     min="1"
-                    max={String(maxLocations ?? 10000)}
+                    max="10000"
                     value={form.locationCount}
                     onChange={(value) => update('locationCount', value)}
                     required
@@ -430,6 +444,31 @@ export function BusinessRegistrationPage() {
                     ]}
                   />
                 </div>
+                <div
+                  className={`mt-5 rounded-lg border px-4 py-3 text-sm leading-6 ${
+                    planCapacityExceeded
+                      ? 'border-amber-300 bg-amber-50 text-amber-900'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                  }`}
+                >
+                  <p className="font-bold">
+                    {t('registration.planLimit.recommendation', {
+                      plan: t(`pricing.${recommendedPlan}.name`),
+                    })}
+                  </p>
+                  <p className="mt-1">
+                    {planCapacityExceeded
+                      ? t('registration.planLimit.exceeded', {
+                          plan: t(`pricing.${form.planCode}.name`),
+                          max: maxLocations,
+                          count: form.locationCount,
+                          recommended: t(`pricing.${recommendedPlan}.name`),
+                        })
+                      : t('registration.planLimit.available', {
+                          plan: t(`pricing.${form.planCode}.name`),
+                        })}
+                  </p>
+                </div>
                 <div className="mt-6 grid gap-3 sm:grid-cols-3">
                   {VALID_PLANS.map((plan) => (
                     <label
@@ -442,17 +481,7 @@ export function BusinessRegistrationPage() {
                         name="planCode"
                         value={plan}
                         checked={form.planCode === plan}
-                        onChange={() => {
-                          const limit = getSubscriptionPlanBranchLimit(plan);
-                          setForm((current) => ({
-                            ...current,
-                            planCode: plan,
-                            locationCount:
-                              limit !== null && Number(current.locationCount) > limit
-                                ? String(limit)
-                                : current.locationCount,
-                          }));
-                        }}
+                        onChange={() => update('planCode', plan)}
                       />
                       <span className="font-bold">{t(`pricing.${plan}.name`)}</span>
                       <span className="mt-2 block text-lg font-bold">
@@ -557,7 +586,7 @@ export function BusinessRegistrationPage() {
                 <button
                   type="button"
                   onClick={nextStep}
-                  disabled={isCompressing}
+                  disabled={isCompressing || (step === 2 && planCapacityExceeded)}
                   className="rounded-md bg-gray-950 px-5 py-2.5 text-sm font-bold text-white hover:bg-gray-800 disabled:opacity-50"
                 >
                   {t('registration.next')}

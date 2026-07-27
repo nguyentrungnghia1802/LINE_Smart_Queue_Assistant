@@ -64,6 +64,31 @@ describe('BusinessRegistrationPage', () => {
     expect(payload).not.toHaveProperty('password');
     expect(await screen.findByText('審査を受け付けました')).toBeInTheDocument();
   });
+
+  it('recommends a higher plan and blocks continuation when planned locations exceed the selected plan', () => {
+    render(
+      <MemoryRouter initialEntries={['/business/register?plan=standard']}>
+        <BusinessRegistrationPage />
+      </MemoryRouter>
+    );
+
+    fill('法人名・屋号（正式名称）', 'Tokyo Service Company');
+    fill('店舗・サービス名', 'Smart Reception Tokyo');
+    fill('担当者名', '田中 由紀');
+    fill(/会社メールアドレス/, 'owner@example.jp');
+    fill('電話番号', '0312345678');
+    fill('郵便番号', '100-0001');
+    fill('都道府県', '東京都');
+    fill('市区町村', '千代田区');
+    fill('番地・建物名', '千代田1-1');
+    fireEvent.click(screen.getByRole('button', { name: '次へ' }));
+
+    fill('導入予定拠点数', '5');
+
+    expect(screen.getByText(/Scale プランがおすすめ/)).toBeInTheDocument();
+    expect(screen.getByText(/Standard プランは最大 3 拠点まで/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '次へ' })).toBeDisabled();
+  });
 });
 
 function fill(label: string | RegExp, value: string) {

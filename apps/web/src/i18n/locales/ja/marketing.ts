@@ -133,6 +133,13 @@ export const marketing = {
       password: '10文字以上で設定してください。承認まで暗号化して保管します。',
       logo: 'PNG・JPEG・WebP。アップロード時に自動圧縮します。',
     },
+    planLimit: {
+      recommendation: '入力された拠点数には {{plan}} プランがおすすめです。',
+      available: '{{plan}} プランの拠点上限内です。',
+      exceeded:
+        '{{plan}} プランは最大 {{max}} 拠点までです。{{count}} 拠点で利用するには {{recommended}} プランを選択してください。',
+      blocked: '選択中のプランでは入力された拠点数を利用できません。',
+    },
     next: '次へ',
     previous: '戻る',
     submit: 'デモ決済して申し込む',

@@ -1,6 +1,10 @@
 import type { SupportedLocale } from '@line-queue/shared';
 
-export type EmailTemplateKey = 'account_activation' | 'password_reset';
+export type EmailTemplateKey =
+  | 'account_activation'
+  | 'password_reset'
+  | 'organization_application_submitted'
+  | 'organization_application_rejected';
 export type EmailDeliveryStatus = 'pending' | 'processing' | 'sent' | 'failed' | 'cancelled';
 
 export interface EmailMessage {
@@ -20,10 +24,15 @@ export interface IEmailAdapter {
 export interface EmailTemplateInput {
   templateKey: EmailTemplateKey;
   locale: SupportedLocale;
-  actionUrl: string;
+  actionUrl?: string;
   displayName: string;
   organizationName?: string;
   expiresIn?: string;
+  referenceCode?: string;
+  planName?: string;
+  locationCount?: string;
+  amountYen?: string;
+  reviewNote?: string;
 }
 
 export interface RenderedEmail {

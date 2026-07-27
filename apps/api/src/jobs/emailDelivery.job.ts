@@ -28,6 +28,10 @@ function actionUrl(row: EmailOutboxRow, token: string): string {
   return `${config.web.origin.replace(/\/+$/, '')}${path}?token=${encodeURIComponent(token)}`;
 }
 
+function requiresActionToken(row: EmailOutboxRow): boolean {
+  return row.template_key === 'account_activation' || row.template_key === 'password_reset';
+}
+
 export function calculateEmailRetryAt(attemptCount: number, now: Date): Date {
   const seconds = config.email.retryBaseSeconds * 2 ** Math.max(0, attemptCount - 1);
   return new Date(now.getTime() + seconds * 1000);
@@ -39,14 +43,21 @@ export async function deliverEmail(
 ): Promise<void> {
   const { repository, adapter, now } = options;
   try {
-    const token = decryptEmailActionToken(row.encrypted_action_token);
+    const token = requiresActionToken(row)
+      ? decryptEmailActionToken(row.encrypted_action_token)
+      : '';
     const rendered = renderAccountEmail({
       templateKey: row.template_key,
       locale: row.locale,
-      actionUrl: actionUrl(row, token),
+      actionUrl: requiresActionToken(row) ? actionUrl(row, token) : undefined,
       displayName: templateString(row, 'displayName', 'Customer'),
       organizationName: templateString(row, 'organizationName', 'Smart Queue Assistant'),
       expiresIn: templateString(row, 'expiresIn', ''),
+      referenceCode: templateString(row, 'referenceCode', ''),
+      planName: templateString(row, 'planName', ''),
+      locationCount: templateString(row, 'locationCount', ''),
+      amountYen: templateString(row, 'amountYen', ''),
+      reviewNote: templateString(row, 'reviewNote', ''),
     });
     await adapter.send({
       id: row.id,

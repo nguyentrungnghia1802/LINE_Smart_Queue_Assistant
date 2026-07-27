@@ -85,13 +85,13 @@ All paths require `admin`.
 
 ### Organization service applications
 
-| Method | Path                                                       | Access                | Purpose                                                                        |
-| ------ | ---------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------ |
-| POST   | `/api/v1/organization-applications`                        | Public, write-limited | Submit business/work-email/plan details with server demo price                 |
-| GET    | `/api/v1/organization-applications?status=...`             | Admin                 | List pending/approved/rejected applications                                    |
-| PATCH  | `/api/v1/organization-applications/:applicationId`         | Admin                 | Correct original application fields while the application remains pending      |
-| POST   | `/api/v1/organization-applications/:applicationId/approve` | Admin                 | Provision inactive tenant, owner invitation, and email outbox; no branch/queue |
-| POST   | `/api/v1/organization-applications/:applicationId/reject`  | Admin                 | Reject and demo-refund the reviewed application                                |
+| Method | Path                                                       | Access                | Purpose                                                                                    |
+| ------ | ---------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------ |
+| POST   | `/api/v1/organization-applications`                        | Public, write-limited | Submit business/work-email/plan details with server demo price and applicant receipt email |
+| GET    | `/api/v1/organization-applications?status=...`             | Admin                 | List pending/approved/rejected applications                                                |
+| PATCH  | `/api/v1/organization-applications/:applicationId`         | Admin                 | Correct original application fields while the application remains pending                  |
+| POST   | `/api/v1/organization-applications/:applicationId/approve` | Admin                 | Provision inactive tenant, owner invitation, and email outbox; no branch/queue             |
+| POST   | `/api/v1/organization-applications/:applicationId/reject`  | Admin                 | Reject, demo-refund, and email the reviewed application result                             |
 
 ### Organizations and public entry
 

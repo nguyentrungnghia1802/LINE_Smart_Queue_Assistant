@@ -66,7 +66,11 @@ export const CreateOrganizationApplicationSchema = OrganizationApplicationFields
   validatePlanCapacity(application, context);
 });
 
-export const UpdateOrganizationApplicationSchema = OrganizationApplicationFieldsSchema;
+export const UpdateOrganizationApplicationSchema = OrganizationApplicationFieldsSchema.superRefine(
+  (application, context) => {
+    validatePlanCapacity(application, context);
+  }
+);
 
 export const OrganizationApplicationIdParamSchema = z.object({
   applicationId: z.string().uuid(),

@@ -423,7 +423,7 @@ CREATE TABLE email_outbox (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   event_key TEXT NOT NULL UNIQUE,
   recipient_email TEXT NOT NULL,
-  template_key TEXT NOT NULL CHECK (template_key IN ('account_activation','password_reset')),
+  template_key TEXT NOT NULL CHECK (template_key IN ('account_activation','password_reset','organization_application_submitted','organization_application_rejected')),
   locale TEXT NOT NULL DEFAULT 'ja' CHECK (locale IN ('ja','vi','en')),
   template_data JSONB NOT NULL DEFAULT '{}',
   encrypted_action_token TEXT NOT NULL,

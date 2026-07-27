@@ -1,10 +1,13 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 
+import type { PoolClient } from 'pg';
+
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
 import { issueAccountAction } from '../account-lifecycle/account-lifecycle.service';
+import { emailOutboxRepository } from '../email/email-outbox.repository';
 
 import {
   type OrganizationApplicationRow,
@@ -21,6 +24,12 @@ const MONTHLY_PLAN_PRICES = {
   starter: 9_800,
   standard: 29_800,
   scale: 59_800,
+} as const;
+
+const PLAN_LABELS = {
+  starter: 'Starter',
+  standard: 'Standard',
+  scale: 'Scale',
 } as const;
 
 function calculateAmount(
@@ -48,6 +57,69 @@ function toSlugPart(value: string) {
 function buildOrganizationSlug(application: OrganizationApplicationRow) {
   const base = toSlugPart(application.trade_name) || 'organization';
   return `${base}-${application.reference_code.slice(-8).toLowerCase()}`;
+}
+
+function formatYen(amount: number, locale: string) {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'JPY',
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function emailLocale(locale: OrganizationApplicationRow['default_locale']) {
+  return locale || 'ja';
+}
+
+async function enqueueApplicationSubmittedEmail(
+  application: OrganizationApplicationRow,
+  client: PoolClient
+) {
+  const locale = emailLocale(application.default_locale);
+  await emailOutboxRepository.enqueue(
+    {
+      eventKey: `organization-application:${application.id}:submitted`,
+      recipientEmail: application.work_email,
+      templateKey: 'organization_application_submitted',
+      locale,
+      templateData: {
+        displayName: application.contact_name,
+        organizationName: application.trade_name,
+        referenceCode: application.reference_code,
+        planName: PLAN_LABELS[application.plan_code],
+        locationCount: String(application.location_count),
+        amountYen: formatYen(application.amount_yen, locale),
+      },
+      encryptedActionToken: '',
+    },
+    client
+  );
+}
+
+async function enqueueApplicationRejectedEmail(
+  application: OrganizationApplicationRow,
+  client: PoolClient
+) {
+  const locale = emailLocale(application.default_locale);
+  await emailOutboxRepository.enqueue(
+    {
+      eventKey: `organization-application:${application.id}:rejected`,
+      recipientEmail: application.work_email,
+      templateKey: 'organization_application_rejected',
+      locale,
+      templateData: {
+        displayName: application.contact_name,
+        organizationName: application.trade_name,
+        referenceCode: application.reference_code,
+        planName: PLAN_LABELS[application.plan_code],
+        locationCount: String(application.location_count),
+        amountYen: formatYen(application.amount_yen, locale),
+        reviewNote: application.review_note ?? '',
+      },
+      encryptedActionToken: '',
+    },
+    client
+  );
 }
 
 function assertPending(application: OrganizationApplicationRow | null) {
@@ -82,30 +154,37 @@ export const organizationApplicationsService = {
 
     let application: OrganizationApplicationRow;
     try {
-      application = await organizationApplicationsRepository.create({
-        referenceCode: buildReferenceCode(),
-        legalName: dto.legalName,
-        tradeName: dto.tradeName,
-        businessType: dto.businessType,
-        registrationNumber: dto.registrationNumber,
-        websiteUrl: dto.websiteUrl,
-        contactName: dto.contactName,
-        contactTitle: dto.contactTitle,
-        workEmail: dto.workEmail,
-        phone: dto.phone,
-        postalCode: dto.postalCode,
-        prefecture: dto.prefecture,
-        city: dto.city,
-        addressLine1: dto.addressLine1,
-        addressLine2: dto.addressLine2,
-        locationCount: dto.locationCount,
-        expectedMonthlyCustomers: dto.expectedMonthlyCustomers,
-        planCode: dto.planCode,
-        billingCycle: dto.billingCycle,
-        defaultLocale: dto.defaultLocale,
-        logoUrl: dto.logoUrl,
-        paymentReference: `demo-${randomUUID()}`,
-        amountYen: calculateAmount(dto.planCode, dto.billingCycle),
+      application = await withTransaction(async (client) => {
+        const created = await organizationApplicationsRepository.create(
+          {
+            referenceCode: buildReferenceCode(),
+            legalName: dto.legalName,
+            tradeName: dto.tradeName,
+            businessType: dto.businessType,
+            registrationNumber: dto.registrationNumber,
+            websiteUrl: dto.websiteUrl,
+            contactName: dto.contactName,
+            contactTitle: dto.contactTitle,
+            workEmail: dto.workEmail,
+            phone: dto.phone,
+            postalCode: dto.postalCode,
+            prefecture: dto.prefecture,
+            city: dto.city,
+            addressLine1: dto.addressLine1,
+            addressLine2: dto.addressLine2,
+            locationCount: dto.locationCount,
+            expectedMonthlyCustomers: dto.expectedMonthlyCustomers,
+            planCode: dto.planCode,
+            billingCycle: dto.billingCycle,
+            defaultLocale: dto.defaultLocale,
+            logoUrl: dto.logoUrl,
+            paymentReference: `demo-${randomUUID()}`,
+            amountYen: calculateAmount(dto.planCode, dto.billingCycle),
+          },
+          client
+        );
+        await enqueueApplicationSubmittedEmail(created, client);
+        return created;
       });
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -265,12 +344,14 @@ export const organizationApplicationsService = {
       const application = assertPending(
         await organizationApplicationsRepository.findByIdForUpdate(applicationId, client)
       );
-      return organizationApplicationsRepository.markRejected(
+      const rejectedApplication = await organizationApplicationsRepository.markRejected(
         application.id,
         reviewerId,
         dto.note ?? null,
         client
       );
+      await enqueueApplicationRejectedEmail(rejectedApplication, client);
+      return rejectedApplication;
     });
   },
 };

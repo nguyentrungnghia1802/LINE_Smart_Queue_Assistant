@@ -60,11 +60,16 @@ Organization
 | `pending` | Reject and demo-refund          | `rejected` | Platform admin  |
 
 Submission stores business/contact/address/usage/plan data and does not accept credentials or
-create a tenant. An admin may correct those submitted fields while the application is pending.
+create a tenant. The public form recommends a plan from the requested location count and blocks
+submission when the selected plan cannot support it; the API enforces the same rule for both public
+submission and admin correction. A submitted application enqueues an applicant email with the
+reference number, selected plan, requested locations, demo amount, and pending-review guidance.
+An admin may correct those submitted fields while the application is pending.
 Approval locks the application and atomically creates the inactive organization, invited
 owner-manager membership, single-use activation token, and email outbox row. It deliberately does
-not create a branch or queue. Rejection marks a paid demo application refunded. Reviewed
-applications cannot be processed twice.
+not create a branch or queue. Rejection marks a paid demo application refunded and enqueues a
+localized applicant email containing the review result and any admin note. Reviewed applications
+cannot be processed twice.
 
 ### Queue
 

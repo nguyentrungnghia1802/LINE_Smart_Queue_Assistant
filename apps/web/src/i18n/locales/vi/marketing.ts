@@ -144,6 +144,13 @@ export const marketing = {
       password: 'Tối thiểu 10 ký tự và được lưu dưới dạng mã băm trong thời gian chờ.',
       logo: 'PNG, JPEG hoặc WebP. Ảnh được tự động nén khi tải lên.',
     },
+    planLimit: {
+      recommendation: 'Với số địa điểm đã nhập, hệ thống đề xuất gói {{plan}}.',
+      available: 'Gói {{plan}} phù hợp với giới hạn địa điểm hiện tại.',
+      exceeded:
+        'Gói {{plan}} chỉ hỗ trợ tối đa {{max}} địa điểm. Với {{count}} địa điểm, hãy chọn gói {{recommended}}.',
+      blocked: 'Gói đang chọn không đủ cho số địa điểm đã nhập.',
+    },
     next: 'Tiếp theo',
     previous: 'Quay lại',
     submit: 'Thanh toán demo và gửi hồ sơ',

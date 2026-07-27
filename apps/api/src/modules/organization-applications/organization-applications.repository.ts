@@ -76,46 +76,50 @@ type UpdateApplicationParams = Omit<
 > & { amountYen: number };
 
 export class OrganizationApplicationsRepository extends BaseRepository {
-  async create(params: CreateApplicationParams): Promise<OrganizationApplicationRow> {
-    const rows = await this.query<OrganizationApplicationRow>(
-      `INSERT INTO organization_applications (
-         reference_code, legal_name, trade_name, business_type, registration_number,
-         website_url, contact_name, contact_title, work_email, phone, postal_code,
-         prefecture, city, address_line1, address_line2, location_count,
-         expected_monthly_customers, plan_code, billing_cycle, default_locale, logo_url,
-         payment_provider, payment_status, payment_reference, amount_yen
-       )
-       VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,
-         'demo','paid',$22,$23
-       )
-       RETURNING *`,
-      [
-        params.referenceCode,
-        params.legalName,
-        params.tradeName,
-        params.businessType,
-        params.registrationNumber ?? null,
-        params.websiteUrl ?? null,
-        params.contactName,
-        params.contactTitle ?? null,
-        params.workEmail,
-        params.phone,
-        params.postalCode,
-        params.prefecture,
-        params.city,
-        params.addressLine1,
-        params.addressLine2 ?? null,
-        params.locationCount,
-        params.expectedMonthlyCustomers,
-        params.planCode,
-        params.billingCycle,
-        params.defaultLocale,
-        params.logoUrl ?? null,
-        params.paymentReference,
-        params.amountYen,
-      ]
-    );
+  async create(
+    params: CreateApplicationParams,
+    client?: PoolClient
+  ): Promise<OrganizationApplicationRow> {
+    const sql = `INSERT INTO organization_applications (
+       reference_code, legal_name, trade_name, business_type, registration_number,
+       website_url, contact_name, contact_title, work_email, phone, postal_code,
+       prefecture, city, address_line1, address_line2, location_count,
+       expected_monthly_customers, plan_code, billing_cycle, default_locale, logo_url,
+       payment_provider, payment_status, payment_reference, amount_yen
+     )
+     VALUES (
+       $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,
+       'demo','paid',$22,$23
+     )
+     RETURNING *`;
+    const values = [
+      params.referenceCode,
+      params.legalName,
+      params.tradeName,
+      params.businessType,
+      params.registrationNumber ?? null,
+      params.websiteUrl ?? null,
+      params.contactName,
+      params.contactTitle ?? null,
+      params.workEmail,
+      params.phone,
+      params.postalCode,
+      params.prefecture,
+      params.city,
+      params.addressLine1,
+      params.addressLine2 ?? null,
+      params.locationCount,
+      params.expectedMonthlyCustomers,
+      params.planCode,
+      params.billingCycle,
+      params.defaultLocale,
+      params.logoUrl ?? null,
+      params.paymentReference,
+      params.amountYen,
+    ];
+    const rows = client
+      ? await this.queryTx<OrganizationApplicationRow>(client, sql, values)
+      : await this.query<OrganizationApplicationRow>(sql, values);
     return this.firstOrThrow(rows, 'organizationApplications.create');
   }
 

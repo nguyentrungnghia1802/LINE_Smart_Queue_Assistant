@@ -150,6 +150,13 @@ export const marketing = {
         'Use at least 10 characters. It is stored as a hash while the application is pending.',
       logo: 'PNG, JPEG, or WebP. Images are compressed automatically.',
     },
+    planLimit: {
+      recommendation: 'Based on the planned locations, we recommend the {{plan}} plan.',
+      available: 'The {{plan}} plan supports the planned location count.',
+      exceeded:
+        'The {{plan}} plan supports up to {{max}} locations. For {{count}} locations, choose {{recommended}}.',
+      blocked: 'The selected plan cannot support the planned location count.',
+    },
     next: 'Continue',
     previous: 'Back',
     submit: 'Complete demo payment and apply',
