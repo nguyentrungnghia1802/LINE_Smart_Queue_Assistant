@@ -33,7 +33,8 @@ This project solves that by moving the customer-facing flow into QR and LINE whi
 - Uses verified LINE identity in LIFF so queue notifications can be pushed to the customer's LINE chat.
 - Shows ticket code, current status, people ahead, ETA, selected items, and payment state.
 - Gives staff a queue workspace for calling, serving, completing, cancelling, marking no-show, updating payment, and printing receipts.
-- Gives managers organization tools for products, queues, QR, settings, users, analytics, and operations.
+- Gives organization owners branch/manager/audit/revenue oversight, while branch managers configure
+  products, multiple queues, staff, branch hours, and one branch QR.
 - Provides a public product site and business service application, then gives platform admins an
   approval-only organization onboarding workflow without exposing tenant customer/revenue data.
 - Keeps order, queue entry, payment transaction, and finite-stock inventory changes consistent through PostgreSQL transactions.
@@ -162,9 +163,8 @@ npm run docker:dev
 ```
 
 The development API container builds the shared workspace and applies pending database migrations
-before it starts. Seed data remains explicit: `npm run db:seed` creates only the baseline
-organization and development accounts. Run `npm run db:seed:demo` when catalog, queue, order, and
-notification fixtures are required.
+before it starts. Seed data remains explicit: `npm run db:seed` creates only the platform admin.
+Run `npm run db:fixture:e2e` only when isolated browser-test fixtures are required.
 
 Development URLs:
 
@@ -188,29 +188,28 @@ The web app proxies `/api` to the API on port `4000`. If the API is not running,
 
 ## Demo data
 
-The default seed creates the organization, operational accounts, and memberships only. It intentionally leaves
-products, queues, orders, tickets, payments, and notifications empty so stale transactional
-fixtures cannot affect development. The main local accounts use password `123456`:
+The default seed creates only the platform administrator. It intentionally leaves organizations,
+branches, managers, staff, customers, products, queues, orders, tickets, payments, and
+notifications empty so a fresh local or server database starts from the real onboarding flow.
+The local default password is `123456`; production seeding requires `SEED_ADMIN_PASSWORD`.
 
-| Role    | Email               |
-| ------- | ------------------- |
-| Admin   | `admin@gmail.com`   |
-| Manager | `manager@gmail.com` |
-| Staff   | `staff@gmail.com`   |
+| Role  | Email             |
+| ----- | ----------------- |
+| Admin | `admin@gmail.com` |
 
 Customer email/password login is intentionally disabled. Local customer flows use the LIFF mock
 identity, while production customer flows use a verified LINE ID token.
 
-Public demo paths:
+The isolated E2E fixture creates these demo paths:
 
 - QR token: `demo-queue-lab-2026`
 - Customer entry: `http://localhost:5173/qr/demo-queue-lab-2026` (redirects into the local LIFF mock)
 - LIFF mock booking path: `/liff/qr/demo-queue-lab-2026`
 
-Create the optional full demonstration dataset with:
+Create the isolated browser-test dataset with:
 
 ```bash
-npm run db:seed:demo
+npm run db:fixture:e2e
 ```
 
 For local work without real LINE credentials:

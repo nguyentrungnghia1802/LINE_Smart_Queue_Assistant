@@ -8,13 +8,19 @@ import {
   requireRole,
   validate,
 } from '../../middlewares';
+import { BusinessCalendarSchema } from '../orgs/orgs.validator';
 
 import {
   createBranch,
+  getMyBranch,
+  getMyBranchBusinessCalendar,
+  getOrganizationBranchAnalytics,
   inviteBranchManager,
   listBranches,
   listOrganizationAudit,
   removeBranchManager,
+  updateMyBranch,
+  updateMyBranchBusinessCalendar,
 } from './branches.controller';
 import {
   AuditLogQuerySchema,
@@ -22,11 +28,27 @@ import {
   BranchManagerParamSchema,
   CreateBranchSchema,
   InviteBranchManagerSchema,
+  UpdateMyBranchSchema,
 } from './branches.validator';
 
 export const branchesRouter = Router();
 
 branchesRouter.use(requireAuth, requireRole(UserRole.MANAGER));
+branchesRouter.get('/me', getMyBranch);
+branchesRouter.patch(
+  '/me',
+  authenticatedActionRateLimiter,
+  validate(UpdateMyBranchSchema),
+  updateMyBranch
+);
+branchesRouter.get('/me/business-calendar', getMyBranchBusinessCalendar);
+branchesRouter.put(
+  '/me/business-calendar',
+  authenticatedActionRateLimiter,
+  validate(BusinessCalendarSchema),
+  updateMyBranchBusinessCalendar
+);
+branchesRouter.get('/analytics', getOrganizationBranchAnalytics);
 branchesRouter.get('/', listBranches);
 branchesRouter.get('/audit', validate(AuditLogQuerySchema, 'query'), listOrganizationAudit);
 branchesRouter.post(

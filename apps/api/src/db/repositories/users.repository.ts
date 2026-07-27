@@ -142,6 +142,40 @@ export class UsersRepository extends BaseRepository {
     return this.firstOrThrow(rows, 'users.createWithPassword');
   }
 
+  async findByBranchAndRole(branchId: string, role?: string): Promise<UserRow[]> {
+    const roleClause = role ? 'AND u.role = $2' : '';
+    const params: unknown[] = role ? [branchId, role] : [branchId];
+    return this.query<UserRow>(
+      `SELECT u.*
+       FROM users u
+       JOIN branch_memberships bm
+         ON bm.user_id = u.id
+        AND bm.deactivated_at IS NULL
+       WHERE bm.branch_id = $1
+         ${roleClause}
+       ORDER BY u.created_at DESC`,
+      params
+    );
+  }
+
+  async findAssignedBranchId(
+    organizationId: string,
+    userId: string,
+    client?: PoolClient
+  ): Promise<string | null> {
+    const sql = `SELECT branch_id
+                 FROM branch_memberships
+                 WHERE organization_id = $1
+                   AND user_id = $2
+                   AND deactivated_at IS NULL
+                 ORDER BY assigned_at
+                 LIMIT 1`;
+    const rows = client
+      ? await this.queryTx<{ branch_id: string }>(client, sql, [organizationId, userId])
+      : await this.query<{ branch_id: string }>(sql, [organizationId, userId]);
+    return rows[0]?.branch_id ?? null;
+  }
+
   async createInvited(
     params: {
       displayName: string;

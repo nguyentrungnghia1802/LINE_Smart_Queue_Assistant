@@ -74,14 +74,15 @@ export async function seed(client: PoolClient): Promise<void> {
 
   await client.query(
     `INSERT INTO organization_branches (
-       id, organization_id, name, code, phone, email, postal_code, prefecture,
+       id, organization_id, public_qr_token, name, code, phone, email, postal_code, prefecture,
        city, address_line1, timezone, is_active
      ) VALUES
-       ($2, $1, '東京本店', 'tokyo-main', '0900000000', 'tokyo@example.com',
+       ($2, $1, $4, '東京本店', 'tokyo-main', '0900000000', 'tokyo@example.com',
         '100-0001', '東京都', '千代田区', '千代田1-1', 'Asia/Tokyo', TRUE),
-       ($3, $1, '東京優先受付', 'tokyo-vip', '0900000000', 'tokyo@example.com',
+       ($3, $1, 'demo-queue-vip-2026', '東京優先受付', 'tokyo-vip', '0900000000', 'tokyo@example.com',
         '100-0001', '東京都', '千代田区', '千代田1-1', 'Asia/Tokyo', TRUE)
      ON CONFLICT (id) DO UPDATE SET
+       public_qr_token = EXCLUDED.public_qr_token,
        name = EXCLUDED.name,
        code = EXCLUDED.code,
        phone = EXCLUDED.phone,
@@ -93,6 +94,20 @@ export async function seed(client: PoolClient): Promise<void> {
        timezone = EXCLUDED.timezone,
        is_active = TRUE,
        updated_at = NOW()`,
-    [ORG_ID, BRANCHES.TOKYO_MAIN, BRANCHES.TOKYO_VIP]
+    [ORG_ID, BRANCHES.TOKYO_MAIN, BRANCHES.TOKYO_VIP, PUBLIC_QR_TOKEN]
+  );
+  await client.query(
+    `INSERT INTO branch_business_hours
+       (branch_id, weekday, is_closed, opens_at, closes_at)
+     SELECT branch.id, day, day = 0,
+            CASE WHEN day = 0 THEN NULL ELSE '09:00'::time END,
+            CASE WHEN day = 0 THEN NULL ELSE '18:00'::time END
+     FROM UNNEST($1::uuid[]) AS branch(id)
+     CROSS JOIN generate_series(0, 6) AS day
+     ON CONFLICT (branch_id, weekday) DO UPDATE SET
+       is_closed = EXCLUDED.is_closed,
+       opens_at = EXCLUDED.opens_at,
+       closes_at = EXCLUDED.closes_at`,
+    [[BRANCHES.TOKYO_MAIN, BRANCHES.TOKYO_VIP]]
   );
 }

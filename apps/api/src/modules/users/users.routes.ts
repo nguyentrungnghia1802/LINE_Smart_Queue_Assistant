@@ -44,7 +44,7 @@ usersRouter.patch(
 usersRouter.post(
   '/staff',
   requireAuth,
-  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.MANAGER),
   authenticatedActionRateLimiter,
   validate(InviteStaffSchema),
   createStaff
@@ -52,7 +52,7 @@ usersRouter.post(
 usersRouter.patch(
   '/staff/:userId/status',
   requireAuth,
-  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.MANAGER),
   authenticatedActionRateLimiter,
   validate(StaffUserParamSchema, 'params'),
   validate(UpdateStaffStatusSchema),
@@ -61,7 +61,7 @@ usersRouter.patch(
 usersRouter.patch(
   '/staff/:userId',
   requireAuth,
-  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.MANAGER),
   authenticatedActionRateLimiter,
   validate(StaffUserParamSchema, 'params'),
   validate(UpdateStaffSchema),
@@ -70,7 +70,7 @@ usersRouter.patch(
 usersRouter.delete(
   '/staff/:userId',
   requireAuth,
-  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.MANAGER),
   authenticatedActionRateLimiter,
   validate(StaffUserParamSchema, 'params'),
   removeStaff

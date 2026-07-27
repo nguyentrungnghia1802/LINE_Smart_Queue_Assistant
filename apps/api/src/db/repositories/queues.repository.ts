@@ -195,7 +195,7 @@ export class QueuesRepository extends BaseRepository {
       description: string | undefined;
       status: string;
       maxCapacity: number | undefined;
-      avgServiceMs: number | undefined;
+      avgServiceSeconds: number | undefined;
     }>
   ): Promise<QueueRow | null> {
     const sets: string[] = [];
@@ -218,9 +218,9 @@ export class QueuesRepository extends BaseRepository {
       sets.push(`max_capacity = $${idx++}`);
       values.push(params.maxCapacity);
     }
-    if (params.avgServiceMs !== undefined) {
+    if (params.avgServiceSeconds !== undefined) {
       sets.push(`avg_service_seconds = $${idx++}`);
-      values.push(Math.floor(params.avgServiceMs / 1000));
+      values.push(params.avgServiceSeconds);
     }
 
     if (sets.length === 0) return this.findById(id);

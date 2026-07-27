@@ -2,7 +2,9 @@ import type { SupportedLocale } from '@line-queue/shared';
 
 import { auditLogRepository } from '../../db/repositories/audit-log.repository';
 import { productsRepository } from '../../db/repositories/products.repository';
+import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
+import type { BranchManagerScope } from '../branches/branch-scope';
 
 import { CreateProductDto, UpdateProductDto } from './products.validator';
 
@@ -21,14 +23,36 @@ export const productsService = {
     return productsRepository.findByOrgSlug(slug, locale);
   },
 
+  async getByBranch(branchId: string, locale: SupportedLocale = 'ja') {
+    return productsRepository.findByBranch(branchId, locale);
+  },
+
   async getById(id: string) {
     const product = await productsRepository.findById(id);
     if (!product) throw AppError.notFound('Product not found');
     return product;
   },
 
-  async create(orgId: string, dto: CreateProductDto, audit?: AuditContext) {
-    const product = await productsRepository.create({ organizationId: orgId, ...dto });
+  async create(scope: BranchManagerScope, dto: CreateProductDto, audit?: AuditContext) {
+    const { queueIds, ...productFields } = dto;
+    const product = await withTransaction(async (client) => {
+      const created = await productsRepository.create(
+        {
+          organizationId: scope.organizationId,
+          branchId: scope.branchId,
+          ...productFields,
+        },
+        client
+      );
+      try {
+        await productsRepository.syncQueueAssignments(created, queueIds, client);
+      } catch {
+        throw AppError.unprocessable('Product queues must belong to the assigned branch', {
+          fieldErrors: { queueIds: ['Select active queues from your assigned branch'] },
+        });
+      }
+      return created;
+    });
 
     if (audit) {
       await auditLogRepository.create({
@@ -37,7 +61,7 @@ export const productsService = {
         action: 'product.create',
         resourceType: 'product',
         resourceId: product.id,
-        organizationId: orgId,
+        organizationId: scope.organizationId,
         changes: { new: dto },
         ipAddress: audit.ipAddress,
         userAgent: audit.userAgent,
@@ -47,10 +71,12 @@ export const productsService = {
     return product;
   },
 
-  async update(id: string, orgId: string, dto: UpdateProductDto, audit?: AuditContext) {
+  async update(id: string, scope: BranchManagerScope, dto: UpdateProductDto, audit?: AuditContext) {
     const product = await productsRepository.findById(id);
     if (!product) throw AppError.notFound('Product not found');
-    if (product.organization_id !== orgId) throw AppError.forbidden();
+    if (product.organization_id !== scope.organizationId || product.branch_id !== scope.branchId) {
+      throw AppError.forbidden('Product is outside your assigned branch');
+    }
     if (
       (dto.requiresPrepayment ?? product.requires_prepayment) &&
       (dto.price ?? Number(product.price)) <= 0
@@ -65,11 +91,25 @@ export const productsService = {
         fieldErrors: { stockQuantity: ['Services must use unlimited stock'] },
       });
     }
+    const { queueIds, ...productChanges } = dto;
     const normalizedDto = {
-      ...dto,
+      ...productChanges,
       ...(nextProductType === 'service' ? { stockQuantity: null } : {}),
     };
-    const updated = await productsRepository.update(id, normalizedDto);
+    const updated = await withTransaction(async (client) => {
+      const result = await productsRepository.update(id, normalizedDto, client);
+      if (!result) throw AppError.notFound('Product not found');
+      if (queueIds) {
+        try {
+          await productsRepository.syncQueueAssignments(result, queueIds, client);
+        } catch {
+          throw AppError.unprocessable('Product queues must belong to the assigned branch', {
+            fieldErrors: { queueIds: ['Select active queues from your assigned branch'] },
+          });
+        }
+      }
+      return result;
+    });
     if (!updated) throw AppError.notFound('Product not found');
 
     if (audit) {
@@ -79,7 +119,7 @@ export const productsService = {
         action: 'product.update',
         resourceType: 'product',
         resourceId: id,
-        organizationId: orgId,
+        organizationId: scope.organizationId,
         changes: { old: product, new: updated },
         ipAddress: audit.ipAddress,
         userAgent: audit.userAgent,
@@ -89,10 +129,12 @@ export const productsService = {
     return updated;
   },
 
-  async remove(id: string, orgId: string, audit?: AuditContext) {
+  async remove(id: string, scope: BranchManagerScope, audit?: AuditContext) {
     const product = await productsRepository.findById(id);
     if (!product) throw AppError.notFound('Product not found');
-    if (product.organization_id !== orgId) throw AppError.forbidden();
+    if (product.organization_id !== scope.organizationId || product.branch_id !== scope.branchId) {
+      throw AppError.forbidden('Product is outside your assigned branch');
+    }
     await productsRepository.softDelete(id);
 
     if (audit) {
@@ -102,7 +144,7 @@ export const productsService = {
         action: 'product.delete',
         resourceType: 'product',
         resourceId: id,
-        organizationId: orgId,
+        organizationId: scope.organizationId,
         changes: { old: product, new: { is_active: false } },
         ipAddress: audit.ipAddress,
         userAgent: audit.userAgent,

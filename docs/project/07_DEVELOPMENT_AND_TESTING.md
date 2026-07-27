@@ -56,8 +56,8 @@ npm run docker:dev
 
 The development API container builds `packages/shared` and applies pending canonical
 `node-pg-migrate` migrations before starting the hot-reload server. It does not seed demo data
-automatically. Run `npm run db:seed` for only the baseline organization/accounts, or
-`npm run db:seed:demo` when catalog and transaction fixtures are needed.
+automatically. Run `npm run db:seed` to create only the platform administrator. Load operational
+tenant data only through `npm run db:fixture:e2e` on an isolated non-production database.
 
 Useful commands:
 
@@ -99,15 +99,19 @@ npm run db:migrate:status
 npm run db:migrate
 npm run db:seed
 npm run db:seed:reset
-npm run db:seed:demo
-npm run db:seed:demo:reset
+npm run db:fixture:e2e
 npm run db:reset
 ```
 
 - Canonical schema migrations use `node-pg-migrate`, read `db/migrations/node-pg-migrate`, and are exposed consistently through both root and `apps/api` workspace commands.
-- `db:seed` is idempotent and creates only one organization plus development users/memberships.
-- `db:seed:demo` explicitly adds catalog, queue, order, notification, and penalty fixtures.
-- `db:seed:reset` and `db:seed:demo:reset` truncate tenant/application data before loading their respective profile. They are blocked in production; a non-loopback isolated development database requires `ALLOW_DESTRUCTIVE_SEED_RESET=true`.
+- `db:seed` is idempotent and creates only `admin@gmail.com`; it does not create organizations,
+  branches, managers, staff, customers, products, queues, or transactions.
+- `db:seed:reset` truncates tenant/application data before reloading only that administrator. It is
+  blocked in production; a non-loopback isolated development database requires
+  `ALLOW_DESTRUCTIVE_SEED_RESET=true`.
+- `db:fixture:e2e` loads deterministic organizations, branches, managers, staff, customers, queue
+  catalogs, transactions, and notification data exclusively for browser tests. It is blocked when
+  `NODE_ENV=production`.
 - `db:reset`/`db:reset:local` destroy and rebuild only a local/dev schema, then migrate and load the minimal seed profile.
 - `scripts/migrate.mjs` remains only as the local reset helper. Its historical SQL apply mode requires the explicit `ALLOW_LEGACY_SQL_MIGRATIONS=true` opt-in and must not be used for normal deployments.
 - Historical numeric migration names can produce non-blocking timestamp-order warnings from `node-pg-migrate`; never rename already-applied migrations to silence them.
@@ -129,22 +133,22 @@ debugging.
 
 Set `LINE_RICH_MENU_IMAGE_PATH` to a local PNG/JPEG with a production-valid LINE Rich Menu size before syncing against a real Official Account. If the image path is omitted, a generated placeholder is only suitable for mock/dev behavior.
 
-## 7. Seed profiles
+## 7. Seed and fixture profiles
 
-The minimal profile (`npm run db:seed`) creates only the organization, users, and valid organization memberships. It leaves operational and commercial tables empty. The business-role local accounts use password `123456`:
+The only seed profile (`npm run db:seed`) creates one platform administrator and leaves all tenant,
+operational, and commercial tables empty:
 
-| Role    | Email               |
-| ------- | ------------------- |
-| Admin   | `admin@gmail.com`   |
-| Manager | `manager@gmail.com` |
-| Staff   | `staff@gmail.com`   |
+| Role  | Email             | Local fallback password |
+| ----- | ----------------- | ----------------------- |
+| Admin | `admin@gmail.com` | `123456`                |
 
-Any seeded customer row is fixture data, not an email-login path. Use the local LIFF mock flow to
-create or link the customer session through `/api/v1/auth/line`.
+Set `SEED_ADMIN_PASSWORD` explicitly outside local development; it is required when
+`NODE_ENV=production`.
 
-The full profile (`npm run db:seed:demo`) also creates the public demo paths, Japan-localized
-catalog/queue/order fixtures, and followed notification preferences for its linked demo LINE
-accounts. Existing notification preferences are never overwritten when the seed is rerun:
+The E2E fixture profile (`npm run db:fixture:e2e`) creates isolated branch-owner, branch-manager,
+staff, customer, multi-queue catalog, order, and LINE mock data. It is not a development baseline
+or production bootstrap. Any fixture customer uses the local LIFF mock path, never email login.
+The fixture keeps the browser-test public entry stable:
 
 - Organization slug: `queue-lab-demo`
 - QR token: `demo-queue-lab-2026`
@@ -198,7 +202,7 @@ npm run test:ui -w apps/web
 
 Critical regression scenarios:
 
-- every Admin, Manager, Staff, Customer, and LIFF primary destination remains reachable at desktop
+- every Admin, organization-owner, branch-manager, Staff, Customer, and LIFF primary destination remains reachable at desktop
   and phone viewports without page-level horizontal overflow;
 
 - Required-only vs all-item payment and draft restoration.
@@ -217,7 +221,7 @@ seeded local database, install Chromium once, and run:
 
 ```bash
 npm run e2e:install
-npm run db:seed:demo
+npm run db:fixture:e2e
 npm run e2e:all
 ```
 

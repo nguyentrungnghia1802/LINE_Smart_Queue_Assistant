@@ -23,7 +23,7 @@ import { paymentSchemas } from './schemas/payment.schemas';
 import { queueEntrySchemas } from './schemas/queue-entry.schemas';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Admin-facing queue schemas referenced from queues-admin.paths.ts
+// Branch-manager queue schemas referenced from queues-admin.paths.ts
 // ─────────────────────────────────────────────────────────────────────────────
 
 const adminQueueSchemas = {
@@ -32,9 +32,10 @@ const adminQueueSchemas = {
       { $ref: '#/components/schemas/BaseEntity' },
       {
         type: 'object',
-        required: ['organizationId', 'name', 'status', 'currentNumber'],
+        required: ['organizationId', 'branchId', 'name', 'status', 'currentNumber'],
         properties: {
           organizationId: { type: 'string', format: 'uuid' },
+          branchId: { type: 'string', format: 'uuid' },
           name: { type: 'string', example: 'General Service' },
           description: { type: 'string', nullable: true },
           ticketPrefix: { type: 'string', example: 'A', nullable: true },
@@ -53,16 +54,14 @@ const adminQueueSchemas = {
 
   CreateQueueRequest: {
     type: 'object',
-    required: ['orgId', 'branchId', 'name'],
+    required: ['name'],
     properties: {
-      orgId: { type: 'string', format: 'uuid' },
-      branchId: { type: 'string', format: 'uuid' },
       name: { type: 'string', minLength: 1, maxLength: 120 },
       description: { type: 'string', maxLength: 500 },
       status: { type: 'string', enum: ['open', 'paused', 'closed'], default: 'open' },
       prefix: { type: 'string', maxLength: 10 },
       maxCapacity: { type: 'integer', minimum: 1 },
-      avgServiceMs: { type: 'integer', minimum: 1 },
+      avgServiceTimeMinutes: { type: 'integer', minimum: 1 },
     },
   },
 
@@ -74,7 +73,7 @@ const adminQueueSchemas = {
       description: { type: 'string', maxLength: 500 },
       status: { type: 'string', enum: ['open', 'paused', 'closed'] },
       maxCapacity: { type: 'integer', minimum: 1 },
-      avgServiceMs: { type: 'integer', minimum: 1 },
+      avgServiceTimeMinutes: { type: 'integer', minimum: 1 },
     },
   },
 } as const;
@@ -110,7 +109,7 @@ export const swaggerSpec = {
 
   tags: [
     { name: 'queue-entry', description: 'Customer-facing queue ticket operations' },
-    { name: 'queues', description: 'Admin queue management' },
+    { name: 'queues', description: 'Branch-manager queue management' },
     { name: 'notifications', description: 'Notification history' },
     { name: 'line', description: 'LINE Messaging API webhook' },
     { name: 'payments', description: 'Payment intent, webhook, return, and reconciliation' },

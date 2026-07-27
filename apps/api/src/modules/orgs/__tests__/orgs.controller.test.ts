@@ -1,11 +1,10 @@
 /**
- * Unit tests for the public QR token lookup (getOrgByToken).
+ * Unit tests for branch-first public QR token lookup (getOrgByToken).
  *
  * These tests verify:
- *   1. That `organizationsRepository.findByPublicToken` is called with the token
- *      from the route parameter.
- *   2. That the response shape includes `publicQrToken`.
- *   3. That a 404 is returned when the token doesn't match any org.
+ *   1. Branch QR lookup takes precedence over the legacy organization fallback.
+ *   2. The response exposes the resolved branch token.
+ *   3. A 404 is returned when neither branch nor organization token matches.
  *
  * We mock all repository calls so no database is required.
  */
@@ -15,14 +14,16 @@ import { organizationsRepository } from '../../../db/repositories/organizations.
 import { productsRepository } from '../../../db/repositories/products.repository';
 import { queueEntriesRepository } from '../../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../../db/repositories/queues.repository';
+import { branchesRepository } from '../../branches/branches.repository';
 import { getOrgByToken } from '../orgs.controller';
 
 jest.mock('../../../db/repositories/organizations.repository');
 jest.mock('../../../db/repositories/products.repository');
 jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/repositories/queue-entries.repository');
+jest.mock('../../branches/branches.repository');
 
-const mockFindByPublicToken = organizationsRepository.findByPublicToken as jest.MockedFunction<
+const mockFindOrgByPublicToken = organizationsRepository.findByPublicToken as jest.MockedFunction<
   typeof organizationsRepository.findByPublicToken
 >;
 const mockFindById = organizationsRepository.findById as jest.MockedFunction<
@@ -31,19 +32,28 @@ const mockFindById = organizationsRepository.findById as jest.MockedFunction<
 const mockFindLocalizedById = organizationsRepository.findLocalizedById as jest.MockedFunction<
   typeof organizationsRepository.findLocalizedById
 >;
-const mockFindOpenByOrg = queuesRepository.findOpenByOrg as jest.MockedFunction<
-  typeof queuesRepository.findOpenByOrg
+const mockFindActiveByBranches = queuesRepository.findActiveByBranches as jest.MockedFunction<
+  typeof queuesRepository.findActiveByBranches
 >;
-const mockFindByOrgProducts = productsRepository.findByOrg as jest.MockedFunction<
-  typeof productsRepository.findByOrg
+const mockFindByQueue = productsRepository.findByQueue as jest.MockedFunction<
+  typeof productsRepository.findByQueue
 >;
-const mockListWaiting = queueEntriesRepository.listWaiting as jest.MockedFunction<
-  typeof queueEntriesRepository.listWaiting
+const mockCountWaiting = queueEntriesRepository.countWaiting as jest.MockedFunction<
+  typeof queueEntriesRepository.countWaiting
+>;
+const mockFindBranchByPublicToken = branchesRepository.findByPublicToken as jest.MockedFunction<
+  typeof branchesRepository.findByPublicToken
+>;
+const mockFindFirstBranch = branchesRepository.findFirstByOrganization as jest.MockedFunction<
+  typeof branchesRepository.findFirstByOrganization
+>;
+const mockIsOpenNow = branchesRepository.isOpenNow as jest.MockedFunction<
+  typeof branchesRepository.isOpenNow
 >;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const ORG_TOKEN = 'org_abc123def456';
+const BRANCH_TOKEN = 'branch_abc123def456';
 
 const orgRow = {
   id: 'org-uuid-001',
@@ -63,8 +73,27 @@ const orgRow = {
   address_line1: null,
   address_line2: null,
   payment_info: null,
-  public_qr_token: ORG_TOKEN,
+  public_qr_token: 'legacy_org_abc123def456',
   is_active: true,
+  created_at: new Date(),
+  updated_at: new Date(),
+};
+const branchRow = {
+  id: 'branch-uuid-001',
+  organization_id: orgRow.id,
+  name: 'Test Salon Tokyo',
+  code: 'tokyo',
+  phone: '03-1234-5678',
+  email: null,
+  postal_code: '100-0001',
+  prefecture: 'Tokyo',
+  city: 'Chiyoda',
+  address_line1: '1-1',
+  address_line2: null,
+  timezone: 'Asia/Tokyo',
+  public_qr_token: BRANCH_TOKEN,
+  is_active: true,
+  created_by: null,
   created_at: new Date(),
   updated_at: new Date(),
 };
@@ -91,21 +120,24 @@ describe('getOrgByToken controller', () => {
     jest.clearAllMocks();
     mockFindById.mockResolvedValue(orgRow);
     mockFindLocalizedById.mockResolvedValue(orgRow);
-    mockFindOpenByOrg.mockResolvedValue([]);
-    mockFindByOrgProducts.mockResolvedValue([]);
-    mockListWaiting.mockResolvedValue([]);
+    mockFindActiveByBranches.mockResolvedValue([]);
+    mockFindByQueue.mockResolvedValue([]);
+    mockCountWaiting.mockResolvedValue(0);
+    mockFindFirstBranch.mockResolvedValue(branchRow);
+    mockIsOpenNow.mockResolvedValue(true);
   });
 
-  it('returns org data including publicQrToken when token matches', async () => {
-    mockFindByPublicToken.mockResolvedValue(orgRow);
+  it('returns the branch catalog and token when a branch token matches', async () => {
+    mockFindBranchByPublicToken.mockResolvedValue(branchRow);
 
-    const req = makeReq(ORG_TOKEN);
+    const req = makeReq(BRANCH_TOKEN);
     const res = makeRes();
 
     getOrgByToken(req, res, jest.fn());
     await flushPromises();
 
-    expect(mockFindByPublicToken).toHaveBeenCalledWith(ORG_TOKEN);
+    expect(mockFindBranchByPublicToken).toHaveBeenCalledWith(BRANCH_TOKEN);
+    expect(mockFindOrgByPublicToken).not.toHaveBeenCalled();
 
     // sendSuccess calls res.status(200).json({ success: true, data: ... })
     expect(res.status).toHaveBeenCalledWith(200);
@@ -117,11 +149,12 @@ describe('getOrgByToken controller', () => {
       data?: { org?: { publicQrToken?: string } };
     };
     expect(body?.success).toBe(true);
-    expect(body?.data?.org?.publicQrToken).toBe(ORG_TOKEN);
+    expect(body?.data?.org?.publicQrToken).toBe(BRANCH_TOKEN);
   });
 
-  it('throws AppError.notFound when token does not match any org', async () => {
-    mockFindByPublicToken.mockResolvedValue(null);
+  it('throws AppError.notFound when token matches neither branch nor organization', async () => {
+    mockFindBranchByPublicToken.mockResolvedValue(null);
+    mockFindOrgByPublicToken.mockResolvedValue(null);
 
     const req = makeReq('invalid-token');
     const res = makeRes();
@@ -136,14 +169,16 @@ describe('getOrgByToken controller', () => {
     expect(err).toHaveProperty('statusCode', 404);
   });
 
-  it('calls findByPublicToken with the exact token from params', async () => {
-    mockFindByPublicToken.mockResolvedValue(orgRow);
-    const token = 'org_specific_token_xyz';
+  it('uses the exact token and supports the legacy organization fallback', async () => {
+    mockFindBranchByPublicToken.mockResolvedValue(null);
+    mockFindOrgByPublicToken.mockResolvedValue(orgRow);
+    const token = 'legacy_org_specific_token_xyz';
 
     getOrgByToken(makeReq(token), makeRes(), jest.fn());
     await flushPromises();
 
-    expect(mockFindByPublicToken).toHaveBeenCalledWith(token);
-    expect(mockFindByPublicToken).toHaveBeenCalledTimes(1);
+    expect(mockFindBranchByPublicToken).toHaveBeenCalledWith(token);
+    expect(mockFindOrgByPublicToken).toHaveBeenCalledWith(token);
+    expect(mockFindOrgByPublicToken).toHaveBeenCalledTimes(1);
   });
 });

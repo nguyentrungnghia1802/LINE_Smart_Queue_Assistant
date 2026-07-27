@@ -59,6 +59,8 @@ export const customer = {
     receptionPage: 'Trang tiếp nhận',
     online: 'Đang tiếp nhận trực tuyến',
     queueClosed: 'Hiện không có hàng đợi đang tiếp nhận.',
+    queueStep: 'Bước 1',
+    selectQueue: 'Chọn hàng đợi phục vụ',
     productsTitle: 'Sản phẩm / Dịch vụ',
     productsHint: 'Chọn các mục bạn cần.',
     lineAuthFailed: 'Không thể hoàn tất xác thực LINE. Vui lòng mở lại từ LINE.',

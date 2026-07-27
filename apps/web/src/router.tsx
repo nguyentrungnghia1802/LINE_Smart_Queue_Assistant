@@ -22,6 +22,7 @@ import { TicketStatusPage } from './pages/liff/TicketStatusPage';
 import { LoginPage } from './pages/LoginPage';
 import { CreateQueuePage } from './pages/manager/CreateQueuePage';
 import { ManagerAuditPage } from './pages/manager/ManagerAuditPage';
+import { ManagerBranchDetailPage } from './pages/manager/ManagerBranchDetailPage';
 import { ManagerBranchesPage } from './pages/manager/ManagerBranchesPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { ManagerLayout } from './pages/manager/ManagerLayout';
@@ -29,9 +30,8 @@ import { ManagerProductDetailPage } from './pages/manager/ManagerProductDetailPa
 import { ManagerProductFormPage } from './pages/manager/ManagerProductFormPage';
 import { ManagerProductsPage } from './pages/manager/ManagerProductsPage';
 import { ManagerQRPage } from './pages/manager/ManagerQRPage';
-import { ManagerSettingsPage } from './pages/manager/ManagerSettingsPage';
+import { ManagerSettingsRoute } from './pages/manager/ManagerSettingsRoute';
 import { ManagerUsersPage } from './pages/manager/ManagerUsersPage';
-import { QRDisplayPage } from './pages/manager/QRDisplayPage';
 import { QueueSettingsPage } from './pages/manager/QueueSettingsPage';
 import { BusinessRegistrationPage } from './pages/marketing/BusinessRegistrationPage';
 import { MarketingHomePage } from './pages/marketing/MarketingHomePage';
@@ -90,13 +90,13 @@ export const router = createBrowserRouter([
       { path: 'queues/new', element: <CreateQueuePage /> },
       { path: 'queues/:id', element: <QueueDetailPage /> },
       { path: 'queues/:id/manage', element: <StaffQueuePage /> },
-      { path: 'queues/:id/display', element: <QRDisplayPage /> },
       { path: 'queues/:id/settings', element: <QueueSettingsPage /> },
       { path: 'users', element: <ManagerUsersPage /> },
       { path: 'branches', element: <ManagerBranchesPage /> },
+      { path: 'branches/:branchId', element: <ManagerBranchDetailPage /> },
       { path: 'audit', element: <ManagerAuditPage /> },
       { path: 'qr', element: <ManagerQRPage /> },
-      { path: 'settings', element: <ManagerSettingsPage /> },
+      { path: 'settings', element: <ManagerSettingsRoute /> },
     ],
   },
 
@@ -160,7 +160,6 @@ export const router = createBrowserRouter([
       { path: 'queues', element: <QueuesPage /> },
       { path: 'queues/new', element: <CreateQueuePage /> },
       { path: 'queues/:id', element: <QueueDetailPage /> },
-      { path: 'queues/:id/display', element: <QRDisplayPage /> },
       { path: 'queues/:id/settings', element: <QueueSettingsPage /> },
       { path: 'staff/queues/:queueId', element: <StaffQueuePage /> },
     ],

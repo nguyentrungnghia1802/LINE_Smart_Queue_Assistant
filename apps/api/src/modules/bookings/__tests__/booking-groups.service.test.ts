@@ -46,19 +46,7 @@ describe('bookingGroupsService', () => {
     ).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it('rejects staff from another organization', async () => {
-    jest.mocked(bookingGroupsRepository.findById).mockResolvedValue(group);
-
-    await expect(
-      bookingGroupsService.getById(group.id, {
-        id: '55555555-5555-4555-8555-555555555555',
-        role: UserRole.STAFF,
-        organizationId: '66666666-6666-4666-8666-666666666666',
-      })
-    ).rejects.toMatchObject({ statusCode: 403 });
-  });
-
-  it('allows tenant staff to inspect related bookings', async () => {
+  it('rejects staff without exactly one branch assignment', async () => {
     jest.mocked(bookingGroupsRepository.findById).mockResolvedValue(group);
 
     await expect(
@@ -66,7 +54,36 @@ describe('bookingGroupsService', () => {
         id: '55555555-5555-4555-8555-555555555555',
         role: UserRole.STAFF,
         organizationId: group.organization_id,
+        branchIds: [],
+      })
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('allows assigned staff to inspect only branch-filtered related bookings', async () => {
+    jest.mocked(bookingGroupsRepository.findById).mockResolvedValue(group);
+    const branchId = '66666666-6666-4666-8666-666666666666';
+
+    await expect(
+      bookingGroupsService.getById(group.id, {
+        id: '55555555-5555-4555-8555-555555555555',
+        role: UserRole.STAFF,
+        organizationId: group.organization_id,
+        branchIds: [branchId],
       })
     ).resolves.toEqual(group);
+    expect(bookingGroupsRepository.findById).toHaveBeenCalledWith(group.id, branchId);
+  });
+
+  it('rejects organization owners from customer booking details', async () => {
+    await expect(
+      bookingGroupsService.getById(group.id, {
+        id: '77777777-7777-4777-8777-777777777777',
+        role: UserRole.MANAGER,
+        organizationId: group.organization_id,
+        branchIds: [],
+        isOrganizationOwner: true,
+      })
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(bookingGroupsRepository.findById).not.toHaveBeenCalled();
   });
 });

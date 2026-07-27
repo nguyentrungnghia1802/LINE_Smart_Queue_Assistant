@@ -1,22 +1,27 @@
+import type { PoolClient } from 'pg';
+
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
 import { withTransaction } from '../../db/transaction';
 import type { AuthUser } from '../../types/auth.types';
 import { AppError } from '../../utils/AppError';
 import { issueAccountAction } from '../account-lifecycle/account-lifecycle.service';
+import { requireBranchManager } from '../branches/branch-scope';
 import { branchesRepository } from '../branches/branches.repository';
 
 import type { CreateUserDto, InviteStaffDto, UpdateStaffDto } from './users.validator';
 
-function organizationId(actor: AuthUser) {
-  if (!actor.organizationId) throw AppError.badRequest('User has no organization');
-  return actor.organizationId;
-}
-
-function assertBranchAccess(actor: AuthUser, branchId: string) {
-  if (!actor.isOrganizationOwner && !(actor.branchIds ?? []).includes(branchId)) {
-    throw AppError.forbidden('You cannot manage staff outside your assigned branch');
+async function assertTargetStaffBranch(actor: AuthUser, userId: string, client?: PoolClient) {
+  const scope = requireBranchManager(actor);
+  const targetBranchId = await usersRepository.findAssignedBranchId(
+    scope.organizationId,
+    userId,
+    client
+  );
+  if (targetBranchId !== scope.branchId) {
+    throw AppError.forbidden('Staff member is outside your assigned branch');
   }
+  return scope;
 }
 
 export const usersService = {
@@ -28,6 +33,11 @@ export const usersService = {
 
   async listUsersByOrg(orgId: string, role?: string) {
     return usersRepository.findByOrgAndRole(orgId, role);
+  },
+
+  async listUsersForBranchManager(actor: AuthUser, role?: string) {
+    const scope = requireBranchManager(actor);
+    return usersRepository.findByBranchAndRole(scope.branchId, role);
   },
 
   async updateMyProfile(
@@ -63,8 +73,11 @@ export const usersService = {
    * Manager-only action.
    */
   async createStaff(actor: AuthUser, data: InviteStaffDto) {
-    const orgId = organizationId(actor);
-    assertBranchAccess(actor, data.branchId);
+    const scope = requireBranchManager(actor);
+    const orgId = scope.organizationId;
+    if (data.branchId !== scope.branchId) {
+      throw AppError.forbidden('You cannot manage staff outside your assigned branch');
+    }
     return withTransaction(async (client) => {
       const branch = await branchesRepository.findById(data.branchId, orgId, client);
       if (!branch) throw AppError.notFound('Branch');
@@ -129,7 +142,7 @@ export const usersService = {
    * Toggle a staff member's active status.
    */
   async updateStaffStatus(actor: AuthUser, userId: string, isActive: boolean) {
-    const orgId = organizationId(actor);
+    const { organizationId: orgId } = await assertTargetStaffBranch(actor, userId);
     if (actor.id === userId) throw AppError.forbidden('You cannot change your own account status');
     // Verify the user is a member of this org
     const member = await organizationsRepository.findMember(orgId, userId);
@@ -146,7 +159,7 @@ export const usersService = {
   },
 
   async updateStaff(actor: AuthUser, userId: string, data: UpdateStaffDto) {
-    const orgId = organizationId(actor);
+    const { organizationId: orgId } = await assertTargetStaffBranch(actor, userId);
     const member = await organizationsRepository.findMember(orgId, userId);
     if (!member) throw AppError.notFound('Staff member not found in this organization');
     if (member.role !== 'staff')
@@ -174,9 +187,11 @@ export const usersService = {
   },
 
   async removeStaff(actor: AuthUser, userId: string) {
-    const orgId = organizationId(actor);
+    const scope = requireBranchManager(actor);
+    const orgId = scope.organizationId;
     if (actor.id === userId) throw AppError.forbidden('You cannot remove your own account');
     await withTransaction(async (client) => {
+      await assertTargetStaffBranch(actor, userId, client);
       const member = await organizationsRepository.findMember(orgId, userId, client);
       if (!member) throw AppError.notFound('Staff member not found in this organization');
       if (member.role !== 'staff') {
@@ -185,8 +200,8 @@ export const usersService = {
       await client.query(
         `UPDATE branch_memberships
          SET is_active = FALSE, deactivated_at = NOW()
-         WHERE organization_id = $1 AND user_id = $2`,
-        [orgId, userId]
+         WHERE organization_id = $1 AND branch_id = $2 AND user_id = $3`,
+        [orgId, scope.branchId, userId]
       );
       await client.query(
         `UPDATE organization_members SET is_active = FALSE
@@ -196,9 +211,9 @@ export const usersService = {
       await client.query(
         `UPDATE users
          SET is_active = FALSE, account_status = 'disabled',
-             deactivated_at = NOW(), deactivated_by = $3, updated_at = NOW()
-         WHERE id = $2`,
-        [orgId, userId, actor.id]
+             deactivated_at = NOW(), deactivated_by = $2, updated_at = NOW()
+         WHERE id = $1`,
+        [userId, actor.id]
       );
       await client.query(
         `INSERT INTO audit_logs

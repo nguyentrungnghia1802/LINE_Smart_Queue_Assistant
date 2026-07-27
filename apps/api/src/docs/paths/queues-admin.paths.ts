@@ -1,5 +1,5 @@
 /**
- * OpenAPI path definitions for admin queue management.
+ * OpenAPI path definitions for branch-manager queue management.
  * Base path: /api/v1/queues
  */
 
@@ -18,12 +18,12 @@ export const queuesAdminPaths = {
   '/api/v1/queues': {
     get: {
       tags: ['queues'],
-      summary: 'List organization queues',
+      summary: 'List queues in the authenticated manager branch',
       operationId: 'listQueues',
       security: bearerSecurity,
       responses: {
         200: {
-          description: 'Organization queue list',
+          description: 'Assigned branch queue list',
           content: {
             'application/json': {
               schema: {
@@ -46,7 +46,7 @@ export const queuesAdminPaths = {
 
     post: {
       tags: ['queues'],
-      summary: 'Create a new queue',
+      summary: 'Create a queue in the authenticated manager branch',
       operationId: 'createQueue',
       security: bearerSecurity,
       requestBody: {
