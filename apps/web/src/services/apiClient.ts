@@ -3,6 +3,7 @@ import axios, { AxiosError, type AxiosInstance, type AxiosRequestConfig } from '
 import type { ApiErrorResponse, ApiResponse } from '@line-queue/shared';
 
 import { i18n } from '../i18n';
+import { clearAuthSession, getAuthToken } from '../store/authSession';
 
 export class ApiClientError extends Error {
   constructor(
@@ -28,7 +29,7 @@ const apiClient: AxiosInstance = axios.create({
 // ── Request interceptor — attach auth token ────────────────────────────────────
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
+  const token = getAuthToken();
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
   }
@@ -43,8 +44,10 @@ apiClient.interceptors.response.use(
   (error: AxiosError<ApiResponse<never> | ApiErrorResponse>) => {
     const skipAuthRedirect = error.config?.headers?.['X-Skip-Auth-Redirect'] === 'true';
     if (error.response?.status === 401 && !skipAuthRedirect) {
-      localStorage.removeItem('auth_token');
-      window.location.href = '/login';
+      clearAuthSession();
+      if (window.location.pathname !== '/login') {
+        window.location.replace('/login');
+      }
     }
     const payload = error.response?.data;
     if (payload && !payload.success) {

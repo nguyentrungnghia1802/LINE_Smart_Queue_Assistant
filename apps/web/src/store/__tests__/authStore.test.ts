@@ -23,6 +23,7 @@ describe('authStore API routes', () => {
 
     await useAuthStore.getState().login('staff@example.com', 'password');
 
+    expect(localStorage.getItem('auth_token')).toBe('jwt-token');
     expect(post).toHaveBeenCalledWith(
       '/api/v1/auth/login',
       {
@@ -41,10 +42,28 @@ describe('authStore API routes', () => {
 
     await useAuthStore.getState().loginWithLine('line-id-token');
 
+    expect(localStorage.getItem('auth_token')).toBe('jwt-token');
     expect(post).toHaveBeenCalledWith(
       '/api/v1/auth/line',
       { idToken: 'line-id-token' },
       { headers: { 'X-Skip-Auth-Redirect': 'true' } }
     );
+  });
+
+  it('clears token and persisted auth data on logout', async () => {
+    vi.mocked(post).mockResolvedValue({
+      token: 'jwt-token',
+      user: { id: 'user-1', role: UserRole.ADMIN },
+    });
+
+    await useAuthStore.getState().login('admin@gmail.com', 'password');
+    expect(localStorage.getItem('auth_token')).toBe('jwt-token');
+    expect(localStorage.getItem('auth-storage')).toBeTruthy();
+
+    useAuthStore.getState().logout();
+
+    expect(localStorage.getItem('auth_token')).toBeNull();
+    expect(localStorage.getItem('auth-storage')).toContain('"user":null');
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 });
