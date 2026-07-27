@@ -82,6 +82,12 @@ apps/web/src/
 
 Pages orchestrate data and interactions. Reusable visual patterns belong in components, server calls in services/hooks, and non-React transformations in utils. Browser storage is for drafts and convenience, never authorization/payment truth.
 
+Authentication is split between `modules/auth/auth-session.policy.ts` (role timing),
+`auth-session.repository.ts` (hashed PostgreSQL rows), `auth-session.service.ts`
+(issue/rotation/revocation), and `auth.cookies.ts` (refresh-cookie boundary). The frontend
+`AuthSessionManager` bootstraps the cookie session, tracks business-user activity, and keeps the
+short-lived access token in module memory through `store/authSession.ts`.
+
 LIFF child pages should consume `LiffRuntimeContext` from `LiffLayout` instead of calling `useLiff()` directly. The layout initializes LIFF once and shares profile/auth status with booking, ticket, and home routes.
 
 `/liff/home` is the customer entry point for LINE Rich Menu. It should keep ticket resolution and booking navigation in the LIFF flow and must not hard-code queue entry IDs.

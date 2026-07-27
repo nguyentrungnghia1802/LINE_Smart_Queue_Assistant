@@ -164,6 +164,23 @@ manager, and admin accounts. The API rejects email login for customer-role users
 uses the mock LIFF adapter and mock backend ID-token verification, preserving the same
 ID-token-to-system-JWT flow without a second customer auth model.
 
+### Session lifecycle
+
+1. Email or LINE authentication creates an `auth_sessions` family and returns a 15-minute access
+   token plus public session timing metadata.
+2. The opaque refresh token exists only in a path-scoped `HttpOnly` cookie; PostgreSQL stores its
+   SHA-256 hash. The SPA stores the access token only in memory.
+3. On reload or an access-token `401`, the client sends the cookie to `/auth/refresh`. The API locks
+   the current row, rotates the token, and issues a new access token for the same family.
+4. Admin, manager, and staff browser interaction triggers periodic refresh. No interaction for 15
+   minutes ends the session; continuous activity cannot extend it beyond 12 hours.
+5. Customer sessions do not use the business idle timer and can resume for at most 30 days. LIFF
+   still re-verifies LINE identity when the app opens and authenticated requests still require an
+   active linked LINE account.
+6. Logout, password reset, account disablement, and staff removal revoke the relevant session
+   family or every active session for that user. Reuse outside the short concurrent-rotation grace
+   window revokes the family.
+
 ## 4. Booking without required prepayment
 
 1. Customer selects available items and quantities and enters the required name and telephone number.

@@ -9,7 +9,76 @@ import { AuthUser } from '../../types/auth.types';
 import { AppError } from '../../utils/AppError';
 import { signToken, TokenPayload } from '../../utils/jwt';
 
+import { authSessionService, IssuedAuthSession } from './auth-session.service';
 import { verifyLineIdToken } from './line/lineIdToken.verifier';
+
+interface AuthenticationResult {
+  token: string;
+  user: AuthUser;
+  session: IssuedAuthSession;
+}
+
+async function resolveAuthentication(userId: string): Promise<{
+  payload: TokenPayload;
+  user: AuthUser;
+}> {
+  const userRow = await usersRepository.findById(userId);
+  if (!userRow?.is_active || userRow.account_status === 'disabled') {
+    await authSessionService.revokeAllForUser(userId);
+    throw new AppError('This account has been disabled', 401, 'AUTH_ACCOUNT_DISABLED');
+  }
+
+  const role = userRow.role as UserRole;
+  const membership = await organizationsRepository.findMembershipByUserId(userRow.id);
+  const organization = membership
+    ? await organizationsRepository.findById(membership.organization_id)
+    : null;
+  const branchIds = membership
+    ? await organizationsRepository.findBranchIdsForUser(userRow.id, membership.organization_id)
+    : [];
+  const lineAccount =
+    role === UserRole.CUSTOMER ? await usersRepository.findLineAccountByUserId(userRow.id) : null;
+
+  if (role === UserRole.CUSTOMER && !lineAccount?.is_linked) {
+    throw new AppError('LINE account is no longer linked', 401, 'LINE_AUTH_REQUIRED');
+  }
+  if ([UserRole.STAFF, UserRole.MANAGER].includes(role) && !membership) {
+    throw new AppError('User has no organization membership', 403, 'FORBIDDEN');
+  }
+
+  return {
+    payload: {
+      sub: userRow.id,
+      role,
+      orgId: membership?.organization_id,
+      lineUserId: lineAccount?.line_user_id,
+    },
+    user: {
+      id: userRow.id,
+      lineUserId: lineAccount?.line_user_id,
+      role,
+      organizationId: membership?.organization_id,
+      displayName: userRow.display_name,
+      email: userRow.email ?? undefined,
+      preferredLocale: userRow.preferred_locale,
+      organizationLocale: organization?.default_locale,
+      isOrganizationOwner: membership?.is_owner ?? false,
+      branchIds,
+    },
+  };
+}
+
+async function issueAuthentication(
+  payload: TokenPayload,
+  user: AuthUser
+): Promise<AuthenticationResult> {
+  const session = await authSessionService.issue(user.id, user.role);
+  return {
+    token: signToken({ ...payload, sid: session.familyId }),
+    user,
+    session,
+  };
+}
 
 export const authService = {
   /**
@@ -23,7 +92,7 @@ export const authService = {
    *     - Known user → sync display name / picture via upsertLineAccount.
    *  3. Issue a signed JWT containing only non-sensitive identity claims.
    */
-  async loginWithLineToken(idToken: string): Promise<{ token: string; user: AuthUser }> {
+  async loginWithLineToken(idToken: string): Promise<AuthenticationResult> {
     // Step 1 — Verify with LINE (server-side; not local JWT decode)
     const profile = await verifyLineIdToken(idToken);
 
@@ -73,8 +142,6 @@ export const authService = {
       lineUserId: profile.lineUserId,
       role: userRow.role as UserRole,
     };
-    const token = signToken(payload);
-
     const user: AuthUser = {
       id: userRow.id,
       lineUserId: profile.lineUserId,
@@ -84,13 +151,10 @@ export const authService = {
       preferredLocale: userRow.preferred_locale,
     };
 
-    return { token, user };
+    return issueAuthentication(payload, user);
   },
 
-  async loginWithEmailPassword(
-    email: string,
-    password: string
-  ): Promise<{ token: string; user: AuthUser }> {
+  async loginWithEmailPassword(email: string, password: string): Promise<AuthenticationResult> {
     const userRow = await usersRepository.findByEmail(email);
     if (!userRow) {
       throw new AppError(
@@ -135,8 +199,6 @@ export const authService = {
       role: userRow.role as UserRole,
       orgId: membership?.organization_id,
     };
-    const token = signToken(payload);
-
     const user: AuthUser = {
       id: userRow.id,
       role: userRow.role as UserRole,
@@ -149,6 +211,25 @@ export const authService = {
       branchIds,
     };
 
-    return { token, user };
+    return issueAuthentication(payload, user);
+  },
+
+  async refreshSession(refreshToken: string): Promise<AuthenticationResult> {
+    const session = await authSessionService.rotate(refreshToken);
+    try {
+      const { payload, user } = await resolveAuthentication(session.userId);
+      return {
+        token: signToken({ ...payload, sid: session.familyId }),
+        user,
+        session,
+      };
+    } catch (error) {
+      await authSessionService.revoke(session.refreshToken, 'identity_invalid');
+      throw error;
+    }
+  },
+
+  async logout(refreshToken: string | null): Promise<void> {
+    if (refreshToken) await authSessionService.revoke(refreshToken);
   },
 };

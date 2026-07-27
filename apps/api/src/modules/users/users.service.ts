@@ -6,6 +6,7 @@ import { withTransaction } from '../../db/transaction';
 import type { AuthUser } from '../../types/auth.types';
 import { AppError } from '../../utils/AppError';
 import { issueAccountAction } from '../account-lifecycle/account-lifecycle.service';
+import { authSessionService } from '../auth/auth-session.service';
 import { requireBranchManager } from '../branches/branch-scope';
 import { branchesRepository } from '../branches/branches.repository';
 
@@ -66,6 +67,7 @@ export const usersService = {
     const existing = await usersRepository.findById(id);
     if (!existing) throw AppError.notFound(`User ${id} not found`);
     await usersRepository.deactivate(id);
+    await authSessionService.revokeAllForUser(id, 'account_disabled');
   },
 
   /**
@@ -213,5 +215,6 @@ export const usersService = {
         [actor.id, userId, orgId]
       );
     });
+    await authSessionService.revokeAllForUser(userId, 'staff_removed');
   },
 };
