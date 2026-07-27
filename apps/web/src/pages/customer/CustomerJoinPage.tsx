@@ -83,6 +83,8 @@ interface OrgResponse {
     city: string;
     addressLine1: string;
     addressLine2: string | null;
+    latitude: string | null;
+    longitude: string | null;
     isOpen: boolean;
   };
   queues: QueueInfo[];

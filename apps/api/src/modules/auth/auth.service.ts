@@ -92,13 +92,27 @@ export const authService = {
     password: string
   ): Promise<{ token: string; user: AuthUser }> {
     const userRow = await usersRepository.findByEmail(email);
-    if (!userRow || !userRow.password_hash) {
-      throw AppError.unauthorized('Invalid email or password');
+    if (!userRow) {
+      throw new AppError(
+        'No account is registered for this email address',
+        401,
+        'AUTH_ACCOUNT_NOT_FOUND'
+      );
+    }
+    if (!userRow.is_active || userRow.account_status === 'disabled') {
+      throw new AppError('This account has been disabled', 403, 'AUTH_ACCOUNT_DISABLED');
+    }
+    if (!userRow.password_hash || userRow.account_status === 'invited') {
+      throw new AppError(
+        'This account has not been activated yet',
+        403,
+        'AUTH_ACCOUNT_NOT_ACTIVATED'
+      );
     }
 
     const valid = await bcrypt.compare(password, userRow.password_hash);
     if (!valid) {
-      throw AppError.unauthorized('Invalid email or password');
+      throw new AppError('The password is incorrect', 401, 'AUTH_INVALID_PASSWORD');
     }
     if (userRow.role === UserRole.CUSTOMER) {
       throw new AppError(

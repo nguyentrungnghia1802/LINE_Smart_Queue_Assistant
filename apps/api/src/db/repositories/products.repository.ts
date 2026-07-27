@@ -284,6 +284,60 @@ export const productsRepository = {
     );
   },
 
+  async findProductIdsByQueue(queueId: string, client?: PoolClient): Promise<string[]> {
+    const executor = client ?? pool;
+    const { rows } = await executor.query<{ product_id: string }>(
+      `SELECT product_id
+       FROM queue_products
+       WHERE queue_id = $1 AND is_active = TRUE
+       ORDER BY display_order, product_id`,
+      [queueId]
+    );
+    return rows.map((row) => row.product_id);
+  },
+
+  async syncProductsForQueue(
+    queueId: string,
+    organizationId: string,
+    branchId: string,
+    productIds: string[],
+    client: PoolClient
+  ): Promise<void> {
+    const uniqueProductIds = [...new Set(productIds)];
+    const valid = await client.query<{ id: string }>(
+      `SELECT id
+       FROM products
+       WHERE id = ANY($1::uuid[])
+         AND organization_id = $2
+         AND branch_id = $3
+         AND is_active = TRUE
+       FOR UPDATE`,
+      [uniqueProductIds, organizationId, branchId]
+    );
+    if (valid.rowCount !== uniqueProductIds.length) {
+      throw new Error('One or more products are outside the queue branch');
+    }
+    await client.query(
+      `UPDATE queue_products
+       SET is_active = FALSE, updated_at = NOW()
+       WHERE queue_id = $1`,
+      [queueId]
+    );
+    if (uniqueProductIds.length === 0) return;
+    await client.query(
+      `INSERT INTO queue_products (
+         queue_id, product_id, organization_id, branch_id, is_active, display_order
+       )
+       SELECT $1, selected.product_id, $3, $4, TRUE, selected.ordinality - 1
+       FROM UNNEST($2::uuid[]) WITH ORDINALITY AS selected(product_id, ordinality)
+       ON CONFLICT (queue_id, product_id) DO UPDATE SET
+         is_active = TRUE,
+         display_order = EXCLUDED.display_order,
+         updated_at = NOW()`,
+      [queueId, uniqueProductIds, organizationId, branchId]
+    );
+  },
+
   async softDelete(id: string): Promise<void> {
     const existing = await this.findById(id);
     await pool.query(`UPDATE products SET is_active = FALSE WHERE id = $1`, [id]);

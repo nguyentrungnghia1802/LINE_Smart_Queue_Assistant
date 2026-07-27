@@ -23,10 +23,14 @@ describe('authStore API routes', () => {
 
     await useAuthStore.getState().login('staff@example.com', 'password');
 
-    expect(post).toHaveBeenCalledWith('/api/v1/auth/login', {
-      email: 'staff@example.com',
-      password: 'password',
-    });
+    expect(post).toHaveBeenCalledWith(
+      '/api/v1/auth/login',
+      {
+        email: 'staff@example.com',
+        password: 'password',
+      },
+      { headers: { 'X-Skip-Auth-Redirect': 'true' } }
+    );
   });
 
   it('logs in with LINE using the backend /api/v1 route', async () => {

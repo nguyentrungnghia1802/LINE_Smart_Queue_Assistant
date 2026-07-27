@@ -282,6 +282,8 @@ CREATE TABLE organization_branches (
   city TEXT NOT NULL,
   address_line1 TEXT NOT NULL,
   address_line2 TEXT,
+  latitude NUMERIC(9,6),
+  longitude NUMERIC(9,6),
   timezone TEXT NOT NULL DEFAULT 'Asia/Tokyo',
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -291,7 +293,10 @@ CREATE TABLE organization_branches (
   UNIQUE (public_qr_token),
   UNIQUE (id, organization_id),
   CHECK (code ~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$'),
-  CHECK (public_qr_token ~ '^[A-Za-z0-9_-]{8,128}$')
+  CHECK (public_qr_token ~ '^[A-Za-z0-9_-]{8,128}$'),
+  CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
+  CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180),
+  CHECK ((latitude IS NULL) = (longitude IS NULL))
 );
 CREATE TRIGGER trg_organization_branches_updated_at BEFORE UPDATE ON organization_branches FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -512,7 +517,9 @@ CREATE TABLE queues (
   notify_ahead_positions     INT NOT NULL DEFAULT 3,
   allow_skip                 BOOLEAN NOT NULL DEFAULT TRUE,
   max_skips_before_penalty   INT NOT NULL DEFAULT 2,
-  auto_no_show_minutes       INT,
+  auto_no_show_minutes       INT NOT NULL DEFAULT 5,
+  absence_deferral_slots     INT NOT NULL DEFAULT 3,
+  max_absence_count          INT NOT NULL DEFAULT 3,
   opens_at                   TIME,
   closes_at                  TIME,
   settings                   JSONB NOT NULL DEFAULT '{}',
@@ -527,6 +534,8 @@ CREATE TABLE queues (
   CONSTRAINT queues_notify_ahead_positive CHECK (notify_ahead_positions > 0),
   CONSTRAINT queues_max_skips_non_negative CHECK (max_skips_before_penalty >= 0),
   CONSTRAINT queues_auto_no_show_minutes_positive CHECK (auto_no_show_minutes IS NULL OR auto_no_show_minutes > 0),
+  CONSTRAINT queues_absence_deferral_slots_positive CHECK (absence_deferral_slots > 0),
+  CONSTRAINT queues_max_absence_count_positive CHECK (max_absence_count > 0),
   CONSTRAINT queues_hours_valid CHECK (opens_at IS NULL OR closes_at IS NULL OR opens_at < closes_at),
   FOREIGN KEY (branch_id, organization_id) REFERENCES organization_branches(id, organization_id) ON DELETE RESTRICT,
   UNIQUE (id, organization_id, branch_id)
@@ -745,6 +754,7 @@ CREATE TABLE queue_entries (
   skipped_at               TIMESTAMPTZ,
   cancelled_at             TIMESTAMPTZ,
   no_show_at               TIMESTAMPTZ,
+  absence_count            INT NOT NULL DEFAULT 0,
   created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -754,7 +764,8 @@ CREATE TABLE queue_entries (
   CONSTRAINT queue_entries_ticket_number_positive CHECK (ticket_number > 0),
   CONSTRAINT queue_entries_priority_non_negative CHECK (priority >= 0),
   CONSTRAINT queue_entries_position_non_negative CHECK (position_snapshot IS NULL OR position_snapshot >= 0),
-  CONSTRAINT queue_entries_eta_non_negative CHECK (estimated_wait_seconds IS NULL OR estimated_wait_seconds >= 0)
+  CONSTRAINT queue_entries_eta_non_negative CHECK (estimated_wait_seconds IS NULL OR estimated_wait_seconds >= 0),
+  CONSTRAINT queue_entries_absence_count_non_negative CHECK (absence_count >= 0)
 );
 
 CREATE TRIGGER trg_queue_entries_updated_at

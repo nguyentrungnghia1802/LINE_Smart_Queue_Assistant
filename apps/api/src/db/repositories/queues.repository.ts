@@ -25,6 +25,9 @@ export interface QueueRow {
   notify_ahead_positions: number;
   allow_skip: boolean;
   max_skips_before_penalty: number;
+  auto_no_show_minutes?: number;
+  absence_deferral_slots?: number;
+  max_absence_count?: number;
   opens_at: string | null;
   closes_at: string | null;
   settings: Record<string, unknown>;
@@ -48,6 +51,7 @@ export interface CreateQueueParams {
   notifyAheadPositions?: number;
   allowSkip?: boolean;
   maxSkipsBeforePenalty?: number;
+  autoNoShowMinutes?: number;
   opensAt?: string;
   closesAt?: string;
   settings?: Record<string, unknown>;
@@ -124,8 +128,9 @@ export class QueuesRepository extends BaseRepository {
       INSERT INTO queues
         (organization_id, branch_id, name, description, status, prefix, queue_type,
          max_capacity, avg_service_seconds, notify_ahead_positions,
-         allow_skip, max_skips_before_penalty, opens_at, closes_at, settings)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+         allow_skip, max_skips_before_penalty, auto_no_show_minutes,
+         opens_at, closes_at, settings)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       RETURNING *
     `;
     const args = [
@@ -141,6 +146,7 @@ export class QueuesRepository extends BaseRepository {
       params.notifyAheadPositions ?? 3,
       params.allowSkip ?? true,
       params.maxSkipsBeforePenalty ?? 2,
+      params.autoNoShowMinutes ?? 5,
       params.opensAt ?? null,
       params.closesAt ?? null,
       JSON.stringify(params.settings ?? {}),
@@ -196,7 +202,9 @@ export class QueuesRepository extends BaseRepository {
       status: string;
       maxCapacity: number | undefined;
       avgServiceSeconds: number | undefined;
-    }>
+      autoNoShowMinutes: number | undefined;
+    }>,
+    client?: PoolClient
   ): Promise<QueueRow | null> {
     const sets: string[] = [];
     const values: unknown[] = [];
@@ -222,23 +230,34 @@ export class QueuesRepository extends BaseRepository {
       sets.push(`avg_service_seconds = $${idx++}`);
       values.push(params.avgServiceSeconds);
     }
+    if (params.autoNoShowMinutes !== undefined) {
+      sets.push(`auto_no_show_minutes = $${idx++}`);
+      values.push(params.autoNoShowMinutes);
+    }
 
-    if (sets.length === 0) return this.findById(id);
+    if (sets.length === 0) {
+      return client
+        ? ((await this.queryTx<QueueRow>(client, 'SELECT * FROM queues WHERE id = $1', [id]))[0] ??
+            null)
+        : this.findById(id);
+    }
 
     values.push(id);
-    const updated = await this.queryOne<QueueRow>(
-      `UPDATE queues SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${idx} RETURNING *`,
-      values
-    );
+    const sql = `UPDATE queues SET ${sets.join(', ')}, updated_at = NOW()
+      WHERE id = $${idx} RETURNING *`;
+    const updated = client
+      ? ((await this.queryTx<QueueRow>(client, sql, values))[0] ?? null)
+      : await this.queryOne<QueueRow>(sql, values);
     if (updated) {
       queueConfigCache.set(`queue:${id}`, updated, 30_000);
       if (params.name !== undefined || params.description !== undefined) {
-        await this.query(
-          `INSERT INTO queue_translations (queue_id, locale, name, description)
-           VALUES ($1,'ja',$2,$3)
-           ON CONFLICT (queue_id, locale) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description`,
-          [updated.id, updated.name, updated.description]
-        );
+        const translationSql = `INSERT INTO queue_translations (queue_id, locale, name, description)
+          VALUES ($1,'ja',$2,$3)
+          ON CONFLICT (queue_id, locale) DO UPDATE
+          SET name = EXCLUDED.name, description = EXCLUDED.description`;
+        const translationArgs = [updated.id, updated.name, updated.description];
+        if (client) await this.queryTx(client, translationSql, translationArgs);
+        else await this.query(translationSql, translationArgs);
       }
     }
     return updated;

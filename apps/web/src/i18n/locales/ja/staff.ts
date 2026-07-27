@@ -31,9 +31,10 @@ export const staff = {
     ticketActions: '受付操作',
     startService: '対応開始',
     noShow: '不在',
-    defer: '順番を後ろに回す',
+    defer: '3枠後ろへ移動',
     deferring: '順番を変更中...',
-    deferConfirm: 'このお客様を現在の待機列の最後に移動しますか？',
+    deferConfirm:
+      'このお客様を3枠後ろへ移動しますか？3回目の不在では受付をキャンセルし、支払い済み金額を返金します。',
     complete: '完了',
     cancelTicket: '受付をキャンセル',
     orderActions: '注文操作',

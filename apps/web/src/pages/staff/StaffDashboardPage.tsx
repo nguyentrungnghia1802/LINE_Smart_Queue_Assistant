@@ -323,10 +323,6 @@ export function StaffDashboardPage() {
     mutationFn: (entryId: string) => staffApi.defer(entryId),
     onSuccess: invalidateQueue,
   });
-  const noShowMutation = useMutation({
-    mutationFn: (entryId: string) => post(`/api/v1/staff/entries/${entryId}/no-show`, {}),
-    onSuccess: invalidateQueue,
-  });
   const cancelEntryMutation = useMutation({
     mutationFn: (entryId: string) => post(`/api/v1/staff/entries/${entryId}/cancel`, {}),
     onSuccess: invalidateQueue,
@@ -718,13 +714,6 @@ export function StaffDashboardPage() {
                           className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                         >
                           {t('dashboard.startService')}
-                        </button>
-                        <button
-                          onClick={() => noShowMutation.mutate(selected.id)}
-                          disabled={noShowMutation.isPending}
-                          className="rounded-xl bg-orange-100 px-4 py-2.5 text-sm font-medium text-orange-700 hover:bg-orange-200 disabled:opacity-50"
-                        >
-                          {t('dashboard.noShow')}
                         </button>
                         <button
                           onClick={() => {

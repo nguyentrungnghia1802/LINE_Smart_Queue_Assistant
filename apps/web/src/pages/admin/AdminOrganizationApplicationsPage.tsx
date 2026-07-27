@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { API_BASE_PATH } from '@line-queue/shared';
 
-import { ApiClientError, get, post } from '../../services/apiClient';
+import { ApiClientError, get, patch, post } from '../../services/apiClient';
 
 type ApplicationStatus = 'pending' | 'approved' | 'rejected';
 type StatusFilter = ApplicationStatus | 'all';
@@ -32,6 +32,8 @@ type OrganizationApplication = {
   expected_monthly_customers: number;
   plan_code: 'starter' | 'standard' | 'scale';
   billing_cycle: 'monthly' | 'annual';
+  default_locale: 'ja' | 'vi' | 'en';
+  logo_url: string | null;
   payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
   amount_yen: number;
   submitted_at: string;
@@ -44,6 +46,7 @@ export function AdminOrganizationApplicationsPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<StatusFilter>('pending');
   const [selected, setSelected] = useState<OrganizationApplication | null>(null);
+  const [draft, setDraft] = useState<OrganizationApplication | null>(null);
   const [note, setNote] = useState('');
   const [feedback, setFeedback] = useState('');
   const dateTime = useMemo(
@@ -91,8 +94,49 @@ export function AdminOrganizationApplicationsPage() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: () => {
+      if (!draft) throw new Error('Application draft is unavailable');
+      return patch<OrganizationApplication>(
+        `${API_BASE_PATH}/organization-applications/${draft.id}`,
+        {
+          legalName: draft.legal_name,
+          tradeName: draft.trade_name,
+          businessType: draft.business_type,
+          registrationNumber: draft.registration_number,
+          websiteUrl: draft.website_url,
+          contactName: draft.contact_name,
+          contactTitle: draft.contact_title,
+          workEmail: draft.work_email,
+          phone: draft.phone,
+          postalCode: draft.postal_code,
+          prefecture: draft.prefecture,
+          city: draft.city,
+          addressLine1: draft.address_line1,
+          addressLine2: draft.address_line2,
+          locationCount: draft.location_count,
+          expectedMonthlyCustomers: draft.expected_monthly_customers,
+          planCode: draft.plan_code,
+          billingCycle: draft.billing_cycle,
+          defaultLocale: draft.default_locale,
+          logoUrl: draft.logo_url,
+        }
+      );
+    },
+    onSuccess: async (application) => {
+      setSelected(application);
+      setDraft(application);
+      setFeedback(t('applications.updateSuccess'));
+      await queryClient.invalidateQueries({ queryKey: ['organization-applications'] });
+    },
+    onError: (error) => {
+      setFeedback(error instanceof ApiClientError ? error.message : t('applications.updateFailed'));
+    },
+  });
+
   function openReview(application: OrganizationApplication) {
     setSelected(application);
+    setDraft(application);
     setNote(application.review_note ?? '');
     setFeedback('');
   }
@@ -228,6 +272,15 @@ export function AdminOrganizationApplicationsPage() {
               </button>
             </div>
 
+            {selected.status === 'pending' && draft && (
+              <ApplicationEditForm
+                application={draft}
+                onChange={setDraft}
+                onSave={() => updateMutation.mutate()}
+                saving={updateMutation.isPending}
+              />
+            )}
+
             <div className="grid gap-px bg-gray-200 sm:grid-cols-2">
               <Detail label={t('applications.legalName')} value={selected.legal_name} />
               <Detail
@@ -334,6 +387,236 @@ function StatusBadge({ status }: Readonly<{ status: ApplicationStatus }>) {
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       {t(`applications.status.${status}`)}
     </span>
+  );
+}
+
+function ApplicationEditForm({
+  application,
+  onChange,
+  onSave,
+  saving,
+}: Readonly<{
+  application: OrganizationApplication;
+  onChange: (application: OrganizationApplication) => void;
+  onSave: () => void;
+  saving: boolean;
+}>) {
+  const { t } = useTranslation(['admin', 'marketing', 'common']);
+  const set = <K extends keyof OrganizationApplication>(
+    key: K,
+    value: OrganizationApplication[K]
+  ) => onChange({ ...application, [key]: value });
+  const textFields: Array<{
+    key: keyof OrganizationApplication;
+    label: string;
+    placeholder: string;
+    type?: 'email' | 'url' | 'tel';
+  }> = [
+    {
+      key: 'legal_name',
+      label: t('applications.legalName'),
+      placeholder: t('applications.placeholders.legalName'),
+    },
+    {
+      key: 'trade_name',
+      label: t('applications.tradeName'),
+      placeholder: t('applications.placeholders.tradeName'),
+    },
+    {
+      key: 'registration_number',
+      label: t('applications.registrationNumber'),
+      placeholder: t('applications.placeholders.registrationNumber'),
+    },
+    {
+      key: 'website_url',
+      label: t('applications.website'),
+      placeholder: 'https://example.jp',
+      type: 'url',
+    },
+    {
+      key: 'contact_name',
+      label: t('applications.contactName'),
+      placeholder: t('applications.placeholders.contactName'),
+    },
+    {
+      key: 'contact_title',
+      label: t('applications.contactTitle'),
+      placeholder: t('applications.placeholders.contactTitle'),
+    },
+    {
+      key: 'work_email',
+      label: t('applications.workEmail'),
+      placeholder: 'manager@example.jp',
+      type: 'email',
+    },
+    {
+      key: 'phone',
+      label: t('applications.phone'),
+      placeholder: '03-1234-5678',
+      type: 'tel',
+    },
+    {
+      key: 'postal_code',
+      label: t('applications.postalCode'),
+      placeholder: '100-0001',
+    },
+    {
+      key: 'prefecture',
+      label: t('applications.prefecture'),
+      placeholder: t('applications.placeholders.prefecture'),
+    },
+    {
+      key: 'city',
+      label: t('applications.city'),
+      placeholder: t('applications.placeholders.city'),
+    },
+    {
+      key: 'address_line1',
+      label: t('applications.addressLine1'),
+      placeholder: t('applications.placeholders.addressLine1'),
+    },
+    {
+      key: 'address_line2',
+      label: t('applications.addressLine2'),
+      placeholder: t('applications.placeholders.addressLine2'),
+    },
+  ];
+
+  return (
+    <div className="border-b border-gray-200 bg-gray-50 p-5">
+      <div className="mb-4">
+        <h3 className="font-bold text-gray-950">{t('applications.editSubmittedDetails')}</h3>
+        <p className="mt-1 text-sm text-gray-500">{t('applications.editSubmittedHint')}</p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {textFields.map((field) => (
+          <label key={field.key} className="block">
+            <span className="mb-1.5 block text-xs font-bold text-gray-600">{field.label}</span>
+            <input
+              name={field.key}
+              type={field.type ?? 'text'}
+              value={String(application[field.key] ?? '')}
+              placeholder={field.placeholder}
+              onChange={(event) =>
+                set(
+                  field.key,
+                  (event.target.value || null) as OrganizationApplication[typeof field.key]
+                )
+              }
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            />
+          </label>
+        ))}
+        <SelectField
+          label={t('applications.businessType')}
+          value={application.business_type}
+          onChange={(value) => set('business_type', value)}
+          options={['restaurant', 'salon', 'clinic', 'retail', 'public_service', 'other'].map(
+            (value) => ({
+              value,
+              label: t(`registration.businessTypes.${value}`, { ns: 'marketing' }),
+            })
+          )}
+        />
+        <NumberField
+          label={t('applications.locationCount')}
+          value={application.location_count}
+          placeholder="1"
+          onChange={(value) => set('location_count', value)}
+        />
+        <NumberField
+          label={t('applications.expectedCustomers')}
+          value={application.expected_monthly_customers}
+          placeholder="1000"
+          onChange={(value) => set('expected_monthly_customers', value)}
+        />
+        <SelectField
+          label={t('applications.plan')}
+          value={application.plan_code}
+          onChange={(value) => set('plan_code', value as OrganizationApplication['plan_code'])}
+          options={['starter', 'standard', 'scale'].map((value) => ({
+            value,
+            label: t(`pricing.${value}.name`, { ns: 'marketing' }),
+          }))}
+        />
+        <SelectField
+          label={t('applications.billingCycle')}
+          value={application.billing_cycle}
+          onChange={(value) =>
+            set('billing_cycle', value as OrganizationApplication['billing_cycle'])
+          }
+          options={['monthly', 'annual'].map((value) => ({
+            value,
+            label: t(`applications.billingCycles.${value}`),
+          }))}
+        />
+      </div>
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          className="rounded-md bg-gray-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-gray-800 disabled:opacity-50"
+        >
+          {saving ? t('applications.saving') : t('applications.saveChanges')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: Readonly<{
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}>) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-bold text-gray-600">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function NumberField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: Readonly<{
+  label: string;
+  value: number;
+  placeholder: string;
+  onChange: (value: number) => void;
+}>) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-bold text-gray-600">{label}</span>
+      <input
+        type="number"
+        min={1}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+      />
+    </label>
   );
 }
 

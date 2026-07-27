@@ -1,7 +1,11 @@
+import { productsRepository } from '../../../db/repositories/products.repository';
 import { type QueueRow, queuesRepository } from '../../../db/repositories/queues.repository';
+import { withTransaction } from '../../../db/transaction';
 import { queuesService } from '../queues.service';
 
+jest.mock('../../../db/repositories/products.repository');
 jest.mock('../../../db/repositories/queues.repository');
+jest.mock('../../../db/transaction');
 
 const ORG_ID = '11111111-1111-4111-8111-111111111111';
 const BRANCH_ID = '22222222-2222-4222-8222-222222222222';
@@ -35,6 +39,8 @@ const queue: QueueRow = {
 describe('queuesService branch scope', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(withTransaction).mockImplementation(async (callback) => callback({} as never));
+    jest.mocked(productsRepository.syncProductsForQueue).mockResolvedValue(undefined);
   });
 
   it('creates another queue inside the authenticated manager branch', async () => {
@@ -44,18 +50,31 @@ describe('queuesService branch scope', () => {
       name: 'Hair services',
       status: 'open',
       avgServiceTimeMinutes: 15,
+      absenceGraceMinutes: 5,
+      productIds: [],
     });
 
-    expect(queuesRepository.create).toHaveBeenCalledWith({
-      organizationId: ORG_ID,
-      branchId: BRANCH_ID,
-      name: 'Hair services',
-      description: undefined,
-      status: 'open',
-      prefix: undefined,
-      maxCapacity: undefined,
-      avgServiceSeconds: 900,
-    });
+    expect(queuesRepository.create).toHaveBeenCalledWith(
+      {
+        organizationId: ORG_ID,
+        branchId: BRANCH_ID,
+        name: 'Hair services',
+        description: undefined,
+        status: 'open',
+        prefix: undefined,
+        maxCapacity: undefined,
+        avgServiceSeconds: 900,
+        autoNoShowMinutes: 5,
+      },
+      expect.anything()
+    );
+    expect(productsRepository.syncProductsForQueue).toHaveBeenCalledWith(
+      QUEUE_ID,
+      ORG_ID,
+      BRANCH_ID,
+      [],
+      expect.anything()
+    );
   });
 
   it('rejects reading a queue assigned to another branch', async () => {
@@ -69,14 +88,12 @@ describe('queuesService branch scope', () => {
     });
   });
 
-  it('prevents deleting the last active queue in a branch', async () => {
+  it('allows deleting the last active queue while a branch is being configured', async () => {
     jest.mocked(queuesRepository.findById).mockResolvedValue(queue);
-    jest.mocked(queuesRepository.findActiveByBranches).mockResolvedValue([queue]);
 
-    await expect(queuesService.deleteQueue(QUEUE_ID, scope)).rejects.toMatchObject({
-      statusCode: 409,
-    });
-    expect(queuesRepository.softDelete).not.toHaveBeenCalled();
+    await queuesService.deleteQueue(QUEUE_ID, scope);
+
+    expect(queuesRepository.softDelete).toHaveBeenCalledWith(QUEUE_ID);
   });
 
   it('allows deleting one queue when another active queue remains', async () => {

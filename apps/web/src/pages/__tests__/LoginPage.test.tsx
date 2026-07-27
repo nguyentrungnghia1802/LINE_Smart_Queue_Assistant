@@ -103,6 +103,17 @@ describe('LoginPage', () => {
     expect(await screen.findByText('このアカウントは無効です。')).toBeInTheDocument();
   });
 
+  it('shows a specific translated message for an incorrect password', async () => {
+    mockLogin.mockRejectedValueOnce(
+      new ApiClientError('AUTH_INVALID_PASSWORD', 401, undefined, 'The password is incorrect')
+    );
+
+    renderPage();
+    await submitLogin();
+
+    expect(await screen.findByText('パスワードが正しくありません。')).toBeInTheDocument();
+  });
+
   it('shows network fallback when request cannot reach the server', async () => {
     mockLogin.mockRejectedValueOnce(
       new AxiosError('Network Error', 'ERR_NETWORK', undefined, undefined, undefined)

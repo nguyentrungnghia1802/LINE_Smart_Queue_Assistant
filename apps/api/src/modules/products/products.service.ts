@@ -34,24 +34,23 @@ export const productsService = {
   },
 
   async create(scope: BranchManagerScope, dto: CreateProductDto, audit?: AuditContext) {
-    const { queueIds, ...productFields } = dto;
     const product = await withTransaction(async (client) => {
-      const created = await productsRepository.create(
+      return productsRepository.create(
         {
           organizationId: scope.organizationId,
           branchId: scope.branchId,
-          ...productFields,
+          name: dto.name,
+          description: dto.description,
+          imageUrl: dto.imageUrl,
+          price: dto.price,
+          serviceTimeMinutes: dto.serviceTimeMinutes,
+          maxWaitMinutes: dto.maxWaitMinutes,
+          requiresPrepayment: dto.requiresPrepayment,
+          stockQuantity: dto.stockQuantity,
+          productType: dto.productType,
         },
         client
       );
-      try {
-        await productsRepository.syncQueueAssignments(created, queueIds, client);
-      } catch {
-        throw AppError.unprocessable('Product queues must belong to the assigned branch', {
-          fieldErrors: { queueIds: ['Select active queues from your assigned branch'] },
-        });
-      }
-      return created;
     });
 
     if (audit) {
@@ -91,23 +90,13 @@ export const productsService = {
         fieldErrors: { stockQuantity: ['Services must use unlimited stock'] },
       });
     }
-    const { queueIds, ...productChanges } = dto;
     const normalizedDto = {
-      ...productChanges,
+      ...dto,
       ...(nextProductType === 'service' ? { stockQuantity: null } : {}),
     };
     const updated = await withTransaction(async (client) => {
       const result = await productsRepository.update(id, normalizedDto, client);
       if (!result) throw AppError.notFound('Product not found');
-      if (queueIds) {
-        try {
-          await productsRepository.syncQueueAssignments(result, queueIds, client);
-        } catch {
-          throw AppError.unprocessable('Product queues must belong to the assigned branch', {
-            fieldErrors: { queueIds: ['Select active queues from your assigned branch'] },
-          });
-        }
-      }
       return result;
     });
     if (!updated) throw AppError.notFound('Product not found');

@@ -36,6 +36,8 @@ const initial = {
   city: '',
   addressLine1: '',
   addressLine2: '',
+  latitude: '',
+  longitude: '',
   managerName: '',
   managerEmail: '',
   managerPhone: '',
@@ -69,6 +71,8 @@ export function ManagerBranchesPage() {
         city: form.city,
         addressLine1: form.addressLine1,
         addressLine2: form.addressLine2 || null,
+        latitude: form.latitude ? Number(form.latitude) : null,
+        longitude: form.longitude ? Number(form.longitude) : null,
         managers: [
           {
             displayName: form.managerName,
@@ -112,6 +116,8 @@ export function ManagerBranchesPage() {
     'city',
     'addressLine1',
     'addressLine2',
+    'latitude',
+    'longitude',
     'managerName',
     'managerEmail',
     'managerPhone',
@@ -227,8 +233,16 @@ export function ManagerBranchesPage() {
                     {t(`branches.fields.${key}`)}
                   </span>
                   <input
-                    required={!['email', 'addressLine2'].includes(key)}
-                    type={key.toLowerCase().includes('email') ? 'email' : 'text'}
+                    required={!['email', 'addressLine2', 'latitude', 'longitude'].includes(key)}
+                    type={
+                      key.toLowerCase().includes('email')
+                        ? 'email'
+                        : ['latitude', 'longitude'].includes(key)
+                          ? 'number'
+                          : 'text'
+                    }
+                    step={['latitude', 'longitude'].includes(key) ? '0.000001' : undefined}
+                    placeholder={t(`branches.placeholders.${key}`)}
                     value={form[key]}
                     onChange={(e) => setForm((v) => ({ ...v, [key]: e.target.value }))}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
@@ -278,6 +292,7 @@ export function ManagerBranchesPage() {
                     <input
                       required
                       type={key === 'managerEmail' ? 'email' : 'text'}
+                      placeholder={t(`branches.placeholders.${key}`)}
                       value={managerForm[key]}
                       onChange={(event) =>
                         setManagerForm((value) => ({ ...value, [key]: event.target.value }))

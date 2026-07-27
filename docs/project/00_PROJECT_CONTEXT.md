@@ -33,7 +33,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 
 | Area                      | Status                                              | Meaning                                                                                                                                                                                                                                                                                                 |
 | ------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Organization onboarding   | Implemented                                         | Public product site and server-priced demo-paid application; admin approval atomically creates an inactive organization, main branch, owner invitation, and email delivery record                                                                                                                       |
+| Organization onboarding   | Implemented                                         | Public product site and server-priced demo-paid application; admin approval atomically creates an inactive organization, owner invitation, and email delivery record; the activated owner creates branches later                                                                                        |
 | Catalog and QR booking    | Implemented                                         | One stable QR per branch, customer queue selection, queue-specific products/services, stock display, quantity selection, and LIFF-first booking                                                                                                                                                         |
 | Queue and staff operation | Implemented                                         | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                                                                                                                                                                                                       |
 | Orders and inventory      | Operational lifecycle implemented                   | Atomic reserve/decrement, consume on fulfillment, release/restore on cancellation or no-show, expiry worker, transition history, and idempotent guarded transitions                                                                                                                                     |
@@ -56,14 +56,17 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Public business onboarding with organization/contact/address/usage/plan details, a work-email
   owner invitation, optional compressed logo, server-calculated demo payment, and admin
   approval/rejection. Applicants do not submit account credentials.
-- Branch-scoped product/service CRUD, queue mappings, prepayment flag, service duration, finite or unlimited stock, and active state.
+- Branch-scoped product/service CRUD, prepayment flag, service duration, finite or unlimited stock,
+  and active state; queue configuration owns the queue-to-product catalog mapping.
 - Multiple named queues per branch with opening state, capacity configuration, ticket prefix/counter,
-  skip/no-show controls, ETA configuration, and a guard against removing the final active queue.
+  three-slot absence deferral, ETA configuration, and branches that can start without a queue.
 - Atomic order, queue-entry, order-item, payment-transaction, inventory-reservation, and optional location writes.
 - Per-item payment status and full-order payment status for required-only or all-item checkout.
 - Server-side payment intent boundary with demo provider, localized payment method UI, webhook callback, return status, and reconciliation hooks.
 - Staff order details with booking name, telephone, verified LINE display name, item images, manual payment/status controls, queue actions, and receipt printing.
-- LINE push for booking-created, approaching, called, serving, cancelled, completed, and no-show ticket events on queue entries that contain a verified linked LINE user ID.
+- LINE push for the standard customer journey at booking-created, exactly five people ahead,
+  called, and completed, plus exceptional cancelled, deferred, and no-show events on queue entries
+  that contain a verified linked LINE user ID.
 - Centralized Japanese, Vietnamese, and English LINE Flex Message and text fallback templates for ticket lifecycle notifications, with Japanese as the final locale fallback.
 - Durable LINE notification outbox/delivery log in PostgreSQL with unique event keys, worker claim, retry/backoff, sent/failed state, and mock-mode delivery.
 - LINE notification ticket deeplinks that open `/liff/tickets/:entryId`.

@@ -35,14 +35,6 @@ function branchCode(name: string): string {
   return `${base || 'branch'}-${randomBytes(3).toString('hex')}`;
 }
 
-function queuePrefix(name: string): string {
-  const ascii = name
-    .normalize('NFKD')
-    .replace(/[^A-Za-z0-9]/g, '')
-    .toUpperCase();
-  return ascii.slice(0, 3);
-}
-
 function isUniqueViolation(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -171,6 +163,8 @@ export const branchesService = {
             city: dto.city,
             addressLine1: dto.addressLine1,
             addressLine2: dto.addressLine2,
+            latitude: dto.latitude,
+            longitude: dto.longitude,
             createdBy: actor.id,
           },
           client
@@ -195,16 +189,6 @@ export const branchesService = {
             AND org_hours.weekday = day.weekday`,
           [branch.id, organizationId]
         );
-        const queue = await queuesRepository.create(
-          {
-            organizationId,
-            branchId: branch.id,
-            name: `${dto.name} 受付`,
-            status: 'closed',
-            prefix: queuePrefix(dto.name),
-          },
-          client
-        );
         const managers = [];
         for (const manager of dto.managers) {
           managers.push(
@@ -225,14 +209,9 @@ export const branchesService = {
           `INSERT INTO audit_logs
              (actor_id, action, resource_type, resource_id, organization_id, changes)
            VALUES ($1,'branch_created','organization_branch',$2,$3,$4)`,
-          [
-            actor.id,
-            branch.id,
-            organizationId,
-            JSON.stringify({ name: branch.name, queueId: queue.id }),
-          ]
+          [actor.id, branch.id, organizationId, JSON.stringify({ name: branch.name })]
         );
-        return { branch, queue, managers };
+        return { branch, managers };
       });
     } catch (error) {
       if (isUniqueViolation(error)) {

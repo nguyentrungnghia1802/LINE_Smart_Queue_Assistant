@@ -281,9 +281,24 @@ display data so later profile edits do not rewrite old receipts.
 
 **Decision:** Define subscription limits in the shared package and enforce them inside the
 organization-locked branch creation transaction. Starter permits one branch, Standard permits three,
-and Scale is currently unlimited. Queue approach notifications use distinct durable event keys at
-exactly five and three people ahead. Auto-call runs through one queue-locked service and never calls
+and Scale is currently unlimited. The standard queue approach notification uses a durable event key
+at exactly five people ahead. Auto-call runs through one queue-locked service and never calls
 a second customer while another ticket is called or serving.
 
 **Consequences:** UI limits are guidance only; backend enforcement is authoritative and safe under
-concurrent branch creation. Both ETA milestones survive retries without deduplicating each other.
+concurrent branch creation. The five-ahead milestone survives retries without duplicate delivery.
+
+## ADR-021: Owner-led branch setup and repeated-absence policy
+
+**Status:** accepted (2026-07-27)
+
+**Decision:** Application approval provisions only the inactive tenant and invited owner account.
+Owners create branches without automatic queues; assigned branch managers create queue catalogs.
+A staff-recorded absence moves a called ticket back three slots, preserves its ticket code, and
+increments an absence counter. The third absence cancels the order and performs the normal
+idempotent refund and inventory-release workflow.
+
+**Consequences:** Tenant setup no longer creates placeholder operational data. Branches can
+temporarily have no queues, and customer booking remains unavailable until a manager creates and
+opens one. Absence handling is auditable and uses the same transaction and durable LINE outbox
+boundaries as other queue transitions.

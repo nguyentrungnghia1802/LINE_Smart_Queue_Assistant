@@ -31,9 +31,10 @@ export const staff = {
     ticketActions: 'Ticket actions',
     startService: 'Start service',
     noShow: 'No-show',
-    defer: 'Move to back of queue',
+    defer: 'Move back 3 slots',
     deferring: 'Moving ticket...',
-    deferConfirm: 'Move this customer behind everyone currently waiting?',
+    deferConfirm:
+      'Move this customer back 3 slots? A third absence cancels the booking and refunds collected payment.',
     complete: 'Complete',
     cancelTicket: 'Cancel ticket',
     orderActions: 'Order actions',

@@ -70,6 +70,11 @@ interface CreateApplicationParams {
   amountYen: number;
 }
 
+type UpdateApplicationParams = Omit<
+  CreateApplicationParams,
+  'referenceCode' | 'paymentReference' | 'amountYen'
+> & { amountYen: number };
+
 export class OrganizationApplicationsRepository extends BaseRepository {
   async create(params: CreateApplicationParams): Promise<OrganizationApplicationRow> {
     const rows = await this.query<OrganizationApplicationRow>(
@@ -127,14 +132,62 @@ export class OrganizationApplicationsRepository extends BaseRepository {
     );
   }
 
-  async findPendingByEmail(email: string): Promise<OrganizationApplicationRow | null> {
-    return this.queryOne<OrganizationApplicationRow>(
-      `SELECT *
+  async updatePending(
+    id: string,
+    params: UpdateApplicationParams,
+    client: PoolClient
+  ): Promise<OrganizationApplicationRow> {
+    const rows = await this.queryTx<OrganizationApplicationRow>(
+      client,
+      `UPDATE organization_applications
+       SET legal_name = $2, trade_name = $3, business_type = $4,
+           registration_number = $5, website_url = $6, contact_name = $7,
+           contact_title = $8, work_email = $9, phone = $10, postal_code = $11,
+           prefecture = $12, city = $13, address_line1 = $14, address_line2 = $15,
+           location_count = $16, expected_monthly_customers = $17, plan_code = $18,
+           billing_cycle = $19, default_locale = $20, logo_url = $21,
+           amount_yen = $22, updated_at = NOW()
+       WHERE id = $1 AND status = 'pending'
+       RETURNING *`,
+      [
+        id,
+        params.legalName,
+        params.tradeName,
+        params.businessType,
+        params.registrationNumber ?? null,
+        params.websiteUrl ?? null,
+        params.contactName,
+        params.contactTitle ?? null,
+        params.workEmail,
+        params.phone,
+        params.postalCode,
+        params.prefecture,
+        params.city,
+        params.addressLine1,
+        params.addressLine2 ?? null,
+        params.locationCount,
+        params.expectedMonthlyCustomers,
+        params.planCode,
+        params.billingCycle,
+        params.defaultLocale,
+        params.logoUrl ?? null,
+        params.amountYen,
+      ]
+    );
+    return this.firstOrThrow(rows, 'organizationApplications.updatePending');
+  }
+
+  async findPendingByEmail(
+    email: string,
+    client?: PoolClient
+  ): Promise<OrganizationApplicationRow | null> {
+    const sql = `SELECT *
        FROM organization_applications
        WHERE LOWER(work_email) = LOWER($1) AND status = 'pending'
-       LIMIT 1`,
-      [email]
-    );
+       LIMIT 1`;
+    return client
+      ? this.queryOneTx<OrganizationApplicationRow>(client, sql, [email])
+      : this.queryOne<OrganizationApplicationRow>(sql, [email]);
   }
 
   async findByIdForUpdate(

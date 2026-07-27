@@ -113,6 +113,8 @@ export const ordersService = {
     ) {
       throw new AppError('No queue is currently accepting bookings', 409, 'QUEUE_NOT_ACCEPTING');
     }
+    const branch = await branchesRepository.findById(dto.branchId, org.id);
+    if (!branch) throw AppError.notFound('Organization branch');
     if (!(await branchesRepository.isOpenNow(dto.branchId))) {
       throw new AppError('Branch is outside business hours', 409, 'BRANCH_CLOSED');
     }
@@ -308,17 +310,13 @@ export const ordersService = {
         if (!(await locationRepository.isEnabled(actorUserId, client))) {
           throw AppError.forbidden('Location consent is required');
         }
-        const orgWithLocation = org as typeof org & {
-          latitude?: string | number | null;
-          longitude?: string | number | null;
-        };
-        const orgLatitude = nullableNumber(orgWithLocation.latitude);
-        const orgLongitude = nullableNumber(orgWithLocation.longitude);
+        const branchLatitude = nullableNumber(branch.latitude);
+        const branchLongitude = nullableNumber(branch.longitude);
         const distanceToOrgMeters =
-          orgLatitude !== null && orgLongitude !== null
+          branchLatitude !== null && branchLongitude !== null
             ? distanceMeters(dto.customerLocation, {
-                latitude: orgLatitude,
-                longitude: orgLongitude,
+                latitude: branchLatitude,
+                longitude: branchLongitude,
               })
             : null;
 
