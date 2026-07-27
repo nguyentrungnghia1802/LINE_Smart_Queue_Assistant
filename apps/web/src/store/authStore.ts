@@ -5,6 +5,8 @@ import type { SupportedLocale, UserRole } from '@line-queue/shared';
 
 import { post } from '../services/apiClient';
 
+import { clearAuthSession, getAuthToken, setAuthToken } from './authSession';
+
 export interface AuthUser {
   id: string;
   email?: string;
@@ -43,7 +45,7 @@ export const useAuthStore = create<AuthState>()(
           },
           { headers: { 'X-Skip-Auth-Redirect': 'true' } }
         );
-        localStorage.setItem('auth_token', token);
+        setAuthToken(token);
         set({ user, token, isAuthenticated: true });
       },
 
@@ -53,12 +55,12 @@ export const useAuthStore = create<AuthState>()(
           { idToken },
           { headers: { 'X-Skip-Auth-Redirect': 'true' } }
         );
-        localStorage.setItem('auth_token', token);
+        setAuthToken(token);
         set({ user, token, isAuthenticated: true });
       },
 
       logout: () => {
-        localStorage.removeItem('auth_token');
+        clearAuthSession();
         set({ user: null, token: null, isAuthenticated: false });
       },
 
@@ -66,7 +68,17 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+      partialize: (state) => ({ user: state.user }),
+      merge: (persisted, current) => {
+        const token = getAuthToken();
+        const user = (persisted as Partial<AuthState> | undefined)?.user ?? null;
+        return {
+          ...current,
+          user: token ? user : null,
+          token,
+          isAuthenticated: Boolean(token && user),
+        };
+      },
     }
   )
 );
