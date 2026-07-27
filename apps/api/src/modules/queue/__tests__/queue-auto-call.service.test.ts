@@ -11,7 +11,7 @@ jest.mock('../../notifications/notification-outbox.repository', () => ({
   notificationOutboxRepository: {},
 }));
 jest.mock('../../notifications/queue-notification.service', () => ({
-  ETA_WARNING_POSITIONS: [5, 3],
+  ETA_WARNING_POSITIONS: [5],
   queueNotificationService: {
     notifyTicketCalled: jest.fn().mockResolvedValue(undefined),
     notifyEtaWarning: jest.fn().mockResolvedValue(undefined),
@@ -63,7 +63,7 @@ describe('tryAutoCallNextWaiting', () => {
     expect(queueEntriesRepository.markCalled).not.toHaveBeenCalled();
   });
 
-  it('enqueues approaching notifications at five and three people ahead', async () => {
+  it('enqueues the configured five-people-ahead notification', async () => {
     const waitingAfterCall = Array.from({ length: 6 }, (_, index) => ({
       ...waiting,
       id: `waiting-${index}`,
@@ -83,13 +83,7 @@ describe('tryAutoCallNextWaiting', () => {
       expect.anything(),
       client
     );
-    expect(queueNotificationService.notifyEtaWarning).toHaveBeenCalledWith(
-      waitingAfterCall[3],
-      3,
-      expect.objectContaining({ organizationId: queue.organization_id }),
-      expect.anything(),
-      client
-    );
+    expect(queueNotificationService.notifyEtaWarning).toHaveBeenCalledTimes(1);
   });
 
   it('does nothing when no customer is waiting', async () => {

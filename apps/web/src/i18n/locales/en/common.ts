@@ -92,6 +92,10 @@ export const common = {
     unlimited: 'Unlimited',
   },
   errors: {
+    AUTH_ACCOUNT_NOT_FOUND: 'No account is registered for this email address.',
+    AUTH_ACCOUNT_NOT_ACTIVATED: 'This account is not active yet. Check your invitation email.',
+    AUTH_ACCOUNT_DISABLED: 'This account has been disabled. Contact an administrator.',
+    AUTH_INVALID_PASSWORD: 'The password is incorrect.',
     UNAUTHORIZED: 'Please log in again.',
     FORBIDDEN: 'You do not have permission to perform this action.',
     CUSTOMER_ACCOUNT_REQUIRED: 'A customer account is required to start reception.',

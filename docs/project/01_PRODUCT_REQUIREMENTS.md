@@ -19,7 +19,7 @@ Status labels in this document mean:
 | Staff                       | Operational data and actions for exactly one active branch assignment                  |
 | Branch manager              | Products, queues, staff, QR, hours, and operations for exactly one assigned branch     |
 | Organization owner manager  | Branch/manager lifecycle, audit, and aggregate branch performance for one organization |
-| Platform admin              | Cross-tenant organization and manager administration only                              |
+| Platform admin              | Application review, tenant deactivation, and organization-owner account recovery only  |
 | Business applicant          | Public product discovery and organization service application                          |
 | Scheduler/system            | ETA updates, notification scans, and counter resets                                    |
 
@@ -59,9 +59,9 @@ role and does not use branch-operation endpoints.
 | FR-ORG-006 | Branch manager edits only their assigned branch settings and business calendar                                                           | Implemented                                |
 | FR-ORG-007 | Branch stores location, business hours, holiday rules, and provider configuration                                                        | Implemented; real provider secrets pending |
 | FR-ORG-008 | Branch-manager print/copy actions prefer LIFF QR and expose public web booking as fallback                                               | Implemented                                |
-| FR-ORG-009 | Approval atomically creates an inactive organization, main branch, default queue, invited owner, activation action, and email outbox row | Implemented                                |
+| FR-ORG-009 | Approval atomically creates an inactive organization, invited owner, activation action, and email outbox row; it creates no branch/queue | Implemented                                |
 | FR-ORG-010 | Public organization applications never accept or store account credentials                                                               | Implemented                                |
-| FR-ORG-011 | Owner manager creates branches with at least one invited branch manager and a default queue                                              | Implemented                                |
+| FR-ORG-011 | Owner manager creates branches with at least one invited branch manager; assigned managers create queues later                           | Implemented                                |
 | FR-ORG-012 | Owner dashboard shows organization revenue, branch count, best/worst branch, trend, and branch detail                                    | Implemented                                |
 | FR-ORG-013 | Owner navigation excludes branch product, queue, staff, and QR operations                                                                | Implemented                                |
 | FR-ORG-014 | Branch creation enforces the selected subscription plan; Standard permits at most three active branches                                  | Implemented                                |
@@ -109,28 +109,28 @@ role and does not use branch-operation endpoints.
 | FR-QUEUE-005 | Queue ticket counter resets daily                                                                                                 | Implemented with UTC limitation |
 | FR-QUEUE-006 | Queue capacity remains strict under concurrent joins                                                                              | Partial                         |
 | FR-QUEUE-007 | Branch manager creates and configures multiple named queues, status, prefix, capacity, timing, and rules                          | Implemented                     |
-| FR-QUEUE-008 | Staff can move a called late customer behind everyone currently waiting                                                           | Implemented                     |
+| FR-QUEUE-008 | Staff can move a called absent customer back three slots; the third absence cancels and refunds the booking                       | Implemented                     |
 | FR-QUEUE-009 | Staff related-booking context includes only active queue tickets and excludes completed history                                   | Implemented                     |
-| FR-QUEUE-010 | Every active branch retains at least one active queue; the last active queue cannot be deleted                                    | Implemented                     |
+| FR-QUEUE-010 | A branch may temporarily have no queue during setup or reconfiguration                                                            | Implemented                     |
 | FR-QUEUE-011 | Booking is accepted only while both the branch calendar and selected queue status are open                                        | Implemented                     |
 | FR-QUEUE-012 | An idle queue automatically calls its earliest waiting ticket after booking or a transition frees the active slot                 | Implemented                     |
 
 ### LINE and notifications
 
-| ID          | Requirement                                                                                   | Status                                                                                                                |
-| ----------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| FR-LINE-001 | Messaging API sends a LINE chat message when the turn approaches                              | Implemented for authenticated LINE-linked tickets with durable delivery                                               |
-| FR-LINE-002 | Messaging API sends a LINE chat message when staff changes ticket state                       | Implemented for called/serving/completed/cancelled/no-show on authenticated LINE-linked tickets with durable delivery |
-| FR-LINE-003 | Queue state remains successful even if LINE delivery fails                                    | Implemented                                                                                                           |
-| FR-LINE-004 | Delivery is durable and deduplicated across restarts/replicas                                 | Implemented                                                                                                           |
-| FR-LINE-005 | Follow/unfollow link state is persisted                                                       | Implemented                                                                                                           |
-| FR-LINE-006 | Consent/preferences and opt-out controls are user-manageable                                  | Implemented                                                                                                           |
-| FR-LINE-007 | LINE notification links open the correct LIFF ticket detail                                   | Implemented                                                                                                           |
-| FR-LINE-008 | Ticket lifecycle notifications use a common Flex Message with text fallback                   | Implemented                                                                                                           |
-| FR-LINE-009 | Booking success sends a LINE ticket notification when the entry has a verified LINE recipient | Implemented                                                                                                           |
-| FR-LINE-010 | LINE Rich Menu opens LIFF Home, booking start, current ticket resolution, and usage guidance  | Implemented in code; LINE Console/E2E sync pending                                                                    |
-| FR-LINE-011 | Rich Menu synchronization is explicit, idempotent, mockable, and never runs on API startup    | Implemented                                                                                                           |
-| FR-LINE-012 | Approaching-turn notifications are durably enqueued at exactly five and three people ahead    | Implemented                                                                                                           |
+| ID          | Requirement                                                                                   | Status                                                                  |
+| ----------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| FR-LINE-001 | Messaging API sends a LINE chat message when the turn approaches                              | Implemented for authenticated LINE-linked tickets with durable delivery |
+| FR-LINE-002 | Messaging API sends called/completed and exceptional deferred/cancelled/no-show messages      | Implemented on authenticated LINE-linked tickets with durable delivery  |
+| FR-LINE-003 | Queue state remains successful even if LINE delivery fails                                    | Implemented                                                             |
+| FR-LINE-004 | Delivery is durable and deduplicated across restarts/replicas                                 | Implemented                                                             |
+| FR-LINE-005 | Follow/unfollow link state is persisted                                                       | Implemented                                                             |
+| FR-LINE-006 | Consent/preferences and opt-out controls are user-manageable                                  | Implemented                                                             |
+| FR-LINE-007 | LINE notification links open the correct LIFF ticket detail                                   | Implemented                                                             |
+| FR-LINE-008 | Ticket lifecycle notifications use a common Flex Message with text fallback                   | Implemented                                                             |
+| FR-LINE-009 | Booking success sends a LINE ticket notification when the entry has a verified LINE recipient | Implemented                                                             |
+| FR-LINE-010 | LINE Rich Menu opens LIFF Home, booking start, current ticket resolution, and usage guidance  | Implemented in code; LINE Console/E2E sync pending                      |
+| FR-LINE-011 | Rich Menu synchronization is explicit, idempotent, mockable, and never runs on API startup    | Implemented                                                             |
+| FR-LINE-012 | The standard approaching-turn notification is durably enqueued at exactly five people ahead   | Implemented                                                             |
 
 ### Location, prediction, and analytics
 
@@ -163,8 +163,8 @@ role and does not use branch-operation endpoints.
 | BR-QUEUE-003    | Calling next selects the earliest eligible waiting ticket and must not call two tickets through one race.                                  |
 | BR-QUEUE-004    | Notification failure must never roll back an already committed queue transition.                                                           |
 | BR-QUEUE-005    | Auto-call selects at most one next waiting ticket and does not call another while a ticket is called or serving.                           |
-| BR-QUEUE-006    | Deferring a called ticket preserves its ticket code and moves it behind everyone waiting at that moment.                                   |
-| BR-QUEUE-007    | A branch must keep at least one active queue, and active queue names are unique within that branch.                                        |
+| BR-QUEUE-006    | Deferring a called ticket preserves its ticket code and moves it back three waiting slots; the third absence cancels and refunds it.       |
+| BR-QUEUE-007    | A branch may have zero active queues during setup, and active queue names are unique within that branch.                                   |
 | BR-QUEUE-008    | Products selected for an order/payment must be active and assigned to the selected queue and branch.                                       |
 | BR-QUEUE-009    | Branch weekly hours and exception dates gate customer payment and booking independently of queue status.                                   |
 | BR-ORDER-001    | Server prices and product ownership are authoritative; browser totals are advisory only.                                                   |
@@ -201,7 +201,8 @@ role and does not use branch-operation endpoints.
 7. Staff state changes for a LINE-linked customer send locale-aware queue messages without reverting queue state on delivery failure.
 8. LINE ticket notifications contain the system name, ticket code, status, people ahead, ETA, next action, and a LIFF ticket button; text fallback remains available.
 9. Rich Menu buttons open `/liff/home`, booking start, current ticket resolution, and usage guidance without hard-coded entry IDs.
-10. Admin approval of a paid pending application creates the organization, manager user, and active membership together.
+10. Admin approval of a paid pending application creates the inactive organization, invited owner,
+    inactive membership, activation action, and email outbox together without creating a branch or queue.
 11. All primary pages remain usable at mobile and desktop widths. Business-role destinations stay
     visible in the desktop header and in an icon-labelled mobile bottom navigation; dense queue,
     product, user, form, and modal surfaces reflow without page-level horizontal overflow. Copy

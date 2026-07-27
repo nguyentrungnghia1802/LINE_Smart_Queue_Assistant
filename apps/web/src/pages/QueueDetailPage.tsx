@@ -1,4 +1,4 @@
-import { ClipboardList, QrCode, Settings } from 'lucide-react';
+import { ClipboardList, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
@@ -53,13 +53,6 @@ export function QueueDetailPage() {
         >
           <ClipboardList className="h-4 w-4" />
           {t('queue.manage')}
-        </Link>
-        <Link
-          to="/manager/qr"
-          className="inline-flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          <QrCode className="h-4 w-4" />
-          {t('queue.showQr')}
         </Link>
         <Link
           to={`/manager/queues/${id}/settings`}

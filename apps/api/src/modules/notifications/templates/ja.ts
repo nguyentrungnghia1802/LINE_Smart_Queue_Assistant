@@ -62,6 +62,12 @@ export const jaLineNotificationCopy: LineNotificationCopy = {
       guidance: 'お手数ですが、必要な場合はスタッフへお声がけください。',
       accentColor: '#EA580C',
     },
+    deferred: {
+      headline: '順番を後ろへ移動しました',
+      status: '到着待ち',
+      guidance: '不在のため3枠後ろへ移動しました。受付状況をご確認のうえ、店舗へお越しください。',
+      accentColor: '#EA580C',
+    },
     location_warning: {
       headline: '店舗までの距離をご確認ください',
       status: '移動のご案内',

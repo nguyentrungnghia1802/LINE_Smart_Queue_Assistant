@@ -24,6 +24,7 @@ export interface QueueEntryRow {
   skipped_at: Date | null;
   cancelled_at: Date | null;
   no_show_at: Date | null;
+  absence_count?: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -176,12 +177,17 @@ export class QueueEntriesRepository extends BaseRepository {
     return this.firstOrThrow(rows, 'queueEntries.markCancelled');
   }
 
-  async markNoShow(id: string, client?: PoolClient): Promise<QueueEntryRow> {
-    const sql = `UPDATE queue_entries SET status = 'no_show', no_show_at = NOW()
+  async markNoShow(
+    id: string,
+    client?: PoolClient,
+    incrementAbsence = false
+  ): Promise<QueueEntryRow> {
+    const sql = `UPDATE queue_entries SET status = 'no_show', no_show_at = NOW(),
+      absence_count = absence_count + $2
       WHERE id = $1 AND status = 'called' RETURNING *`;
     const rows = client
-      ? await this.queryTx<QueueEntryRow>(client, sql, [id])
-      : await this.query<QueueEntryRow>(sql, [id]);
+      ? await this.queryTx<QueueEntryRow>(client, sql, [id, incrementAbsence ? 1 : 0])
+      : await this.query<QueueEntryRow>(sql, [id, incrementAbsence ? 1 : 0]);
     return this.firstOrThrow(rows, 'queueEntries.markNoShow');
   }
 
@@ -208,30 +214,43 @@ export class QueueEntriesRepository extends BaseRepository {
     return this.firstOrThrow(rows, 'queueEntries.deprioritize');
   }
 
-  /**
-   * Return a called ticket to waiting behind every customer currently waiting.
-   * Existing waiting priorities are raised atomically so the deferred ticket can
-   * keep its stable ticket number while sorting last.
-   */
-  async deferCalledToBack(id: string, queueId: string, client: PoolClient): Promise<QueueEntryRow> {
+  /** Return a called ticket to waiting exactly `slots` places later. */
+  async deferCalledBySlots(
+    id: string,
+    queueId: string,
+    slots: number,
+    client: PoolClient
+  ): Promise<QueueEntryRow> {
     await this.queryTx(
       client,
-      `UPDATE queue_entries
-       SET priority = priority + 1
-       WHERE queue_id = $1 AND status = 'waiting'`,
+      `WITH ranked AS (
+         SELECT id,
+                ROW_NUMBER() OVER (ORDER BY priority DESC, ticket_number ASC) AS row_number,
+                COUNT(*) OVER () AS total_count
+         FROM queue_entries
+         WHERE queue_id = $1 AND status = 'waiting'
+       )
+       UPDATE queue_entries entry
+       SET priority = ((ranked.total_count - ranked.row_number + 1) * 10)::int
+       FROM ranked
+       WHERE entry.id = ranked.id`,
       [queueId]
     );
+    const waiting = await this.listWaiting(queueId, client);
+    const targetPriority =
+      waiting.length >= slots ? Math.max(0, waiting[slots - 1].priority - 5) : 0;
     const rows = await this.queryTx<QueueEntryRow>(
       client,
       `UPDATE queue_entries
        SET status = 'waiting',
-           priority = 0,
-           called_at = NULL
+           priority = $3,
+           called_at = NULL,
+           absence_count = absence_count + 1
        WHERE id = $1 AND queue_id = $2 AND status = 'called'
        RETURNING *`,
-      [id, queueId]
+      [id, queueId, targetPriority]
     );
-    return this.firstOrThrow(rows, 'queueEntries.deferCalledToBack');
+    return this.firstOrThrow(rows, 'queueEntries.deferCalledBySlots');
   }
 
   async getEntryIdsAhead(

@@ -8,6 +8,8 @@ export const auth = {
     submit: 'Log in',
     submitting: 'Logging in…',
     invalid: 'The email or password is incorrect.',
+    emailPlaceholder: 'e.g. staff@example.com',
+    passwordPlaceholder: 'Enter your password',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
     forgotPassword: 'Forgot password?',

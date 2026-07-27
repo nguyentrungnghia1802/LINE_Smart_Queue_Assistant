@@ -60,10 +60,11 @@ Organization
 | `pending` | Reject and demo-refund          | `rejected` | Platform admin  |
 
 Submission stores business/contact/address/usage/plan data and does not accept credentials or
-create a tenant. Approval locks the application and atomically creates the inactive organization,
-main branch, default closed queue, invited owner-manager membership, single-use activation token,
-and email outbox row. Rejection marks a paid demo application refunded. Reviewed applications
-cannot be processed twice.
+create a tenant. An admin may correct those submitted fields while the application is pending.
+Approval locks the application and atomically creates the inactive organization, invited
+owner-manager membership, single-use activation token, and email outbox row. It deliberately does
+not create a branch or queue. Rejection marks a paid demo application refunded. Reviewed
+applications cannot be processed twice.
 
 ### Queue
 
@@ -78,7 +79,8 @@ PostgreSQL values are `closed`, `open`, `paused`, and `archived`.
 | non-archived    | Retire          | `archived` | Assigned branch manager |
 
 Only active `open` queues accept a new booking/ticket, and only while the branch calendar is open.
-An active branch has one or more named queues; deletion cannot remove its last active queue.
+A new branch starts without a queue. Its assigned branch manager creates one or more named queues
+and may retire all queues while reconfiguring the branch.
 
 ### Queue entry
 
@@ -277,9 +279,9 @@ links such as `https://liff.line.me/{LINE_LOGIN_LIFF_ID}/tickets/:entryId` for t
 endpoint. When the LIFF ID is not configured, the backend falls back to `WEB_ORIGIN` plus
 `/liff/tickets/:entryId`.
 
-Ticket lifecycle notifications currently cover booking-created, ETA warning, called, serving,
-completed, cancelled, and no-show events. ETA warnings are enqueued at exactly five and three
-people ahead with distinct durable event keys. Each Flex Message shows the system name, ticket
+The standard ticket notification journey covers booking-created, exactly five people ahead,
+called, and completed. Exceptional deferred, cancelled, and no-show transitions also notify the
+customer. Each event has a distinct durable event key. Each Flex Message shows the system name, ticket
 code, current status, people ahead, ETA, next action guidance, and a button that opens the LIFF
 ticket detail.
 
@@ -340,17 +342,18 @@ The PostgreSQL-locked forecasting job aggregates the previous eight weeks by org
 # Business account lifecycle and branches
 
 - A public organization application never accepts or stores a manager password.
-- Admin approval atomically creates an inactive organization, its main branch, one closed queue, an invited owner-manager membership, and an account-activation email outbox record.
+- Admin approval atomically creates an inactive organization, an invited owner-manager membership,
+  and an account-activation email outbox record. No branch or queue is provisioned automatically.
 - The owner manager activates the tenant by opening the single-use email link and choosing a password. Owner managers cannot remove themselves.
 - An owner manager may create branches and invite one or more branch managers. Every branch retains
-  at least one assigned manager and is created with one default closed queue.
+  at least one assigned manager, but its queues are created later by an assigned branch manager.
 - Branch creation is serialized against the organization and enforces the subscription plan. The
   Standard plan permits at most three active branches.
 - The owner manager uses only organization-level branch, manager, audit, and aggregate-performance
   views. The owner flag remains an organization membership property, not a new global role.
 - Each branch manager has exactly one active branch assignment and may create multiple named queues.
-  A branch must retain at least one active queue and has one stable public QR token.
-- Products belong to one branch and are mapped to one or more queues in that branch. Customer QR
+  A branch may temporarily have no queue and has one stable public QR token.
+- Products belong to one branch; queue configuration selects the products served by that queue. Customer QR
   admission selects a queue before loading its catalog.
 - Branch managers maintain weekly hours/exception dates and invite staff to their assigned branch.
   Invitees set their own password; staff removal is soft deactivation and records the acting

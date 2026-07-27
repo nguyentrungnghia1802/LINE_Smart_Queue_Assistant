@@ -63,6 +63,13 @@ export const enLineNotificationCopy: LineNotificationCopy = {
       guidance: 'Please speak with staff if you still need assistance.',
       accentColor: '#EA580C',
     },
+    deferred: {
+      headline: 'Your place was moved back',
+      status: 'Waiting for arrival',
+      guidance:
+        'Because you were absent, your ticket was moved back three places. Please return to the store.',
+      accentColor: '#EA580C',
+    },
     location_warning: {
       headline: 'Check your distance from the store',
       status: 'Return reminder',
