@@ -213,6 +213,50 @@ describe('authService.loginWithEmailPassword', () => {
     });
   });
 
+  it('returns a specific error when the account does not exist', async () => {
+    mockFindByEmail.mockResolvedValue(null);
+
+    await expect(
+      authService.loginWithEmailPassword('missing@example.com', 'password')
+    ).rejects.toMatchObject({
+      statusCode: 401,
+      code: 'AUTH_ACCOUNT_NOT_FOUND',
+    });
+  });
+
+  it('returns a specific error when an invited account is not activated', async () => {
+    mockFindByEmail.mockResolvedValue({
+      ...existingUserRow,
+      email: 'invited@example.com',
+      role: UserRole.STAFF,
+      account_status: 'invited',
+      password_hash: null,
+    });
+
+    await expect(
+      authService.loginWithEmailPassword('invited@example.com', 'password')
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      code: 'AUTH_ACCOUNT_NOT_ACTIVATED',
+    });
+  });
+
+  it('returns a specific error when the password is incorrect', async () => {
+    mockFindByEmail.mockResolvedValue({
+      ...existingUserRow,
+      email: 'staff@example.com',
+      role: UserRole.STAFF,
+      password_hash: await bcrypt.hash('correct-password', 10),
+    });
+
+    await expect(
+      authService.loginWithEmailPassword('staff@example.com', 'wrong-password')
+    ).rejects.toMatchObject({
+      statusCode: 401,
+      code: 'AUTH_INVALID_PASSWORD',
+    });
+  });
+
   it('rejects email login for customer accounts', async () => {
     const passwordHash = await bcrypt.hash('123456', 10);
     mockFindByEmail.mockResolvedValue({

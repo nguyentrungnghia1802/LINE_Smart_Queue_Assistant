@@ -2,8 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
-import { del, get, post } from '../../services/apiClient';
+import { ApiClientError, del, get, post } from '../../services/apiClient';
 
 type Branch = {
   id: string;
@@ -15,7 +16,8 @@ type Branch = {
   address_line1: string;
   manager_count: number;
   staff_count: number;
-  queue_name: string;
+  queue_count: number;
+  queues: Array<{ id: string; name: string; status: string }>;
   managers: Array<{
     id: string;
     displayName: string;
@@ -34,6 +36,8 @@ const initial = {
   city: '',
   addressLine1: '',
   addressLine2: '',
+  latitude: '',
+  longitude: '',
   managerName: '',
   managerEmail: '',
   managerPhone: '',
@@ -41,7 +45,7 @@ const initial = {
 };
 
 export function ManagerBranchesPage() {
-  const { t } = useTranslation('manager');
+  const { t } = useTranslation(['manager', 'common']);
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const [inviteBranchId, setInviteBranchId] = useState<string | null>(null);
@@ -67,6 +71,8 @@ export function ManagerBranchesPage() {
         city: form.city,
         addressLine1: form.addressLine1,
         addressLine2: form.addressLine2 || null,
+        latitude: form.latitude ? Number(form.latitude) : null,
+        longitude: form.longitude ? Number(form.longitude) : null,
         managers: [
           {
             displayName: form.managerName,
@@ -110,6 +116,8 @@ export function ManagerBranchesPage() {
     'city',
     'addressLine1',
     'addressLine2',
+    'latitude',
+    'longitude',
     'managerName',
     'managerEmail',
     'managerPhone',
@@ -155,9 +163,15 @@ export function ManagerBranchesPage() {
               </div>
               <div>
                 <dt className="text-gray-500">{t('branches.queue')}</dt>
-                <dd className="truncate font-bold">{branch.queue_name}</dd>
+                <dd className="truncate font-bold">{branch.queue_count}</dd>
               </div>
             </dl>
+            <Link
+              to={`/manager/branches/${branch.id}`}
+              className="mt-4 inline-flex text-sm font-bold text-brand-700"
+            >
+              {t('branches.viewDetails')}
+            </Link>
             <div className="mt-4 border-t pt-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase text-gray-500">
@@ -219,8 +233,16 @@ export function ManagerBranchesPage() {
                     {t(`branches.fields.${key}`)}
                   </span>
                   <input
-                    required={!['email', 'addressLine2'].includes(key)}
-                    type={key.toLowerCase().includes('email') ? 'email' : 'text'}
+                    required={!['email', 'addressLine2', 'latitude', 'longitude'].includes(key)}
+                    type={
+                      key.toLowerCase().includes('email')
+                        ? 'email'
+                        : ['latitude', 'longitude'].includes(key)
+                          ? 'number'
+                          : 'text'
+                    }
+                    step={['latitude', 'longitude'].includes(key) ? '0.000001' : undefined}
+                    placeholder={t(`branches.placeholders.${key}`)}
                     value={form[key]}
                     onChange={(e) => setForm((v) => ({ ...v, [key]: e.target.value }))}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
@@ -228,7 +250,14 @@ export function ManagerBranchesPage() {
                 </label>
               ))}
             </div>
-            {create.error && <p className="mt-4 text-sm text-red-700">{create.error.message}</p>}
+            {create.error && (
+              <p className="mt-4 text-sm text-red-700">
+                {create.error instanceof ApiClientError &&
+                create.error.code === 'BRANCH_PLAN_LIMIT_REACHED'
+                  ? t('errors.BRANCH_PLAN_LIMIT_REACHED', { ns: 'common' })
+                  : create.error.message}
+              </p>
+            )}
             <div className="mt-6 flex justify-end gap-2">
               <button type="button" onClick={() => setOpen(false)} className="px-4 py-2">
                 {t('branches.cancel')}
@@ -263,6 +292,7 @@ export function ManagerBranchesPage() {
                     <input
                       required
                       type={key === 'managerEmail' ? 'email' : 'text'}
+                      placeholder={t(`branches.placeholders.${key}`)}
                       value={managerForm[key]}
                       onChange={(event) =>
                         setManagerForm((value) => ({ ...value, [key]: event.target.value }))

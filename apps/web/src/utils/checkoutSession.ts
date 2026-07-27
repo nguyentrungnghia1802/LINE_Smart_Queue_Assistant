@@ -12,6 +12,8 @@ export interface CheckoutSession {
   id: string;
   orgSlug: string;
   orgName: string;
+  branchId: string;
+  queueId: string;
   returnPath: string;
   cartSignature: string;
   paymentKey: string;
@@ -44,6 +46,7 @@ export interface CheckoutDraft {
   cart: Record<string, number>;
   customerName: string;
   customerPhone: string;
+  selectedQueueId?: string;
 }
 
 export interface BookingRecord {

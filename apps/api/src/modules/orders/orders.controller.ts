@@ -9,33 +9,43 @@ import { sendSuccess } from '../../utils/response';
 import { ordersService } from './orders.service';
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
 
-function requireOrgId(req: Request): string {
-  const orgId = req.user?.organizationId;
-  if (!orgId) throw AppError.badRequest('User has no organization');
-  return orgId;
+function requireOperationalScope(req: Request): { organizationId: string; branchId: string } {
+  const user = req.user;
+  if (!user?.organizationId) throw AppError.badRequest('User has no organization');
+  if (user.isOrganizationOwner) {
+    throw AppError.forbidden('Organization owner does not operate branch orders');
+  }
+  if (user.role !== UserRole.MANAGER && user.role !== UserRole.STAFF) {
+    throw AppError.forbidden('Branch staff or manager access is required');
+  }
+  if (user.branchIds?.length !== 1) {
+    throw AppError.forbidden('Order operations require exactly one assigned branch');
+  }
+  return { organizationId: user.organizationId, branchId: user.branchIds[0] };
 }
 
 export const listOrders = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = requireOrgId(req);
+  const { organizationId, branchId } = requireOperationalScope(req);
   const status = req.query.status as string | undefined;
-  const orders = await ordersService.getByOrg(orgId, status);
+  const orders = await ordersService.getByOrg(organizationId, branchId, status);
   sendSuccess(res, orders);
 });
 
 export const getOrder = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = requireOrgId(req);
-  const order = await ordersService.getById(req.params.id, orgId);
+  const { organizationId, branchId } = requireOperationalScope(req);
+  const order = await ordersService.getById(req.params.id, organizationId, branchId);
   sendSuccess(res, order);
 });
 
 export const getOrderReceipt = asyncHandler(async (req: Request, res: Response) => {
-  const order = await ordersService.getReceipt(req.params.id, requireOrgId(req));
+  const { organizationId, branchId } = requireOperationalScope(req);
+  const order = await ordersService.getReceipt(req.params.id, organizationId, branchId);
   sendSuccess(res, order);
 });
 
 export const getOrderStats = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = requireOrgId(req);
-  const stats = await ordersService.getStats(orgId);
+  const { organizationId, branchId } = requireOperationalScope(req);
+  const stats = await ordersService.getStats(organizationId, branchId);
   sendSuccess(res, stats);
 });
 
@@ -64,10 +74,11 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const patchOrderStatus = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = requireOrgId(req);
+  const { organizationId, branchId } = requireOperationalScope(req);
   const order = await ordersService.updateStatus(
     req.params.id,
-    orgId,
+    organizationId,
+    branchId,
     req.body as UpdateOrderStatusDto,
     { userId: req.user?.id ?? '', role: req.user?.role ?? '' }
   );
@@ -75,10 +86,11 @@ export const patchOrderStatus = asyncHandler(async (req: Request, res: Response)
 });
 
 export const patchOrderPayment = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = requireOrgId(req);
+  const { organizationId, branchId } = requireOperationalScope(req);
   const order = await ordersService.updatePayment(
     req.params.id,
-    orgId,
+    organizationId,
+    branchId,
     req.body as UpdateOrderPaymentDto,
     req.user?.id ?? '',
     req.header('Idempotency-Key') ?? `manual-payment:${req.params.id}:${Date.now()}`
@@ -94,6 +106,8 @@ export const cancelOrder = asyncHandler(async (req: Request, res: Response) => {
     userId: user.id,
     role: user.role,
     organizationId: user.organizationId,
+    branchIds: user.branchIds,
+    isOrganizationOwner: user.isOrganizationOwner,
   });
   sendSuccess(res, order);
 });

@@ -4,6 +4,7 @@ import { pool } from '../../db/client';
 
 export interface HistoricalSlot {
   organization_id: string;
+  branch_id: string;
   day_of_week: number;
   hour_of_day: number;
   arrival_count: number;
@@ -27,13 +28,14 @@ export const forecastsRepository = {
   async loadHistoricalSlots(): Promise<HistoricalSlot[]> {
     const result = await pool.query<HistoricalSlot>(`
       WITH slots AS (
-        SELECT o.id AS organization_id, o.timezone, day_of_week, hour_of_day
-        FROM organizations o
+        SELECT o.id AS organization_id, b.id AS branch_id, o.timezone, day_of_week, hour_of_day
+        FROM organization_branches b
+        JOIN organizations o ON o.id = b.organization_id
         CROSS JOIN generate_series(0, 6) AS day_of_week
         CROSS JOIN generate_series(0, 23) AS hour_of_day
-        WHERE o.is_active = TRUE
+        WHERE o.is_active = TRUE AND b.is_active = TRUE
       ), arrivals AS (
-        SELECT q.organization_id,
+        SELECT q.organization_id, q.branch_id,
                EXTRACT(DOW FROM qe.created_at AT TIME ZONE o.timezone)::int AS day_of_week,
                EXTRACT(HOUR FROM qe.created_at AT TIME ZONE o.timezone)::int AS hour_of_day,
                COUNT(*)::int AS arrival_count
@@ -41,35 +43,40 @@ export const forecastsRepository = {
         JOIN queues q ON q.id = qe.queue_id
         JOIN organizations o ON o.id = q.organization_id
         WHERE qe.created_at >= NOW() - INTERVAL '56 days'
-        GROUP BY q.organization_id, day_of_week, hour_of_day
+        GROUP BY q.organization_id, q.branch_id, day_of_week, hour_of_day
       ), completions AS (
-        SELECT qh.organization_id,
+        SELECT qh.organization_id, q.branch_id,
                EXTRACT(DOW FROM qh.created_at AT TIME ZONE o.timezone)::int AS day_of_week,
                EXTRACT(HOUR FROM qh.created_at AT TIME ZONE o.timezone)::int AS hour_of_day,
                COUNT(*)::int AS completion_count,
                ROUND(AVG(qh.wait_seconds))::int AS average_wait_seconds,
                ROUND(AVG(qh.service_seconds))::int AS average_service_seconds
         FROM queue_histories qh
+        JOIN queues q ON q.id = qh.queue_id
         JOIN organizations o ON o.id = qh.organization_id
         WHERE qh.to_status = 'served'
           AND qh.created_at >= NOW() - INTERVAL '56 days'
-        GROUP BY qh.organization_id, day_of_week, hour_of_day
+        GROUP BY qh.organization_id, q.branch_id, day_of_week, hour_of_day
       ), staffing AS (
-        SELECT organization_id, COUNT(*)::int AS active_staff_count
-        FROM organization_members
-        WHERE is_active = TRUE AND role IN ('manager', 'staff')
-        GROUP BY organization_id
+        SELECT om.organization_id, bm.branch_id, COUNT(DISTINCT om.user_id)::int AS active_staff_count
+        FROM organization_members om
+        JOIN branch_memberships bm
+          ON bm.organization_member_id = om.id
+         AND bm.is_active = TRUE
+         AND bm.deactivated_at IS NULL
+        WHERE om.is_active = TRUE AND om.role IN ('manager', 'staff')
+        GROUP BY om.organization_id, bm.branch_id
       )
-      SELECT s.organization_id, s.day_of_week, s.hour_of_day,
+      SELECT s.organization_id, s.branch_id, s.day_of_week, s.hour_of_day,
              COALESCE(a.arrival_count, 0)::int AS arrival_count,
              COALESCE(c.completion_count, 0)::int AS completion_count,
              c.average_wait_seconds, c.average_service_seconds,
              GREATEST(COALESCE(st.active_staff_count, 0), 1)::int AS active_staff_count
       FROM slots s
-      LEFT JOIN arrivals a USING (organization_id, day_of_week, hour_of_day)
-      LEFT JOIN completions c USING (organization_id, day_of_week, hour_of_day)
-      LEFT JOIN staffing st USING (organization_id)
-      ORDER BY s.organization_id, s.day_of_week, s.hour_of_day
+      LEFT JOIN arrivals a USING (organization_id, branch_id, day_of_week, hour_of_day)
+      LEFT JOIN completions c USING (organization_id, branch_id, day_of_week, hour_of_day)
+      LEFT JOIN staffing st USING (organization_id, branch_id)
+      ORDER BY s.organization_id, s.branch_id, s.day_of_week, s.hour_of_day
     `);
     return result.rows;
   },
@@ -79,9 +86,16 @@ export const forecastsRepository = {
       SELECT q.organization_id, q.id AS queue_id, q.name AS queue_name,
              COUNT(qe.id) FILTER (WHERE qe.status IN ('waiting','called'))::int AS queue_depth,
              GREATEST(COALESCE((
-               SELECT COUNT(*) FROM organization_members om
+               SELECT COUNT(DISTINCT om.user_id)
+               FROM organization_members om
+               JOIN branch_memberships bm
+                 ON bm.organization_member_id = om.id
+                AND bm.branch_id = q.branch_id
+                AND bm.is_active = TRUE
+                AND bm.deactivated_at IS NULL
                WHERE om.organization_id = q.organization_id
-                 AND om.is_active = TRUE AND om.role IN ('manager','staff')
+                 AND om.is_active = TRUE
+                 AND om.role IN ('manager','staff')
              ), 0), 1)::int AS active_staff_count,
              COALESCE(ROUND((
                SELECT AVG(qh.service_seconds) FROM queue_histories qh
@@ -160,11 +174,12 @@ export const forecastsRepository = {
   ) {
     await client.query(
       `INSERT INTO queue_hourly_metrics
-         (organization_id, day_of_week, hour_of_day, sample_start, sample_end,
+         (organization_id, branch_id, day_of_week, hour_of_day, sample_start, sample_end,
           arrival_count, completion_count, average_wait_seconds, average_service_seconds, expires_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [
         slot.organization_id,
+        slot.branch_id,
         slot.day_of_week,
         slot.hour_of_day,
         sampleStart,
@@ -178,11 +193,12 @@ export const forecastsRepository = {
     );
     await client.query(
       `INSERT INTO staffing_recommendations
-         (organization_id, day_of_week, hour_of_day, recommended_staff_count,
+         (organization_id, branch_id, day_of_week, hour_of_day, recommended_staff_count,
           confidence, model_version, features, explanation, expires_at)
-       VALUES ($1,$2,$3,$4,$5,'measured-heuristic-v1',$6,$7,$8)`,
+       VALUES ($1,$2,$3,$4,$5,$6,'measured-heuristic-v1',$7,$8,$9)`,
       [
         slot.organization_id,
+        slot.branch_id,
         slot.day_of_week,
         slot.hour_of_day,
         slot.recommendedStaff,
@@ -199,7 +215,7 @@ export const forecastsRepository = {
     );
   },
 
-  async listLatestWaitForecasts(organizationId: string) {
+  async listLatestWaitForecasts(organizationId: string, branchId: string) {
     const result = await pool.query(
       `SELECT DISTINCT ON (f.queue_id)
          f.id, f.queue_id, q.name AS queue_name, f.forecasted_wait_seconds,
@@ -208,21 +224,23 @@ export const forecastsRepository = {
        FROM wait_time_forecasts f
        JOIN queues q ON q.id = f.queue_id
        WHERE f.organization_id = $1
+         AND q.branch_id = $2
        ORDER BY f.queue_id, f.generated_at DESC`,
-      [organizationId]
+      [organizationId, branchId]
     );
     return result.rows;
   },
 
-  async listLatestStaffing(organizationId: string) {
+  async listLatestStaffing(organizationId: string, branchId: string) {
     const result = await pool.query(
       `SELECT DISTINCT ON (day_of_week, hour_of_day)
          id, day_of_week, hour_of_day, recommended_staff_count, confidence,
          model_version, explanation, features, generated_at
        FROM staffing_recommendations
        WHERE organization_id = $1
+         AND branch_id = $2
        ORDER BY day_of_week, hour_of_day, generated_at DESC`,
-      [organizationId]
+      [organizationId, branchId]
     );
     return result.rows;
   },

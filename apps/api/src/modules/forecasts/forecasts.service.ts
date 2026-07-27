@@ -45,11 +45,11 @@ export const forecastsService = {
     return { slotCount: historicalSlots.length, queueCount: currentQueues.length };
   },
 
-  listWait(organizationId: string) {
-    return forecastsRepository.listLatestWaitForecasts(organizationId);
+  listWait(organizationId: string, branchId: string) {
+    return forecastsRepository.listLatestWaitForecasts(organizationId, branchId);
   },
 
-  listStaffing(organizationId: string) {
-    return forecastsRepository.listLatestStaffing(organizationId);
+  listStaffing(organizationId: string, branchId: string) {
+    return forecastsRepository.listLatestStaffing(organizationId, branchId);
   },
 };

@@ -5,6 +5,8 @@ import { pool } from '../client';
 export interface OrderRow {
   id: string;
   organization_id: string;
+  branch_id: string;
+  queue_id: string;
   queue_entry_id: string | null;
   order_number: string;
   booking_group_id?: string | null;
@@ -17,6 +19,13 @@ export interface OrderRow {
   refunded_amount?: string;
   payment_code: string | null;
   notes: string | null;
+  organization_name_snapshot: string;
+  branch_name_snapshot: string;
+  queue_name_snapshot: string;
+  fulfilled_by_user_id: string | null;
+  fulfilled_by_name: string | null;
+  fulfilled_by_employee_code: string | null;
+  fulfilled_at: Date | null;
   created_at: Date;
   updated_at: Date;
   // Enriched fields from queue_entries join (present in some queries)
@@ -119,9 +128,9 @@ export const ordersRepository = {
     return Number(rows[0].value);
   },
 
-  async findByOrg(orgId: string, status?: string): Promise<OrderWithItems[]> {
-    const statusClause = status ? `AND o.status = $2` : '';
-    const params: unknown[] = status ? [orgId, status] : [orgId];
+  async findByOrg(orgId: string, status?: string, branchId?: string): Promise<OrderWithItems[]> {
+    const statusClause = status ? `AND o.status = $3` : '';
+    const params: unknown[] = [orgId, branchId ?? null, ...(status ? [status] : [])];
     const { rows } = await pool.query<OrderRow & { items_json: string }>(
       `SELECT o.*,
          qe.id AS queue_entry_id,
@@ -139,6 +148,11 @@ export const ordersRepository = {
                'service_time_minutes', oi.service_time_minutes,
                'quantity', oi.quantity,
                'subtotal', oi.subtotal,
+               'payment_status', oi.payment_status,
+               'prepaid_amount', oi.prepaid_amount,
+               'refunded_amount', oi.refunded_amount,
+               'payment_transaction_id', oi.payment_transaction_id,
+               'requires_prepayment_snapshot', oi.requires_prepayment_snapshot,
                'created_at', oi.created_at
              ) ORDER BY oi.created_at
            ) FILTER (WHERE oi.id IS NOT NULL),
@@ -148,7 +162,10 @@ export const ordersRepository = {
        LEFT JOIN order_items oi ON oi.order_id = o.id
        LEFT JOIN products p ON p.id = oi.product_id
        LEFT JOIN queue_entries qe ON qe.order_id = o.id
-       WHERE o.organization_id = $1 ${statusClause}
+       LEFT JOIN queues q ON q.id = qe.queue_id
+       WHERE o.organization_id = $1
+         AND ($2::uuid IS NULL OR q.branch_id = $2)
+         ${statusClause}
        GROUP BY o.id, qe.id, qe.ticket_code, qe.status
        ORDER BY o.created_at DESC`,
       params
@@ -173,6 +190,11 @@ export const ordersRepository = {
                'service_time_minutes', oi.service_time_minutes,
                'quantity', oi.quantity,
                'subtotal', oi.subtotal,
+               'payment_status', oi.payment_status,
+               'prepaid_amount', oi.prepaid_amount,
+               'refunded_amount', oi.refunded_amount,
+               'payment_transaction_id', oi.payment_transaction_id,
+               'requires_prepayment_snapshot', oi.requires_prepayment_snapshot,
                'created_at', oi.created_at
              ) ORDER BY oi.created_at
            ) FILTER (WHERE oi.id IS NOT NULL),
@@ -190,6 +212,17 @@ export const ordersRepository = {
     if (!rows[0]) return null;
     const r = rows[0];
     return { ...r, items: r.items_json as unknown as OrderItemRow[] };
+  },
+
+  async findBranchIdForOrder(id: string): Promise<string | null> {
+    const { rows } = await pool.query<{ branch_id: string }>(
+      `SELECT q.branch_id
+       FROM queue_entries qe
+       JOIN queues q ON q.id = qe.queue_id
+       WHERE qe.order_id = $1`,
+      [id]
+    );
+    return rows[0]?.branch_id ?? null;
   },
 
   /**
@@ -214,6 +247,11 @@ export const ordersRepository = {
                'service_time_minutes', oi.service_time_minutes,
                'quantity', oi.quantity,
                'subtotal', oi.subtotal,
+               'payment_status', oi.payment_status,
+               'prepaid_amount', oi.prepaid_amount,
+               'refunded_amount', oi.refunded_amount,
+               'payment_transaction_id', oi.payment_transaction_id,
+               'requires_prepayment_snapshot', oi.requires_prepayment_snapshot,
                'created_at', oi.created_at
              ) ORDER BY oi.created_at
            ) FILTER (WHERE oi.id IS NOT NULL),
@@ -237,6 +275,8 @@ export const ordersRepository = {
   async create(
     data: {
       organizationId: string;
+      branchId: string;
+      queueId: string;
       orderNumber: string;
       bookingGroupId?: string;
       customerLineUserId?: string;
@@ -253,12 +293,28 @@ export const ordersRepository = {
     const executor = client ?? pool;
     const { rows } = await executor.query<OrderRow>(
       `INSERT INTO orders
-       (organization_id, order_number, customer_name, customer_user_id, customer_line_user_id,
-          customer_phone, subtotal, payment_status, payment_code, notes, booking_group_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       (
+         organization_id, branch_id, queue_id, order_number, customer_name,
+         customer_user_id, customer_line_user_id, customer_phone, subtotal,
+         payment_status, payment_code, notes, booking_group_id,
+         organization_name_snapshot, branch_name_snapshot, queue_name_snapshot
+       )
+       SELECT
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
+         organization.name, branch.name, queue.name
+       FROM organizations organization
+       JOIN organization_branches branch
+         ON branch.id = $2 AND branch.organization_id = organization.id
+       JOIN queues queue
+         ON queue.id = $3
+        AND queue.organization_id = organization.id
+        AND queue.branch_id = branch.id
+       WHERE organization.id = $1
        RETURNING *, NULL::uuid AS queue_entry_id`,
       [
         data.organizationId,
+        data.branchId,
+        data.queueId,
         data.orderNumber,
         data.customerName ?? null,
         data.customerUserId ?? null,
@@ -271,7 +327,58 @@ export const ordersRepository = {
         data.bookingGroupId ?? null,
       ]
     );
+    if (!rows[0]) {
+      throw new Error('Order scope could not be resolved');
+    }
     return rows[0];
+  },
+
+  async findActiveBookingGroupForLineUser(
+    organizationId: string,
+    branchId: string,
+    lineUserId: string,
+    client: PoolClient
+  ): Promise<string | null> {
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
+      `booking-group:${organizationId}:${branchId}:${lineUserId}`,
+    ]);
+    const { rows } = await client.query<{ booking_group_id: string }>(
+      `SELECT o.booking_group_id
+       FROM orders o
+       JOIN queue_entries qe ON qe.order_id = o.id
+       WHERE o.organization_id = $1
+         AND o.branch_id = $2
+         AND o.customer_line_user_id = $3
+         AND o.booking_group_id IS NOT NULL
+         AND o.status IN ('pending','processing')
+         AND qe.status IN ('waiting','called','serving')
+       ORDER BY o.created_at DESC
+       LIMIT 1`,
+      [organizationId, branchId, lineUserId]
+    );
+    return rows[0]?.booking_group_id ?? null;
+  },
+
+  async completeWithFulfillment(
+    orderId: string,
+    actorUserId: string,
+    client: PoolClient
+  ): Promise<OrderRow | null> {
+    const { rows } = await client.query<OrderRow>(
+      `UPDATE orders order_record
+       SET status = 'completed',
+           fulfilled_by_user_id = actor.id,
+           fulfilled_by_name = actor.display_name,
+           fulfilled_by_employee_code = actor.employee_code,
+           fulfilled_at = NOW()
+       FROM users actor
+       WHERE order_record.id = $1
+         AND actor.id = $2
+         AND order_record.status IN ('pending','processing')
+       RETURNING order_record.*`,
+      [orderId, actorUserId]
+    );
+    return rows[0] ?? null;
   },
 
   async ensureBookingGroup(
@@ -515,7 +622,10 @@ export const ordersRepository = {
     }
   },
 
-  async getStats(orgId: string): Promise<{
+  async getStats(
+    orgId: string,
+    branchId?: string
+  ): Promise<{
     totalRevenue: number;
     totalOrders: number;
     completedOrders: number;
@@ -571,12 +681,28 @@ export const ordersRepository = {
           `WITH order_summary AS (
              SELECT
                COUNT(*) AS total,
-               COUNT(*) FILTER (WHERE status = 'completed') AS completed,
-               COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled,
-               COUNT(*) FILTER (WHERE status IN ('pending','processing')) AS pending,
-               COALESCE(SUM(subtotal) FILTER (WHERE status = 'completed'), 0) AS revenue
-             FROM orders
-             WHERE organization_id = $1
+               COUNT(*) FILTER (WHERE o.status = 'completed') AS completed,
+               COUNT(*) FILTER (WHERE o.status = 'cancelled') AS cancelled,
+               COUNT(*) FILTER (WHERE o.status IN ('pending','processing')) AS pending,
+               COALESCE(
+                 SUM(
+                   COALESCE(payment.collected_amount, 0)
+                 ) FILTER (WHERE o.status = 'completed'),
+                 0
+               ) AS revenue
+             FROM orders o
+             JOIN queue_entries order_entry ON order_entry.order_id = o.id
+             JOIN queues order_queue ON order_queue.id = order_entry.queue_id
+             LEFT JOIN LATERAL (
+               SELECT COALESCE(
+                 SUM(GREATEST(item.prepaid_amount - item.refunded_amount, 0)),
+                 0
+               ) AS collected_amount
+               FROM order_items item
+               WHERE item.order_id = o.id
+             ) payment ON TRUE
+             WHERE o.organization_id = $1
+               AND ($2::uuid IS NULL OR order_queue.branch_id = $2)
            ),
            eta_summary AS (
              SELECT
@@ -597,50 +723,71 @@ export const ordersRepository = {
              FROM queue_entries qe
              JOIN queues q ON q.id = qe.queue_id
              WHERE q.organization_id = $1
+               AND ($2::uuid IS NULL OR q.branch_id = $2)
                AND q.is_active = TRUE
                AND qe.status = 'waiting'
            )
            SELECT os.*, es.average_eta_seconds
            FROM order_summary os, eta_summary es`,
-          [orgId]
+          [orgId, branchId ?? null]
         ),
         // Daily revenue — hits idx_orders_org_completed_date
         pool.query<{ date: string; revenue: string; orders: string }>(
-          `SELECT DATE(created_at)::text AS date,
-                COALESCE(SUM(subtotal), 0) AS revenue,
+          `SELECT DATE(o.created_at)::text AS date,
+                COALESCE(SUM(payment.collected_amount), 0) AS revenue,
                 COUNT(*) AS orders
-         FROM orders
-         WHERE organization_id = $1
-           AND status = 'completed'
-           AND created_at >= NOW() - INTERVAL '7 days'
-         GROUP BY DATE(created_at)
+         FROM orders o
+         JOIN queue_entries qe ON qe.order_id = o.id
+         JOIN queues q ON q.id = qe.queue_id
+         LEFT JOIN LATERAL (
+           SELECT COALESCE(
+             SUM(GREATEST(item.prepaid_amount - item.refunded_amount, 0)),
+             0
+           ) AS collected_amount
+           FROM order_items item
+           WHERE item.order_id = o.id
+         ) payment ON TRUE
+         WHERE o.organization_id = $1
+           AND ($2::uuid IS NULL OR q.branch_id = $2)
+           AND o.status = 'completed'
+           AND o.created_at >= NOW() - INTERVAL '7 days'
+         GROUP BY DATE(o.created_at)
          ORDER BY date`,
-          [orgId]
+          [orgId, branchId ?? null]
         ),
         // Top products — hits idx_order_items_order_covering
         pool.query<{ product_name: string; total_sold: string; revenue: string }>(
           `SELECT oi.product_name,
                 SUM(oi.quantity) AS total_sold,
-                SUM(oi.subtotal) AS revenue
+                SUM(GREATEST(oi.prepaid_amount - oi.refunded_amount, 0)) AS revenue
          FROM order_items oi
          JOIN orders o ON oi.order_id = o.id
-         WHERE o.organization_id = $1 AND o.status = 'completed'
+         JOIN queue_entries qe ON qe.order_id = o.id
+         JOIN queues q ON q.id = qe.queue_id
+         WHERE o.organization_id = $1
+           AND ($2::uuid IS NULL OR q.branch_id = $2)
+           AND o.status = 'completed'
          GROUP BY oi.product_name
          ORDER BY total_sold DESC
          LIMIT 5`,
-          [orgId]
+          [orgId, branchId ?? null]
         ),
         // Merged: active queue depth + total products in one query pair
         Promise.all([
           pool.query<{ count: string }>(
             `SELECT COUNT(*) FROM queue_entries qe
              JOIN queues q ON qe.queue_id = q.id
-             WHERE q.organization_id = $1 AND qe.status IN ('waiting','called','serving')`,
-            [orgId]
+             WHERE q.organization_id = $1
+               AND ($2::uuid IS NULL OR q.branch_id = $2)
+               AND qe.status IN ('waiting','called','serving')`,
+            [orgId, branchId ?? null]
           ),
           pool.query<{ count: string }>(
-            `SELECT COUNT(*) FROM products WHERE organization_id = $1 AND is_active = TRUE`,
-            [orgId]
+            `SELECT COUNT(*) FROM products
+             WHERE organization_id = $1
+               AND ($2::uuid IS NULL OR branch_id = $2)
+               AND is_active = TRUE`,
+            [orgId, branchId ?? null]
           ),
         ]),
         // Recent orders with item count — no ETA, just ORDER BY created_at DESC
@@ -664,12 +811,15 @@ export const ordersRepository = {
            o.created_at,
            COALESCE(SUM(oi.quantity), 0) AS item_count
          FROM orders o
+         JOIN queue_entries qe ON qe.order_id = o.id
+         JOIN queues q ON q.id = qe.queue_id
          LEFT JOIN order_items oi ON oi.order_id = o.id
          WHERE o.organization_id = $1
+           AND ($2::uuid IS NULL OR q.branch_id = $2)
          GROUP BY o.id
          ORDER BY o.created_at DESC
          LIMIT 10`,
-          [orgId]
+          [orgId, branchId ?? null]
         ),
         // Recent queue activities — hits idx_qe_queue_updated
         pool.query<{
@@ -695,9 +845,10 @@ export const ordersRepository = {
          JOIN queues q ON q.id = qe.queue_id
          LEFT JOIN orders o ON o.id = qe.order_id
          WHERE q.organization_id = $1
+           AND ($2::uuid IS NULL OR q.branch_id = $2)
          ORDER BY qe.updated_at DESC
          LIMIT 10`,
-          [orgId]
+          [orgId, branchId ?? null]
         ),
       ]);
 

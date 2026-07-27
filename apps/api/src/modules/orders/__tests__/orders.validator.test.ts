@@ -10,6 +10,8 @@ import { CreateOrderSchema } from '../orders.validator';
 
 const baseOrder = {
   orgSlug: 'test-salon',
+  branchId: '11111111-1111-4111-8111-111111111111',
+  queueId: '22222222-2222-4222-8222-222222222222',
   customerName: '山田太郎',
   customerPhone: '0901234567',
   items: [{ productId: '44444444-4444-4444-8444-444444444441', quantity: 1 }],

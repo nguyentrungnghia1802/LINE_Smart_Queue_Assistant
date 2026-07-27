@@ -11,6 +11,8 @@ export interface PaymentIntentProduct {
 
 export interface PaymentIntentMetadata {
   orgSlug: string;
+  branchId?: string;
+  queueId?: string;
   scope: PaymentScope;
   coveredProductIds: string[];
   cartSignature?: string;

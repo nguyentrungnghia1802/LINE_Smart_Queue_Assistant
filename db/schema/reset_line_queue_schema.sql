@@ -272,6 +272,7 @@ CREATE UNIQUE INDEX uq_users_normalized_email ON users (LOWER(email)) WHERE emai
 CREATE TABLE organization_branches (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  public_qr_token TEXT NOT NULL DEFAULT encode(gen_random_bytes(18), 'hex'),
   name TEXT NOT NULL,
   code TEXT NOT NULL,
   phone TEXT NOT NULL,
@@ -281,16 +282,52 @@ CREATE TABLE organization_branches (
   city TEXT NOT NULL,
   address_line1 TEXT NOT NULL,
   address_line2 TEXT,
+  latitude NUMERIC(9,6),
+  longitude NUMERIC(9,6),
   timezone TEXT NOT NULL DEFAULT 'Asia/Tokyo',
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (organization_id, code),
+  UNIQUE (public_qr_token),
   UNIQUE (id, organization_id),
-  CHECK (code ~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$')
+  CHECK (code ~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$'),
+  CHECK (public_qr_token ~ '^[A-Za-z0-9_-]{8,128}$'),
+  CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
+  CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180),
+  CHECK ((latitude IS NULL) = (longitude IS NULL))
 );
 CREATE TRIGGER trg_organization_branches_updated_at BEFORE UPDATE ON organization_branches FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE branch_business_hours (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  branch_id UUID NOT NULL REFERENCES organization_branches(id) ON DELETE CASCADE,
+  weekday SMALLINT NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+  is_closed BOOLEAN NOT NULL DEFAULT FALSE,
+  opens_at TIME,
+  closes_at TIME,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (branch_id, weekday),
+  CHECK ((is_closed AND opens_at IS NULL AND closes_at IS NULL) OR (NOT is_closed AND opens_at IS NOT NULL AND closes_at IS NOT NULL AND opens_at < closes_at))
+);
+CREATE TRIGGER trg_branch_business_hours_updated_at BEFORE UPDATE ON branch_business_hours FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE branch_exception_days (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  branch_id UUID NOT NULL REFERENCES organization_branches(id) ON DELETE CASCADE,
+  exception_date DATE NOT NULL,
+  is_closed BOOLEAN NOT NULL DEFAULT TRUE,
+  opens_at TIME,
+  closes_at TIME,
+  reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (branch_id, exception_date),
+  CHECK ((is_closed AND opens_at IS NULL AND closes_at IS NULL) OR (NOT is_closed AND opens_at IS NOT NULL AND closes_at IS NOT NULL AND opens_at < closes_at))
+);
+CREATE TRIGGER trg_branch_exception_days_updated_at BEFORE UPDATE ON branch_exception_days FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE branch_memberships (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -306,6 +343,8 @@ CREATE TABLE branch_memberships (
   FOREIGN KEY (organization_id, user_id) REFERENCES organization_members(organization_id, user_id) ON DELETE CASCADE,
   UNIQUE (branch_id, user_id)
 );
+CREATE UNIQUE INDEX uq_branch_memberships_active_manager_scope ON branch_memberships(user_id)
+WHERE role = 'manager' AND is_active = TRUE AND deactivated_at IS NULL;
 
 CREATE TABLE line_accounts (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -423,6 +462,7 @@ CREATE TRIGGER trg_media_assets_updated_at BEFORE UPDATE ON media_assets FOR EAC
 CREATE TABLE products (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id       UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  branch_id             UUID NOT NULL,
   name                  TEXT NOT NULL,
   description           TEXT,
   image_url             TEXT,
@@ -440,8 +480,11 @@ CREATE TABLE products (
   CONSTRAINT products_service_time_positive CHECK (service_time_minutes > 0),
   CONSTRAINT products_max_wait_positive CHECK (max_wait_minutes IS NULL OR max_wait_minutes > 0),
   CONSTRAINT products_stock_non_negative CHECK (stock_quantity IS NULL OR stock_quantity >= 0),
-  CONSTRAINT products_service_stock_rule CHECK (product_type = 'product' OR stock_quantity IS NULL)
+  CONSTRAINT products_service_stock_rule CHECK (product_type = 'product' OR stock_quantity IS NULL),
+  FOREIGN KEY (branch_id, organization_id) REFERENCES organization_branches(id, organization_id) ON DELETE RESTRICT,
+  UNIQUE (id, organization_id, branch_id)
 );
+CREATE INDEX idx_products_branch_active ON products(branch_id, created_at) WHERE is_active = TRUE;
 
 CREATE TRIGGER trg_products_updated_at
 BEFORE UPDATE ON products
@@ -474,7 +517,9 @@ CREATE TABLE queues (
   notify_ahead_positions     INT NOT NULL DEFAULT 3,
   allow_skip                 BOOLEAN NOT NULL DEFAULT TRUE,
   max_skips_before_penalty   INT NOT NULL DEFAULT 2,
-  auto_no_show_minutes       INT,
+  auto_no_show_minutes       INT NOT NULL DEFAULT 5,
+  absence_deferral_slots     INT NOT NULL DEFAULT 3,
+  max_absence_count          INT NOT NULL DEFAULT 3,
   opens_at                   TIME,
   closes_at                  TIME,
   settings                   JSONB NOT NULL DEFAULT '{}',
@@ -489,10 +534,13 @@ CREATE TABLE queues (
   CONSTRAINT queues_notify_ahead_positive CHECK (notify_ahead_positions > 0),
   CONSTRAINT queues_max_skips_non_negative CHECK (max_skips_before_penalty >= 0),
   CONSTRAINT queues_auto_no_show_minutes_positive CHECK (auto_no_show_minutes IS NULL OR auto_no_show_minutes > 0),
+  CONSTRAINT queues_absence_deferral_slots_positive CHECK (absence_deferral_slots > 0),
+  CONSTRAINT queues_max_absence_count_positive CHECK (max_absence_count > 0),
   CONSTRAINT queues_hours_valid CHECK (opens_at IS NULL OR closes_at IS NULL OR opens_at < closes_at),
-  FOREIGN KEY (branch_id, organization_id) REFERENCES organization_branches(id, organization_id) ON DELETE RESTRICT
+  FOREIGN KEY (branch_id, organization_id) REFERENCES organization_branches(id, organization_id) ON DELETE RESTRICT,
+  UNIQUE (id, organization_id, branch_id)
 );
-CREATE UNIQUE INDEX uq_queues_active_branch ON queues(branch_id) WHERE is_active = TRUE;
+CREATE UNIQUE INDEX uq_queues_active_branch_name ON queues(branch_id, LOWER(name)) WHERE is_active = TRUE;
 
 COMMENT ON COLUMN queues.auto_no_show_minutes IS
   'Grace period in minutes before a called ticket is auto-marked no_show. NULL = use app/global default.';
@@ -500,6 +548,22 @@ COMMENT ON COLUMN queues.auto_no_show_minutes IS
 CREATE TRIGGER trg_queues_updated_at
 BEFORE UPDATE ON queues
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TABLE queue_products (
+  queue_id UUID NOT NULL,
+  product_id UUID NOT NULL,
+  organization_id UUID NOT NULL,
+  branch_id UUID NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  display_order INT NOT NULL DEFAULT 0 CHECK (display_order >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (queue_id, product_id),
+  FOREIGN KEY (queue_id, organization_id, branch_id) REFERENCES queues(id, organization_id, branch_id) ON DELETE CASCADE,
+  FOREIGN KEY (product_id, organization_id, branch_id) REFERENCES products(id, organization_id, branch_id) ON DELETE CASCADE
+);
+CREATE INDEX idx_queue_products_queue_active ON queue_products(queue_id, display_order, product_id) WHERE is_active = TRUE;
+CREATE TRIGGER trg_queue_products_updated_at BEFORE UPDATE ON queue_products FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE queue_translations (
   queue_id UUID NOT NULL REFERENCES queues(id) ON DELETE CASCADE,
@@ -532,22 +596,35 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TABLE orders (
   id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id        UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  branch_id              UUID NOT NULL,
+  queue_id               UUID NOT NULL,
   booking_group_id       UUID REFERENCES booking_groups(id) ON DELETE SET NULL,
   customer_user_id       UUID REFERENCES users(id) ON DELETE SET NULL,
   customer_line_user_id  TEXT,
   order_number           TEXT NOT NULL,
   customer_name          TEXT,
   customer_phone         TEXT,
+  organization_name_snapshot TEXT NOT NULL,
+  branch_name_snapshot   TEXT NOT NULL,
+  queue_name_snapshot    TEXT NOT NULL,
   status                 order_status NOT NULL DEFAULT 'pending',
   subtotal               NUMERIC(12,2) NOT NULL DEFAULT 0,
   payment_status         payment_status NOT NULL DEFAULT 'unpaid',
   payment_code           TEXT,
   notes                  TEXT,
+  fulfilled_by_user_id   UUID REFERENCES users(id) ON DELETE SET NULL,
+  fulfilled_by_name      TEXT,
+  fulfilled_by_employee_code TEXT,
+  fulfilled_at           TIMESTAMPTZ,
   created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   CONSTRAINT orders_order_number_org_unique UNIQUE (organization_id, order_number),
-  CONSTRAINT orders_subtotal_non_negative CHECK (subtotal >= 0)
+  CONSTRAINT orders_subtotal_non_negative CHECK (subtotal >= 0),
+  FOREIGN KEY (branch_id, organization_id)
+    REFERENCES organization_branches(id, organization_id) ON DELETE RESTRICT,
+  FOREIGN KEY (queue_id, organization_id, branch_id)
+    REFERENCES queues(id, organization_id, branch_id) ON DELETE RESTRICT
 );
 
 COMMENT ON COLUMN orders.customer_user_id IS 'Links order to internal user when authenticated or LINE-linked.';
@@ -557,6 +634,11 @@ COMMENT ON COLUMN orders.customer_phone IS 'Customer contact phone for demo/busi
 CREATE TRIGGER trg_orders_updated_at
 BEFORE UPDATE ON orders
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE INDEX idx_orders_branch_created ON orders(branch_id, created_at DESC);
+CREATE INDEX idx_orders_queue_created ON orders(queue_id, created_at DESC);
+CREATE INDEX idx_orders_fulfilled_by
+  ON orders(fulfilled_by_user_id, fulfilled_at DESC)
+  WHERE fulfilled_by_user_id IS NOT NULL;
 
 CREATE TABLE payment_transactions (
   id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -672,6 +754,7 @@ CREATE TABLE queue_entries (
   skipped_at               TIMESTAMPTZ,
   cancelled_at             TIMESTAMPTZ,
   no_show_at               TIMESTAMPTZ,
+  absence_count            INT NOT NULL DEFAULT 0,
   created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -681,7 +764,8 @@ CREATE TABLE queue_entries (
   CONSTRAINT queue_entries_ticket_number_positive CHECK (ticket_number > 0),
   CONSTRAINT queue_entries_priority_non_negative CHECK (priority >= 0),
   CONSTRAINT queue_entries_position_non_negative CHECK (position_snapshot IS NULL OR position_snapshot >= 0),
-  CONSTRAINT queue_entries_eta_non_negative CHECK (estimated_wait_seconds IS NULL OR estimated_wait_seconds >= 0)
+  CONSTRAINT queue_entries_eta_non_negative CHECK (estimated_wait_seconds IS NULL OR estimated_wait_seconds >= 0),
+  CONSTRAINT queue_entries_absence_count_non_negative CHECK (absence_count >= 0)
 );
 
 CREATE TRIGGER trg_queue_entries_updated_at
@@ -751,6 +835,7 @@ CREATE TABLE wait_time_forecasts (
 CREATE TABLE staffing_recommendations (
   id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id            UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  branch_id                  UUID NOT NULL REFERENCES organization_branches(id) ON DELETE CASCADE,
   day_of_week                INT NOT NULL,
   hour_of_day                INT NOT NULL,
   recommended_staff_count    INT NOT NULL,
@@ -770,6 +855,7 @@ CREATE TABLE staffing_recommendations (
 CREATE TABLE queue_hourly_metrics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  branch_id UUID NOT NULL REFERENCES organization_branches(id) ON DELETE CASCADE,
   day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
   hour_of_day INT NOT NULL CHECK (hour_of_day BETWEEN 0 AND 23),
   sample_start TIMESTAMPTZ NOT NULL,
@@ -960,6 +1046,8 @@ CREATE INDEX idx_wait_time_forecasts_queue_latest ON wait_time_forecasts(organiz
 CREATE INDEX idx_wait_time_forecasts_expiry ON wait_time_forecasts(expires_at);
 CREATE INDEX idx_staffing_recommendations_latest ON staffing_recommendations(organization_id, day_of_week, hour_of_day, generated_at DESC);
 CREATE INDEX idx_staffing_recommendations_expiry ON staffing_recommendations(expires_at);
+CREATE INDEX idx_staffing_recommendations_branch_slot ON staffing_recommendations(branch_id, day_of_week, hour_of_day, generated_at DESC);
+CREATE INDEX idx_queue_hourly_metrics_branch_slot ON queue_hourly_metrics(branch_id, day_of_week, hour_of_day, generated_at DESC);
 
 CREATE INDEX idx_notif_pending ON notifications(created_at)
   WHERE status = 'pending';

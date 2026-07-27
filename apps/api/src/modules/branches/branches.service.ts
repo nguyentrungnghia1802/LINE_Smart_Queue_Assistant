@@ -2,6 +2,12 @@ import { randomBytes } from 'node:crypto';
 
 import type { PoolClient } from 'pg';
 
+import {
+  ERROR_CODES,
+  getSubscriptionPlanBranchLimit,
+  type SubscriptionPlanCode,
+} from '@line-queue/shared';
+
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
@@ -9,17 +15,15 @@ import { withTransaction } from '../../db/transaction';
 import type { AuthUser } from '../../types/auth.types';
 import { AppError } from '../../utils/AppError';
 import { issueAccountAction } from '../account-lifecycle/account-lifecycle.service';
+import type { BusinessCalendarDto } from '../orgs/orgs.validator';
 
+import { requireBranchManager, requireOrganizationOwner } from './branch-scope';
 import { branchesRepository } from './branches.repository';
-import type { CreateBranchDto, InviteBranchManagerDto } from './branches.validator';
-
-function assertOwner(actor: AuthUser): string {
-  if (!actor.organizationId) throw AppError.badRequest('User has no organization');
-  if (actor.role !== 'manager' || !actor.isOrganizationOwner) {
-    throw AppError.forbidden('Only the organization owner manager can perform this action');
-  }
-  return actor.organizationId;
-}
+import type {
+  CreateBranchDto,
+  InviteBranchManagerDto,
+  UpdateMyBranchDto,
+} from './branches.validator';
 
 function branchCode(name: string): string {
   const base = name
@@ -29,14 +33,6 @@ function branchCode(name: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 28);
   return `${base || 'branch'}-${randomBytes(3).toString('hex')}`;
-}
-
-function queuePrefix(name: string): string {
-  const ascii = name
-    .normalize('NFKD')
-    .replace(/[^A-Za-z0-9]/g, '')
-    .toUpperCase();
-  return ascii.slice(0, 3);
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -115,12 +111,11 @@ async function inviteManagerInClient(
 
 export const branchesService = {
   async list(actor: AuthUser) {
-    if (!actor.organizationId) throw AppError.badRequest('User has no organization');
-    return branchesRepository.list(actor.organizationId);
+    return branchesRepository.list(requireOrganizationOwner(actor));
   },
 
   async create(actor: AuthUser, dto: CreateBranchDto) {
-    const organizationId = assertOwner(actor);
+    const organizationId = requireOrganizationOwner(actor);
     const emails = new Set(dto.managers.map((manager) => manager.email));
     if (emails.size !== dto.managers.length) {
       throw AppError.badRequest('Manager invitation emails must be unique');
@@ -130,8 +125,9 @@ export const branchesService = {
         const organizationResult = await client.query<{
           name: string;
           default_locale: 'ja' | 'vi' | 'en';
+          settings: Record<string, unknown>;
         }>(
-          `SELECT name, default_locale
+          `SELECT name, default_locale, settings
            FROM organizations
            WHERE id = $1 AND is_active = TRUE
            FOR UPDATE`,
@@ -139,6 +135,22 @@ export const branchesService = {
         );
         const organization = organizationResult.rows[0];
         if (!organization) throw AppError.notFound('Organization');
+        const configuredPlan = organization.settings?.subscriptionPlan;
+        const plan: SubscriptionPlanCode =
+          configuredPlan === 'starter' ||
+          configuredPlan === 'standard' ||
+          configuredPlan === 'scale'
+            ? configuredPlan
+            : 'starter';
+        const maxBranches = getSubscriptionPlanBranchLimit(plan);
+        const activeBranchCount = await branchesRepository.countActive(organizationId, client);
+        if (maxBranches !== null && activeBranchCount >= maxBranches) {
+          throw new AppError(
+            `The ${plan} plan supports at most ${maxBranches} branches`,
+            409,
+            ERROR_CODES.BRANCH_PLAN_LIMIT_REACHED
+          );
+        }
         const branch = await branchesRepository.create(
           {
             organizationId,
@@ -151,19 +163,31 @@ export const branchesService = {
             city: dto.city,
             addressLine1: dto.addressLine1,
             addressLine2: dto.addressLine2,
+            latitude: dto.latitude,
+            longitude: dto.longitude,
             createdBy: actor.id,
           },
           client
         );
-        const queue = await queuesRepository.create(
-          {
-            organizationId,
-            branchId: branch.id,
-            name: `${dto.name} 受付`,
-            status: 'closed',
-            prefix: queuePrefix(dto.name),
-          },
-          client
+        await client.query(
+          `INSERT INTO branch_business_hours (
+             branch_id, weekday, is_closed, opens_at, closes_at
+           )
+           SELECT $1, day.weekday,
+                  COALESCE(org_hours.is_closed, day.weekday IN (0, 6)),
+                  CASE
+                    WHEN COALESCE(org_hours.is_closed, day.weekday IN (0, 6)) THEN NULL
+                    ELSE COALESCE(org_hours.opens_at, TIME '09:00')
+                  END,
+                  CASE
+                    WHEN COALESCE(org_hours.is_closed, day.weekday IN (0, 6)) THEN NULL
+                    ELSE COALESCE(org_hours.closes_at, TIME '18:00')
+                  END
+           FROM generate_series(0, 6) AS day(weekday)
+           LEFT JOIN organization_business_hours org_hours
+             ON org_hours.organization_id = $2
+            AND org_hours.weekday = day.weekday`,
+          [branch.id, organizationId]
         );
         const managers = [];
         for (const manager of dto.managers) {
@@ -185,14 +209,9 @@ export const branchesService = {
           `INSERT INTO audit_logs
              (actor_id, action, resource_type, resource_id, organization_id, changes)
            VALUES ($1,'branch_created','organization_branch',$2,$3,$4)`,
-          [
-            actor.id,
-            branch.id,
-            organizationId,
-            JSON.stringify({ name: branch.name, queueId: queue.id }),
-          ]
+          [actor.id, branch.id, organizationId, JSON.stringify({ name: branch.name })]
         );
-        return { branch, queue, managers };
+        return { branch, managers };
       });
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -203,7 +222,7 @@ export const branchesService = {
   },
 
   async inviteManager(actor: AuthUser, branchId: string, dto: InviteBranchManagerDto) {
-    const organizationId = assertOwner(actor);
+    const organizationId = requireOrganizationOwner(actor);
     return withTransaction(async (client) => {
       const branch = await branchesRepository.findById(branchId, organizationId, client);
       if (!branch) throw AppError.notFound('Branch');
@@ -226,7 +245,7 @@ export const branchesService = {
   },
 
   async removeManager(actor: AuthUser, branchId: string, userId: string) {
-    const organizationId = assertOwner(actor);
+    const organizationId = requireOrganizationOwner(actor);
     if (actor.id === userId) throw AppError.forbidden('Managers cannot remove their own account');
     return withTransaction(async (client) => {
       const assignment = await branchesRepository.findManagerAssignment(
@@ -258,7 +277,126 @@ export const branchesService = {
   },
 
   async audit(actor: AuthUser, limit: number) {
-    const organizationId = assertOwner(actor);
+    const organizationId = requireOrganizationOwner(actor);
     return branchesRepository.listAudit(organizationId, limit);
+  },
+
+  async getMyBranch(actor: AuthUser) {
+    const scope = requireBranchManager(actor);
+    const branch = await branchesRepository.findAssignedManagerBranch(
+      scope.organizationId,
+      actor.id
+    );
+    if (!branch) throw AppError.notFound('Assigned branch');
+    const queues = await queuesRepository.findActiveByBranches(
+      scope.organizationId,
+      [scope.branchId],
+      actor.preferredLocale ?? actor.organizationLocale ?? 'ja'
+    );
+    return { ...branch, queues };
+  },
+
+  async updateMyBranch(
+    actor: AuthUser,
+    dto: UpdateMyBranchDto,
+    requestContext?: { ipAddress?: string; userAgent?: string }
+  ) {
+    const scope = requireBranchManager(actor);
+    return withTransaction(async (client) => {
+      const previous = await branchesRepository.findById(
+        scope.branchId,
+        scope.organizationId,
+        client
+      );
+      if (!previous) throw AppError.notFound('Assigned branch');
+      const updated = await branchesRepository.update(
+        scope.branchId,
+        scope.organizationId,
+        dto,
+        client
+      );
+      if (!updated) throw AppError.notFound('Assigned branch');
+      await client.query(
+        `INSERT INTO audit_logs (
+           actor_id, action, resource_type, resource_id, organization_id,
+           changes, ip_address, user_agent
+         ) VALUES ($1,'branch.update','organization_branch',$2,$3,$4,$5,$6)`,
+        [
+          actor.id,
+          scope.branchId,
+          scope.organizationId,
+          JSON.stringify({ old: previous, new: updated }),
+          requestContext?.ipAddress ?? null,
+          requestContext?.userAgent ?? null,
+        ]
+      );
+      return updated;
+    });
+  },
+
+  async getMyBusinessCalendar(actor: AuthUser) {
+    const scope = requireBranchManager(actor);
+    const calendar = await branchesRepository.getBusinessCalendar(scope.branchId);
+    return {
+      weeklyHours: calendar.weeklyHours.map((item) => ({
+        weekday: item.weekday,
+        isClosed: item.is_closed,
+        opensAt: item.opens_at?.slice(0, 5) ?? null,
+        closesAt: item.closes_at?.slice(0, 5) ?? null,
+      })),
+      exceptionDays: calendar.exceptionDays.map((item) => ({
+        date: item.exception_date,
+        isClosed: item.is_closed,
+        opensAt: item.opens_at?.slice(0, 5) ?? null,
+        closesAt: item.closes_at?.slice(0, 5) ?? null,
+        reason: item.reason,
+      })),
+    };
+  },
+
+  async updateMyBusinessCalendar(
+    actor: AuthUser,
+    dto: BusinessCalendarDto,
+    requestContext?: { ipAddress?: string; userAgent?: string }
+  ) {
+    const scope = requireBranchManager(actor);
+    const previous = await this.getMyBusinessCalendar(actor);
+    await withTransaction(async (client) => {
+      await branchesRepository.replaceBusinessCalendar(scope.branchId, dto, client);
+      await client.query(
+        `INSERT INTO audit_logs (
+           actor_id, action, resource_type, resource_id, organization_id,
+           changes, ip_address, user_agent
+         ) VALUES ($1,'branch.update_business_calendar','organization_branch',$2,$3,$4,$5,$6)`,
+        [
+          actor.id,
+          scope.branchId,
+          scope.organizationId,
+          JSON.stringify({ old: previous, new: dto }),
+          requestContext?.ipAddress ?? null,
+          requestContext?.userAgent ?? null,
+        ]
+      );
+    });
+    return dto;
+  },
+
+  async analytics(actor: AuthUser) {
+    const organizationId = requireOrganizationOwner(actor);
+    const [branches, revenueSeries] = await Promise.all([
+      branchesRepository.listAnalytics(organizationId),
+      branchesRepository.revenueSeries(organizationId, 30),
+    ]);
+    const ranked = [...branches].sort(
+      (left, right) => Number(right.total_revenue) - Number(left.total_revenue)
+    );
+    return {
+      totalRevenue: branches.reduce((sum, branch) => sum + Number(branch.total_revenue), 0),
+      totalBranches: branches.length,
+      bestBranch: ranked[0] ?? null,
+      lowestBranch: ranked[ranked.length - 1] ?? null,
+      branches,
+      revenueSeries,
+    };
   },
 };

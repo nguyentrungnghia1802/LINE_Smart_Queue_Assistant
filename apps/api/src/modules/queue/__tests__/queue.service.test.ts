@@ -17,6 +17,7 @@ jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
 jest.mock('../../inventory/inventory.service');
 jest.mock('../../notifications/queue-notification.service', () => ({
+  ETA_WARNING_POSITIONS: [5],
   queueNotificationService: {
     notifyBookingCreated: jest.fn().mockResolvedValue(undefined),
     notifyTicketCancelled: jest.fn().mockResolvedValue(undefined),
@@ -25,6 +26,7 @@ jest.mock('../../notifications/queue-notification.service', () => ({
     notifyTicketServing: jest.fn().mockResolvedValue(undefined),
     notifyTicketCompleted: jest.fn().mockResolvedValue(undefined),
     notifyTicketNoShow: jest.fn().mockResolvedValue(undefined),
+    notifyTicketDeferred: jest.fn().mockResolvedValue(undefined),
   },
 }));
 jest.mock('../../skip-penalty/skip-penalty.service');
@@ -107,8 +109,11 @@ const mockMarkCalled = queueEntriesRepository.markCalled as jest.MockedFunction<
 const mockMarkServed = queueEntriesRepository.markServed as jest.MockedFunction<
   typeof queueEntriesRepository.markServed
 >;
-const mockDeferCalledToBack = queueEntriesRepository.deferCalledToBack as jest.MockedFunction<
-  typeof queueEntriesRepository.deferCalledToBack
+const mockMarkNoShow = queueEntriesRepository.markNoShow as jest.MockedFunction<
+  typeof queueEntriesRepository.markNoShow
+>;
+const mockDeferCalledBySlots = queueEntriesRepository.deferCalledBySlots as jest.MockedFunction<
+  typeof queueEntriesRepository.deferCalledBySlots
 >;
 const mockArchiveToHistory = queueEntriesRepository.archiveToHistory as jest.MockedFunction<
   typeof queueEntriesRepository.archiveToHistory
@@ -354,7 +359,10 @@ describe('queueService.getMyTickets', () => {
 // ── cancelTicket ──────────────────────────────────────────────────────────────
 
 describe('queueService.cancelTicket', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockLockQueueById.mockResolvedValue(openQueue);
+  });
 
   it('cancels a waiting ticket the actor owns', async () => {
     mockFindEntryById.mockResolvedValue(waitingEntry);
@@ -481,7 +489,7 @@ describe('queueService automatic advancement', () => {
     const deferred = { ...calledEntry, status: 'waiting', called_at: null };
     mockFindEntryById.mockResolvedValue(calledEntry);
     mockListWaiting.mockResolvedValueOnce([next]).mockResolvedValueOnce([next, deferred]);
-    mockDeferCalledToBack.mockResolvedValue(deferred);
+    mockDeferCalledBySlots.mockResolvedValue(deferred);
     mockMarkCalled.mockResolvedValue({ ...next, status: 'called' });
 
     const result = await queueService.deferCalledTicket({
@@ -491,7 +499,7 @@ describe('queueService automatic advancement', () => {
     });
 
     expect(result.status).toBe('waiting');
-    expect(mockDeferCalledToBack).toHaveBeenCalledWith(ENTRY_ID, QUEUE_ID, expect.anything());
+    expect(mockDeferCalledBySlots).toHaveBeenCalledWith(ENTRY_ID, QUEUE_ID, 3, expect.anything());
     expect(mockMarkCalled).toHaveBeenCalledWith(next.id, expect.anything());
     expect(mockArchiveToHistory).toHaveBeenCalledWith(
       deferred,
@@ -501,6 +509,34 @@ describe('queueService automatic advancement', () => {
       expect.anything(),
       USER_ID
     );
+  });
+
+  it('cancels the ticket on the third recorded absence', async () => {
+    const calledEntry = {
+      ...waitingEntry,
+      status: 'called',
+      absence_count: 2,
+    };
+    const noShow = {
+      ...calledEntry,
+      status: 'no_show',
+      absence_count: 3,
+      no_show_at: new Date(),
+    };
+    mockFindEntryById.mockResolvedValue(calledEntry);
+    mockMarkNoShow.mockResolvedValue(noShow);
+    mockListWaiting.mockResolvedValue([]);
+
+    const result = await queueService.deferCalledTicket({
+      entryId: ENTRY_ID,
+      actorUserId: USER_ID,
+      actorOrganizationId: openQueue.organization_id,
+    });
+
+    expect(result.status).toBe('no_show');
+    expect(mockMarkNoShow).toHaveBeenCalledWith(ENTRY_ID, expect.anything(), true);
+    expect(mockDeferCalledBySlots).not.toHaveBeenCalled();
+    expect(mockQueueNotificationService.notifyTicketNoShow).toHaveBeenCalled();
   });
 });
 

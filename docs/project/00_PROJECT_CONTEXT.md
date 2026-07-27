@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-07-26.
+Last verified against the repository on 2026-07-27.
 
 ## 1. Problem
 
@@ -12,7 +12,8 @@ Physical queues make customers wait near a counter with little visibility. Busin
 | ------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | Customer           | Select products/services, satisfy required prepayment, reserve a place, track the ticket, and receive LINE reminders |
 | Staff              | See the active queue and order, call/serve/complete customers, update payment, and print receipts                    |
-| Manager            | Configure one organization, catalog, staff, queues, QR access, and operational analytics                             |
+| Organization owner | Manage branches and branch managers, review audit history, and compare aggregate branch performance                  |
+| Branch manager     | Operate one assigned branch, including its named queues, queue catalogs, staff, QR, hours, and forecasts             |
 | Business applicant | Review the product, choose a plan, submit organization/work-email details, and complete demo payment                 |
 | Platform admin     | Review applications and manage approved organizations/managers without reading tenant customer or revenue data       |
 | System operator    | Deploy, monitor, back up, restore, and troubleshoot the platform                                                     |
@@ -32,8 +33,8 @@ The project is a working local/demo modular monolith, not yet a production-compl
 
 | Area                      | Status                                              | Meaning                                                                                                                                                                                                                                                                                                 |
 | ------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Organization onboarding   | Implemented                                         | Public product site and server-priced demo-paid application; admin approval atomically creates organization, work-email manager, and membership                                                                                                                                                         |
-| Catalog and QR booking    | Implemented                                         | Products/services, stock display, quantity selection, organization slug/token entry, and LIFF-first customer booking                                                                                                                                                                                    |
+| Organization onboarding   | Implemented                                         | Public product site and server-priced demo-paid application; admin approval atomically creates an inactive organization, owner invitation, and email delivery record; the activated owner creates branches later                                                                                        |
+| Catalog and QR booking    | Implemented                                         | One stable QR per branch, customer queue selection, queue-specific products/services, stock display, quantity selection, and LIFF-first booking                                                                                                                                                         |
 | Queue and staff operation | Implemented                                         | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                                                                                                                                                                                                       |
 | Orders and inventory      | Operational lifecycle implemented                   | Atomic reserve/decrement, consume on fulfillment, release/restore on cancellation or no-show, expiry worker, transition history, and idempotent guarded transitions                                                                                                                                     |
 | Payment                   | Phase 6 foundation implemented                      | Server-created payment intents, demo provider, signed demo completion, provider abstraction, payment state machine, webhook idempotency log, and reconciliation exist; no real PSP account is connected yet                                                                                             |
@@ -53,15 +54,19 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Shared responsive role navigation with full desktop tabs, icon-labelled mobile bottom navigation,
   safe-area spacing, and mobile card/list variants for dense manager operations.
 - Public business onboarding with organization/contact/address/usage/plan details, a work-email
-  manager credential stored only as a hash, optional compressed logo, server-calculated demo
-  payment, and admin approval/rejection.
-- Product/service CRUD, prepayment flag, service duration, finite or unlimited stock, and active state.
-- Queue CRUD, opening state, capacity configuration, ticket prefix/counter, skip/no-show controls, and ETA configuration.
+  owner invitation, optional compressed logo, server-calculated demo payment, and admin
+  approval/rejection. Applicants do not submit account credentials.
+- Branch-scoped product/service CRUD, prepayment flag, service duration, finite or unlimited stock,
+  and active state; queue configuration owns the queue-to-product catalog mapping.
+- Multiple named queues per branch with opening state, capacity configuration, ticket prefix/counter,
+  three-slot absence deferral, ETA configuration, and branches that can start without a queue.
 - Atomic order, queue-entry, order-item, payment-transaction, inventory-reservation, and optional location writes.
 - Per-item payment status and full-order payment status for required-only or all-item checkout.
 - Server-side payment intent boundary with demo provider, localized payment method UI, webhook callback, return status, and reconciliation hooks.
 - Staff order details with booking name, telephone, verified LINE display name, item images, manual payment/status controls, queue actions, and receipt printing.
-- LINE push for booking-created, approaching, called, serving, cancelled, completed, and no-show ticket events on queue entries that contain a verified linked LINE user ID.
+- LINE push for the standard customer journey at booking-created, exactly five people ahead,
+  called, and completed, plus exceptional cancelled, deferred, and no-show events on queue entries
+  that contain a verified linked LINE user ID.
 - Centralized Japanese, Vietnamese, and English LINE Flex Message and text fallback templates for ticket lifecycle notifications, with Japanese as the final locale fallback.
 - Durable LINE notification outbox/delivery log in PostgreSQL with unique event keys, worker claim, retry/backoff, sent/failed state, and mock-mode delivery.
 - LINE notification ticket deeplinks that open `/liff/tickets/:entryId`.

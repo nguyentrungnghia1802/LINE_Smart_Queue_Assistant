@@ -82,7 +82,6 @@ export function ManagerProductFormPage() {
     queryFn: () => get<ProductRow>(`/api/v1/products/${id}`),
     enabled: isEdit,
   });
-
   useEffect(() => {
     if (existing) {
       setForm({
@@ -172,6 +171,7 @@ export function ManagerProductFormPage() {
             className={inputCls}
             required
             value={form.name}
+            placeholder={t('products.namePlaceholder')}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           />
         )}
@@ -201,6 +201,7 @@ export function ManagerProductFormPage() {
             className={inputCls}
             rows={3}
             value={form.description}
+            placeholder={t('products.descriptionPlaceholder')}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           />
         )}
@@ -208,11 +209,13 @@ export function ManagerProductFormPage() {
           t('products.image'),
           <div className="space-y-2">
             {form.imageUrl && (
-              <img
-                src={form.imageUrl}
-                alt={t('products.preview')}
-                className="h-32 w-full rounded-lg object-cover"
-              />
+              <div className="aspect-square w-full max-w-72 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                <img
+                  src={form.imageUrl}
+                  alt={t('products.preview')}
+                  className="h-full w-full object-cover"
+                />
+              </div>
             )}
             <input
               type="file"
@@ -234,6 +237,7 @@ export function ManagerProductFormPage() {
             min={form.requiresPrepayment ? 1 : 0}
             required
             value={form.price}
+            placeholder="3500"
             onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
           />
         )}
@@ -245,6 +249,7 @@ export function ManagerProductFormPage() {
             min={1}
             required
             value={form.serviceTimeMinutes}
+            placeholder="30"
             onChange={(e) => setForm((f) => ({ ...f, serviceTimeMinutes: e.target.value }))}
           />
         )}
@@ -255,6 +260,7 @@ export function ManagerProductFormPage() {
             type="number"
             min={1}
             value={form.maxWaitMinutes}
+            placeholder="60"
             onChange={(e) => setForm((f) => ({ ...f, maxWaitMinutes: e.target.value }))}
           />
         )}
@@ -266,6 +272,7 @@ export function ManagerProductFormPage() {
               type="number"
               min={0}
               value={form.stockQuantity}
+              placeholder="100"
               onChange={(e) => setForm((f) => ({ ...f, stockQuantity: e.target.value }))}
             />
           )}

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
 import { formatCurrency as formatLocalizedCurrency } from '../../i18n/format';
 import { get } from '../../services/apiClient';
@@ -64,6 +65,25 @@ interface StaffingRecommendation {
   generated_at: string;
 }
 
+interface OwnerBranchAnalytics {
+  branch_id: string;
+  branch_name: string;
+  total_revenue: string;
+  order_count: number;
+  cancelled_count: number;
+  cancellation_rate: string;
+  queue_count: number;
+}
+
+interface OwnerAnalytics {
+  totalRevenue: number;
+  totalBranches: number;
+  bestBranch: OwnerBranchAnalytics | null;
+  lowestBranch: OwnerBranchAnalytics | null;
+  branches: OwnerBranchAnalytics[];
+  revenueSeries: Array<{ revenue_date: string; revenue: string }>;
+}
+
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
@@ -78,23 +98,44 @@ export function ManagerDashboardPage() {
   const { t, i18n } = useTranslation(['manager', 'common', 'staff']);
   const { user } = useAuthStore();
   const orgId = user?.organizationId;
+  const branchId = user?.branchIds?.[0];
+  const isOwner = user?.isOrganizationOwner === true;
 
   const { data, isLoading } = useQuery<StatsData>({
-    queryKey: ['orders-stats', orgId],
+    queryKey: ['orders-stats', orgId, branchId],
     queryFn: () => get<StatsData>('/api/v1/orders/stats'),
-    enabled: !!orgId,
+    enabled: !!orgId && !isOwner,
     refetchInterval: 30_000,
   });
   const forecasts = useQuery<WaitForecast[]>({
-    queryKey: ['wait-forecasts', orgId],
+    queryKey: ['wait-forecasts', orgId, branchId],
     queryFn: () => get<WaitForecast[]>('/api/v1/forecasts/wait'),
-    enabled: !!orgId,
+    enabled: !!orgId && !isOwner,
   });
   const staffing = useQuery<StaffingRecommendation[]>({
-    queryKey: ['staffing-recommendations', orgId],
+    queryKey: ['staffing-recommendations', orgId, branchId],
     queryFn: () => get<StaffingRecommendation[]>('/api/v1/forecasts/staffing'),
-    enabled: !!orgId,
+    enabled: !!orgId && !isOwner,
   });
+  const ownerAnalytics = useQuery<OwnerAnalytics>({
+    queryKey: ['owner-branch-analytics', orgId],
+    queryFn: () => get<OwnerAnalytics>('/api/v1/branches/analytics'),
+    enabled: !!orgId && isOwner,
+    refetchInterval: 60_000,
+  });
+
+  if (isOwner) {
+    if (ownerAnalytics.isLoading || !ownerAnalytics.data) {
+      return <div className="text-sm text-gray-400">{t('states.loading', { ns: 'common' })}</div>;
+    }
+    return (
+      <OwnerManagerDashboard
+        data={ownerAnalytics.data}
+        locale={i18n.resolvedLanguage ?? 'ja'}
+        t={t}
+      />
+    );
+  }
 
   if (isLoading || !data) {
     return <div className="text-gray-400 text-sm">{t('states.loading', { ns: 'common' })}</div>;
@@ -321,6 +362,116 @@ export function ManagerDashboardPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function OwnerManagerDashboard({
+  data,
+  locale,
+  t,
+}: {
+  data: OwnerAnalytics;
+  locale: string;
+  t: (key: string, options?: Record<string, unknown>) => string;
+}) {
+  const formatMoney = (value: number | string) => formatLocalizedCurrency(Number(value), locale);
+  const maxRevenue = Math.max(...data.revenueSeries.map((point) => Number(point.revenue)), 1);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
+            {t('ownerDashboard.section')}
+          </p>
+          <h1 className="mt-2 text-3xl font-bold text-gray-950">{t('ownerDashboard.title')}</h1>
+        </div>
+        <Link
+          to="/manager/branches"
+          className="rounded-lg bg-gray-950 px-4 py-2 text-center text-sm font-semibold text-white"
+        >
+          {t('ownerDashboard.manageBranches')}
+        </Link>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label={t('ownerDashboard.totalRevenue')} value={formatMoney(data.totalRevenue)} />
+        <StatCard label={t('ownerDashboard.totalBranches')} value={String(data.totalBranches)} />
+        <StatCard
+          label={t('ownerDashboard.bestBranch')}
+          value={data.bestBranch?.branch_name ?? '-'}
+          sub={data.bestBranch ? formatMoney(data.bestBranch.total_revenue) : undefined}
+        />
+        <StatCard
+          label={t('ownerDashboard.lowestBranch')}
+          value={data.lowestBranch?.branch_name ?? '-'}
+          sub={data.lowestBranch ? formatMoney(data.lowestBranch.total_revenue) : undefined}
+        />
+      </div>
+
+      <section className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
+        <h2 className="font-bold text-gray-950">{t('ownerDashboard.revenueChart')}</h2>
+        <div className="mt-5 flex h-40 items-end gap-1.5 sm:gap-2">
+          {data.revenueSeries.map((point) => (
+            <div
+              key={point.revenue_date}
+              className="flex min-w-0 flex-1 flex-col items-center gap-1"
+            >
+              <div
+                className="w-full rounded-t bg-brand-500"
+                style={{
+                  height: `${Math.max(3, (Number(point.revenue) / maxRevenue) * 100)}%`,
+                }}
+                title={formatMoney(point.revenue)}
+              />
+              <span className="hidden text-[10px] text-gray-400 sm:block">
+                {point.revenue_date.slice(5)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[var(--shadow-soft)]">
+        <div className="border-b border-gray-100 px-5 py-4">
+          <h2 className="font-bold text-gray-950">{t('ownerDashboard.branchPerformance')}</h2>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {data.branches.map((branch) => (
+            <Link
+              key={branch.branch_id}
+              to={`/manager/branches/${branch.branch_id}`}
+              className="grid gap-3 px-5 py-4 transition hover:bg-gray-50 sm:grid-cols-[minmax(0,1fr)_repeat(3,auto)] sm:items-center sm:gap-8"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-bold text-gray-950">{branch.branch_name}</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {t('ownerDashboard.queueCount', { count: branch.queue_count })}
+                </p>
+              </div>
+              <MetricText
+                label={t('ownerDashboard.revenue')}
+                value={formatMoney(branch.total_revenue)}
+              />
+              <MetricText label={t('ownerDashboard.orders')} value={String(branch.order_count)} />
+              <MetricText
+                label={t('ownerDashboard.cancellationRate')}
+                value={`${branch.cancellation_rate}%`}
+              />
+            </Link>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function MetricText({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="sm:text-right">
+      <p className="text-xs text-gray-400">{label}</p>
+      <p className="mt-1 text-sm font-bold text-gray-900">{value}</p>
     </div>
   );
 }

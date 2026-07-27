@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { getSubscriptionPlanBranchLimit } from '@line-queue/shared';
+
 import { JapanesePhoneSchema } from '../shared/shared.validator';
 
 const LogoUrlSchema = z
@@ -18,7 +20,7 @@ const LogoUrlSchema = z
     { message: 'Logo must be an image URL or a compressed data URL' }
   );
 
-export const CreateOrganizationApplicationSchema = z.object({
+const OrganizationApplicationFieldsSchema = z.object({
   legalName: z.string().trim().min(2).max(200),
   tradeName: z.string().trim().min(2).max(160),
   businessType: z.enum(['restaurant', 'salon', 'clinic', 'retail', 'public_service', 'other']),
@@ -42,8 +44,29 @@ export const CreateOrganizationApplicationSchema = z.object({
   billingCycle: z.enum(['monthly', 'annual']),
   defaultLocale: z.enum(['ja', 'vi', 'en']).default('ja'),
   logoUrl: LogoUrlSchema.nullable().optional(),
-  termsAccepted: z.literal(true),
 });
+
+function validatePlanCapacity(
+  application: { planCode: 'starter' | 'standard' | 'scale'; locationCount: number },
+  context: z.RefinementCtx
+) {
+  const maxBranches = getSubscriptionPlanBranchLimit(application.planCode);
+  if (maxBranches !== null && application.locationCount > maxBranches) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['locationCount'],
+      message: `The selected plan supports at most ${maxBranches} branches`,
+    });
+  }
+}
+
+export const CreateOrganizationApplicationSchema = OrganizationApplicationFieldsSchema.extend({
+  termsAccepted: z.literal(true),
+}).superRefine((application, context) => {
+  validatePlanCapacity(application, context);
+});
+
+export const UpdateOrganizationApplicationSchema = OrganizationApplicationFieldsSchema;
 
 export const OrganizationApplicationIdParamSchema = z.object({
   applicationId: z.string().uuid(),
@@ -58,6 +81,7 @@ export const ReviewOrganizationApplicationSchema = z.object({
 });
 
 export type CreateOrganizationApplicationDto = z.infer<typeof CreateOrganizationApplicationSchema>;
+export type UpdateOrganizationApplicationDto = z.infer<typeof UpdateOrganizationApplicationSchema>;
 export type OrganizationApplicationStatusFilter = z.infer<
   typeof OrganizationApplicationListQuerySchema
 >['status'];

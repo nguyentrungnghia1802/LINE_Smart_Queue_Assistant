@@ -1,5 +1,6 @@
 import type { AuthUser } from '../../types/auth.types';
 import { AppError } from '../../utils/AppError';
+import { requireBranchOperator } from '../branches/branch-scope';
 
 import { bookingGroupsRepository } from './booking-groups.repository';
 
@@ -9,18 +10,19 @@ export const bookingGroupsService = {
   },
 
   async getById(id: string, actor: AuthUser) {
-    const group = await bookingGroupsRepository.findById(id);
-    if (!group) throw AppError.notFound('Booking group');
-
-    if (actor.role === 'customer' && group.customer_user_id !== actor.id) {
-      throw AppError.forbidden('This booking history belongs to another customer');
+    if (actor.role === 'customer') {
+      const group = await bookingGroupsRepository.findById(id);
+      if (!group) throw AppError.notFound('Booking group');
+      if (group.customer_user_id !== actor.id) {
+        throw AppError.forbidden('This booking history belongs to another customer');
+      }
+      return group;
     }
-    if (
-      actor.role !== 'admin' &&
-      actor.role !== 'customer' &&
-      group.organization_id !== actor.organizationId
-    ) {
-      throw AppError.forbidden('This booking group belongs to another organization');
+
+    const scope = requireBranchOperator(actor);
+    const group = await bookingGroupsRepository.findById(id, scope.branchId);
+    if (!group || group.organization_id !== scope.organizationId) {
+      throw AppError.notFound('Booking group');
     }
     return group;
   },

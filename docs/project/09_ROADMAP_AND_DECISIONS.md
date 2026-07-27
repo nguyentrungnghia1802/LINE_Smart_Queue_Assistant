@@ -2,7 +2,7 @@
 
 # Roadmap and Decisions
 
-Last reviewed: 2026-07-26. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
+Last reviewed: 2026-07-27. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
 
 ## 1. Prioritized roadmap
 
@@ -36,7 +36,7 @@ Last reviewed: 2026-07-26. This file records current priorities and accepted arc
 | ID     | Issue                                                          | Impact                                 | Planned control                                 |
 | ------ | -------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------- |
 | TD-001 | Shared TypeScript enum values differ from PostgreSQL in places | Incorrect assumptions/contracts        | Align shared types and add serialization tests  |
-| TD-002 | Notification operations have API but no dashboard              | Support workflow remains technical     | Manager/admin operations dashboard              |
+| TD-002 | Notification operations have API but no dashboard              | Support workflow remains technical     | Owner/admin operations dashboard                |
 | TD-003 | Inventory lifecycle needs production load validation           | Rare race behavior may be undiscovered | Staged concurrent integration/load tests        |
 | TD-004 | Real PSP settlement/refund execution is absent                 | Demo-only external payment operations  | Provider adapter and settlement runbook         |
 | TD-007 | Forecast heuristic lacks production calibration                | Confidence may not reflect real error  | Measure prediction error before model upgrades  |
@@ -109,13 +109,13 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 **Consequences:** Demo remains usable without paid accounts, while browser-supplied amount/status/covered IDs are no longer settlement proof.
 
-## ADR-007: Stable generated organization QR token
+## ADR-007: Stable generated public QR token
 
-**Status:** Accepted
+**Status:** Superseded in scope by ADR-018
 
 **Context:** Managers need printable public entry without manually registering arbitrary tokens.
 
-**Decision:** Generate a unique stable `public_qr_token` server-side and route `/qr/:token`; keep slug routes for readable links.
+**Decision:** Generate a unique stable `public_qr_token` server-side and route `/qr/:token`; keep slug routes for readable links. ADR-018 moves the operational QR identity from organization to branch.
 
 **Consequences:** Token rotation/revocation may invalidate printed QR and must be an explicit future operation.
 
@@ -131,7 +131,7 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 
 ## ADR-015: Three-locale product UI with Japanese fallback
 
-**Status:** Accepted
+**Status:** Superseded in credential lifecycle by ADR-017
 
 **Context:** The product now serves Japanese, Vietnamese, and English users while retaining Japan as the default market.
 
@@ -204,7 +204,6 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 - Which Japan PSP is primary: Stripe, KOMOJU, PayPay, or a provider mix?
 - Is one LINE Official Account shared by the platform, or configured per organization?
 - What legally approved location consent, retention period, and deletion UX apply?
-- How should grouped repeat bookings appear in staff workload and customer history?
 - Receipt printing requires a completed, fully paid order; stock consumption occurs when service is completed.
 - What SLOs define acceptable booking latency, notification delay, and availability?
 - Should platform admin metrics include staff/user counts only, and which aggregate tenant health fields are allowed?
@@ -217,15 +216,13 @@ New major decisions use an `ADR-###` section with Status, Context, Decision, and
 not a professional SaaS acquisition flow and makes data ownership unclear.
 
 **Decision:** Use `/` as the public product site and `/business/register` as a three-step service
-application. Applicants provide their organization details, work email, manager password, expected
-usage, and plan. The server calculates and records demo payment. Admins only approve or reject.
-Approval creates the tenant, manager, and membership atomically; slugs and QR tokens remain
-server-generated.
+application. Applicants provide organization details, work email, expected usage, and plan. The
+server calculates and records demo payment. Admins only approve or reject. Credential activation
+and branch provisioning are defined by ADR-017 and ADR-018.
 
-**Consequences:** Pending applications contain commercially sensitive contact data and a bcrypt
-password hash, so their API is admin-only and the hash is never returned. The hash is cleared after
-review. Demo subscription payment is not a real settlement claim; a production subscription PSP,
-email verification, terms versioning, and transactional approval email remain future work.
+**Consequences:** Pending applications contain commercially sensitive contact data, so their API is
+admin-only. They never contain a manager password. Demo subscription payment is not a real
+settlement claim; a production subscription PSP and terms versioning remain future work.
 
 Decide these before implementing the corresponding P0/P1 contracts; record each material choice as a new ADR.
 
@@ -233,6 +230,75 @@ Decide these before implementing the corresponding P0/P1 contracts; record each 
 
 **Status:** accepted (2026-07-27)
 
-Business applicants do not choose credentials in the public form. Approval creates an invited owner manager, and a single-use email action activates the organization after the owner chooses a password. Admin/manager/staff share one business login UI; customers remain LINE-only. Branch assignments provide operational scope, with one queue per branch for this phase. Account deletion is soft deactivation with an audit actor.
+Business applicants do not choose credentials in the public form. Approval creates an invited owner manager, and a single-use email action activates the organization after the owner chooses a password. Admin/manager/staff share one business login UI; customers remain LINE-only. Account deletion is soft deactivation with an audit actor.
 
 This supersedes the credential-storage portion of ADR-016. Production email requires an external SMTP account, but local mock delivery remains available without a paid provider.
+
+## ADR-018: Owner capability and branch-scoped multi-queue operations
+
+**Status:** accepted (2026-07-27)
+
+**Context:** An organization owner manages the business as a whole, while each branch manager must
+operate only one physical branch. A branch can expose multiple service/product queues but should
+keep one durable customer QR.
+
+**Decision:** Keep one global `manager` role and distinguish the organization owner through
+`organization_members.is_owner`. The owner may retain a compatibility branch membership from
+organization activation, but it grants no operational capability. The owner receives only the
+aggregate dashboard, branch/manager administration, audit, and organization settings. A non-owner
+manager must have exactly one active branch membership and receives branch-only product, queue,
+staff, QR, hours, order, payment, and forecast access. Each branch has one stable QR, at least one
+active named queue, and queue-specific product mappings. Customers select a queue before building a
+cart.
+
+**Consequences:** The JWT-derived current-user context must carry owner and branch scope, but every
+service still validates database ownership. Organization-owner dashboards use aggregate branch
+metrics and do not expose customer-level operational records. Existing organization QR/calendar
+fields remain compatibility data while branch QR/calendar are authoritative for new booking flows.
+
+## ADR-019: Active LINE booking groups and immutable fulfillment receipts
+
+**Status:** accepted (2026-07-27)
+
+**Context:** A LINE customer may add reservations while earlier tickets are still active. Staff
+needs one coherent working view without mixing completed history, and receipts must retain the
+business/operator meaning even after branch or user profiles change.
+
+**Decision:** Keep every reservation as an independent order and ticket. The server, not the
+browser, reuses a booking group only for the same verified LINE identity and branch while the group
+contains active queue work. Staff presents those active orders together and excludes terminal
+history. Orders directly store branch/queue scope, immutable organization/branch/queue labels, and
+the staff identity captured at completion. Gross total, collected prepayment, refunds, and remaining
+balance remain separate receipt values.
+
+**Consequences:** Concurrent repeat booking uses a PostgreSQL advisory lock to avoid split groups.
+Historical commercial rows remain independently auditable. Snapshot columns intentionally duplicate
+display data so later profile edits do not rewrite old receipts.
+
+## ADR-020: Subscription branch limits and queue milestone notifications
+
+**Status:** accepted (2026-07-27)
+
+**Decision:** Define subscription limits in the shared package and enforce them inside the
+organization-locked branch creation transaction. Starter permits one branch, Standard permits three,
+and Scale is currently unlimited. The standard queue approach notification uses a durable event key
+at exactly five people ahead. Auto-call runs through one queue-locked service and never calls
+a second customer while another ticket is called or serving.
+
+**Consequences:** UI limits are guidance only; backend enforcement is authoritative and safe under
+concurrent branch creation. The five-ahead milestone survives retries without duplicate delivery.
+
+## ADR-021: Owner-led branch setup and repeated-absence policy
+
+**Status:** accepted (2026-07-27)
+
+**Decision:** Application approval provisions only the inactive tenant and invited owner account.
+Owners create branches without automatic queues; assigned branch managers create queue catalogs.
+A staff-recorded absence moves a called ticket back three slots, preserves its ticket code, and
+increments an absence counter. The third absence cancels the order and performs the normal
+idempotent refund and inventory-release workflow.
+
+**Consequences:** Tenant setup no longer creates placeholder operational data. Branches can
+temporarily have no queues, and customer booking remains unavailable until a manager creates and
+opens one. Absence handling is auditable and uses the same transaction and durable LINE outbox
+boundaries as other queue transitions.

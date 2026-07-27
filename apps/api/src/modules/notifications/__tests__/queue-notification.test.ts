@@ -148,11 +148,24 @@ describe('queueNotificationService durable outbox', () => {
     expect(repository.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: 'eta_warning',
-        eventKey: 'queue_entry:entry-001:eta_warning',
+        eventKey: `queue_entry:entry-001:eta_warning:ahead:${ETA_WARNING_THRESHOLD}`,
         payload: expect.objectContaining({ aheadCount: ETA_WARNING_THRESHOLD }),
       }),
       client
     );
+  });
+
+  it('does not enqueue non-configured ETA milestones', async () => {
+    const repository = makeRepository();
+    await queueNotificationService.notifyEtaWarning(
+      makeEntry(),
+      3,
+      { organizationId: 'org-001' },
+      repository,
+      client
+    );
+
+    expect(repository.enqueue).not.toHaveBeenCalled();
   });
 
   it.each([

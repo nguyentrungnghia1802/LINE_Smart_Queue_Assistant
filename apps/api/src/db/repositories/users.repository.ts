@@ -66,6 +66,20 @@ export class UsersRepository extends BaseRepository {
     return this.queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [id]);
   }
 
+  async findOrganizationOwner(organizationId: string): Promise<UserRow | null> {
+    return this.queryOne<UserRow>(
+      `SELECT user_record.*
+       FROM users user_record
+       JOIN organization_members membership ON membership.user_id = user_record.id
+       WHERE membership.organization_id = $1
+         AND membership.role = 'manager'
+         AND membership.is_owner = TRUE
+       ORDER BY membership.joined_at
+       LIMIT 1`,
+      [organizationId]
+    );
+  }
+
   async findByEmail(email: string, client?: PoolClient): Promise<UserRow | null> {
     const normalized = email.trim().toLowerCase();
     return client
@@ -140,6 +154,40 @@ export class UsersRepository extends BaseRepository {
       ? await this.queryTx<UserRow>(client, sql, args)
       : await this.query<UserRow>(sql, args);
     return this.firstOrThrow(rows, 'users.createWithPassword');
+  }
+
+  async findByBranchAndRole(branchId: string, role?: string): Promise<UserRow[]> {
+    const roleClause = role ? 'AND u.role = $2' : '';
+    const params: unknown[] = role ? [branchId, role] : [branchId];
+    return this.query<UserRow>(
+      `SELECT u.*
+       FROM users u
+       JOIN branch_memberships bm
+         ON bm.user_id = u.id
+        AND bm.deactivated_at IS NULL
+       WHERE bm.branch_id = $1
+         ${roleClause}
+       ORDER BY u.created_at DESC`,
+      params
+    );
+  }
+
+  async findAssignedBranchId(
+    organizationId: string,
+    userId: string,
+    client?: PoolClient
+  ): Promise<string | null> {
+    const sql = `SELECT branch_id
+                 FROM branch_memberships
+                 WHERE organization_id = $1
+                   AND user_id = $2
+                   AND deactivated_at IS NULL
+                 ORDER BY assigned_at
+                 LIMIT 1`;
+    const rows = client
+      ? await this.queryTx<{ branch_id: string }>(client, sql, [organizationId, userId])
+      : await this.query<{ branch_id: string }>(sql, [organizationId, userId]);
+    return rows[0]?.branch_id ?? null;
   }
 
   async createInvited(

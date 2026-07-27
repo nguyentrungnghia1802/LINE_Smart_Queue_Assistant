@@ -43,34 +43,19 @@ ordersRouter.post(
 ordersRouter.post('/:id/cancel', requireAuth, authenticatedActionRateLimiter, cancelOrder);
 
 // Authenticated staff/manager
-ordersRouter.get(
-  '/',
-  requireAuth,
-  requireRole(UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN),
-  listOrders
-);
-ordersRouter.get(
-  '/stats',
-  requireAuth,
-  requireRole(UserRole.MANAGER, UserRole.ADMIN),
-  getOrderStats
-);
+ordersRouter.get('/', requireAuth, requireRole(UserRole.STAFF, UserRole.MANAGER), listOrders);
+ordersRouter.get('/stats', requireAuth, requireRole(UserRole.MANAGER), getOrderStats);
 ordersRouter.get(
   '/:id/receipt',
   requireAuth,
-  requireRole(UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.STAFF, UserRole.MANAGER),
   getOrderReceipt
 );
-ordersRouter.get(
-  '/:id',
-  requireAuth,
-  requireRole(UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN),
-  getOrder
-);
+ordersRouter.get('/:id', requireAuth, requireRole(UserRole.STAFF, UserRole.MANAGER), getOrder);
 ordersRouter.patch(
   '/:id/status',
   requireAuth,
-  requireRole(UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.STAFF, UserRole.MANAGER),
   authenticatedActionRateLimiter,
   validate(UpdateOrderStatusSchema),
   patchOrderStatus
@@ -78,7 +63,7 @@ ordersRouter.patch(
 ordersRouter.patch(
   '/:id/payment',
   requireAuth,
-  requireRole(UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.STAFF, UserRole.MANAGER),
   authenticatedActionRateLimiter,
   idempotencyMiddleware(),
   validate(UpdateOrderPaymentSchema),

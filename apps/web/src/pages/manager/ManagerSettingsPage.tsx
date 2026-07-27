@@ -1,12 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { SupportedLocale } from '@line-queue/shared';
 
 import { get, patch, put } from '../../services/apiClient';
-import { buildLiffEntryUrl } from '../../services/liff/entryUrl';
 import { uploadImage } from '../../services/media.api';
 import { useAuthStore } from '../../store/authStore';
 import { compressLogoFile } from '../../utils/compressLogoFile';
@@ -31,7 +29,7 @@ interface OrgInfo {
   defaultLocale: SupportedLocale;
   settings?: {
     businessHours?: { open?: string; close?: string; holidays?: string };
-    paymentProvider?: { provider?: string; merchantId?: string; demoMode?: boolean };
+    paymentProvider?: { provider?: string; merchantId?: string };
     notificationPreferences?: {
       lineEnabled?: boolean;
       retryEnabled?: boolean;
@@ -39,8 +37,6 @@ interface OrgInfo {
     };
   };
 }
-
-const LIFF_ID = import.meta.env.VITE_LIFF_ID as string | undefined;
 
 interface BusinessCalendar {
   weeklyHours: Array<{
@@ -79,10 +75,9 @@ export function ManagerSettingsPage() {
     paymentInfo: '',
     paymentProvider: 'demo',
     merchantId: '',
-    demoMode: true,
     lineEnabled: true,
     retryEnabled: true,
-    notifyBeforeTurns: 3,
+    notifyBeforeTurns: 5,
     defaultLocale: 'ja' as SupportedLocale,
   });
   const [saved, setSaved] = useState(false);
@@ -137,10 +132,9 @@ export function ManagerSettingsPage() {
       paymentInfo: org.paymentInfo ?? '',
       paymentProvider: org.settings?.paymentProvider?.provider ?? 'demo',
       merchantId: org.settings?.paymentProvider?.merchantId ?? '',
-      demoMode: org.settings?.paymentProvider?.demoMode ?? true,
       lineEnabled: org.settings?.notificationPreferences?.lineEnabled ?? true,
       retryEnabled: org.settings?.notificationPreferences?.retryEnabled ?? true,
-      notifyBeforeTurns: org.settings?.notificationPreferences?.notifyBeforeTurns ?? 3,
+      notifyBeforeTurns: 5,
       defaultLocale: org.defaultLocale ?? 'ja',
     });
   }, [org]);
@@ -220,23 +214,16 @@ export function ManagerSettingsPage() {
         paymentProvider: {
           provider: orgForm.paymentProvider.trim() || 'demo',
           merchantId: orgForm.merchantId.trim(),
-          demoMode: orgForm.demoMode,
         },
         notificationPreferences: {
           lineEnabled: orgForm.lineEnabled,
           retryEnabled: orgForm.retryEnabled,
-          notifyBeforeTurns: orgForm.notifyBeforeTurns,
+          notifyBeforeTurns: 5,
         },
       },
     });
   }
 
-  const publicJoinUrl = org?.publicQrToken
-    ? `${window.location.origin}/qr/${org.publicQrToken}`
-    : (org?.joinUrl ?? '');
-  const joinUrl = org?.publicQrToken
-    ? (buildLiffEntryUrl(LIFF_ID, `/liff/qr/${org.publicQrToken}`) ?? publicJoinUrl)
-    : publicJoinUrl;
   const weekdays = t('settings.weekdays', { returnObjects: true }) as string[];
 
   return (
@@ -264,6 +251,7 @@ export function ManagerSettingsPage() {
             className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
+            placeholder={t('settings.placeholders.displayName')}
           />
         </div>
         <div>
@@ -320,6 +308,7 @@ export function ManagerSettingsPage() {
             className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
             value={orgForm.name}
             onChange={(e) => setOrgForm((f) => ({ ...f, name: e.target.value }))}
+            placeholder={t('settings.placeholders.organizationName')}
             required
           />
         </div>
@@ -356,6 +345,7 @@ export function ManagerSettingsPage() {
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
               value={orgForm.phone}
               onChange={(e) => setOrgForm((f) => ({ ...f, phone: e.target.value }))}
+              placeholder={t('settings.placeholders.phone')}
             />
           </div>
           <div>
@@ -395,6 +385,7 @@ export function ManagerSettingsPage() {
               className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
               value={orgForm.addressLine1}
               onChange={(e) => setOrgForm((f) => ({ ...f, addressLine1: e.target.value }))}
+              placeholder={t('settings.placeholders.addressLine1')}
             />
           </label>
           <label className="text-sm font-medium text-gray-700">
@@ -403,6 +394,7 @@ export function ManagerSettingsPage() {
               className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
               value={orgForm.addressLine2}
               onChange={(e) => setOrgForm((f) => ({ ...f, addressLine2: e.target.value }))}
+              placeholder={t('settings.placeholders.addressLine2')}
             />
           </label>
         </div>
@@ -441,6 +433,7 @@ export function ManagerSettingsPage() {
             rows={4}
             value={orgForm.paymentInfo}
             onChange={(e) => setOrgForm((f) => ({ ...f, paymentInfo: e.target.value }))}
+            placeholder={t('settings.placeholders.paymentInfo')}
           />
         </div>
 
@@ -632,14 +625,6 @@ export function ManagerSettingsPage() {
                 placeholder={t('settings.merchantId')}
                 className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
               />
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={orgForm.demoMode}
-                  onChange={(e) => setOrgForm((f) => ({ ...f, demoMode: e.target.checked }))}
-                />
-                {t('settings.demoMode')}
-              </label>
             </div>
           </div>
         </div>
@@ -661,59 +646,14 @@ export function ManagerSettingsPage() {
             />
             {t('settings.retry')}
           </label>
-          <label className="block text-sm text-gray-700">
-            {t('settings.notifyBeforeTurns')}
-            <input
-              type="number"
-              min={1}
-              max={20}
-              value={orgForm.notifyBeforeTurns}
-              onChange={(e) =>
-                setOrgForm((f) => ({ ...f, notifyBeforeTurns: Number(e.target.value) }))
-              }
-              className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-            />
-          </label>
-        </div>
-
-        <div className="border-t border-gray-100 pt-4 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4">
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                {t('settings.publicQrToken')}
-              </label>
-              <input
-                readOnly
-                value={org?.publicQrToken ?? ''}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-700 bg-gray-50"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                {t('settings.customerBookingUrl')}
-              </label>
-              <div className="flex gap-2">
-                <input
-                  readOnly
-                  value={joinUrl}
-                  className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-700 bg-gray-50"
-                  onFocus={(e) => e.target.select()}
-                />
-                <button
-                  type="button"
-                  onClick={() => void navigator.clipboard.writeText(joinUrl)}
-                  className="px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                >
-                  {t('settings.copy')}
-                </button>
-              </div>
-            </div>
+          <div className="text-sm text-gray-700">
+            <span className="block text-xs font-medium text-gray-500">
+              {t('settings.notifyBeforeTurns')}
+            </span>
+            <span className="mt-1 block rounded-xl border border-gray-200 bg-white px-3 py-2">
+              5
+            </span>
           </div>
-          {joinUrl && (
-            <div className="flex items-center justify-center">
-              <QRCodeSVG value={joinUrl} size={120} />
-            </div>
-          )}
         </div>
 
         {orgSaved && <p className="text-sm text-green-600">{t('settings.organizationSaved')}</p>}

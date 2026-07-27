@@ -31,13 +31,15 @@ describe('ManagerQRPage', () => {
       value: { writeText: mockWriteText },
     });
     mockGet.mockResolvedValue({
-      id: 'org-1',
+      id: 'branch-1',
       name: 'Queue Lab',
-      slug: 'queue-lab',
-      publicQrToken: 'store-token',
-      joinUrl: 'https://queue.example.com/qr/store-token',
-      phone: null,
-      address: 'Tokyo',
+      public_qr_token: 'store-token',
+      phone: '03-1234-5678',
+      postal_code: '100-0001',
+      prefecture: '東京都',
+      city: '千代田区',
+      address_line1: '千代田1-1',
+      address_line2: null,
     });
   });
 

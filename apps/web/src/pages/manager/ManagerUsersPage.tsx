@@ -17,11 +17,6 @@ interface UserRow {
   job_title: string | null;
   employee_code: string | null;
 }
-interface Branch {
-  id: string;
-  name: string;
-}
-
 export function ManagerUsersPage() {
   const { t } = useTranslation(['manager', 'common']);
   const { user } = useAuthStore();
@@ -37,27 +32,21 @@ export function ManagerUsersPage() {
     currentAddress: '',
     jobTitle: '',
     employeeCode: '',
-    branchId: '',
   };
   const [form, setForm] = useState(emptyForm);
   const [addError, setAddError] = useState('');
 
   const { data: users = [], isLoading } = useQuery<UserRow[]>({
-    queryKey: ['users-staff', orgId],
-    queryFn: () => get<UserRow[]>(`/api/v1/users?orgId=${orgId}&role=staff`),
-    enabled: !!orgId,
+    queryKey: ['users-staff', user?.branchIds?.[0]],
+    queryFn: () => get<UserRow[]>('/api/v1/users?role=staff'),
+    enabled: !!orgId && !user?.isOrganizationOwner,
   });
-  const { data: branches = [] } = useQuery<Branch[]>({
-    queryKey: ['branches'],
-    queryFn: () => get<Branch[]>('/api/v1/branches'),
-  });
-
   const staffUsers = useMemo(() => users.filter((u) => u.role === 'staff'), [users]);
 
   const createMutation = useMutation({
     mutationFn: () => post('/api/v1/users/staff', form),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['users-staff', orgId] });
+      void queryClient.invalidateQueries({ queryKey: ['users-staff'] });
       setShowAdd(false);
       setForm(emptyForm);
       setAddError('');
@@ -74,12 +63,12 @@ export function ManagerUsersPage() {
         phone: form.phone,
         currentAddress: form.currentAddress,
         jobTitle: form.jobTitle,
-        employeeCode: form.employeeCode || null,
+        employeeCode: form.employeeCode,
       };
       return patch(`/api/v1/users/staff/${editingUserId}`, profile);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['users-staff', orgId] });
+      void queryClient.invalidateQueries({ queryKey: ['users-staff'] });
       setEditingUserId(null);
       setShowAdd(false);
       setForm(emptyForm);
@@ -91,7 +80,7 @@ export function ManagerUsersPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (userId: string) => del(`/api/v1/users/staff/${userId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users-staff', orgId] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users-staff'] }),
   });
 
   if (isLoading)
@@ -146,7 +135,6 @@ export function ManagerUsersPage() {
                         currentAddress: staffUser.address_line1 ?? '',
                         jobTitle: staffUser.job_title ?? '',
                         employeeCode: staffUser.employee_code ?? '',
-                        branchId: branches[0]?.id ?? '',
                       });
                       setAddError('');
                     }}
@@ -202,7 +190,6 @@ export function ManagerUsersPage() {
                             currentAddress: u.address_line1 ?? '',
                             jobTitle: u.job_title ?? '',
                             employeeCode: u.employee_code ?? '',
-                            branchId: branches[0]?.id ?? '',
                           });
                           setAddError('');
                         }}
@@ -264,7 +251,7 @@ export function ManagerUsersPage() {
                 placeholder: t('users.jobTitlePlaceholder'),
               },
               {
-                label: t('users.employeeCode'),
+                label: t('users.employeeCodeRequired'),
                 key: 'employeeCode',
                 type: 'text',
                 placeholder: 'ST-001',
@@ -281,29 +268,6 @@ export function ManagerUsersPage() {
                 />
               </div>
             ))}
-            {!editingUserId && (
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">
-                  {t('users.branchRequired')}
-                </label>
-                <select
-                  required
-                  value={form.branchId}
-                  onChange={(event) =>
-                    setForm((value) => ({ ...value, branchId: event.target.value }))
-                  }
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                >
-                  <option value="">{t('users.selectBranch')}</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
             {addError && <p className="text-xs text-red-500">{addError}</p>}
 
             <div className="flex gap-2 pt-1">
@@ -332,7 +296,7 @@ export function ManagerUsersPage() {
                   !form.phone ||
                   !form.currentAddress ||
                   !form.jobTitle ||
-                  (!editingUserId && !form.branchId)
+                  !form.employeeCode
                 }
                 className="flex-1 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
               >
