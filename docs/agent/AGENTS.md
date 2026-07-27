@@ -133,3 +133,28 @@ Suggested branch names:
 - `feat/<short-name>`
 - `fix/<short-name>`
 - `chore/<short-name>`
+
+## Finalize And Remote Sync Workflow
+
+After a feature, fix, or agent task is fully completed, follow this sequence:
+
+1. Ensure all implementation, tests, and canonical documentation updates for the task are complete.
+2. Commit all completed changes on the current task branch.
+3. Merge the completed task branch into `chore/dev`.
+4. Push `chore/dev` to the remote repository so the remote branch is fully synchronized.
+5. Merge the updated `chore/dev` branch into `main`.
+6. Push `main` to the remote repository so both `chore/dev` and `main` contain the completed work locally and remotely.
+7. Verify that both remote branches are up to date before deleting any task branch.
+8. After the changes are confirmed on both `chore/dev` and `main`, delete the completed task branch locally and remotely.
+9. Do not delete `main` or `chore/dev`.
+10. Do not leave completed feature, fix, or temporary task branches after their changes have been successfully merged and pushed to both canonical branches.
+
+When finalizing a task, the expected repository state is:
+
+- `chore/dev` contains the latest completed work locally and remotely.
+- `main` contains the same completed work locally and remotely.
+- The completed task branch has been deleted locally and remotely.
+- No implementation or documentation changes for the completed task remain uncommitted.
+- Existing unrelated user changes must remain untouched.
+
+Do not merge, push, or delete branches if validation has failed or if doing so would overwrite, discard, or conflict with unrelated user work. Report the blocking issue instead.
