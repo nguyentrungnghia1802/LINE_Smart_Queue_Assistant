@@ -119,9 +119,9 @@ export const ordersRepository = {
     return Number(rows[0].value);
   },
 
-  async findByOrg(orgId: string, status?: string): Promise<OrderWithItems[]> {
-    const statusClause = status ? `AND o.status = $2` : '';
-    const params: unknown[] = status ? [orgId, status] : [orgId];
+  async findByOrg(orgId: string, status?: string, branchId?: string): Promise<OrderWithItems[]> {
+    const statusClause = status ? `AND o.status = $3` : '';
+    const params: unknown[] = [orgId, branchId ?? null, ...(status ? [status] : [])];
     const { rows } = await pool.query<OrderRow & { items_json: string }>(
       `SELECT o.*,
          qe.id AS queue_entry_id,
@@ -148,7 +148,10 @@ export const ordersRepository = {
        LEFT JOIN order_items oi ON oi.order_id = o.id
        LEFT JOIN products p ON p.id = oi.product_id
        LEFT JOIN queue_entries qe ON qe.order_id = o.id
-       WHERE o.organization_id = $1 ${statusClause}
+       LEFT JOIN queues q ON q.id = qe.queue_id
+       WHERE o.organization_id = $1
+         AND ($2::uuid IS NULL OR q.branch_id = $2)
+         ${statusClause}
        GROUP BY o.id, qe.id, qe.ticket_code, qe.status
        ORDER BY o.created_at DESC`,
       params
@@ -190,6 +193,17 @@ export const ordersRepository = {
     if (!rows[0]) return null;
     const r = rows[0];
     return { ...r, items: r.items_json as unknown as OrderItemRow[] };
+  },
+
+  async findBranchIdForOrder(id: string): Promise<string | null> {
+    const { rows } = await pool.query<{ branch_id: string }>(
+      `SELECT q.branch_id
+       FROM queue_entries qe
+       JOIN queues q ON q.id = qe.queue_id
+       WHERE qe.order_id = $1`,
+      [id]
+    );
+    return rows[0]?.branch_id ?? null;
   },
 
   /**
@@ -515,7 +529,10 @@ export const ordersRepository = {
     }
   },
 
-  async getStats(orgId: string): Promise<{
+  async getStats(
+    orgId: string,
+    branchId?: string
+  ): Promise<{
     totalRevenue: number;
     totalOrders: number;
     completedOrders: number;
@@ -571,12 +588,15 @@ export const ordersRepository = {
           `WITH order_summary AS (
              SELECT
                COUNT(*) AS total,
-               COUNT(*) FILTER (WHERE status = 'completed') AS completed,
-               COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled,
-               COUNT(*) FILTER (WHERE status IN ('pending','processing')) AS pending,
-               COALESCE(SUM(subtotal) FILTER (WHERE status = 'completed'), 0) AS revenue
-             FROM orders
-             WHERE organization_id = $1
+               COUNT(*) FILTER (WHERE o.status = 'completed') AS completed,
+               COUNT(*) FILTER (WHERE o.status = 'cancelled') AS cancelled,
+               COUNT(*) FILTER (WHERE o.status IN ('pending','processing')) AS pending,
+               COALESCE(SUM(o.subtotal) FILTER (WHERE o.status = 'completed'), 0) AS revenue
+             FROM orders o
+             JOIN queue_entries order_entry ON order_entry.order_id = o.id
+             JOIN queues order_queue ON order_queue.id = order_entry.queue_id
+             WHERE o.organization_id = $1
+               AND ($2::uuid IS NULL OR order_queue.branch_id = $2)
            ),
            eta_summary AS (
              SELECT
@@ -597,25 +617,29 @@ export const ordersRepository = {
              FROM queue_entries qe
              JOIN queues q ON q.id = qe.queue_id
              WHERE q.organization_id = $1
+               AND ($2::uuid IS NULL OR q.branch_id = $2)
                AND q.is_active = TRUE
                AND qe.status = 'waiting'
            )
            SELECT os.*, es.average_eta_seconds
            FROM order_summary os, eta_summary es`,
-          [orgId]
+          [orgId, branchId ?? null]
         ),
         // Daily revenue — hits idx_orders_org_completed_date
         pool.query<{ date: string; revenue: string; orders: string }>(
-          `SELECT DATE(created_at)::text AS date,
-                COALESCE(SUM(subtotal), 0) AS revenue,
+          `SELECT DATE(o.created_at)::text AS date,
+                COALESCE(SUM(o.subtotal), 0) AS revenue,
                 COUNT(*) AS orders
-         FROM orders
-         WHERE organization_id = $1
-           AND status = 'completed'
-           AND created_at >= NOW() - INTERVAL '7 days'
-         GROUP BY DATE(created_at)
+         FROM orders o
+         JOIN queue_entries qe ON qe.order_id = o.id
+         JOIN queues q ON q.id = qe.queue_id
+         WHERE o.organization_id = $1
+           AND ($2::uuid IS NULL OR q.branch_id = $2)
+           AND o.status = 'completed'
+           AND o.created_at >= NOW() - INTERVAL '7 days'
+         GROUP BY DATE(o.created_at)
          ORDER BY date`,
-          [orgId]
+          [orgId, branchId ?? null]
         ),
         // Top products — hits idx_order_items_order_covering
         pool.query<{ product_name: string; total_sold: string; revenue: string }>(
@@ -624,23 +648,32 @@ export const ordersRepository = {
                 SUM(oi.subtotal) AS revenue
          FROM order_items oi
          JOIN orders o ON oi.order_id = o.id
-         WHERE o.organization_id = $1 AND o.status = 'completed'
+         JOIN queue_entries qe ON qe.order_id = o.id
+         JOIN queues q ON q.id = qe.queue_id
+         WHERE o.organization_id = $1
+           AND ($2::uuid IS NULL OR q.branch_id = $2)
+           AND o.status = 'completed'
          GROUP BY oi.product_name
          ORDER BY total_sold DESC
          LIMIT 5`,
-          [orgId]
+          [orgId, branchId ?? null]
         ),
         // Merged: active queue depth + total products in one query pair
         Promise.all([
           pool.query<{ count: string }>(
             `SELECT COUNT(*) FROM queue_entries qe
              JOIN queues q ON qe.queue_id = q.id
-             WHERE q.organization_id = $1 AND qe.status IN ('waiting','called','serving')`,
-            [orgId]
+             WHERE q.organization_id = $1
+               AND ($2::uuid IS NULL OR q.branch_id = $2)
+               AND qe.status IN ('waiting','called','serving')`,
+            [orgId, branchId ?? null]
           ),
           pool.query<{ count: string }>(
-            `SELECT COUNT(*) FROM products WHERE organization_id = $1 AND is_active = TRUE`,
-            [orgId]
+            `SELECT COUNT(*) FROM products
+             WHERE organization_id = $1
+               AND ($2::uuid IS NULL OR branch_id = $2)
+               AND is_active = TRUE`,
+            [orgId, branchId ?? null]
           ),
         ]),
         // Recent orders with item count — no ETA, just ORDER BY created_at DESC
@@ -664,12 +697,15 @@ export const ordersRepository = {
            o.created_at,
            COALESCE(SUM(oi.quantity), 0) AS item_count
          FROM orders o
+         JOIN queue_entries qe ON qe.order_id = o.id
+         JOIN queues q ON q.id = qe.queue_id
          LEFT JOIN order_items oi ON oi.order_id = o.id
          WHERE o.organization_id = $1
+           AND ($2::uuid IS NULL OR q.branch_id = $2)
          GROUP BY o.id
          ORDER BY o.created_at DESC
          LIMIT 10`,
-          [orgId]
+          [orgId, branchId ?? null]
         ),
         // Recent queue activities — hits idx_qe_queue_updated
         pool.query<{
@@ -695,9 +731,10 @@ export const ordersRepository = {
          JOIN queues q ON q.id = qe.queue_id
          LEFT JOIN orders o ON o.id = qe.order_id
          WHERE q.organization_id = $1
+           AND ($2::uuid IS NULL OR q.branch_id = $2)
          ORDER BY qe.updated_at DESC
          LIMIT 10`,
-          [orgId]
+          [orgId, branchId ?? null]
         ),
       ]);
 

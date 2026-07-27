@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { post } from '../../services/apiClient';
-import { useAuthStore } from '../../store/authStore';
 
 interface QueueRow {
   id: string;
@@ -13,7 +12,6 @@ interface QueueRow {
 export function CreateQueuePage() {
   const { t } = useTranslation(['manager', 'common']);
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
@@ -23,7 +21,6 @@ export function CreateQueuePage() {
     status: 'open',
     maxCapacity: '',
     avgServiceTimeMinutes: '',
-    autoNoShowMinutes: '',
   });
 
   function set(field: string, value: string) {
@@ -32,22 +29,17 @@ export function CreateQueuePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!user?.organizationId) {
-      setError(t('queue.organizationMissing'));
-      return;
-    }
     setError('');
     setSaving(true);
     try {
       const queue = await post<QueueRow>('/api/v1/queues', {
-        orgId: user.organizationId,
         name: form.name,
         description: form.description || undefined,
         status: form.status,
         prefix: form.prefix || undefined,
         maxCapacity: form.maxCapacity ? parseInt(form.maxCapacity) : undefined,
-        avgServiceMs: form.avgServiceTimeMinutes
-          ? parseInt(form.avgServiceTimeMinutes) * 60 * 1000
+        avgServiceTimeMinutes: form.avgServiceTimeMinutes
+          ? parseInt(form.avgServiceTimeMinutes)
           : undefined,
       });
       navigate(`/manager/queues/${queue.id}`);
@@ -136,16 +128,6 @@ export function CreateQueuePage() {
               placeholder="15"
               value={form.avgServiceTimeMinutes}
               onChange={(e) => set('avgServiceTimeMinutes', e.target.value)}
-              className={inputCls}
-            />
-          </Field>
-          <Field label={t('queue.autoCancel')}>
-            <input
-              type="number"
-              min="1"
-              placeholder="10"
-              value={form.autoNoShowMinutes}
-              onChange={(e) => set('autoNoShowMinutes', e.target.value)}
               className={inputCls}
             />
           </Field>

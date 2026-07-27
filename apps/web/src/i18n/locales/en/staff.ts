@@ -10,6 +10,7 @@ export const staff = {
     refundConfirm: 'Record a full refund?',
     printReceipt: 'Print receipt',
     queueFallback: 'Queue',
+    queueSelector: 'Select service queue',
     waitingShort: 'Waiting',
     callShort: 'Call',
     noCustomers: 'No customers.',

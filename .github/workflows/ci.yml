@@ -106,5 +106,5 @@ jobs:
 
       - name: Browser E2E with mock integrations
         run: |
-          npm run db:seed:demo
+          npm run db:fixture:e2e
           npm run e2e:all

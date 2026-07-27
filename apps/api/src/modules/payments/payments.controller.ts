@@ -5,6 +5,7 @@ import { UserRole } from '@line-queue/shared';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendCreated, sendSuccess } from '../../utils/response';
+import { requireBranchManager } from '../branches/branch-scope';
 
 import { paymentsService } from './payments.service';
 import { CompleteDemoPaymentDto, CreatePaymentIntentDto } from './payments.validator';
@@ -44,6 +45,8 @@ export const handlePaymentWebhook = asyncHandler(async (req: Request, res: Respo
 });
 
 export const reconcilePayment = asyncHandler(async (req: Request, res: Response) => {
-  const transaction = await paymentsService.reconcile(req.params.transactionId);
+  if (!req.user) throw AppError.unauthorized();
+  const scope = req.user.role === UserRole.MANAGER ? requireBranchManager(req.user) : undefined;
+  const transaction = await paymentsService.reconcile(req.params.transactionId, scope);
   sendSuccess(res, transaction);
 });

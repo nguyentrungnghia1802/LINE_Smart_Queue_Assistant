@@ -58,6 +58,8 @@ export const customer = {
     receptionPage: '受付ページ',
     online: 'オンライン受付中',
     queueClosed: '現在受付中のキューはありません。',
+    queueStep: 'ステップ 1',
+    selectQueue: '受付キューを選択',
     productsTitle: '商品 / サービス',
     productsHint: '必要な項目を選択してください。',
     lineAuthFailed: 'LINE認証を完了できませんでした。LINEからもう一度開いてください。',

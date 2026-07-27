@@ -26,6 +26,25 @@ export const CreateBranchSchema = z.object({
 
 export const InviteBranchManagerSchema = ManagerInvitationSchema;
 
+export const UpdateMyBranchSchema = z
+  .object({
+    name: z.string().trim().min(2).max(160).optional(),
+    phone: JapanesePhoneSchema.optional(),
+    email: z.string().trim().toLowerCase().email().max(254).nullable().optional(),
+    postalCode: z
+      .string()
+      .trim()
+      .regex(/^[0-9]{3}-?[0-9]{4}$/)
+      .optional(),
+    prefecture: z.string().trim().min(1).max(20).optional(),
+    city: z.string().trim().min(1).max(100).optional(),
+    addressLine1: z.string().trim().min(1).max(200).optional(),
+    addressLine2: z.string().trim().max(200).nullable().optional(),
+  })
+  .refine((value) => Object.values(value).some((item) => item !== undefined), {
+    message: 'At least one field must be provided',
+  });
+
 export const BranchIdParamSchema = z.object({
   branchId: z.string().uuid(),
 });
@@ -41,3 +60,4 @@ export const AuditLogQuerySchema = z.object({
 
 export type CreateBranchDto = z.infer<typeof CreateBranchSchema>;
 export type InviteBranchManagerDto = z.infer<typeof InviteBranchManagerSchema>;
+export type UpdateMyBranchDto = z.infer<typeof UpdateMyBranchSchema>;
