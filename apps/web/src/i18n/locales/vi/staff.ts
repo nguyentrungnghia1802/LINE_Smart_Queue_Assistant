@@ -31,9 +31,10 @@ export const staff = {
     ticketActions: 'Thao tác lượt',
     startService: 'Bắt đầu phục vụ',
     noShow: 'Vắng mặt',
-    defer: 'Đưa xuống cuối hàng',
+    defer: 'Lùi xuống 3 lượt',
     deferring: 'Đang chuyển lượt...',
-    deferConfirm: 'Đưa khách này xuống sau toàn bộ khách đang chờ?',
+    deferConfirm:
+      'Lùi khách này xuống 3 lượt? Lần vắng mặt thứ ba sẽ huỷ đặt chỗ và hoàn lại khoản đã thanh toán.',
     complete: 'Hoàn thành',
     cancelTicket: 'Hủy lượt',
     orderActions: 'Thao tác đơn hàng',

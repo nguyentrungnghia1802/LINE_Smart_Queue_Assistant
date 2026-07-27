@@ -63,6 +63,12 @@ export const viLineNotificationCopy: LineNotificationCopy = {
       guidance: 'Vui lòng liên hệ nhân viên nếu bạn vẫn cần được hỗ trợ.',
       accentColor: '#EA580C',
     },
+    deferred: {
+      headline: 'Lượt của bạn đã được chuyển xuống',
+      status: 'Đang chờ khách đến',
+      guidance: 'Do bạn vắng mặt, lượt đã được chuyển xuống 3 vị trí. Vui lòng quay lại cửa hàng.',
+      accentColor: '#EA580C',
+    },
     location_warning: {
       headline: 'Vui lòng kiểm tra khoảng cách tới cửa hàng',
       status: 'Nhắc quay lại',

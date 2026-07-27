@@ -21,6 +21,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 15. `000015_account_lifecycle_and_branches.js`
 16. `000016_branch_scoped_multi_queue.js`
 17. `000017_order_fulfillment_and_scope.js`
+18. `000018_system_workflow_hardening.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -127,8 +128,8 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 - Application approval requires `payment_status = 'paid'`; reviewed state requires reviewer/time,
   and approval creates a single-use owner activation action instead of accepting an applicant password.
 - Product stock cannot be negative; services cannot carry finite stock.
-- Active queue names are unique within a branch, every active branch starts with at least one queue,
-  and service logic prevents removal of its final active queue.
+- Active queue names are unique within a branch. A branch may have zero queues during initial setup
+  or operational reconfiguration.
 - A non-owner manager can have only one active branch membership. The organization owner may retain
   a compatibility membership created during activation, but that row never grants branch-operation
   authorization.
@@ -173,6 +174,10 @@ An insufficient-stock update affects zero rows, raises a conflict, and rolls bac
 - Service completion locks the queue before serving completion and automatic call-next selection.
   Booking into an idle queue, cancellation, no-show, and defer use the same queue-locked auto-call
   boundary. It never calls a second customer while another ticket is called or serving.
+- A recorded absence increments `queue_entries.absence_count`; the first two occurrences move the
+  ticket back by the queue's configured slot count (default three), while the configured maximum
+  (default three) cancels the order, refunds collected payment, releases inventory, and enqueues
+  the no-show notification in one transaction.
 - Completion snapshots the responsible staff user, display name, employee code, and completion time
   on the order. Order creation snapshots organization, branch, and queue names for durable receipts.
 

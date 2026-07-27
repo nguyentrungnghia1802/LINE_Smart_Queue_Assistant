@@ -30,7 +30,6 @@ const ProductFieldsSchema = z.object({
   requiresPrepayment: z.boolean().default(false),
   stockQuantity: z.number().int().min(0).optional(),
   productType: z.enum(['product', 'service']).default('service'),
-  queueIds: z.array(z.string().uuid()).min(1).max(50),
 });
 
 function validateProductConfiguration(

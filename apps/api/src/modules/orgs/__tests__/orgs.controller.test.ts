@@ -90,6 +90,8 @@ const branchRow = {
   city: 'Chiyoda',
   address_line1: '1-1',
   address_line2: null,
+  latitude: null,
+  longitude: null,
   timezone: 'Asia/Tokyo',
   public_qr_token: BRANCH_TOKEN,
   is_active: true,

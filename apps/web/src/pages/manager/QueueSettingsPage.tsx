@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -6,7 +7,14 @@ import type { Queue } from '@line-queue/shared';
 
 import { Spinner } from '../../components/ui/Spinner';
 import { useQueue } from '../../hooks/useQueues';
+import { get } from '../../services/apiClient';
 import { queuesApi } from '../../services/queues.api';
+
+interface ProductRow {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
 
 export function QueueSettingsPage() {
   const { t } = useTranslation(['manager', 'common']);
@@ -22,6 +30,12 @@ export function QueueSettingsPage() {
     status: 'open',
     maxCapacity: '',
     avgServiceTimeMinutes: '',
+    absenceGraceMinutes: '5',
+    productIds: [] as string[],
+  });
+  const { data: products = [] } = useQuery({
+    queryKey: ['manager-products-for-queue'],
+    queryFn: () => get<ProductRow[]>('/api/v1/products'),
   });
 
   useEffect(() => {
@@ -38,11 +52,13 @@ export function QueueSettingsPage() {
           queue.avgServiceTimeMinutes !== null && queue.avgServiceTimeMinutes !== undefined
             ? String(queue.avgServiceTimeMinutes)
             : '',
+        absenceGraceMinutes: String(queue.absenceGraceMinutes ?? 5),
+        productIds: queue.productIds ?? [],
       });
     }
   }, [queue]);
 
-  function set(field: string, value: string) {
+  function set(field: string, value: string | string[]) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -60,6 +76,8 @@ export function QueueSettingsPage() {
         avgServiceTimeMinutes: form.avgServiceTimeMinutes
           ? parseInt(form.avgServiceTimeMinutes)
           : undefined,
+        absenceGraceMinutes: parseInt(form.absenceGraceMinutes),
+        productIds: form.productIds,
       });
       setSaved(true);
       setTimeout(() => navigate(`/manager/queues/${id}`), 1000);
@@ -98,6 +116,7 @@ export function QueueSettingsPage() {
             type="text"
             value={form.name}
             onChange={(e) => set('name', e.target.value)}
+            placeholder={t('queue.namePlaceholder')}
             className={inputCls}
           />
         </Field>
@@ -107,6 +126,7 @@ export function QueueSettingsPage() {
             rows={2}
             value={form.description}
             onChange={(e) => set('description', e.target.value)}
+            placeholder={t('queue.descriptionPlaceholder')}
             className={inputCls}
           />
         </Field>
@@ -144,7 +164,45 @@ export function QueueSettingsPage() {
               className={inputCls}
             />
           </Field>
+          <Field label={t('queue.absenceGrace')}>
+            <input
+              type="number"
+              min="1"
+              max="120"
+              placeholder="5"
+              value={form.absenceGraceMinutes}
+              onChange={(e) => set('absenceGraceMinutes', e.target.value)}
+              className={inputCls}
+            />
+          </Field>
         </div>
+
+        <Field label={t('queue.products')}>
+          <div className="grid gap-2 rounded-lg border border-gray-200 p-3 sm:grid-cols-2">
+            {products
+              .filter((product) => product.is_active)
+              .map((product) => (
+                <label key={product.id} className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={form.productIds.includes(product.id)}
+                    onChange={(event) =>
+                      set(
+                        'productIds',
+                        event.target.checked
+                          ? [...form.productIds, product.id]
+                          : form.productIds.filter((productId) => productId !== product.id)
+                      )
+                    }
+                  />
+                  <span className="min-w-0 truncate">{product.name}</span>
+                </label>
+              ))}
+            {products.length === 0 && (
+              <p className="text-xs text-gray-500">{t('queue.productsEmpty')}</p>
+            )}
+          </div>
+        </Field>
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
         {saved && <p className="text-green-600 text-sm">✓ {t('queue.savedRedirecting')}</p>}

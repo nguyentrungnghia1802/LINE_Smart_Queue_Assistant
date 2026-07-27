@@ -1,12 +1,10 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
-import { queuesRepository } from '../../db/repositories/queues.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
 import { issueAccountAction } from '../account-lifecycle/account-lifecycle.service';
-import { branchesRepository } from '../branches/branches.repository';
 
 import {
   type OrganizationApplicationRow,
@@ -16,6 +14,7 @@ import type {
   CreateOrganizationApplicationDto,
   OrganizationApplicationStatusFilter,
   ReviewOrganizationApplicationDto,
+  UpdateOrganizationApplicationDto,
 } from './organization-applications.validator';
 
 const MONTHLY_PLAN_PRICES = {
@@ -130,6 +129,32 @@ export const organizationApplicationsService = {
     return applications;
   },
 
+  async update(applicationId: string, dto: UpdateOrganizationApplicationDto) {
+    return withTransaction(async (client) => {
+      assertPending(
+        await organizationApplicationsRepository.findByIdForUpdate(applicationId, client)
+      );
+      const [existingUser, pendingApplication] = await Promise.all([
+        usersRepository.findByEmail(dto.workEmail, client),
+        organizationApplicationsRepository.findPendingByEmail(dto.workEmail, client),
+      ]);
+      if (existingUser) {
+        throw AppError.conflict('An account with this work email already exists');
+      }
+      if (pendingApplication && pendingApplication.id !== applicationId) {
+        throw AppError.conflict('A pending application already exists for this work email');
+      }
+      return organizationApplicationsRepository.updatePending(
+        applicationId,
+        {
+          ...dto,
+          amountYen: calculateAmount(dto.planCode, dto.billingCycle),
+        },
+        client
+      );
+    });
+  },
+
   async approve(applicationId: string, reviewerId: string, dto: ReviewOrganizationApplicationDto) {
     try {
       return await withTransaction(async (client) => {
@@ -194,43 +219,6 @@ export const organizationApplicationsService = {
           isActive: false,
           isOwner: true,
         });
-        const branch = await branchesRepository.create(
-          {
-            organizationId: organization.id,
-            name: `${application.trade_name} 本店`,
-            code: 'main',
-            phone: application.phone,
-            email: application.work_email,
-            postalCode: application.postal_code,
-            prefecture: application.prefecture,
-            city: application.city,
-            addressLine1: application.address_line1,
-            addressLine2: application.address_line2,
-            createdBy: reviewerId,
-          },
-          client
-        );
-        await branchesRepository.assignMember(
-          {
-            organizationId: organization.id,
-            branchId: branch.id,
-            userId: manager.id,
-            role: 'manager',
-            assignedBy: reviewerId,
-            isActive: false,
-          },
-          client
-        );
-        const queue = await queuesRepository.create(
-          {
-            organizationId: organization.id,
-            branchId: branch.id,
-            name: `${application.trade_name} 受付`,
-            status: 'closed',
-            prefix: 'A',
-          },
-          client
-        );
         await issueAccountAction(
           {
             userId: manager.id,
@@ -254,8 +242,6 @@ export const organizationApplicationsService = {
         return {
           application: reviewedApplication,
           organization,
-          branch,
-          queue,
           manager: {
             id: manager.id,
             display_name: manager.display_name,

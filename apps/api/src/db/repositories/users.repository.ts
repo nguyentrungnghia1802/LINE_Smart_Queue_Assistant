@@ -66,6 +66,20 @@ export class UsersRepository extends BaseRepository {
     return this.queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [id]);
   }
 
+  async findOrganizationOwner(organizationId: string): Promise<UserRow | null> {
+    return this.queryOne<UserRow>(
+      `SELECT user_record.*
+       FROM users user_record
+       JOIN organization_members membership ON membership.user_id = user_record.id
+       WHERE membership.organization_id = $1
+         AND membership.role = 'manager'
+         AND membership.is_owner = TRUE
+       ORDER BY membership.joined_at
+       LIMIT 1`,
+      [organizationId]
+    );
+  }
+
   async findByEmail(email: string, client?: PoolClient): Promise<UserRow | null> {
     const normalized = email.trim().toLowerCase();
     return client

@@ -17,9 +17,6 @@ const mockUpdate = productsRepository.update as jest.MockedFunction<
 const mockSoftDelete = productsRepository.softDelete as jest.MockedFunction<
   typeof productsRepository.softDelete
 >;
-const mockSyncQueueAssignments = productsRepository.syncQueueAssignments as jest.MockedFunction<
-  typeof productsRepository.syncQueueAssignments
->;
 const mockAuditCreate = auditLogRepository.create as jest.MockedFunction<
   typeof auditLogRepository.create
 >;
@@ -57,7 +54,6 @@ describe('productsService CRUD audit logging', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuditCreate.mockResolvedValue({ id: '1' } as never);
-    mockSyncQueueAssignments.mockResolvedValue(undefined);
   });
 
   it('creates a product and writes an audit log', async () => {
@@ -70,7 +66,6 @@ describe('productsService CRUD audit logging', () => {
       serviceTimeMinutes: 30,
       requiresPrepayment: false,
       productType: 'service' as const,
-      queueIds: [QUEUE_ID],
     };
 
     await expect(productsService.create(scope, dto, { actorUserId: ACTOR_ID })).resolves.toEqual(
@@ -89,7 +84,6 @@ describe('productsService CRUD audit logging', () => {
       },
       expect.anything()
     );
-    expect(mockSyncQueueAssignments).toHaveBeenCalledWith(created, [QUEUE_ID], expect.anything());
     expect(mockAuditCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         actorId: ACTOR_ID,

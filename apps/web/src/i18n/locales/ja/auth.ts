@@ -8,6 +8,8 @@ export const auth = {
     submit: 'ログイン',
     submitting: 'ログインしています…',
     invalid: 'メールアドレスまたはパスワードが正しくありません。',
+    emailPlaceholder: '例：staff@example.jp',
+    passwordPlaceholder: 'パスワードを入力',
     showPassword: 'パスワードを表示',
     hidePassword: 'パスワードを非表示',
     forgotPassword: 'パスワードをお忘れですか？',

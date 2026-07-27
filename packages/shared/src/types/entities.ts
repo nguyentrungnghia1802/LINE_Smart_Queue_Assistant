@@ -61,6 +61,10 @@ export interface Queue extends BaseEntity {
   ticketPrefix?: string;
   /** Relative sort order when listing queues within an org */
   displayOrder?: number;
+  /** Products and services currently offered by this queue. */
+  productIds?: string[];
+  /** Minutes staff wait after calling before recording an absence. */
+  absenceGraceMinutes?: number;
 }
 
 /** Queue enriched with live counters — used in list / dashboard views */
