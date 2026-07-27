@@ -78,6 +78,7 @@ All paths require `admin`.
 
 | Method | Path                                                  | Purpose                                                    |
 | ------ | ----------------------------------------------------- | ---------------------------------------------------------- |
+| GET    | `/api/v1/admin/dashboard`                             | Plan adoption and platform subscription revenue metrics    |
 | GET    | `/api/v1/admin/organizations`                         | List organizations without tenant operational data         |
 | DELETE | `/api/v1/admin/organizations/:orgId`                  | Soft-deactivate organization and every tenant account      |
 | GET    | `/api/v1/admin/organizations/:orgId/managers`         | Read only the immutable organization-owner manager         |
@@ -119,21 +120,22 @@ All paths require `admin`.
 
 ### Products/services
 
-| Method | Path                   | Access         | Purpose                                               |
-| ------ | ---------------------- | -------------- | ----------------------------------------------------- |
-| GET    | `/api/v1/products`     | Public/scoped  | Public query or assigned-branch manager/staff catalog |
-| GET    | `/api/v1/products/:id` | Public/scoped  | Product detail with branch checks for business actors |
-| POST   | `/api/v1/products`     | Branch manager | Create a product/service in the assigned branch       |
-| PATCH  | `/api/v1/products/:id` | Branch manager | Update an assigned-branch product/service             |
-| DELETE | `/api/v1/products/:id` | Branch manager | Soft-deactivate an assigned-branch product            |
+| Method | Path                   | Access             | Purpose                                                       |
+| ------ | ---------------------- | ------------------ | ------------------------------------------------------------- |
+| GET    | `/api/v1/products`     | Public/scoped      | Queue catalog, owner catalog, or assigned-branch read catalog |
+| GET    | `/api/v1/products/:id` | Public/scoped      | Product detail with tenant and queue-assignment checks        |
+| POST   | `/api/v1/products`     | Organization owner | Create an organization catalog product/service                |
+| PATCH  | `/api/v1/products/:id` | Organization owner | Update an organization catalog product/service                |
+| DELETE | `/api/v1/products/:id` | Organization owner | Soft-deactivate an organization catalog product               |
 
 Product `imageUrl` accepts either an HTTP/HTTPS object-storage URL or a same-origin path returned by the media upload API (`/media/...` or `/mock-media/...`). Arbitrary relative paths and data URLs remain invalid. Validation responses use `VALIDATION_ERROR` with `details.fieldErrors`; manager product forms show the error code and affected field without exposing server internals.
 
-Product create, update, and deactivate operations write their authenticated branch-manager actor as audit type `user`, matching the canonical PostgreSQL `audit_actor_type` enum. Catalog writes invalidate every locale-aware organization cache key and public slug cache key so deleted products and prepayment changes are not served from stale catalog data.
+Product create, update, and deactivate operations write their authenticated owner actor as audit type `user`, matching the canonical PostgreSQL `audit_actor_type` enum. Catalog writes invalidate every locale-aware organization cache key and public slug cache key so deleted products and prepayment changes are not served from stale catalog data.
 
 Product writes accept no browser-authoritative organization, branch, or queue IDs. The API derives
-scope from the branch-manager JWT. Queue create/update owns the selected `productIds` mapping and
-verifies every product belongs to that branch.
+the organization from the owner JWT and generates an organization-unique `DVn` or `SPn` code under
+a PostgreSQL advisory lock. Queue create/update owns the selected `productIds` mapping and verifies
+every product belongs to the manager's organization before creating the branch-scoped assignment.
 Product validation rejects finite stock for `service` records and rejects
 `requiresPrepayment=true` when the price is zero. Payment and order item arrays reject duplicate
 product IDs. These rules keep Manager configuration compatible with checkout, inventory, and
@@ -183,6 +185,7 @@ routes. Every queue, entry, order, and product lookup is constrained by organiza
 
 | Method | Path                                      | Purpose                                                                                             |
 | ------ | ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/staff/branch`                    | Assigned branch identity and queues for Staff QR rendering                                          |
 | GET    | `/api/v1/staff/my-queue`                  | Next eight active entries, counts, order/contact data, and available queues for the assigned branch |
 | GET    | `/api/v1/staff/queues/:queueId`           | Queue overview                                                                                      |
 | POST   | `/api/v1/staff/queues/:queueId/call-next` | Call next                                                                                           |

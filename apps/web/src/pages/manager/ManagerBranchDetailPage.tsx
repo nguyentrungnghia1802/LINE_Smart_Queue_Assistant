@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
@@ -42,6 +44,8 @@ interface AnalyticsResponse {
 export function ManagerBranchDetailPage() {
   const { branchId = '' } = useParams();
   const { t, i18n } = useTranslation(['manager', 'common']);
+  const [managerSearch, setManagerSearch] = useState('');
+  const [queueSearch, setQueueSearch] = useState('');
   const branches = useQuery<Branch[]>({
     queryKey: ['branches'],
     queryFn: () => get('/api/v1/branches'),
@@ -52,6 +56,24 @@ export function ManagerBranchDetailPage() {
   });
   const branch = branches.data?.find((item) => item.id === branchId);
   const metrics = analytics.data?.branches.find((item) => item.branch_id === branchId);
+  const visibleManagers = useMemo(() => {
+    const query = managerSearch.trim().toLocaleLowerCase();
+    return (
+      branch?.managers.filter(
+        (manager) =>
+          !query ||
+          manager.displayName.toLocaleLowerCase().includes(query) ||
+          manager.email.toLocaleLowerCase().includes(query)
+      ) ?? []
+    );
+  }, [branch?.managers, managerSearch]);
+  const visibleQueues = useMemo(() => {
+    const query = queueSearch.trim().toLocaleLowerCase();
+    return (
+      branch?.queues.filter((queue) => !query || queue.name.toLocaleLowerCase().includes(query)) ??
+      []
+    );
+  }, [branch?.queues, queueSearch]);
 
   if (branches.isLoading || analytics.isLoading) {
     return <p className="text-sm text-gray-500">{t('states.loading', { ns: 'common' })}</p>;
@@ -103,23 +125,44 @@ export function ManagerBranchDetailPage() {
         </section>
         <section className="rounded-xl border border-gray-200 bg-white p-5">
           <h2 className="font-bold text-gray-950">{t('branches.managers')}</h2>
+          <SearchField
+            value={managerSearch}
+            onChange={setManagerSearch}
+            label={t('branches.managerSearch')}
+            placeholder={t('branches.managerSearchPlaceholder')}
+          />
           <div className="mt-4 space-y-2">
-            {branch.managers.map((manager) => (
-              <div key={manager.id} className="rounded-lg bg-gray-50 px-3 py-2">
-                <p className="text-sm font-semibold text-gray-900">{manager.displayName}</p>
-                <p className="mt-0.5 text-xs text-gray-500">{manager.email}</p>
+            {visibleManagers.map((manager, index) => (
+              <div
+                key={manager.id}
+                className="grid grid-cols-[32px_1fr] gap-2 rounded-lg bg-gray-50 px-3 py-2"
+              >
+                <span className="text-center text-sm text-gray-500">{index + 1}</span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-900">
+                    {manager.displayName}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-gray-500">{manager.email}</p>
+                </div>
               </div>
             ))}
           </div>
         </section>
         <section className="rounded-xl border border-gray-200 bg-white p-5">
           <h2 className="font-bold text-gray-950">{t('branches.queues')}</h2>
+          <SearchField
+            value={queueSearch}
+            onChange={setQueueSearch}
+            label={t('branches.queueSearch')}
+            placeholder={t('branches.queueSearchPlaceholder')}
+          />
           <div className="mt-4 space-y-2">
-            {branch.queues.map((queue) => (
+            {visibleQueues.map((queue, index) => (
               <div
                 key={queue.id}
-                className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm"
+                className="grid grid-cols-[32px_1fr_auto] items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm"
               >
+                <span className="text-center text-gray-500">{index + 1}</span>
                 <span className="font-semibold text-gray-900">{queue.name}</span>
                 <span className="text-xs text-gray-500">
                   {t(`states.${queue.status}`, {
@@ -151,5 +194,31 @@ function Row({ label, value }: { label: string; value: string }) {
       <dt className="text-gray-500">{label}</dt>
       <dd className="text-right font-semibold text-gray-900">{value}</dd>
     </div>
+  );
+}
+
+function SearchField({
+  value,
+  onChange,
+  label,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+  placeholder: string;
+}) {
+  return (
+    <label className="mt-4 flex items-center gap-2 rounded-lg border border-gray-200 px-3">
+      <Search className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
+      <span className="sr-only">{label}</span>
+      <input
+        type="search"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="min-w-0 flex-1 border-0 py-2 text-sm outline-none"
+      />
+    </label>
   );
 }

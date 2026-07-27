@@ -100,6 +100,15 @@ export const customer = {
     lineEntryUnavailableHint: 'Ask store staff to verify the LINE reception configuration.',
     openingLine: 'Opening LINE reception',
     openingLineHint: 'After LINE authentication, you can select products and services immediately.',
+    openProductDetails: 'View details for {{name}}',
+  },
+  scanner: {
+    open: 'Open QR scanner',
+    scan: 'Scan',
+    title: 'Scan a store QR code',
+    hint: 'Point the camera at a Smart Queue reception QR code.',
+    invalidCode: 'This QR code is not a Smart Queue reception link.',
+    cameraUnavailable: 'Could not access the camera. Check browser permissions and try again.',
   },
   ticket: {
     notFound: 'Ticket not found',

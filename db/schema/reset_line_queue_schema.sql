@@ -285,6 +285,7 @@ CREATE TABLE organization_branches (
   latitude NUMERIC(9,6),
   longitude NUMERIC(9,6),
   timezone TEXT NOT NULL DEFAULT 'Asia/Tokyo',
+  payment_settings JSONB NOT NULL DEFAULT '{}',
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -462,7 +463,8 @@ CREATE TRIGGER trg_media_assets_updated_at BEFORE UPDATE ON media_assets FOR EAC
 CREATE TABLE products (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id       UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  branch_id             UUID NOT NULL,
+  branch_id             UUID,
+  product_code          TEXT NOT NULL,
   name                  TEXT NOT NULL,
   description           TEXT,
   image_url             TEXT,
@@ -481,10 +483,11 @@ CREATE TABLE products (
   CONSTRAINT products_max_wait_positive CHECK (max_wait_minutes IS NULL OR max_wait_minutes > 0),
   CONSTRAINT products_stock_non_negative CHECK (stock_quantity IS NULL OR stock_quantity >= 0),
   CONSTRAINT products_service_stock_rule CHECK (product_type = 'product' OR stock_quantity IS NULL),
-  FOREIGN KEY (branch_id, organization_id) REFERENCES organization_branches(id, organization_id) ON DELETE RESTRICT,
-  UNIQUE (id, organization_id, branch_id)
+  CONSTRAINT products_product_code_format CHECK (product_code ~ '^(DV|SP)[1-9][0-9]*$'),
+  CONSTRAINT products_id_org_unique UNIQUE (id, organization_id)
 );
-CREATE INDEX idx_products_branch_active ON products(branch_id, created_at) WHERE is_active = TRUE;
+CREATE UNIQUE INDEX uq_products_organization_code ON products(organization_id, UPPER(product_code));
+CREATE INDEX idx_products_organization_active ON products(organization_id, created_at) WHERE is_active = TRUE;
 
 CREATE TRIGGER trg_products_updated_at
 BEFORE UPDATE ON products
@@ -560,7 +563,7 @@ CREATE TABLE queue_products (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (queue_id, product_id),
   FOREIGN KEY (queue_id, organization_id, branch_id) REFERENCES queues(id, organization_id, branch_id) ON DELETE CASCADE,
-  FOREIGN KEY (product_id, organization_id, branch_id) REFERENCES products(id, organization_id, branch_id) ON DELETE CASCADE
+  FOREIGN KEY (product_id, organization_id) REFERENCES products(id, organization_id) ON DELETE CASCADE
 );
 CREATE INDEX idx_queue_products_queue_active ON queue_products(queue_id, display_order, product_id) WHERE is_active = TRUE;
 CREATE TRIGGER trg_queue_products_updated_at BEFORE UPDATE ON queue_products FOR EACH ROW EXECUTE FUNCTION set_updated_at();

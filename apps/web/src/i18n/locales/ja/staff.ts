@@ -69,5 +69,7 @@ export const staff = {
     empty: '商品がまだありません。',
     prepaymentRequired: '事前支払いが必要',
     remaining: '残り: {{count}}',
+    search: '商品・サービスを検索',
+    searchPlaceholder: '名称または商品コードで検索',
   },
 } as const;

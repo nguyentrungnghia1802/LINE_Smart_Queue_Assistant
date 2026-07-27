@@ -5,16 +5,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import type { Queue } from '@line-queue/shared';
 
+import {
+  type QueueProductOption,
+  QueueProductPicker,
+} from '../../components/products/QueueProductPicker';
 import { Spinner } from '../../components/ui/Spinner';
 import { useQueue } from '../../hooks/useQueues';
 import { get } from '../../services/apiClient';
 import { queuesApi } from '../../services/queues.api';
-
-interface ProductRow {
-  id: string;
-  name: string;
-  is_active: boolean;
-}
 
 export function QueueSettingsPage() {
   const { t } = useTranslation(['manager', 'common']);
@@ -35,7 +33,7 @@ export function QueueSettingsPage() {
   });
   const { data: products = [] } = useQuery({
     queryKey: ['manager-products-for-queue'],
-    queryFn: () => get<ProductRow[]>('/api/v1/products'),
+    queryFn: () => get<QueueProductOption[]>('/api/v1/products'),
   });
 
   useEffect(() => {
@@ -178,31 +176,13 @@ export function QueueSettingsPage() {
         </div>
 
         <Field label={t('queue.products')}>
-          <div className="grid gap-2 rounded-lg border border-gray-200 p-3 sm:grid-cols-2">
-            {products
-              .filter((product) => product.is_active)
-              .map((product) => (
-                <label key={product.id} className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={form.productIds.includes(product.id)}
-                    onChange={(event) =>
-                      set(
-                        'productIds',
-                        event.target.checked
-                          ? [...form.productIds, product.id]
-                          : form.productIds.filter((productId) => productId !== product.id)
-                      )
-                    }
-                  />
-                  <span className="min-w-0 truncate">{product.name}</span>
-                </label>
-              ))}
-            {products.length === 0 && (
-              <p className="text-xs text-gray-500">{t('queue.productsEmpty')}</p>
-            )}
-          </div>
+          <QueueProductPicker
+            products={products}
+            selectedIds={form.productIds}
+            onChange={(ids) => set('productIds', ids)}
+          />
         </Field>
+        <p className="-mt-3 text-xs leading-5 text-gray-500">{t('queue.timingHint')}</p>
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
         {saved && <p className="text-green-600 text-sm">✓ {t('queue.savedRedirecting')}</p>}

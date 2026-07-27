@@ -67,8 +67,8 @@ export const queuesService = {
           client
         );
       } catch {
-        throw AppError.unprocessable('Queue products must belong to the assigned branch', {
-          fieldErrors: { productIds: ['Select active products from your assigned branch'] },
+        throw AppError.unprocessable('Queue products must belong to the organization catalog', {
+          fieldErrors: { productIds: ['Select active products from your organization catalog'] },
         });
       }
       return created;
@@ -107,8 +107,8 @@ export const queuesService = {
             client
           );
         } catch {
-          throw AppError.unprocessable('Queue products must belong to the assigned branch', {
-            fieldErrors: { productIds: ['Select active products from your assigned branch'] },
+          throw AppError.unprocessable('Queue products must belong to the organization catalog', {
+            fieldErrors: { productIds: ['Select active products from your organization catalog'] },
           });
         }
       }

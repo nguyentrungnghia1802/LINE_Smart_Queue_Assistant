@@ -1,12 +1,17 @@
 export const admin = {
   dashboard: {
     title: '管理ダッシュボード',
+    loading: 'プラットフォーム分析を読み込み中...',
     organizationCount: '組織数',
+    totalPlatformRevenue: 'プラットフォーム売上',
+    registeredPlans: '契約中プラン',
+    organizationsByPlan: 'サービスプラン別の組織数',
+    monthlyRevenue: '月別サブスクリプション売上',
     logoConfigured: 'ロゴ設定済み',
     contactMissing: '連絡先未設定',
     paymentMissing: '支払い情報未設定',
     section: '管理',
-    description: '組織の登録状況と運用設定の不足を確認できます。',
+    description: '契約状況、サービスプラン、プラットフォーム売上を確認できます。',
     recentOrganizations: '最近登録された組織',
     noOrganizations: '組織がまだ登録されていません。',
     phoneMissing: '電話未設定',
@@ -66,6 +71,9 @@ export const admin = {
     ownerNamePlaceholder: '例：山田 太郎',
     passwordPlaceholder: '変更する場合のみ入力',
     ownerMissing: '組織オーナーのアカウントが見つかりません。',
+    search: '組織を検索',
+    searchPlaceholder: '組織名またはスラッグで検索',
+    subscriptionPlan: 'サービスプラン',
   },
   applications: {
     nav: '導入審査',
@@ -136,5 +144,7 @@ export const admin = {
     rejectSuccess: '申し込みを却下しました。',
     actionFailed: '審査処理を完了できませんでした。',
     status: { pending: '審査待ち', approved: '承認済み', rejected: '却下' },
+    search: '申し込みを検索',
+    searchPlaceholder: '受付番号・法人名・会社メールで検索',
   },
 } as const;

@@ -6,6 +6,7 @@ import { LiffRuntimeProvider } from '../../contexts/LiffRuntimeContext';
 import { useLiff } from '../../hooks/useLiff';
 import { BrandLogo } from '../BrandLogo';
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
+import { QrScannerButton } from '../liff/QrScannerButton';
 import { ErrorState } from '../ui/ErrorState';
 import { Spinner } from '../ui/Spinner';
 
@@ -84,7 +85,34 @@ export function LiffLayout() {
           aria-label={t('accessibility.mainNavigation')}
           className="safe-bottom fixed inset-x-0 bottom-0 z-40 mx-auto flex max-w-2xl items-stretch border-t border-gray-200 bg-white/95 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur"
         >
-          {NAV_ITEMS.map(({ to, labelKey, icon: Icon }) => (
+          {NAV_ITEMS.slice(0, 2).map(({ to, labelKey, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `relative flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-xs font-medium transition-colors ${
+                  isActive ? 'text-line-green' : 'text-gray-400 hover:text-gray-600'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className={`absolute inset-x-4 top-0 h-0.5 rounded-full ${
+                      isActive ? 'bg-line-green' : 'bg-transparent'
+                    }`}
+                  />
+                  <Icon aria-hidden="true" className="h-5 w-5" strokeWidth={2} />
+                  <span className="line-clamp-2 text-center text-[11px] leading-3">
+                    {t(labelKey)}
+                  </span>
+                </>
+              )}
+            </NavLink>
+          ))}
+          <QrScannerButton />
+          {NAV_ITEMS.slice(2).map(({ to, labelKey, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

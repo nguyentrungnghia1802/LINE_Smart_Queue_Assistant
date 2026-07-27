@@ -6,8 +6,8 @@
 Organization
   ^-- approved OrganizationApplication
   |--< OrganizationMember >-- User --0..1-- LineAccount
+  |--< Product >--< QueueProduct >-- Queue
   |--< OrganizationBranch --< BranchMembership >-- User
-  |                       |--< Product >--< QueueProduct >-- Queue
   |                       |--< BranchBusinessHour
   |                       |--< BranchExceptionDay
   |                       \--< Queue --< QueueEntry >--0..1-- Order --< OrderItem >-- Product
@@ -25,29 +25,29 @@ Organization
 
 ### Entity responsibilities
 
-| Entity                                  | Responsibility                                                                   |
-| --------------------------------------- | -------------------------------------------------------------------------------- |
-| Organization                            | Tenant identity, public routes/token, branding, location, timezone, settings     |
-| OrganizationApplication                 | Public business application, plan/demo payment, review, and provisioning source  |
-| User                                    | Platform identity and global role                                                |
-| OrganizationMember                      | Active manager/staff role within one tenant                                      |
-| OrganizationBranch                      | Physical branch identity, branch QR, address, timezone, and business calendar    |
-| BranchMembership                        | One branch assignment for a manager or staff operator                            |
-| LineAccount                             | Verified LINE user link for login/profile/push targeting                         |
-| Product                                 | Branch product/service, price, duration, image, prepayment, and stock rule       |
-| QueueProduct                            | Active product availability and display order for one branch queue               |
-| Queue                                   | Named branch service line, ticket counter, capacity, timing, and policy settings |
-| QueueEntry                              | Customer ticket and queue state machine                                          |
-| BookingGroup                            | Association of separate repeat bookings from one identity/device                 |
-| Order                                   | Reservation commercial header, customer contact, total, status, payment summary  |
-| OrderItem                               | Immutable commercial/service snapshot and per-item payment state                 |
-| PaymentTransaction                      | Provider attempt/status/payload/audit record                                     |
-| InventoryReservation                    | Finite-stock allocation lifecycle                                                |
-| CustomerLocation                        | Consent-based location snapshot and distance calculation                         |
-| LocationAlert                           | Pending/sent/skipped/failed proximity notification intent                        |
-| Notification                            | Durable LINE notification outbox and delivery log for queue lifecycle messages   |
-| QueueHistory/AuditLog                   | Domain and administrative traceability                                           |
-| WaitTimeForecast/StaffingRecommendation | Model output history; runtime producer not implemented                           |
+| Entity                                  | Responsibility                                                                    |
+| --------------------------------------- | --------------------------------------------------------------------------------- |
+| Organization                            | Tenant identity, public routes/token, branding, location, timezone, settings      |
+| OrganizationApplication                 | Public business application, plan/demo payment, review, and provisioning source   |
+| User                                    | Platform identity and global role                                                 |
+| OrganizationMember                      | Active manager/staff role within one tenant                                       |
+| OrganizationBranch                      | Physical branch identity, branch QR, address, timezone, and business calendar     |
+| BranchMembership                        | One branch assignment for a manager or staff operator                             |
+| LineAccount                             | Verified LINE user link for login/profile/push targeting                          |
+| Product                                 | Organization catalog item, generated code, price, duration, image, and stock rule |
+| QueueProduct                            | Active product availability and display order for one branch queue                |
+| Queue                                   | Named branch service line, ticket counter, capacity, timing, and policy settings  |
+| QueueEntry                              | Customer ticket and queue state machine                                           |
+| BookingGroup                            | Association of separate repeat bookings from one identity/device                  |
+| Order                                   | Reservation commercial header, customer contact, total, status, payment summary   |
+| OrderItem                               | Immutable commercial/service snapshot and per-item payment state                  |
+| PaymentTransaction                      | Provider attempt/status/payload/audit record                                      |
+| InventoryReservation                    | Finite-stock allocation lifecycle                                                 |
+| CustomerLocation                        | Consent-based location snapshot and distance calculation                          |
+| LocationAlert                           | Pending/sent/skipped/failed proximity notification intent                         |
+| Notification                            | Durable LINE notification outbox and delivery log for queue lifecycle messages    |
+| QueueHistory/AuditLog                   | Domain and administrative traceability                                            |
+| WaitTimeForecast/StaffingRecommendation | Model output history; runtime producer not implemented                            |
 
 ## 2. State machines
 
@@ -354,12 +354,15 @@ The PostgreSQL-locked forecasting job aggregates the previous eight weeks by org
   at least one assigned manager, but its queues are created later by an assigned branch manager.
 - Branch creation is serialized against the organization and enforces the subscription plan. The
   Standard plan permits at most three active branches.
-- The owner manager uses only organization-level branch, manager, audit, and aggregate-performance
-  views. The owner flag remains an organization membership property, not a new global role.
+- The owner manager uses organization-level catalog, branch, manager, audit, and
+  aggregate-performance views. The owner flag remains an organization membership property, not a
+  new global role.
 - Each branch manager has exactly one active branch assignment and may create multiple named queues.
   A branch may temporarily have no queue and has one stable public QR token.
-- Products belong to one branch; queue configuration selects the products served by that queue. Customer QR
-  admission selects a queue before loading its catalog.
+- Products belong to the organization catalog and receive immutable-scope generated `DVn` or `SPn`
+  codes. A branch manager selects catalog products through queue configuration; `queue_products`
+  stores the branch-safe assignment. Customer QR admission selects a queue before loading only that
+  queue's catalog.
 - Branch managers maintain weekly hours/exception dates and invite staff to their assigned branch.
   Invitees set their own password; staff removal is soft deactivation and records the acting
   manager in `audit_logs`.

@@ -4,12 +4,25 @@ import { organizationsRepository } from '../../db/repositories/organizations.rep
 import { usersRepository } from '../../db/repositories/users.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
+import { organizationApplicationsRepository } from '../organization-applications/organization-applications.repository';
 
 import { UpdateManagerDto } from './admin.validator';
 
 export const adminService = {
   async listOrganizations() {
-    return organizationsRepository.listActive();
+    const organizations = await organizationsRepository.listActive();
+    return organizations.map((organization) => ({
+      ...organization,
+      subscription_plan:
+        organization.settings?.subscriptionPlan === 'standard' ||
+        organization.settings?.subscriptionPlan === 'scale'
+          ? organization.settings.subscriptionPlan
+          : 'starter',
+    }));
+  },
+
+  async getDashboard() {
+    return organizationApplicationsRepository.getAdminDashboard();
   },
 
   async removeOrganization(orgId: string, actorId: string) {

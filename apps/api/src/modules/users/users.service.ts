@@ -165,12 +165,6 @@ export const usersService = {
     const user = await usersRepository.findById(userId);
     if (!user) throw AppError.notFound('User not found');
 
-    if (data.email && data.email !== user.email) {
-      const dup = await usersRepository.findByEmail(data.email);
-      if (dup && dup.id !== userId)
-        throw AppError.conflict('A user with this email already exists');
-    }
-
     return withTransaction(async (client) => {
       const updated = await usersRepository.updateEmployeeProfile(userId, data, client);
       await client.query(

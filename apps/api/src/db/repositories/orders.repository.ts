@@ -634,30 +634,17 @@ export const ordersRepository = {
     cancellationRate: number;
     activeQueueEntries: number;
     averageEtaSeconds: number;
-    dailyRevenue: Array<{ date: string; revenue: number; orders: number }>;
+    monthlyRevenue: Array<{ month: string; revenue: number; orders: number }>;
     topProducts: Array<{ product_name: string; total_sold: number; revenue: number }>;
     totalProducts: number;
     currentQueueDepth: number;
-    recentOrders: Array<{
-      id: string;
-      order_number: string;
-      customer_name: string | null;
-      status: string;
-      subtotal: number;
-      payment_status: string;
-      created_at: Date;
-      item_count: number;
-    }>;
-    recentQueueActivities: Array<{
-      entry_id: string;
-      queue_id: string;
-      queue_name: string;
-      ticket_code: string;
-      status: string;
-      updated_at: Date;
-      order_number: string | null;
-      customer_name: string | null;
-    }>;
+    bestStaff: {
+      user_id: string;
+      display_name: string;
+      employee_code: string | null;
+      completed_orders: number;
+      revenue: number;
+    } | null;
   }> {
     //
     // Performance optimizations vs original:
@@ -667,18 +654,17 @@ export const ordersRepository = {
     //   3. ETA: use COUNT approach instead of ROW_NUMBER window function.
     //      AVG( (position-1) * avg_service_seconds ) is equivalent but cheaper.
     //
-    const [summaryEta, daily, top, queueAndProducts, recentOrders, recentQueueActivities] =
-      await Promise.all([
-        // Merged: order summary counts + ETA estimate in one CTE pass
-        pool.query<{
-          total: string;
-          completed: string;
-          cancelled: string;
-          pending: string;
-          revenue: string;
-          average_eta_seconds: string;
-        }>(
-          `WITH order_summary AS (
+    const [summaryEta, monthly, top, queueAndProducts, bestStaff] = await Promise.all([
+      // Merged: order summary counts + ETA estimate in one CTE pass
+      pool.query<{
+        total: string;
+        completed: string;
+        cancelled: string;
+        pending: string;
+        revenue: string;
+        average_eta_seconds: string;
+      }>(
+        `WITH order_summary AS (
              SELECT
                COUNT(*) AS total,
                COUNT(*) FILTER (WHERE o.status = 'completed') AS completed,
@@ -729,35 +715,48 @@ export const ordersRepository = {
            )
            SELECT os.*, es.average_eta_seconds
            FROM order_summary os, eta_summary es`,
-          [orgId, branchId ?? null]
-        ),
-        // Daily revenue — hits idx_orders_org_completed_date
-        pool.query<{ date: string; revenue: string; orders: string }>(
-          `SELECT DATE(o.created_at)::text AS date,
-                COALESCE(SUM(payment.collected_amount), 0) AS revenue,
-                COUNT(*) AS orders
-         FROM orders o
-         JOIN queue_entries qe ON qe.order_id = o.id
-         JOIN queues q ON q.id = qe.queue_id
-         LEFT JOIN LATERAL (
-           SELECT COALESCE(
-             SUM(GREATEST(item.prepaid_amount - item.refunded_amount, 0)),
-             0
-           ) AS collected_amount
-           FROM order_items item
-           WHERE item.order_id = o.id
-         ) payment ON TRUE
-         WHERE o.organization_id = $1
-           AND ($2::uuid IS NULL OR q.branch_id = $2)
-           AND o.status = 'completed'
-           AND o.created_at >= NOW() - INTERVAL '7 days'
-         GROUP BY DATE(o.created_at)
-         ORDER BY date`,
-          [orgId, branchId ?? null]
-        ),
-        // Top products — hits idx_order_items_order_covering
-        pool.query<{ product_name: string; total_sold: string; revenue: string }>(
-          `SELECT oi.product_name,
+        [orgId, branchId ?? null]
+      ),
+      pool.query<{ month: string; revenue: string; orders: string }>(
+        `WITH months AS (
+             SELECT generate_series(
+               DATE_TRUNC('month', NOW()) - INTERVAL '11 months',
+               DATE_TRUNC('month', NOW()),
+               INTERVAL '1 month'
+             ) AS month
+           ),
+           completed_orders AS (
+             SELECT DATE_TRUNC('month', o.completed_at) AS month,
+                    COUNT(DISTINCT o.id) AS orders,
+                    COALESCE(SUM(payment.collected_amount), 0) AS revenue
+             FROM orders o
+             JOIN queue_entries qe ON qe.order_id = o.id
+             JOIN queues q ON q.id = qe.queue_id
+             LEFT JOIN LATERAL (
+               SELECT COALESCE(
+                 SUM(GREATEST(item.prepaid_amount - item.refunded_amount, 0)),
+                 0
+               ) AS collected_amount
+               FROM order_items item
+               WHERE item.order_id = o.id
+             ) payment ON TRUE
+             WHERE o.organization_id = $1
+               AND ($2::uuid IS NULL OR q.branch_id = $2)
+               AND o.status = 'completed'
+               AND o.completed_at >= DATE_TRUNC('month', NOW()) - INTERVAL '11 months'
+             GROUP BY DATE_TRUNC('month', o.completed_at)
+           )
+           SELECT TO_CHAR(months.month, 'YYYY-MM') AS month,
+                  COALESCE(completed.orders, 0)::TEXT AS orders,
+                  COALESCE(completed.revenue, 0)::TEXT AS revenue
+           FROM months
+           LEFT JOIN completed_orders completed ON completed.month = months.month
+           ORDER BY months.month`,
+        [orgId, branchId ?? null]
+      ),
+      // Top products — hits idx_order_items_order_covering
+      pool.query<{ product_name: string; total_sold: string; revenue: string }>(
+        `SELECT oi.product_name,
                 SUM(oi.quantity) AS total_sold,
                 SUM(GREATEST(oi.prepaid_amount - oi.refunded_amount, 0)) AS revenue
          FROM order_items oi
@@ -769,88 +768,73 @@ export const ordersRepository = {
            AND o.status = 'completed'
          GROUP BY oi.product_name
          ORDER BY total_sold DESC
-         LIMIT 5`,
-          [orgId, branchId ?? null]
-        ),
-        // Merged: active queue depth + total products in one query pair
-        Promise.all([
-          pool.query<{ count: string }>(
-            `SELECT COUNT(*) FROM queue_entries qe
+         LIMIT 3`,
+        [orgId, branchId ?? null]
+      ),
+      // Merged: active queue depth + total products in one query pair
+      Promise.all([
+        pool.query<{ count: string }>(
+          `SELECT COUNT(*) FROM queue_entries qe
              JOIN queues q ON qe.queue_id = q.id
              WHERE q.organization_id = $1
                AND ($2::uuid IS NULL OR q.branch_id = $2)
                AND qe.status IN ('waiting','called','serving')`,
-            [orgId, branchId ?? null]
-          ),
-          pool.query<{ count: string }>(
-            `SELECT COUNT(*) FROM products
-             WHERE organization_id = $1
-               AND ($2::uuid IS NULL OR branch_id = $2)
-               AND is_active = TRUE`,
-            [orgId, branchId ?? null]
-          ),
-        ]),
-        // Recent orders with item count — no ETA, just ORDER BY created_at DESC
-        pool.query<{
-          id: string;
-          order_number: string;
-          customer_name: string | null;
-          status: string;
-          subtotal: string;
-          payment_status: string;
-          created_at: Date;
-          item_count: string;
-        }>(
-          `SELECT
-           o.id,
-           o.order_number,
-           o.customer_name,
-           o.status,
-           o.subtotal,
-           o.payment_status,
-           o.created_at,
-           COALESCE(SUM(oi.quantity), 0) AS item_count
-         FROM orders o
-         JOIN queue_entries qe ON qe.order_id = o.id
-         JOIN queues q ON q.id = qe.queue_id
-         LEFT JOIN order_items oi ON oi.order_id = o.id
-         WHERE o.organization_id = $1
-           AND ($2::uuid IS NULL OR q.branch_id = $2)
-         GROUP BY o.id
-         ORDER BY o.created_at DESC
-         LIMIT 10`,
           [orgId, branchId ?? null]
         ),
-        // Recent queue activities — hits idx_qe_queue_updated
-        pool.query<{
-          entry_id: string;
-          queue_id: string;
-          queue_name: string;
-          ticket_code: string;
-          status: string;
-          updated_at: Date;
-          order_number: string | null;
-          customer_name: string | null;
-        }>(
-          `SELECT
-           qe.id AS entry_id,
-           q.id AS queue_id,
-           q.name AS queue_name,
-           qe.ticket_code,
-           qe.status,
-           qe.updated_at,
-           o.order_number,
-           o.customer_name
-         FROM queue_entries qe
-         JOIN queues q ON q.id = qe.queue_id
-         LEFT JOIN orders o ON o.id = qe.order_id
-         WHERE q.organization_id = $1
-           AND ($2::uuid IS NULL OR q.branch_id = $2)
-         ORDER BY qe.updated_at DESC
-         LIMIT 10`,
+        pool.query<{ count: string }>(
+          `SELECT COUNT(DISTINCT product.id)
+             FROM products product
+             WHERE product.organization_id = $1
+               AND product.is_active = TRUE
+               AND (
+                 $2::uuid IS NULL
+                 OR EXISTS (
+                   SELECT 1
+                   FROM queue_products assignment
+                   WHERE assignment.product_id = product.id
+                     AND assignment.branch_id = $2
+                     AND assignment.is_active = TRUE
+                 )
+               )`,
           [orgId, branchId ?? null]
         ),
-      ]);
+      ]),
+      pool.query<{
+        user_id: string;
+        display_name: string;
+        employee_code: string | null;
+        completed_orders: string;
+        revenue: string;
+      }>(
+        `SELECT o.fulfilled_by_user_id AS user_id,
+                  COALESCE(o.fulfilled_by_name, user_account.display_name) AS display_name,
+                  o.fulfilled_by_employee_code AS employee_code,
+                  COUNT(DISTINCT o.id)::TEXT AS completed_orders,
+                  COALESCE(SUM(payment.collected_amount), 0)::TEXT AS revenue
+           FROM orders o
+           JOIN queue_entries qe ON qe.order_id = o.id
+           JOIN queues q ON q.id = qe.queue_id
+           LEFT JOIN users user_account ON user_account.id = o.fulfilled_by_user_id
+           LEFT JOIN LATERAL (
+             SELECT COALESCE(
+               SUM(GREATEST(item.prepaid_amount - item.refunded_amount, 0)),
+               0
+             ) AS collected_amount
+             FROM order_items item
+             WHERE item.order_id = o.id
+           ) payment ON TRUE
+           WHERE o.organization_id = $1
+             AND ($2::uuid IS NULL OR q.branch_id = $2)
+             AND o.status = 'completed'
+             AND o.completed_at >= DATE_TRUNC('month', NOW())
+             AND o.fulfilled_by_user_id IS NOT NULL
+           GROUP BY o.fulfilled_by_user_id, o.fulfilled_by_name,
+                    o.fulfilled_by_employee_code, user_account.display_name
+           ORDER BY revenue DESC, completed_orders DESC
+           LIMIT 1`,
+        [orgId, branchId ?? null]
+      ),
+    ]);
 
     const [queueResult, productsResult] = queueAndProducts;
     const s = summaryEta.rows[0];
@@ -865,8 +849,8 @@ export const ordersRepository = {
       cancellationRate: totalOrders > 0 ? cancelledOrders / totalOrders : 0,
       activeQueueEntries: Number.parseInt(queueResult.rows[0]?.count ?? '0'),
       averageEtaSeconds: Math.round(Number.parseFloat(s.average_eta_seconds ?? '0')),
-      dailyRevenue: daily.rows.map((r) => ({
-        date: r.date,
+      monthlyRevenue: monthly.rows.map((r) => ({
+        month: r.month,
         revenue: Number.parseFloat(r.revenue),
         orders: Number.parseInt(r.orders),
       })),
@@ -877,12 +861,13 @@ export const ordersRepository = {
       })),
       totalProducts: Number.parseInt(productsResult.rows[0]?.count ?? '0'),
       currentQueueDepth: Number.parseInt(queueResult.rows[0]?.count ?? '0'),
-      recentOrders: recentOrders.rows.map((r) => ({
-        ...r,
-        subtotal: Number.parseFloat(r.subtotal),
-        item_count: Number.parseInt(r.item_count),
-      })),
-      recentQueueActivities: recentQueueActivities.rows,
+      bestStaff: bestStaff.rows[0]
+        ? {
+            ...bestStaff.rows[0],
+            completed_orders: Number(bestStaff.rows[0].completed_orders),
+            revenue: Number(bestStaff.rows[0].revenue),
+          }
+        : null,
     };
   },
 };

@@ -16,6 +16,16 @@ interface BranchInfo {
   address_line2: string | null;
   latitude: string | null;
   longitude: string | null;
+  payment_settings: {
+    merchantName?: string;
+    settlementMethod?: 'bank_transfer' | 'card' | 'paypay' | 'cash';
+    bankName?: string;
+    bankBranchName?: string;
+    accountType?: 'ordinary' | 'checking';
+    accountHolder?: string;
+    accountNumberLast4?: string;
+    invoiceRegistrationNumber?: string;
+  };
 }
 
 interface BusinessCalendar {
@@ -57,6 +67,14 @@ export function BranchManagerSettingsPage() {
     addressLine2: '',
     latitude: '',
     longitude: '',
+    merchantName: '',
+    settlementMethod: 'bank_transfer' as 'bank_transfer' | 'card' | 'paypay' | 'cash',
+    bankName: '',
+    bankBranchName: '',
+    accountType: 'ordinary' as 'ordinary' | 'checking',
+    accountHolder: '',
+    accountNumberLast4: '',
+    invoiceRegistrationNumber: '',
   });
   const [calendar, setCalendar] = useState<BusinessCalendar | null>(null);
 
@@ -73,6 +91,14 @@ export function BranchManagerSettingsPage() {
       addressLine2: branch.data.address_line2 ?? '',
       latitude: branch.data.latitude ?? '',
       longitude: branch.data.longitude ?? '',
+      merchantName: branch.data.payment_settings?.merchantName ?? '',
+      settlementMethod: branch.data.payment_settings?.settlementMethod ?? 'bank_transfer',
+      bankName: branch.data.payment_settings?.bankName ?? '',
+      bankBranchName: branch.data.payment_settings?.bankBranchName ?? '',
+      accountType: branch.data.payment_settings?.accountType ?? 'ordinary',
+      accountHolder: branch.data.payment_settings?.accountHolder ?? '',
+      accountNumberLast4: branch.data.payment_settings?.accountNumberLast4 ?? '',
+      invoiceRegistrationNumber: branch.data.payment_settings?.invoiceRegistrationNumber ?? '',
     });
   }, [branch.data]);
 
@@ -83,11 +109,26 @@ export function BranchManagerSettingsPage() {
   const save = useMutation({
     mutationFn: async () => {
       await patch('/api/v1/branches/me', {
-        ...form,
+        name: form.name,
+        phone: form.phone,
         email: form.email || null,
+        postalCode: form.postalCode,
+        prefecture: form.prefecture,
+        city: form.city,
+        addressLine1: form.addressLine1,
         addressLine2: form.addressLine2 || null,
         latitude: form.latitude ? Number(form.latitude) : null,
         longitude: form.longitude ? Number(form.longitude) : null,
+        paymentSettings: {
+          merchantName: form.merchantName || undefined,
+          settlementMethod: form.settlementMethod,
+          bankName: form.bankName || undefined,
+          bankBranchName: form.bankBranchName || undefined,
+          accountType: form.accountType,
+          accountHolder: form.accountHolder || undefined,
+          accountNumberLast4: form.accountNumberLast4 || undefined,
+          invoiceRegistrationNumber: form.invoiceRegistrationNumber || undefined,
+        },
       });
       if (calendar) {
         await put('/api/v1/branches/me/business-calendar', calendar);
@@ -174,6 +215,93 @@ export function BranchManagerSettingsPage() {
         </section>
 
         <section className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
+          <h2 className="font-bold text-gray-950">{t('settings.branchPaymentTitle')}</h2>
+          <p className="mt-1 text-sm text-gray-500">{t('settings.branchPaymentDescription')}</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <PaymentField
+              label={t('settings.paymentMerchantName')}
+              value={form.merchantName}
+              placeholder={t('settings.paymentMerchantPlaceholder')}
+              onChange={(value) => setForm((current) => ({ ...current, merchantName: value }))}
+            />
+            <label className="text-sm font-medium text-gray-700">
+              {t('settings.paymentMethod')}
+              <select
+                value={form.settlementMethod}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    settlementMethod: event.target.value as typeof current.settlementMethod,
+                  }))
+                }
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
+              >
+                {(['bank_transfer', 'card', 'paypay', 'cash'] as const).map((method) => (
+                  <option key={method} value={method}>
+                    {t(`settings.paymentMethods.${method}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <PaymentField
+              label={t('settings.bankName')}
+              value={form.bankName}
+              placeholder={t('settings.bankNamePlaceholder')}
+              onChange={(value) => setForm((current) => ({ ...current, bankName: value }))}
+            />
+            <PaymentField
+              label={t('settings.bankBranchName')}
+              value={form.bankBranchName}
+              placeholder={t('settings.bankBranchPlaceholder')}
+              onChange={(value) => setForm((current) => ({ ...current, bankBranchName: value }))}
+            />
+            <label className="text-sm font-medium text-gray-700">
+              {t('settings.accountType')}
+              <select
+                value={form.accountType}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    accountType: event.target.value as typeof current.accountType,
+                  }))
+                }
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
+              >
+                <option value="ordinary">{t('settings.accountTypes.ordinary')}</option>
+                <option value="checking">{t('settings.accountTypes.checking')}</option>
+              </select>
+            </label>
+            <PaymentField
+              label={t('settings.accountHolder')}
+              value={form.accountHolder}
+              placeholder={t('settings.accountHolderPlaceholder')}
+              onChange={(value) => setForm((current) => ({ ...current, accountHolder: value }))}
+            />
+            <PaymentField
+              label={t('settings.accountNumberLast4')}
+              value={form.accountNumberLast4}
+              placeholder="1234"
+              maxLength={4}
+              onChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  accountNumberLast4: value.replace(/\D/g, '').slice(0, 4),
+                }))
+              }
+            />
+            <PaymentField
+              label={t('settings.invoiceRegistrationNumber')}
+              value={form.invoiceRegistrationNumber}
+              placeholder="T1234567890123"
+              maxLength={14}
+              onChange={(value) =>
+                setForm((current) => ({ ...current, invoiceRegistrationNumber: value }))
+              }
+            />
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
           <h2 className="font-bold text-gray-950">{t('settings.businessHours')}</h2>
           <div className="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-200">
             {calendar?.weeklyHours.map((day, index) => (
@@ -256,4 +384,31 @@ export function BranchManagerSettingsPage() {
         : current
     );
   }
+}
+
+function PaymentField({
+  label,
+  value,
+  placeholder,
+  onChange,
+  maxLength,
+}: Readonly<{
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+  maxLength?: number;
+}>) {
+  return (
+    <label className="text-sm font-medium text-gray-700">
+      {label}
+      <input
+        value={value}
+        maxLength={maxLength}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
+      />
+    </label>
+  );
 }

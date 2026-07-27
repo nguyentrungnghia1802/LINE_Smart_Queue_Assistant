@@ -15,6 +15,12 @@ function reqLog(req: Request) {
   return (req as { log?: typeof logger }).log ?? logger;
 }
 
+export const getMyBranch = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw AppError.unauthorized();
+  const scope = requireBranchOperator(req.user);
+  sendSuccess(res, await staffService.getMyBranch(scope.organizationId, scope.branchId));
+});
+
 // ── GET /api/v1/staff/queues/:queueId ─────────────────────────────────────────
 
 /** Staff queue overview — waiting list, called entry, serving entry. */

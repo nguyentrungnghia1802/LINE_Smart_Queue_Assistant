@@ -60,6 +60,7 @@ export const common = {
     refunded: 'Refunded',
   },
   labels: {
+    number: 'No.',
     name: 'Name',
     displayName: 'Display name',
     email: 'Email',

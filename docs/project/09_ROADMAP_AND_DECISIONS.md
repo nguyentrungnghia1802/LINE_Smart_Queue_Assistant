@@ -302,3 +302,24 @@ idempotent refund and inventory-release workflow.
 temporarily have no queues, and customer booking remains unavailable until a manager creates and
 opens one. Absence handling is auditable and uses the same transaction and durable LINE outbox
 boundaries as other queue transitions.
+
+## ADR-022: Organization-owned catalog and branch queue assignment
+
+**Status:** accepted (2026-07-28)
+
+**Context:** Product identifiers and commercial definitions must remain consistent across an
+organization, while each branch may expose a different subset through multiple queues. Letting each
+branch manager create duplicate products makes reporting, search, pricing governance, and receipt
+interpretation ambiguous.
+
+**Decision:** Organization owners exclusively manage one organization catalog. The server generates
+organization-unique sequential codes by type (`DVn` for services and `SPn` for products) under a
+PostgreSQL advisory lock. Non-owner branch managers can read the catalog and select products only
+through their assigned-branch queue configuration. `queue_products`, not `products.branch_id`, is
+the authoritative branch/queue availability relation. Staff sees only products assigned to queues
+in the staff member's branch.
+
+**Consequences:** Product writes require owner capability and queue writes require branch-manager
+capability. Orders, payment coverage, inventory, and public booking validate products against the
+selected queue assignment. The nullable legacy `products.branch_id` remains temporarily for
+compatibility but must not be used as an authorization boundary.

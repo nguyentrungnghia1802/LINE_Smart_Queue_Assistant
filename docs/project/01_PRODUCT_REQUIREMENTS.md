@@ -12,16 +12,16 @@ Status labels in this document mean:
 
 ## 2. Actors and authorization
 
-| Actor                       | Scope                                                                                  |
-| --------------------------- | -------------------------------------------------------------------------------------- |
-| Customer entry              | Public branch QR/catalog resolution followed by automatic LINE/LIFF authentication     |
-| Authenticated LINE customer | LIFF booking, verified LINE identity, ticket view, and notification eligibility        |
-| Staff                       | Operational data and actions for exactly one active branch assignment                  |
-| Branch manager              | Products, queues, staff, QR, hours, and operations for exactly one assigned branch     |
-| Organization owner manager  | Branch/manager lifecycle, audit, and aggregate branch performance for one organization |
-| Platform admin              | Application review, tenant deactivation, and organization-owner account recovery only  |
-| Business applicant          | Public product discovery and organization service application                          |
-| Scheduler/system            | ETA updates, notification scans, and counter resets                                    |
+| Actor                       | Scope                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| Customer entry              | Public branch QR/catalog resolution followed by automatic LINE/LIFF authentication    |
+| Authenticated LINE customer | LIFF booking, verified LINE identity, ticket view, and notification eligibility       |
+| Staff                       | Operational data and actions for exactly one active branch assignment                 |
+| Branch manager              | Queues, staff, QR, hours, payments, and operations for exactly one assigned branch    |
+| Organization owner manager  | Organization catalog, branch/manager lifecycle, audit, and aggregate performance      |
+| Platform admin              | Application review, tenant deactivation, and organization-owner account recovery only |
+| Business applicant          | Public product discovery and organization service application                         |
+| Scheduler/system            | ETA updates, notification scans, and counter resets                                   |
 
 The platform role does not replace tenant membership. Staff and branch-manager operations must
 verify the organization and the exact active branch assignment. The immutable organization owner
@@ -65,18 +65,21 @@ role and does not use branch-operation endpoints.
 | FR-ORG-012 | Owner dashboard shows organization revenue, branch count, best/worst branch, trend, and branch detail                                    | Implemented                                |
 | FR-ORG-013 | Owner navigation excludes branch product, queue, staff, and QR operations                                                                | Implemented                                |
 | FR-ORG-014 | Branch creation enforces the selected subscription plan; Standard permits at most three active branches                                  | Implemented                                |
+| FR-ORG-015 | Management lists provide localized search and stable visible row numbers                                                                 | Implemented                                |
+| FR-ORG-016 | Branch settings store non-secret payment acceptance details separately from organization settings                                        | Implemented; real PSP pending              |
 
 ### Catalog and inventory
 
 | ID         | Requirement                                                                                                       | Status                                  |
 | ---------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| FR-CAT-001 | Branch manager creates, edits, deactivates, and deletes products/services only in the assigned branch             | Implemented                             |
+| FR-CAT-001 | Organization owner creates, edits, and deactivates the shared organization product/service catalog                | Implemented                             |
 | FR-CAT-002 | Catalog stores translatable name/description, image, type, JPY price, duration, prepayment requirement, and stock | Implemented                             |
 | FR-CAT-003 | `NULL` stock means unlimited; zero stock is unavailable                                                           | Implemented                             |
 | FR-CAT-004 | Customer cannot choose inactive/out-of-stock products or quantity above stock                                     | Implemented in UI and transaction guard |
 | FR-CAT-005 | Finite stock is changed atomically when the order succeeds                                                        | Implemented                             |
 | FR-CAT-006 | Cancellation/expiry restores or releases finite stock exactly once                                                | Implemented                             |
-| FR-CAT-007 | Every product is assigned to one or more active queues in the same branch                                         | Implemented                             |
+| FR-CAT-007 | Branch managers select organization-catalog products for each assigned-branch queue                               | Implemented                             |
+| FR-CAT-008 | Product/service codes are unique per organization and generated as `SPn`/`DVn`                                    | Implemented                             |
 
 ### Booking, ordering, and payment
 
@@ -92,6 +95,8 @@ role and does not use branch-operation endpoints.
 | FR-BOOK-008 | Active repeat bookings from the same verified LINE user in one branch remain auditable orders but share one server-resolved group | Implemented                                             |
 | FR-BOOK-009 | LIFF booking uses the current authenticated LINE identity and redirects to LIFF ticket view                                       | Implemented                                             |
 | FR-BOOK-010 | A branch QR resolves all active branch queues; customer selects a queue before its catalog                                        | Implemented                                             |
+| FR-BOOK-011 | Customer product cards expose a full localized detail view before quantity selection                                              | Implemented                                             |
+| FR-BOOK-012 | LIFF Home provides a mobile camera QR scanner while retaining normal route validation                                             | Implemented                                             |
 | FR-PAY-001  | Demo mode completes automatically without paid third-party services                                                               | Implemented                                             |
 | FR-PAY-002  | Production provider creates a server-side payment intent and redirects securely                                                   | Foundation implemented; real PSP pending                |
 | FR-PAY-003  | Webhook verification is authoritative for paid/refunded/failed status                                                             | Implemented for demo framework; real PSP pending        |
@@ -141,9 +146,9 @@ role and does not use branch-operation endpoints.
 | FR-AI-001  | Estimate wait from queue position/workload and configured service time                     | Implemented heuristic                   |
 | FR-AI-002  | Persist forecast history with confidence/model metadata                                    | Implemented as measured heuristic       |
 | FR-AI-003  | Analyze historical load and recommend staff by weekday/hour                                | Schema only                             |
-| FR-AN-001  | Branch manager sees assigned-branch operational statistics and forecasts                   | Implemented                             |
+| FR-AN-001  | Branch manager sees assigned-branch revenue trend, top-three catalog items, and top staff  | Implemented                             |
 | FR-AN-003  | Owner manager sees organization aggregates and per-branch revenue/cancellation performance | Implemented                             |
-| FR-AN-002  | Admin sees platform organization/user health counts without tenant customer/revenue detail | Implemented/Partial                     |
+| FR-AN-002  | Admin sees plan adoption and platform subscription revenue without tenant customer revenue | Implemented                             |
 
 ## 4. Business rules
 

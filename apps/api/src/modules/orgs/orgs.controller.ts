@@ -46,6 +46,8 @@ async function buildOrgResponse(orgId: string, clientLocale?: string, selectedBr
         description: queue.description,
         prefix: queue.prefix,
         status: queue.status,
+        isQueueOpen: queue.status === 'open',
+        isBranchOpen,
         isAcceptingBookings: isBranchOpen && queue.status === 'open',
         waitingCount,
         avgWaitMinutes: Math.ceil((waitingCount * (queue.avg_service_seconds ?? 300)) / 60),

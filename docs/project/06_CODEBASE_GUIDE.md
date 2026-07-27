@@ -90,8 +90,9 @@ Manager pages use one global `manager` role with two explicit capabilities. An o
 has `isOrganizationOwner=true` and only owner navigation. A compatibility branch membership may
 exist, but branch-operation authorization helpers always reject organization owners.
 A branch manager has `isOrganizationOwner=false`, exactly one active branch assignment, and only
-branch catalog/queue/staff/QR/settings navigation. Backend authorization remains authoritative even
-when the frontend hides routes.
+queue/staff/QR/branch-settings navigation. The organization owner owns catalog CRUD; branch managers
+read that catalog only while assigning products to their queues. Backend authorization remains
+authoritative even when the frontend hides routes.
 
 ## 4. Shared packages
 

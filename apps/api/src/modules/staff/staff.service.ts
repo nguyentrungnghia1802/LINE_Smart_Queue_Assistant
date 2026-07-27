@@ -9,6 +9,7 @@ import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
+import { branchesRepository } from '../branches/branches.repository';
 import { inventoryService } from '../inventory/inventory.service';
 import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
@@ -107,6 +108,13 @@ function auditStaff(
 // ── Service ────────────────────────────────────────────────────────────────────
 
 export const staffService = {
+  async getMyBranch(organizationId: string, branchId: string) {
+    const branch = await branchesRepository.findById(branchId, organizationId);
+    if (!branch) throw AppError.notFound('Assigned branch');
+    const queues = await queuesRepository.findActiveByBranches(organizationId, [branchId]);
+    return { ...branch, queues };
+  },
+
   /**
    * Get a live overview of a queue for the staff board.
    * Returns waiting list, currently called entry, and currently serving entry.

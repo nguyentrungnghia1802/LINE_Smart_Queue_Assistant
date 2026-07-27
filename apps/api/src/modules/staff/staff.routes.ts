@@ -14,6 +14,7 @@ import {
   cancelEntry,
   completeEntry,
   deferEntry,
+  getMyBranch,
   getMyQueue,
   getQueueOverview,
   noShowEntry,
@@ -30,6 +31,7 @@ staffRouter.use(requireAuth, requireRole(UserRole.STAFF, UserRole.MANAGER));
 
 // GET /api/v1/staff/my-queue — bounded queue preview for staff's organization
 staffRouter.get('/my-queue', validate(MyQueueQuerySchema, 'query'), getMyQueue);
+staffRouter.get('/branch', getMyBranch);
 
 // ── Queue-level actions ───────────────────────────────────────────────────────
 

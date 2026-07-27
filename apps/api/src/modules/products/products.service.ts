@@ -4,7 +4,6 @@ import { auditLogRepository } from '../../db/repositories/audit-log.repository';
 import { productsRepository } from '../../db/repositories/products.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
-import type { BranchManagerScope } from '../branches/branch-scope';
 
 import { CreateProductDto, UpdateProductDto } from './products.validator';
 
@@ -33,12 +32,12 @@ export const productsService = {
     return product;
   },
 
-  async create(scope: BranchManagerScope, dto: CreateProductDto, audit?: AuditContext) {
+  async create(organizationId: string, dto: CreateProductDto, audit?: AuditContext) {
     const product = await withTransaction(async (client) => {
+      await productsRepository.lockCatalogNumbering(organizationId, client);
       return productsRepository.create(
         {
-          organizationId: scope.organizationId,
-          branchId: scope.branchId,
+          organizationId,
           name: dto.name,
           description: dto.description,
           imageUrl: dto.imageUrl,
@@ -60,7 +59,7 @@ export const productsService = {
         action: 'product.create',
         resourceType: 'product',
         resourceId: product.id,
-        organizationId: scope.organizationId,
+        organizationId,
         changes: { new: dto },
         ipAddress: audit.ipAddress,
         userAgent: audit.userAgent,
@@ -70,11 +69,11 @@ export const productsService = {
     return product;
   },
 
-  async update(id: string, scope: BranchManagerScope, dto: UpdateProductDto, audit?: AuditContext) {
+  async update(id: string, organizationId: string, dto: UpdateProductDto, audit?: AuditContext) {
     const product = await productsRepository.findById(id);
     if (!product) throw AppError.notFound('Product not found');
-    if (product.organization_id !== scope.organizationId || product.branch_id !== scope.branchId) {
-      throw AppError.forbidden('Product is outside your assigned branch');
+    if (product.organization_id !== organizationId) {
+      throw AppError.forbidden('Product is outside your organization');
     }
     if (
       (dto.requiresPrepayment ?? product.requires_prepayment) &&
@@ -95,6 +94,10 @@ export const productsService = {
       ...(nextProductType === 'service' ? { stockQuantity: null } : {}),
     };
     const updated = await withTransaction(async (client) => {
+      if (nextProductType !== product.product_type) {
+        await productsRepository.lockCatalogNumbering(organizationId, client);
+        await productsRepository.assignNextCodeForType(id, organizationId, nextProductType, client);
+      }
       const result = await productsRepository.update(id, normalizedDto, client);
       if (!result) throw AppError.notFound('Product not found');
       return result;
@@ -108,7 +111,7 @@ export const productsService = {
         action: 'product.update',
         resourceType: 'product',
         resourceId: id,
-        organizationId: scope.organizationId,
+        organizationId,
         changes: { old: product, new: updated },
         ipAddress: audit.ipAddress,
         userAgent: audit.userAgent,
@@ -118,11 +121,11 @@ export const productsService = {
     return updated;
   },
 
-  async remove(id: string, scope: BranchManagerScope, audit?: AuditContext) {
+  async remove(id: string, organizationId: string, audit?: AuditContext) {
     const product = await productsRepository.findById(id);
     if (!product) throw AppError.notFound('Product not found');
-    if (product.organization_id !== scope.organizationId || product.branch_id !== scope.branchId) {
-      throw AppError.forbidden('Product is outside your assigned branch');
+    if (product.organization_id !== organizationId) {
+      throw AppError.forbidden('Product is outside your organization');
     }
     await productsRepository.softDelete(id);
 
@@ -133,7 +136,7 @@ export const productsService = {
         action: 'product.delete',
         resourceType: 'product',
         resourceId: id,
-        organizationId: scope.organizationId,
+        organizationId,
         changes: { old: product, new: { is_active: false } },
         ipAddress: audit.ipAddress,
         userAgent: audit.userAgent,

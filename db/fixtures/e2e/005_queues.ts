@@ -51,13 +51,15 @@ export async function seed(client: PoolClient): Promise<void> {
     `INSERT INTO queue_products (
        queue_id, product_id, organization_id, branch_id, is_active, display_order
      )
-     SELECT $1, p.id, p.organization_id, p.branch_id, TRUE,
+     SELECT $1, p.id, p.organization_id, $2, TRUE,
             ROW_NUMBER() OVER (ORDER BY p.created_at, p.id) - 1
      FROM products p
-     WHERE p.branch_id = $2 AND p.is_active = TRUE
+     WHERE p.organization_id = $3 AND p.is_active = TRUE
      ON CONFLICT (queue_id, product_id) DO UPDATE SET
+       organization_id = EXCLUDED.organization_id,
+       branch_id = EXCLUDED.branch_id,
        is_active = TRUE,
        display_order = EXCLUDED.display_order`,
-    [QUEUES.COUNTER_A, BRANCHES.TOKYO_MAIN]
+    [QUEUES.COUNTER_A, BRANCHES.TOKYO_MAIN, ORG_ID]
   );
 }

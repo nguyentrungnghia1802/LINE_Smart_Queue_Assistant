@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, CheckCircle2, Clock3, X, XCircle } from 'lucide-react';
+import { Building2, CheckCircle2, Clock3, Search, X, XCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -49,6 +49,7 @@ export function AdminOrganizationApplicationsPage() {
   const [draft, setDraft] = useState<OrganizationApplication | null>(null);
   const [note, setNote] = useState('');
   const [feedback, setFeedback] = useState('');
+  const [search, setSearch] = useState('');
   const dateTime = useMemo(
     () =>
       new Intl.DateTimeFormat(i18n.resolvedLanguage ?? 'ja', {
@@ -148,7 +149,17 @@ export function AdminOrganizationApplicationsPage() {
     reviewMutation.mutate(action);
   }
 
-  const applications = applicationsQuery.data ?? [];
+  const applications = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return (applicationsQuery.data ?? []).filter(
+      (application) =>
+        !query ||
+        application.trade_name.toLocaleLowerCase().includes(query) ||
+        application.legal_name.toLocaleLowerCase().includes(query) ||
+        application.reference_code.toLocaleLowerCase().includes(query) ||
+        application.work_email.toLocaleLowerCase().includes(query)
+    );
+  }, [applicationsQuery.data, search]);
 
   return (
     <div className="space-y-6">
@@ -182,6 +193,17 @@ export function AdminOrganizationApplicationsPage() {
           </button>
         ))}
       </div>
+      <label className="flex max-w-xl items-center gap-2 rounded-lg border border-gray-300 bg-white px-3">
+        <Search className="h-4 w-4 text-gray-400" aria-hidden="true" />
+        <span className="sr-only">{t('applications.search')}</span>
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder={t('applications.searchPlaceholder')}
+          className="min-w-0 flex-1 border-0 py-2.5 text-sm outline-none"
+        />
+      </label>
 
       {applicationsQuery.isLoading ? (
         <div className="rounded-lg border border-gray-200 bg-white p-8 text-sm text-gray-500">
@@ -194,7 +216,8 @@ export function AdminOrganizationApplicationsPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <div className="hidden grid-cols-[130px_1.4fr_1fr_150px_120px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase text-gray-500 lg:grid">
+          <div className="hidden grid-cols-[44px_130px_1.4fr_1fr_150px_120px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase text-gray-500 lg:grid">
+            <span>{t('labels.number', { ns: 'common' })}</span>
             <span>{t('applications.reference')}</span>
             <span>{t('applications.company')}</span>
             <span>{t('applications.contact')}</span>
@@ -202,11 +225,12 @@ export function AdminOrganizationApplicationsPage() {
             <span />
           </div>
           <div className="divide-y divide-gray-200">
-            {applications.map((application) => (
+            {applications.map((application, index) => (
               <article
                 key={application.id}
-                className="grid gap-4 px-5 py-5 lg:grid-cols-[130px_1.4fr_1fr_150px_120px] lg:items-center"
+                className="grid gap-4 px-5 py-5 lg:grid-cols-[44px_130px_1.4fr_1fr_150px_120px] lg:items-center"
               >
+                <span className="text-sm text-gray-500">{index + 1}</span>
                 <div>
                   <p className="font-mono text-sm font-bold">{application.reference_code}</p>
                   <p className="mt-1 text-xs text-gray-500">

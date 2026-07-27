@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { Building2, Plus, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
@@ -56,10 +56,21 @@ export function ManagerBranchesPage() {
     managerPhone: '',
     managerTitle: '',
   });
+  const [search, setSearch] = useState('');
   const { data = [] } = useQuery<Branch[]>({
     queryKey: ['branches'],
     queryFn: () => get('/api/v1/branches'),
   });
+  const visibleBranches = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return data.filter(
+      (branch) =>
+        !query ||
+        branch.name.toLocaleLowerCase().includes(query) ||
+        branch.city.toLocaleLowerCase().includes(query) ||
+        branch.address_line1.toLocaleLowerCase().includes(query)
+    );
+  }, [data, search]);
   const create = useMutation({
     mutationFn: () =>
       post('/api/v1/branches', {
@@ -138,13 +149,26 @@ export function ManagerBranchesPage() {
           {t('branches.add')}
         </button>
       </header>
+      <label className="flex max-w-xl items-center gap-2 rounded-lg border border-gray-300 bg-white px-3">
+        <Search className="h-4 w-4 text-gray-400" aria-hidden="true" />
+        <span className="sr-only">{t('branches.search')}</span>
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder={t('branches.searchPlaceholder')}
+          className="min-w-0 flex-1 border-0 py-2.5 text-sm outline-none"
+        />
+      </label>
       <div className="grid gap-4 lg:grid-cols-2">
-        {data.map((branch) => (
+        {visibleBranches.map((branch, index) => (
           <article key={branch.id} className="rounded-lg border border-gray-200 bg-white p-5">
             <div className="flex items-start gap-3">
               <Building2 className="h-5 w-5 text-brand-600" />
               <div>
-                <h2 className="font-bold">{branch.name}</h2>
+                <h2 className="font-bold">
+                  {index + 1}. {branch.name}
+                </h2>
                 <p className="mt-1 text-sm text-gray-500">
                   〒{branch.postal_code} {branch.prefecture}
                   {branch.city}

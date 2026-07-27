@@ -56,6 +56,7 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     validator: 'InviteBranchManagerSchema',
   }),
   endpoint('delete', '/api/v1/branches/{branchId}/managers/{userId}', 'branches'),
+  endpoint('get', '/api/v1/admin/dashboard', 'admin'),
   endpoint('get', '/api/v1/admin/organizations', 'admin'),
   endpoint('post', '/api/v1/organization-applications', 'organization-applications', {
     auth: false,
@@ -226,6 +227,7 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
   endpoint('delete', '/api/v1/queues/{id}', 'queues', { validator: 'UUIDParamSchema' }),
 
   endpoint('get', '/api/v1/staff/my-queue', 'staff'),
+  endpoint('get', '/api/v1/staff/branch', 'staff'),
   endpoint('get', '/api/v1/staff/queues/{queueId}', 'staff', { validator: 'QueueIdParamSchema' }),
   endpoint('post', '/api/v1/staff/queues/{queueId}/call-next', 'staff', {
     validator: 'QueueIdParamSchema',

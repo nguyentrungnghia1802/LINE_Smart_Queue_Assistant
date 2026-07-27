@@ -31,6 +31,7 @@ import { ManagerProductFormPage } from './pages/manager/ManagerProductFormPage';
 import { ManagerProductsPage } from './pages/manager/ManagerProductsPage';
 import { ManagerQRPage } from './pages/manager/ManagerQRPage';
 import { ManagerSettingsRoute } from './pages/manager/ManagerSettingsRoute';
+import { ManagerUserDetailPage } from './pages/manager/ManagerUserDetailPage';
 import { ManagerUsersPage } from './pages/manager/ManagerUsersPage';
 import { QueueSettingsPage } from './pages/manager/QueueSettingsPage';
 import { BusinessRegistrationPage } from './pages/marketing/BusinessRegistrationPage';
@@ -45,6 +46,7 @@ import { RoleRedirectPage } from './pages/RoleRedirectPage';
 import { StaffDashboardPage } from './pages/staff/StaffDashboardPage';
 import { StaffLayout } from './pages/staff/StaffLayout';
 import { StaffProductsPage } from './pages/staff/StaffProductsPage';
+import { StaffQRPage } from './pages/staff/StaffQRPage';
 import { StaffQueuePage } from './pages/StaffQueuePage';
 
 export const router = createBrowserRouter([
@@ -92,6 +94,7 @@ export const router = createBrowserRouter([
       { path: 'queues/:id/manage', element: <StaffQueuePage /> },
       { path: 'queues/:id/settings', element: <QueueSettingsPage /> },
       { path: 'users', element: <ManagerUsersPage /> },
+      { path: 'users/:userId', element: <ManagerUserDetailPage /> },
       { path: 'branches', element: <ManagerBranchesPage /> },
       { path: 'branches/:branchId', element: <ManagerBranchDetailPage /> },
       { path: 'audit', element: <ManagerAuditPage /> },
@@ -107,6 +110,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <StaffDashboardPage /> },
       { path: 'products', element: <StaffProductsPage /> },
+      { path: 'qr', element: <StaffQRPage /> },
     ],
   },
 

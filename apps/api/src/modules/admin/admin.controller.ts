@@ -6,6 +6,10 @@ import { sendNoContent, sendSuccess } from '../../utils/response';
 import { adminService } from './admin.service';
 import { UpdateManagerDto } from './admin.validator';
 
+export const getDashboard = asyncHandler(async (_req: Request, res: Response) => {
+  sendSuccess(res, await adminService.getDashboard());
+});
+
 export const listOrganizations = asyncHandler(async (_req: Request, res: Response) => {
   const orgs = await adminService.listOrganizations();
   sendSuccess(res, orgs);

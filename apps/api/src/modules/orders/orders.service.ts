@@ -129,7 +129,7 @@ export const ordersService = {
         if (!p) throw AppError.notFound(`Product ${item.productId} not found`);
         if (p.organization_id !== org.id)
           throw AppError.badRequest('Product does not belong to this organization');
-        if (p.branch_id !== dto.branchId || !availableProducts.has(p.id)) {
+        if (!availableProducts.has(p.id)) {
           throw AppError.badRequest('Product is not available in the selected queue');
         }
         if (!p.is_active) throw AppError.badRequest(`Product "${p.name}" is not available`);

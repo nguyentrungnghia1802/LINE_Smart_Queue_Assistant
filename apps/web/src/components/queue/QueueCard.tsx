@@ -8,9 +8,10 @@ import { QueueStatusBadge } from './QueueStatusBadge';
 
 interface QueueCardProps {
   queue: Queue;
+  sequence?: number;
 }
 
-export function QueueCard({ queue }: QueueCardProps) {
+export function QueueCard({ queue, sequence }: QueueCardProps) {
   const { t } = useTranslation('common');
   return (
     <Link
@@ -18,7 +19,10 @@ export function QueueCard({ queue }: QueueCardProps) {
       className="block bg-white rounded-[var(--radius-card)] border border-gray-200 shadow-sm hover:shadow-md hover:border-brand-200 transition-all p-5"
     >
       <div className="flex items-start justify-between gap-2 mb-3">
-        <h3 className="font-semibold text-gray-900 truncate">{queue.name}</h3>
+        <h3 className="truncate font-semibold text-gray-900">
+          {sequence ? `${sequence}. ` : ''}
+          {queue.name}
+        </h3>
         <QueueStatusBadge status={queue.status} />
       </div>
 

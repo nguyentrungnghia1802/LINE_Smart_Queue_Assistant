@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
-import { del, get, patch, post } from '../../services/apiClient';
+import { del, get, post } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
 
 interface UserRow {
@@ -24,7 +26,7 @@ export function ManagerUsersPage() {
   const queryClient = useQueryClient();
 
   const [showAdd, setShowAdd] = useState(false);
-  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const emptyForm = {
     displayName: '',
     email: '',
@@ -41,35 +43,22 @@ export function ManagerUsersPage() {
     queryFn: () => get<UserRow[]>('/api/v1/users?role=staff'),
     enabled: !!orgId && !user?.isOrganizationOwner,
   });
-  const staffUsers = useMemo(() => users.filter((u) => u.role === 'staff'), [users]);
+  const staffUsers = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return users.filter(
+      (candidate) =>
+        candidate.role === 'staff' &&
+        (!query ||
+          candidate.display_name.toLocaleLowerCase().includes(query) ||
+          candidate.email?.toLocaleLowerCase().includes(query) ||
+          candidate.employee_code?.toLocaleLowerCase().includes(query))
+    );
+  }, [search, users]);
 
   const createMutation = useMutation({
     mutationFn: () => post('/api/v1/users/staff', form),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['users-staff'] });
-      setShowAdd(false);
-      setForm(emptyForm);
-      setAddError('');
-    },
-    onError: (err: { message?: string }) =>
-      setAddError(err?.message ?? t('errors.UNKNOWN', { ns: 'common' })),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: () => {
-      const profile = {
-        displayName: form.displayName,
-        email: form.email,
-        phone: form.phone,
-        currentAddress: form.currentAddress,
-        jobTitle: form.jobTitle,
-        employeeCode: form.employeeCode,
-      };
-      return patch(`/api/v1/users/staff/${editingUserId}`, profile);
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['users-staff'] });
-      setEditingUserId(null);
       setShowAdd(false);
       setForm(emptyForm);
       setAddError('');
@@ -97,20 +86,33 @@ export function ManagerUsersPage() {
           + {t('users.add')}
         </button>
       </div>
+      <label className="flex max-w-xl items-center gap-2 rounded-lg border border-gray-300 bg-white px-3">
+        <Search className="h-4 w-4 text-gray-400" aria-hidden="true" />
+        <span className="sr-only">{t('users.search')}</span>
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder={t('users.searchPlaceholder')}
+          className="min-w-0 flex-1 border-0 py-2.5 text-sm outline-none"
+        />
+      </label>
 
       {staffUsers.length === 0 ? (
         <p className="text-gray-400 text-sm">{t('users.empty')}</p>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="divide-y divide-gray-100 sm:hidden">
-            {staffUsers.map((staffUser) => (
+            {staffUsers.map((staffUser, index) => (
               <article key={staffUser.id} className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-950 text-sm font-bold text-white">
                     {staffUser.display_name.slice(0, 1).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h2 className="truncate font-bold text-gray-900">{staffUser.display_name}</h2>
+                    <h2 className="truncate font-bold text-gray-900">
+                      {index + 1}. {staffUser.display_name}
+                    </h2>
                     <p className="mt-0.5 truncate text-xs text-gray-500">
                       {staffUser.email ?? '—'}
                     </p>
@@ -123,25 +125,12 @@ export function ManagerUsersPage() {
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingUserId(staffUser.id);
-                      setShowAdd(true);
-                      setForm({
-                        displayName: staffUser.display_name,
-                        email: staffUser.email ?? '',
-                        phone: staffUser.phone ?? '',
-                        currentAddress: staffUser.address_line1 ?? '',
-                        jobTitle: staffUser.job_title ?? '',
-                        employeeCode: staffUser.employee_code ?? '',
-                      });
-                      setAddError('');
-                    }}
+                  <Link
+                    to={`/manager/users/${staffUser.id}`}
                     className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700"
                   >
-                    {t('actions.edit', { ns: 'common' })}
-                  </button>
+                    {t('actions.open', { ns: 'common' })}
+                  </Link>
                   <button
                     type="button"
                     onClick={() => {
@@ -163,6 +152,9 @@ export function ManagerUsersPage() {
           <table className="hidden w-full text-sm sm:table">
             <thead>
               <tr className="bg-gray-50 text-left text-gray-500 border-b border-gray-200">
+                <th className="w-14 px-4 py-3 text-center font-medium">
+                  {t('labels.number', { ns: 'common' })}
+                </th>
                 <th className="px-4 py-3 font-medium">{t('labels.name', { ns: 'common' })}</th>
                 <th className="px-4 py-3 font-medium hidden sm:table-cell">Email</th>
                 <th className="px-4 py-3 font-medium">{t('labels.role', { ns: 'common' })}</th>
@@ -170,8 +162,9 @@ export function ManagerUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {staffUsers.map((u) => (
+              {staffUsers.map((u, index) => (
                 <tr key={u.id} className="border-b border-gray-100 last:border-0">
+                  <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
                   <td className="px-4 py-3 font-medium text-gray-800">{u.display_name}</td>
                   <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{u.email ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-600">
@@ -179,24 +172,12 @@ export function ManagerUsersPage() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingUserId(u.id);
-                          setShowAdd(true);
-                          setForm({
-                            displayName: u.display_name,
-                            email: u.email ?? '',
-                            phone: u.phone ?? '',
-                            currentAddress: u.address_line1 ?? '',
-                            jobTitle: u.job_title ?? '',
-                            employeeCode: u.employee_code ?? '',
-                          });
-                          setAddError('');
-                        }}
+                      <Link
+                        to={`/manager/users/${u.id}`}
                         className="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100"
                       >
-                        {t('actions.edit', { ns: 'common' })}
-                      </button>
+                        {t('actions.open', { ns: 'common' })}
+                      </Link>
                       <button
                         onClick={() => {
                           if (window.confirm(t('users.deleteConfirm', { name: u.display_name }))) {
@@ -220,9 +201,7 @@ export function ManagerUsersPage() {
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="max-h-[calc(100dvh-2rem)] w-full max-w-sm space-y-4 overflow-y-auto rounded-xl bg-white p-5 shadow-xl sm:p-6">
-            <h2 className="font-semibold text-gray-900">
-              {editingUserId ? t('users.edit') : t('users.add')}
-            </h2>
+            <h2 className="font-semibold text-gray-900">{t('users.add')}</h2>
 
             {[
               {
@@ -281,16 +260,9 @@ export function ManagerUsersPage() {
                 {t('actions.cancel', { ns: 'common' })}
               </button>
               <button
-                onClick={() => {
-                  if (editingUserId) {
-                    updateMutation.mutate();
-                  } else {
-                    createMutation.mutate();
-                  }
-                }}
+                onClick={() => createMutation.mutate()}
                 disabled={
                   createMutation.isPending ||
-                  updateMutation.isPending ||
                   !form.displayName ||
                   !form.email ||
                   !form.phone ||
@@ -300,11 +272,9 @@ export function ManagerUsersPage() {
                 }
                 className="flex-1 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
               >
-                {createMutation.isPending || updateMutation.isPending
+                {createMutation.isPending
                   ? t('actions.saving', { ns: 'common' })
-                  : editingUserId
-                    ? t('actions.edit', { ns: 'common' })
-                    : t('actions.save', { ns: 'common' })}
+                  : t('actions.save', { ns: 'common' })}
               </button>
             </div>
           </div>

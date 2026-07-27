@@ -10,6 +10,7 @@ import {
 } from '../../middlewares';
 
 import {
+  getDashboard,
   listManagers,
   listOrganizations,
   removeOrganization,
@@ -25,6 +26,7 @@ export const adminRouter = Router();
 
 adminRouter.use(requireAuth, requireRole(UserRole.ADMIN));
 
+adminRouter.get('/dashboard', getDashboard);
 adminRouter.get('/organizations', listOrganizations);
 adminRouter.delete(
   '/organizations/:orgId',

@@ -1,12 +1,17 @@
 export const admin = {
   dashboard: {
     title: 'Tổng quan quản trị',
+    loading: 'Đang tải thống kê nền tảng...',
     organizationCount: 'Số tổ chức',
+    totalPlatformRevenue: 'Tổng doanh thu nền tảng',
+    registeredPlans: 'Gói đang hoạt động',
+    organizationsByPlan: 'Số doanh nghiệp theo gói dịch vụ',
+    monthlyRevenue: 'Doanh thu gói dịch vụ theo tháng',
     logoConfigured: 'Đã có logo',
     contactMissing: 'Thiếu liên hệ',
     paymentMissing: 'Thiếu thông tin thanh toán',
     section: 'Quản trị',
-    description: 'Kiểm tra tình trạng đăng ký và các cấu hình vận hành còn thiếu.',
+    description: 'Theo dõi gói dịch vụ, số doanh nghiệp và doanh thu nền tảng.',
     recentOrganizations: 'Tổ chức đăng ký gần đây',
     noOrganizations: 'Chưa có tổ chức nào.',
     phoneMissing: 'Chưa có số điện thoại',
@@ -68,6 +73,9 @@ export const admin = {
     ownerNamePlaceholder: 'Ví dụ: Nguyễn Văn A',
     passwordPlaceholder: 'Chỉ nhập khi cần đổi mật khẩu',
     ownerMissing: 'Không tìm thấy tài khoản Manager tổng của tổ chức.',
+    search: 'Tìm tổ chức',
+    searchPlaceholder: 'Tìm theo tên tổ chức hoặc slug',
+    subscriptionPlan: 'Gói dịch vụ',
   },
   applications: {
     nav: 'Xét duyệt',
@@ -138,5 +146,7 @@ export const admin = {
     rejectSuccess: 'Đã từ chối hồ sơ.',
     actionFailed: 'Không thể hoàn tất xét duyệt.',
     status: { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối' },
+    search: 'Tìm hồ sơ',
+    searchPlaceholder: 'Tìm theo mã hồ sơ, doanh nghiệp hoặc email công việc',
   },
 } as const;

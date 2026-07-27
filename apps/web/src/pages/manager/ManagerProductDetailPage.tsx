@@ -7,6 +7,7 @@ import { del, get } from '../../services/apiClient';
 
 interface ProductRow {
   id: string;
+  product_code: string;
   name: string;
   description: string | null;
   image_url: string | null;
@@ -78,6 +79,7 @@ export function ManagerProductDetailPage() {
           <table className="w-full text-sm">
             <tbody className="divide-y divide-gray-100">
               {[
+                [t('products.code'), product.product_code],
                 [
                   t('products.type'),
                   product.product_type === 'service'

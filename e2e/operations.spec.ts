@@ -20,7 +20,7 @@ async function token(page: Page) {
   return page.evaluate(() => localStorage.getItem('auth_token'));
 }
 
-test('staff transitions a ticket and LINE delivery stays on the durable mock outbox', async ({
+test('staff transitions a ticket and the durable mock outbox remains observable', async ({
   page,
 }) => {
   await login(page, 'staff@gmail.com');
@@ -59,7 +59,7 @@ test('staff transitions a ticket and LINE delivery stays on the durable mock out
   });
   expect(deliveries.ok()).toBeTruthy();
   const body = (await deliveries.json()) as { data: { items: Array<{ eventType: string }> } };
-  expect(body.data.items.some((item) => item.eventType === 'serving')).toBeTruthy();
+  expect(body.data.items.some((item) => item.eventType === 'queue_called')).toBeTruthy();
 });
 
 test('a public business application is provisioned only after admin approval', async ({ page }) => {

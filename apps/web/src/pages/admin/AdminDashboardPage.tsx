@@ -1,165 +1,110 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
 
 import { API_BASE_PATH } from '@line-queue/shared';
 
+import { formatCurrency } from '../../i18n/format';
 import { get } from '../../services/apiClient';
 
-import type { OrgRow } from './AdminOrganizationsPage';
+interface DashboardData {
+  organizationCount: number;
+  pendingApplicationCount: number;
+  totalRevenue: number;
+  planCounts: { starter: number; standard: number; scale: number };
+  monthlyRevenue: Array<{ month: string; revenue: number }>;
+}
 
 export function AdminDashboardPage() {
-  const { t } = useTranslation('admin');
-  const { data: orgs = [], isLoading } = useQuery<OrgRow[]>({
-    queryKey: ['admin-orgs'],
-    queryFn: () => get<OrgRow[]>(`${API_BASE_PATH}/admin/organizations`),
-  });
-  const { data: pendingApplications = [], isLoading: applicationsLoading } = useQuery<
-    Array<{ id: string }>
-  >({
-    queryKey: ['organization-applications', 'pending'],
-    queryFn: () =>
-      get<Array<{ id: string }>>(`${API_BASE_PATH}/organization-applications?status=pending`),
+  const { t, i18n } = useTranslation(['admin', 'marketing']);
+  const dashboard = useQuery<DashboardData>({
+    queryKey: ['admin-dashboard'],
+    queryFn: () => get(`${API_BASE_PATH}/admin/dashboard`),
   });
 
-  const missingContact = orgs.filter((org) => !org.phone || !org.address).length;
-  const missingPayment = orgs.filter((org) => !org.payment_info).length;
-  const withLogo = orgs.filter((org) => Boolean(org.logo_url)).length;
-  const recentOrgs = orgs.slice(0, 5);
+  if (dashboard.isLoading || !dashboard.data) {
+    return <p className="text-sm text-gray-500">{t('dashboard.loading')}</p>;
+  }
+  const data = dashboard.data;
+  const maxRevenue = Math.max(...data.monthlyRevenue.map((point) => point.revenue), 1);
+  const locale = i18n.resolvedLanguage ?? 'ja';
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
-            {t('dashboard.section', { ns: 'admin' })}
-          </p>
-          <h1 className="mt-2 text-3xl font-bold text-gray-950">{t('dashboard.title')}</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {t('dashboard.description', { ns: 'admin' })}
-          </p>
-        </div>
-        <Link
-          to="/admin/applications"
-          className="inline-flex items-center justify-center rounded-xl bg-gray-950 px-4 py-2 text-sm font-bold text-white hover:bg-gray-800"
-        >
-          {t('applications.viewApplications')}
-        </Link>
-      </div>
+      <header>
+        <p className="text-xs font-bold uppercase text-brand-700">{t('dashboard.section')}</p>
+        <h1 className="mt-2 text-3xl font-bold text-gray-950">{t('dashboard.title')}</h1>
+        <p className="mt-1 text-sm text-gray-500">{t('dashboard.description')}</p>
+      </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          label={t('dashboard.organizationCount')}
-          value={isLoading ? '...' : String(orgs.length)}
-        />
-        <MetricCard
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric label={t('dashboard.organizationCount')} value={String(data.organizationCount)} />
+        <Metric
           label={t('applications.pendingCount')}
-          value={applicationsLoading ? '...' : String(pendingApplications.length)}
+          value={String(data.pendingApplicationCount)}
           tone="amber"
         />
-        <MetricCard
-          label={t('dashboard.contactMissing')}
-          value={isLoading ? '...' : String(missingContact)}
-          tone="amber"
+        <Metric
+          label={t('dashboard.totalPlatformRevenue')}
+          value={formatCurrency(data.totalRevenue, locale)}
+          tone="green"
         />
-        <MetricCard
-          label={t('dashboard.paymentMissing')}
-          value={isLoading ? '...' : String(missingPayment)}
-          tone="red"
+        <Metric
+          label={t('dashboard.registeredPlans')}
+          value={String(Object.values(data.planCounts).reduce((sum, count) => sum + count, 0))}
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <section className="overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[var(--shadow-soft)]">
-          <div className="border-b border-gray-100 px-5 py-4">
-            <h2 className="font-bold text-gray-950">
-              {t('dashboard.recentOrganizations', { ns: 'admin' })}
-            </h2>
-          </div>
-          {recentOrgs.length === 0 ? (
-            <p className="px-5 py-8 text-sm text-gray-500">
-              {t('dashboard.noOrganizations', { ns: 'admin' })}
+      <section className="grid gap-4 sm:grid-cols-3">
+        {(['starter', 'standard', 'scale'] as const).map((plan) => (
+          <div key={plan} className="rounded-xl border border-gray-200 bg-white p-5">
+            <p className="text-sm font-bold text-gray-700">
+              {t(`pricing.${plan}.name`, { ns: 'marketing' })}
             </p>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {recentOrgs.map((org) => (
-                <Link
-                  key={org.id}
-                  to={`/admin/orgs/${org.id}`}
-                  className="grid gap-3 px-5 py-4 hover:bg-gray-50 sm:grid-cols-[1fr_140px_120px]"
-                >
-                  <div>
-                    <p className="font-semibold text-gray-950">{org.name}</p>
-                    <p className="mt-0.5 font-mono text-xs text-gray-500">{org.slug}</p>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {org.phone || t('dashboard.phoneMissing', { ns: 'admin' })}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {org.payment_info
-                      ? t('dashboard.paymentConfigured', { ns: 'admin' })
-                      : t('dashboard.notConfigured', { ns: 'admin' })}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <aside className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-          <h2 className="font-bold text-gray-950">{t('dashboard.checks', { ns: 'admin' })}</h2>
-          <div className="mt-4 space-y-3">
-            <CheckItem
-              done={missingContact === 0}
-              label={t('dashboard.allContactConfigured', { ns: 'admin' })}
-            />
-            <CheckItem
-              done={missingPayment === 0}
-              label={t('dashboard.allPaymentConfigured', { ns: 'admin' })}
-            />
-            <CheckItem
-              done={withLogo === orgs.length && orgs.length > 0}
-              label={t('dashboard.allLogosConfigured', { ns: 'admin' })}
-            />
+            <p className="mt-2 text-3xl font-bold text-gray-950">{data.planCounts[plan]}</p>
+            <p className="mt-1 text-xs text-gray-500">{t('dashboard.organizationsByPlan')}</p>
           </div>
-        </aside>
-      </div>
+        ))}
+      </section>
+
+      <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <h2 className="font-bold text-gray-950">{t('dashboard.monthlyRevenue')}</h2>
+        <div className="mt-6 flex h-56 items-end gap-1.5 sm:gap-3">
+          {data.monthlyRevenue.map((point) => (
+            <div
+              key={point.month}
+              className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2"
+              title={`${point.month}: ${formatCurrency(point.revenue, locale)}`}
+            >
+              <div
+                className="w-full rounded-t bg-brand-600"
+                style={{ height: `${Math.max(3, (point.revenue / maxRevenue) * 100)}%` }}
+              />
+              <span className="hidden text-[10px] text-gray-500 sm:block">
+                {point.month.slice(5)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
 
-function MetricCard({
+function Metric({
   label,
   value,
   tone = 'default',
-}: Readonly<{ label: string; value: string; tone?: 'default' | 'amber' | 'red' }>) {
+}: Readonly<{ label: string; value: string; tone?: 'default' | 'amber' | 'green' }>) {
   const toneClass =
     tone === 'amber'
-      ? 'bg-amber-50 text-amber-800'
-      : tone === 'red'
-        ? 'bg-red-50 text-red-700'
-        : 'bg-brand-50 text-brand-800';
+      ? 'border-amber-200 bg-amber-50'
+      : tone === 'green'
+        ? 'border-emerald-200 bg-emerald-50'
+        : 'border-gray-200 bg-white';
   return (
-    <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className={`mt-3 inline-flex rounded-xl px-3 py-1 text-3xl font-bold ${toneClass}`}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function CheckItem({ done, label }: Readonly<{ done: boolean; label: string }>) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-3 py-3">
-      <span
-        className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-          done ? 'bg-brand-600 text-white' : 'bg-amber-100 text-amber-700'
-        }`}
-      >
-        {done ? '✓' : '!'}
-      </span>
-      <p className="text-sm text-gray-700">{label}</p>
+    <div className={`rounded-xl border p-5 ${toneClass}`}>
+      <p className="text-sm text-gray-600">{label}</p>
+      <p className="mt-2 text-3xl font-bold text-gray-950">{value}</p>
     </div>
   );
 }

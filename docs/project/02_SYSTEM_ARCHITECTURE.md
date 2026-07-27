@@ -75,11 +75,11 @@ Routes and controllers must not contain domain policy. Repositories must not kno
 
 - Customer LINE entry redirects: `/q/:orgSlug`, `/qr/:token`
 - LINE-first customer: `/liff/home`, `/liff/q/:orgSlug`, `/liff/qr/:token`, `/liff/checkout/demo/:sessionId`, `/liff/tickets`, `/liff/tickets/:entryId`
-- Staff: `/staff`, `/staff/products`
+- Staff: `/staff`, `/staff/products`, `/staff/qr`
 - Organization owner manager: `/manager`, `/manager/branches/*`, `/manager/audit`,
+  `/manager/products/*`, `/manager/settings`
+- Branch manager: `/manager`, `/manager/queues/*`, `/manager/users`, `/manager/qr`,
   `/manager/settings`
-- Branch manager: `/manager`, `/manager/products/*`, `/manager/queues/*`, `/manager/users`,
-  `/manager/qr`, `/manager/settings`
 - Platform admin: `/admin/*`
 - Public product/onboarding: `/`, `/business/register`
 - Legacy/general authenticated workspace: `/app/*`
@@ -89,7 +89,8 @@ Frontend responsibilities are split into route pages, reusable components/layout
 ## 5. Data ownership
 
 - PostgreSQL owns organization applications, organizations, branches, identities, organization
-  memberships, branch memberships, branch calendars, products, queue-product assignments, queues,
+  memberships, branch memberships, branch calendars, organization product catalogs,
+  branch queue-product assignments, queues,
   tickets, orders, payments, stock reservations, notifications, penalties, history, and audit data.
 - LINE owns LINE account identity and chat transport; the system stores only linked identifiers/profile snapshots needed for the service.
 - The browser owns temporary checkout session/draft state and a local device key. Server validation remains authoritative.
@@ -126,6 +127,8 @@ email login for customer-role users and exposes no public customer registration 
 10. Rich Menu entry points open safe `/liff/*` routes. `/liff/home?mode=ticket` resolves the current active ticket for the authenticated LINE user instead of depending on a fixed entry ID.
 11. A branch QR resolves its branch token, active queues, queue-specific products, current waiting
     count, ETA, and branch-open state. The customer selects a queue before payment or order creation.
+12. Product mutations require the organization-owner capability. Branch managers can read the
+    organization catalog only to maintain product assignments for queues in their branch.
 
 LINE Login does not send messages. Messaging API does not authenticate the web session. A complete setup needs both capabilities under the intended provider and a consistent LINE user relationship.
 

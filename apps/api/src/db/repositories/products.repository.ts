@@ -8,7 +8,8 @@ import { pool } from '../client';
 export interface ProductRow {
   id: string;
   organization_id: string;
-  branch_id: string;
+  branch_id: string | null;
+  product_code: string;
   queue_ids?: string[];
   name: string;
   description: string | null;
@@ -61,8 +62,11 @@ export const productsRepository = {
        LEFT JOIN product_translations requested ON requested.product_id = p.id AND requested.locale = $2
        LEFT JOIN product_translations tenant_default ON tenant_default.product_id = p.id AND tenant_default.locale = o.default_locale
        LEFT JOIN product_translations japanese ON japanese.product_id = p.id AND japanese.locale = 'ja'
-       LEFT JOIN queue_products qp ON qp.product_id = p.id
-       WHERE p.branch_id = $1 AND p.is_active = TRUE
+       JOIN queue_products qp
+         ON qp.product_id = p.id
+        AND qp.branch_id = $1
+        AND qp.is_active = TRUE
+       WHERE p.is_active = TRUE
        GROUP BY p.id, requested.name, requested.description, tenant_default.name,
                 tenant_default.description, japanese.name, japanese.description
        ORDER BY p.created_at`,
@@ -133,7 +137,6 @@ export const productsRepository = {
   async create(
     data: {
       organizationId: string;
-      branchId: string;
       name: string;
       description?: string;
       imageUrl?: string;
@@ -149,13 +152,24 @@ export const productsRepository = {
     const executor = client ?? pool;
     const { rows } = await executor.query<ProductRow>(
       `INSERT INTO products
-         (organization_id, branch_id, name, description, image_url, price, service_time_minutes,
+         (organization_id, product_code, name, description, image_url, price, service_time_minutes,
           max_wait_minutes, requires_prepayment, stock_quantity, product_type)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       VALUES (
+         $1,
+         CASE WHEN $10 = 'service' THEN 'DV' ELSE 'SP' END || (
+           SELECT COALESCE(
+             MAX(SUBSTRING(product_code FROM 3)::INT),
+             0
+           ) + 1
+           FROM products
+           WHERE organization_id = $1
+             AND product_type = $10
+         )::TEXT,
+         $2,$3,$4,$5,$6,$7,$8,$9,$10
+       )
        RETURNING *`,
       [
         data.organizationId,
-        data.branchId,
         data.name,
         data.description ?? null,
         data.imageUrl ?? null,
@@ -175,6 +189,32 @@ export const productsRepository = {
       [rows[0].id, data.name, data.description ?? null]
     );
     return rows[0];
+  },
+
+  async lockCatalogNumbering(organizationId: string, client: PoolClient): Promise<void> {
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [organizationId]);
+  },
+
+  async assignNextCodeForType(
+    id: string,
+    organizationId: string,
+    productType: 'product' | 'service',
+    client: PoolClient
+  ): Promise<void> {
+    await client.query(
+      `UPDATE products target
+       SET product_code =
+         CASE WHEN $3 = 'service' THEN 'DV' ELSE 'SP' END || (
+           SELECT COALESCE(MAX(SUBSTRING(candidate.product_code FROM 3)::INT), 0) + 1
+           FROM products candidate
+           WHERE candidate.organization_id = $2
+             AND candidate.product_type = $3
+             AND candidate.id <> $1
+         )::TEXT
+       WHERE target.id = $1
+         AND target.organization_id = $2`,
+      [id, organizationId, productType]
+    );
   },
 
   async update(
@@ -245,45 +285,6 @@ export const productsRepository = {
     return updated;
   },
 
-  async syncQueueAssignments(
-    product: ProductRow,
-    queueIds: string[],
-    client: PoolClient
-  ): Promise<void> {
-    const uniqueQueueIds = [...new Set(queueIds)];
-    const valid = await client.query<{ id: string }>(
-      `SELECT id
-       FROM queues
-       WHERE id = ANY($1::uuid[])
-         AND organization_id = $2
-         AND branch_id = $3
-         AND is_active = TRUE
-       FOR UPDATE`,
-      [uniqueQueueIds, product.organization_id, product.branch_id]
-    );
-    if (valid.rowCount !== uniqueQueueIds.length) {
-      throw new Error('One or more queues are outside the product branch');
-    }
-    await client.query(
-      `UPDATE queue_products
-       SET is_active = FALSE, updated_at = NOW()
-       WHERE product_id = $1`,
-      [product.id]
-    );
-    await client.query(
-      `INSERT INTO queue_products (
-         queue_id, product_id, organization_id, branch_id, is_active, display_order
-       )
-       SELECT selected.queue_id, $2, $3, $4, TRUE, selected.ordinality - 1
-       FROM UNNEST($1::uuid[]) WITH ORDINALITY AS selected(queue_id, ordinality)
-       ON CONFLICT (queue_id, product_id) DO UPDATE SET
-         is_active = TRUE,
-         display_order = EXCLUDED.display_order,
-         updated_at = NOW()`,
-      [uniqueQueueIds, product.id, product.organization_id, product.branch_id]
-    );
-  },
-
   async findProductIdsByQueue(queueId: string, client?: PoolClient): Promise<string[]> {
     const executor = client ?? pool;
     const { rows } = await executor.query<{ product_id: string }>(
@@ -309,13 +310,12 @@ export const productsRepository = {
        FROM products
        WHERE id = ANY($1::uuid[])
          AND organization_id = $2
-         AND branch_id = $3
          AND is_active = TRUE
        FOR UPDATE`,
-      [uniqueProductIds, organizationId, branchId]
+      [uniqueProductIds, organizationId]
     );
     if (valid.rowCount !== uniqueProductIds.length) {
-      throw new Error('One or more products are outside the queue branch');
+      throw new Error('One or more products are outside the organization catalog');
     }
     await client.query(
       `UPDATE queue_products

@@ -138,11 +138,7 @@ export const paymentsService = {
     const queueProductIds = new Set(
       (await productsRepository.findByQueue(dto.queueId)).map((product) => product.id)
     );
-    if (
-      rows.some(
-        (row) => row.product.branch_id !== dto.branchId || !queueProductIds.has(row.product.id)
-      )
-    ) {
+    if (rows.some((row) => !queueProductIds.has(row.product.id))) {
       throw AppError.badRequest('One or more products are unavailable in the selected queue');
     }
     const coveredProductIds = resolveCoveredProductIds(dto.scope, rows);

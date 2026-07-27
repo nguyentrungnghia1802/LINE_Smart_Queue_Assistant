@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -54,6 +55,8 @@ interface QueueInfo {
   prefix: string;
   status: 'open' | 'paused' | 'closed';
   isAcceptingBookings: boolean;
+  isQueueOpen: boolean;
+  isBranchOpen: boolean;
   waitingCount: number;
   avgWaitMinutes: number;
   products: Product[];
@@ -61,11 +64,13 @@ interface QueueInfo {
 
 interface Product {
   id: string;
+  product_code: string;
   name: string;
   description: string | null;
   image_url: string | null;
   price: string;
   service_time_minutes: number;
+  max_wait_minutes: number | null;
   requires_prepayment: boolean;
   stock_quantity: number | null;
   product_type: 'product' | 'service';
@@ -194,6 +199,7 @@ export function CustomerJoinPage({
     accuracyMeters?: number;
   } | null>(null);
   const [locationStatus, setLocationStatus] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const hydratedDraftKeyRef = useRef<string | null>(null);
   const bookingCompletedRef = useRef(false);
   const bookingAttemptIdRef = useRef(createCheckoutId());
@@ -868,6 +874,7 @@ export function CustomerJoinPage({
                   onDecrease={() => setQty(product, -1)}
                   onIncrease={() => setQty(product, 1)}
                   onQuantityChange={(quantity) => setQtyAbsolute(product, quantity)}
+                  onOpen={() => setSelectedProduct(product)}
                 />
               ))}
             </div>
@@ -1037,6 +1044,9 @@ export function CustomerJoinPage({
           )}
         </form>
       </main>
+      {selectedProduct && (
+        <ProductDetailModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+      )}
     </div>
   );
 }
@@ -1136,12 +1146,14 @@ function ProductCard({
   onDecrease,
   onIncrease,
   onQuantityChange,
+  onOpen,
 }: Readonly<{
   product: Product;
   quantity: number;
   onDecrease: () => void;
   onIncrease: () => void;
   onQuantityChange: (quantity: number) => void;
+  onOpen: () => void;
 }>) {
   const { t, i18n } = useTranslation(['customer', 'common']);
   const outOfStock = product.stock_quantity !== null && product.stock_quantity <= 0;
@@ -1154,7 +1166,12 @@ function ProductCard({
         outOfStock ? 'opacity-70' : 'hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]'
       }`}
     >
-      <div className="flex gap-4">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full gap-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        aria-label={t('booking.openProductDetails', { name: product.name })}
+      >
         <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-gray-100">
           {product.image_url ? (
             <img
@@ -1203,7 +1220,7 @@ function ProductCard({
             )}
           </div>
         </div>
-      </div>
+      </button>
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <p className="text-xs text-gray-500">
@@ -1245,6 +1262,113 @@ function ProductCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function ProductDetailModal({
+  product,
+  onClose,
+}: Readonly<{ product: Product; onClose: () => void }>) {
+  const { t, i18n } = useTranslation(['customer', 'common', 'manager']);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-gray-950/60 p-0 sm:items-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="product-detail-title"
+    >
+      <section className="max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:rounded-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-5 py-4">
+          <div>
+            <p className="font-mono text-xs font-bold text-brand-700">{product.product_code}</p>
+            <h2 id="product-detail-title" className="mt-1 text-xl font-bold text-gray-950">
+              {product.name}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
+            aria-label={t('actions.close', { ns: 'common' })}
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+        {product.image_url && (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="aspect-video w-full object-cover"
+          />
+        )}
+        <div className="space-y-5 p-5">
+          {product.description && (
+            <p className="whitespace-pre-line text-sm leading-7 text-gray-600">
+              {product.description}
+            </p>
+          )}
+          <dl className="grid gap-4 rounded-xl bg-gray-50 p-4 sm:grid-cols-2">
+            <Detail
+              label={t('labels.price', { ns: 'common' })}
+              value={formatJPY(product.price, i18n.resolvedLanguage)}
+            />
+            <Detail
+              label={t('manager:products.type')}
+              value={
+                product.product_type === 'service'
+                  ? t('labels.service', { ns: 'common' })
+                  : t('labels.product', { ns: 'common' })
+              }
+            />
+            <Detail
+              label={t('manager:products.serviceTime')}
+              value={t('units.minutes', {
+                ns: 'common',
+                count: product.service_time_minutes,
+              })}
+            />
+            <Detail
+              label={t('manager:products.maxWaitLabel')}
+              value={
+                product.max_wait_minutes
+                  ? t('units.minutes', { ns: 'common', count: product.max_wait_minutes })
+                  : '-'
+              }
+            />
+            <Detail
+              label={t('manager:products.stock')}
+              value={
+                product.stock_quantity === null
+                  ? t('units.unlimited', { ns: 'common' })
+                  : String(product.stock_quantity)
+              }
+            />
+            <Detail
+              label={t('manager:products.prepayment')}
+              value={
+                product.requires_prepayment ? t('manager:products.yes') : t('manager:products.no')
+              }
+            />
+          </dl>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-xl bg-gray-950 py-3 text-sm font-bold text-white"
+          >
+            {t('actions.close', { ns: 'common' })}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Detail({ label, value }: Readonly<{ label: string; value: string }>) {
+  return (
+    <div>
+      <dt className="text-xs font-bold text-gray-500">{label}</dt>
+      <dd className="mt-1 text-sm font-bold text-gray-950">{value}</dd>
+    </div>
   );
 }
 

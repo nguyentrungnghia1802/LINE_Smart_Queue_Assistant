@@ -3,17 +3,15 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
+import {
+  type QueueProductOption,
+  QueueProductPicker,
+} from '../../components/products/QueueProductPicker';
 import { get, post } from '../../services/apiClient';
 
 interface QueueRow {
   id: string;
   name: string;
-}
-
-interface ProductRow {
-  id: string;
-  name: string;
-  is_active: boolean;
 }
 
 export function CreateQueuePage() {
@@ -34,7 +32,7 @@ export function CreateQueuePage() {
 
   const { data: products = [] } = useQuery({
     queryKey: ['manager-products-for-queue'],
-    queryFn: () => get<ProductRow[]>('/api/v1/products'),
+    queryFn: () => get<QueueProductOption[]>('/api/v1/products'),
   });
 
   function set(field: string, value: string | string[]) {
@@ -148,30 +146,11 @@ export function CreateQueuePage() {
         </div>
 
         <Field label={t('queue.products')}>
-          <div className="grid gap-2 rounded-lg border border-gray-200 p-3 sm:grid-cols-2">
-            {products
-              .filter((product) => product.is_active)
-              .map((product) => (
-                <label key={product.id} className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={form.productIds.includes(product.id)}
-                    onChange={(event) =>
-                      set(
-                        'productIds',
-                        event.target.checked
-                          ? [...form.productIds, product.id]
-                          : form.productIds.filter((id) => id !== product.id)
-                      )
-                    }
-                  />
-                  <span className="min-w-0 truncate">{product.name}</span>
-                </label>
-              ))}
-            {products.length === 0 && (
-              <p className="text-xs text-gray-500">{t('queue.productsEmpty')}</p>
-            )}
-          </div>
+          <QueueProductPicker
+            products={products}
+            selectedIds={form.productIds}
+            onChange={(ids) => set('productIds', ids)}
+          />
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -186,6 +165,7 @@ export function CreateQueuePage() {
             />
           </Field>
         </div>
+        <p className="-mt-3 text-xs leading-5 text-gray-500">{t('queue.timingHint')}</p>
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
 

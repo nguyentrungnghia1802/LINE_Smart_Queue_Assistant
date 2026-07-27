@@ -99,9 +99,7 @@ export async function seed(client: PoolClient): Promise<void> {
   await client.query(
     `INSERT INTO branch_business_hours
        (branch_id, weekday, is_closed, opens_at, closes_at)
-     SELECT branch.id, day, day = 0,
-            CASE WHEN day = 0 THEN NULL ELSE '09:00'::time END,
-            CASE WHEN day = 0 THEN NULL ELSE '18:00'::time END
+     SELECT branch.id, day, FALSE, '00:00'::time, '23:59'::time
      FROM UNNEST($1::uuid[]) AS branch(id)
      CROSS JOIN generate_series(0, 6) AS day
      ON CONFLICT (branch_id, weekday) DO UPDATE SET

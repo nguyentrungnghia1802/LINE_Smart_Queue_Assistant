@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
@@ -9,6 +10,7 @@ import { useAuthStore } from '../../store/authStore';
 
 interface ProductRow {
   id: string;
+  product_code: string;
   name: string;
   description: string | null;
   image_url: string | null;
@@ -26,6 +28,8 @@ export function ManagerProductsPage() {
   const queryClient = useQueryClient();
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'product' | 'service'>('all');
 
   const { data: products = [], isLoading } = useQuery<ProductRow[]>({
     queryKey: ['products', orgId],
@@ -49,6 +53,16 @@ export function ManagerProductsPage() {
       setDeleteError(t('products.deleteFailed', { code }));
     },
   });
+  const filteredProducts = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return products.filter(
+      (product) =>
+        (typeFilter === 'all' || product.product_type === typeFilter) &&
+        (!query ||
+          product.name.toLocaleLowerCase().includes(query) ||
+          product.product_code.toLocaleLowerCase().includes(query))
+    );
+  }, [products, search, typeFilter]);
 
   if (isLoading)
     return <div className="text-gray-400 text-sm">{t('states.loading', { ns: 'common' })}</div>;
@@ -64,13 +78,40 @@ export function ManagerProductsPage() {
           + {t('products.create')}
         </Link>
       </div>
+      <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 sm:flex-row">
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-gray-300 px-3">
+          <Search className="h-4 w-4 text-gray-400" aria-hidden="true" />
+          <span className="sr-only">{t('products.search')}</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={t('products.searchPlaceholder')}
+            className="min-w-0 flex-1 border-0 py-2 text-sm outline-none"
+          />
+        </label>
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-gray-100 p-1">
+          {(['all', 'product', 'service'] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setTypeFilter(type)}
+              className={`rounded-md px-3 py-1.5 text-xs font-bold ${
+                typeFilter === type ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500'
+              }`}
+            >
+              {t(`products.filters.${type}`)}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {products.length === 0 ? (
+      {filteredProducts.length === 0 ? (
         <p className="text-gray-400 text-sm">{t('products.empty')}</p>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="divide-y divide-gray-100 md:hidden">
-            {products.map((product) => (
+            {filteredProducts.map((product, index) => (
               <article key={product.id} className="p-4">
                 <div className="flex min-w-0 gap-3">
                   {product.image_url ? (
@@ -87,8 +128,12 @@ export function ManagerProductsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <h2 className="truncate font-bold text-gray-900">{product.name}</h2>
+                        <h2 className="truncate font-bold text-gray-900">
+                          {index + 1}. {product.name}
+                        </h2>
                         <p className="mt-1 text-xs text-gray-500">
+                          <span className="font-mono font-bold">{product.product_code}</span>
+                          {' · '}
                           {product.product_type === 'service'
                             ? t('labels.service', { ns: 'common' })
                             : t('labels.product', { ns: 'common' })}
@@ -139,6 +184,10 @@ export function ManagerProductsPage() {
           <table className="hidden w-full text-sm md:table">
             <thead>
               <tr className="bg-gray-50 text-left text-gray-500 border-b border-gray-200">
+                <th className="w-14 px-4 py-3 text-center font-medium">
+                  {t('labels.number', { ns: 'common' })}
+                </th>
+                <th className="px-4 py-3 font-medium">{t('products.code')}</th>
                 <th className="px-4 py-3 font-medium">{t('labels.name', { ns: 'common' })}</th>
                 <th className="px-4 py-3 font-medium hidden sm:table-cell">{t('products.type')}</th>
                 <th className="px-4 py-3 font-medium text-right">
@@ -154,8 +203,12 @@ export function ManagerProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {products.map((p) => (
+              {filteredProducts.map((p, index) => (
                 <tr key={p.id} className="border-b border-gray-100 last:border-0">
+                  <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
+                  <td className="px-4 py-3 font-mono text-xs font-bold text-gray-700">
+                    {p.product_code}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {p.image_url ? (

@@ -94,6 +94,7 @@ const branchRow = {
   longitude: null,
   timezone: 'Asia/Tokyo',
   public_qr_token: BRANCH_TOKEN,
+  payment_settings: {},
   is_active: true,
   created_by: null,
   created_at: new Date(),

@@ -18,6 +18,7 @@ export interface BranchRow {
   latitude: string | null;
   longitude: string | null;
   timezone: string;
+  payment_settings: Record<string, unknown>;
   is_active: boolean;
   created_by: string | null;
   created_at: Date;
@@ -361,6 +362,7 @@ export class BranchesRepository extends BaseRepository {
       addressLine2?: string | null;
       latitude?: number | null;
       longitude?: number | null;
+      paymentSettings?: Record<string, unknown>;
       createdBy: string;
     },
     client: PoolClient
@@ -420,6 +422,7 @@ export class BranchesRepository extends BaseRepository {
       addressLine2: 'address_line2',
       latitude: 'latitude',
       longitude: 'longitude',
+      paymentSettings: 'payment_settings',
     };
     const sets: string[] = [];
     const parameters: unknown[] = [];

@@ -4,9 +4,9 @@
 
 /** Operational state of a Queue */
 export enum QueueStatus {
-  ACTIVE = 'ACTIVE',
-  PAUSED = 'PAUSED',
-  CLOSED = 'CLOSED',
+  ACTIVE = 'open',
+  PAUSED = 'paused',
+  CLOSED = 'closed',
 }
 
 /**

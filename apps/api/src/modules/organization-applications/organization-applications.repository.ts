@@ -76,6 +76,97 @@ type UpdateApplicationParams = Omit<
 > & { amountYen: number };
 
 export class OrganizationApplicationsRepository extends BaseRepository {
+  async getAdminDashboard(): Promise<{
+    organizationCount: number;
+    pendingApplicationCount: number;
+    totalRevenue: number;
+    planCounts: Record<'starter' | 'standard' | 'scale', number>;
+    monthlyRevenue: Array<{ month: string; revenue: number }>;
+  }> {
+    const [summary, monthly] = await Promise.all([
+      this.query<{
+        organization_count: string;
+        pending_count: string;
+        total_revenue: string;
+        starter_count: string;
+        standard_count: string;
+        scale_count: string;
+      }>(
+        `SELECT
+           (SELECT COUNT(*) FROM organizations WHERE is_active = TRUE)::TEXT
+             AS organization_count,
+           COUNT(*) FILTER (WHERE application.status = 'pending')::TEXT AS pending_count,
+           COALESCE(SUM(application.amount_yen) FILTER (
+             WHERE application.status = 'approved' AND application.payment_status = 'paid'
+           ), 0)::TEXT AS total_revenue,
+           COUNT(*) FILTER (
+             WHERE application.status = 'approved'
+               AND application.plan_code = 'starter'
+               AND EXISTS (
+                 SELECT 1 FROM organizations active_org
+                 WHERE active_org.id = application.organization_id
+                   AND active_org.is_active = TRUE
+               )
+           )::TEXT
+             AS starter_count,
+           COUNT(*) FILTER (
+             WHERE application.status = 'approved'
+               AND application.plan_code = 'standard'
+               AND EXISTS (
+                 SELECT 1 FROM organizations active_org
+                 WHERE active_org.id = application.organization_id
+                   AND active_org.is_active = TRUE
+               )
+           )::TEXT
+             AS standard_count,
+           COUNT(*) FILTER (
+             WHERE application.status = 'approved'
+               AND application.plan_code = 'scale'
+               AND EXISTS (
+                 SELECT 1 FROM organizations active_org
+                 WHERE active_org.id = application.organization_id
+                   AND active_org.is_active = TRUE
+               )
+           )::TEXT
+             AS scale_count
+         FROM organization_applications application`
+      ),
+      this.query<{ month: string; revenue: string }>(
+        `WITH months AS (
+           SELECT generate_series(
+             DATE_TRUNC('month', NOW()) - INTERVAL '11 months',
+             DATE_TRUNC('month', NOW()),
+             INTERVAL '1 month'
+           ) AS month
+         )
+         SELECT TO_CHAR(months.month, 'YYYY-MM') AS month,
+                COALESCE(SUM(application.amount_yen), 0)::TEXT AS revenue
+         FROM months
+         LEFT JOIN organization_applications application
+           ON DATE_TRUNC('month', application.reviewed_at) = months.month
+          AND application.status = 'approved'
+          AND application.payment_status = 'paid'
+         GROUP BY months.month
+         ORDER BY months.month`
+      ),
+    ]);
+    const row = summary[0];
+    return {
+      organizationCount: Number(row?.organization_count ?? 0),
+      pendingApplicationCount: Number(row?.pending_count ?? 0),
+      totalRevenue: Number(row?.total_revenue ?? 0),
+      planCounts: {
+        starter: Number(row?.starter_count ?? 0),
+        standard: Number(row?.standard_count ?? 0),
+        scale: Number(row?.scale_count ?? 0),
+      },
+      monthlyRevenue: monthly.map((item) => ({
+        month: item.month,
+        revenue: Number(item.revenue),
+      })),
+    };
+  }
+
   async create(
     params: CreateApplicationParams,
     client?: PoolClient

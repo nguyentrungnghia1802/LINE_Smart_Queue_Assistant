@@ -42,9 +42,10 @@ test('manager keeps every primary destination available at the active viewport',
   });
   await expect(activeNavigation).toHaveCount(1);
 
-  for (const label of ['ダッシュボード', '商品', 'キュー', 'スタッフ', 'QR表示', '設定']) {
+  for (const label of ['ダッシュボード', 'キュー', 'スタッフ', 'QR表示', '設定']) {
     await expect(activeNavigation.getByRole('link', { name: label, exact: true })).toBeVisible();
   }
+  await expect(activeNavigation.getByRole('link', { name: '商品', exact: true })).toHaveCount(0);
 
   const widths = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
@@ -76,6 +77,7 @@ test('admin destinations remain available without horizontal overflow', async ({
 test('customer booking remains usable on a phone viewport', async ({ page }) => {
   await page.goto('/liff/qr/demo-queue-lab-2026');
   await expect(page.getByRole('heading', { name: '商品 / サービス' })).toBeVisible();
+  await page.getByRole('button', { name: 'ヘアカット を追加' }).click();
   await expect(page.getByRole('button', { name: '予約する' })).toBeVisible();
   const widths = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,

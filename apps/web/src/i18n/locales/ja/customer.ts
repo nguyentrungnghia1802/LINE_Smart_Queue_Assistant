@@ -99,6 +99,15 @@ export const customer = {
     lineEntryUnavailableHint: '店舗スタッフにLINE受付の設定をご確認ください。',
     openingLine: 'LINE受付を開いています',
     openingLineHint: 'LINE認証後、そのまま商品・サービスを選択できます。',
+    openProductDetails: '{{name}}の詳細を見る',
+  },
+  scanner: {
+    open: 'QRスキャナーを開く',
+    scan: 'スキャン',
+    title: '店舗QRコードを読み取る',
+    hint: 'Smart Queueの受付QRコードをカメラに向けてください。',
+    invalidCode: 'Smart Queueの受付QRコードではありません。',
+    cameraUnavailable: 'カメラを使用できません。ブラウザの権限を確認して再試行してください。',
   },
   ticket: {
     notFound: '受付番号が見つかりません',

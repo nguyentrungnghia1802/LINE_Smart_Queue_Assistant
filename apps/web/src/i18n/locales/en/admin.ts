@@ -1,12 +1,17 @@
 export const admin = {
   dashboard: {
     title: 'Admin dashboard',
+    loading: 'Loading platform analytics...',
     organizationCount: 'Organizations',
+    totalPlatformRevenue: 'Platform revenue',
+    registeredPlans: 'Active subscriptions',
+    organizationsByPlan: 'Organizations by service plan',
+    monthlyRevenue: 'Monthly subscription revenue',
     logoConfigured: 'Logo configured',
     contactMissing: 'Contact missing',
     paymentMissing: 'Payment details missing',
     section: 'Administration',
-    description: 'Review organization registrations and missing operational settings.',
+    description: 'Monitor subscriptions, service plans, and platform revenue.',
     recentOrganizations: 'Recently registered organizations',
     noOrganizations: 'No organizations registered yet.',
     phoneMissing: 'Phone not configured',
@@ -68,6 +73,9 @@ export const admin = {
     ownerNamePlaceholder: 'Example: Taro Yamada',
     passwordPlaceholder: 'Enter only when changing it',
     ownerMissing: 'The organization owner account was not found.',
+    search: 'Search organizations',
+    searchPlaceholder: 'Search by organization name or slug',
+    subscriptionPlan: 'Service plan',
   },
   applications: {
     nav: 'Applications',
@@ -138,5 +146,7 @@ export const admin = {
     rejectSuccess: 'The application was rejected.',
     actionFailed: 'The review action could not be completed.',
     status: { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' },
+    search: 'Search applications',
+    searchPlaceholder: 'Search by reference, business, or work email',
   },
 } as const;

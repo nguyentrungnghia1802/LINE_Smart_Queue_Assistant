@@ -61,7 +61,7 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 | `organization_exception_days` | Holidays and exceptional opening/closure dates                               | Unique tenant/date; closed/open time consistency                            |
 | `users`                       | Platform identity, role, password/profile, preferred locale                  | Globally unique normalized optional email; nullable locale; active flag     |
 | `organization_members`        | Tenant manager/staff authorization                                           | Unique organization/user pair; cascading tenant/user delete                 |
-| `organization_branches`       | Physical branch, stable QR, address, timezone, and owner-created lifecycle   | Unique branch QR and organization/code; soft active flag                    |
+| `organization_branches`       | Physical branch, stable QR, address, timezone, payment acceptance, lifecycle | Unique branch QR and organization/code; soft active flag                    |
 | `branch_memberships`          | Manager/staff branch assignment                                              | Branch/member FK; one active branch for a manager                           |
 | `branch_business_hours`       | Weekly branch-local opening schedule                                         | Unique branch/weekday; closed/open time consistency                         |
 | `branch_exception_days`       | Branch holidays and exceptional opening/closure dates                        | Unique branch/date; overrides weekly schedule                               |
@@ -73,19 +73,19 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 
 ### Catalog, queue, and orders
 
-| Table                               | Key purpose                               | Important constraints                                                                     |
-| ----------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `products`                          | Branch product/service snapshot source    | Organization/branch FK; nonnegative price/stock; service stock must be `NULL`             |
-| `queues`                            | Named branch queue and daily counter      | Organization/branch FK; unique active branch/name; capacity/time checks                   |
-| `queue_products`                    | Queue-specific branch catalog             | Composite queue/product scope FKs; unique mapping and active display order                |
-| `booking_groups`                    | Group separate repeat bookings            | Tenant/customer/device keys; active/completed/cancelled check                             |
-| `orders`                            | Commercial reservation and receipt header | Direct branch/queue scope, group, totals/status, immutable business/fulfillment snapshots |
-| `order_items`                       | Price/name/duration/payment snapshots     | Positive quantity, nonnegative subtotal/prepaid amount                                    |
-| `payment_transactions`              | Provider intent/state/reconciliation      | Tenant/order, amount/currency, provider intent/external-ID indexes                        |
-| `payment_webhook_events`            | Idempotent provider callback log          | Unique provider/event ID; replay-safe status                                              |
-| `inventory_reservations`            | Finite stock allocation                   | Positive quantity; reserved/consumed/released/expired check                               |
-| `payment_reconciliation_operations` | Audited payment decisions                 | Unique idempotency key; tenant, transaction, order, actor and amount references           |
-| `queue_entries`                     | Ticket lifecycle and ETA fields           | Unique queue/ticket number and code; active-user/LINE indexes                             |
+| Table                               | Key purpose                               | Important constraints                                                                      |
+| ----------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `products`                          | Organization product/service catalog      | Organization FK; unique `SPn`/`DVn` code; nonnegative price/stock; service stock is `NULL` |
+| `queues`                            | Named branch queue and daily counter      | Organization/branch FK; unique active branch/name; capacity/time checks                    |
+| `queue_products`                    | Queue-specific branch catalog assignment  | Queue branch scope plus organization product FK; unique mapping and active display order   |
+| `booking_groups`                    | Group separate repeat bookings            | Tenant/customer/device keys; active/completed/cancelled check                              |
+| `orders`                            | Commercial reservation and receipt header | Direct branch/queue scope, group, totals/status, immutable business/fulfillment snapshots  |
+| `order_items`                       | Price/name/duration/payment snapshots     | Positive quantity, nonnegative subtotal/prepaid amount                                     |
+| `payment_transactions`              | Provider intent/state/reconciliation      | Tenant/order, amount/currency, provider intent/external-ID indexes                         |
+| `payment_webhook_events`            | Idempotent provider callback log          | Unique provider/event ID; replay-safe status                                               |
+| `inventory_reservations`            | Finite stock allocation                   | Positive quantity; reserved/consumed/released/expired check                                |
+| `payment_reconciliation_operations` | Audited payment decisions                 | Unique idempotency key; tenant, transaction, order, actor and amount references            |
+| `queue_entries`                     | Ticket lifecycle and ETA fields           | Unique queue/ticket number and code; active-user/LINE indexes                              |
 
 ### Location, analysis, messaging, and audit
 
@@ -250,7 +250,11 @@ the administrator; it is blocked in production and requires
 - `organization_branches.public_qr_token` provides one stable QR per branch.
 - `branch_business_hours` and `branch_exception_days` control branch-local booking availability.
 - `queues.branch_id` is required; a branch can have multiple active queues with unique active names.
-- `products.branch_id` and `queue_products` enforce queue-specific catalogs inside one branch.
+- Migration `000020_organization_product_catalog` makes `products.branch_id` nullable compatibility
+  data, generates organization-unique `DVn`/`SPn` product codes, and changes `queue_products` to
+  reference the organization catalog while preserving queue/branch scope.
+- `organization_branches.payment_settings` stores non-secret accepted methods, merchant display
+  information, and settlement instructions. Provider credentials remain outside this JSON field.
 - `orders.branch_id` and `orders.queue_id` preserve direct operational scope, while organization,
   branch, queue, and fulfilling-staff snapshots preserve receipt meaning after later profile changes.
 - Active reservations made by the same verified LINE user in one branch reuse the current active

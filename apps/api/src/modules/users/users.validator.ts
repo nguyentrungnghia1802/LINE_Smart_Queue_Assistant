@@ -41,7 +41,6 @@ export const InviteStaffSchema = z.object({
 
 export const UpdateStaffSchema = z.object({
   displayName: z.string().trim().min(1).max(120).optional(),
-  email: z.string().trim().toLowerCase().email().max(254).optional(),
   phone: JapanesePhoneSchema.optional(),
   currentAddress: z.string().trim().min(1).max(300).optional(),
   jobTitle: z.string().trim().min(1).max(120).optional(),

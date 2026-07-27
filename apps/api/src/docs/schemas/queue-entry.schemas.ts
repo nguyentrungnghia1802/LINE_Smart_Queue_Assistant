@@ -64,7 +64,7 @@ export const queueEntrySchemas = {
     properties: {
       queueId: { type: 'string', format: 'uuid' },
       name: { type: 'string', example: 'General Service' },
-      status: { type: 'string', enum: ['ACTIVE', 'PAUSED', 'CLOSED'] },
+      status: { type: 'string', enum: ['open', 'paused', 'closed'] },
       currentNumber: { type: 'integer', example: 12 },
       waitingCount: { type: 'integer', example: 8 },
       servingCount: { type: 'integer', example: 1 },

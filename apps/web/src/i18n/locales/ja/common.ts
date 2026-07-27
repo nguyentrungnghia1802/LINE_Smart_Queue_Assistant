@@ -60,6 +60,7 @@ export const common = {
     refunded: '返金済み',
   },
   labels: {
+    number: '番号',
     name: '名前',
     displayName: '表示名',
     email: 'メール',

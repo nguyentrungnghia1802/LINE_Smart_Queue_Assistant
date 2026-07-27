@@ -1,3 +1,5 @@
+import { Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
@@ -8,6 +10,16 @@ import { useQueues } from '../hooks/useQueues';
 export function QueuesPage() {
   const { t } = useTranslation(['manager', 'common']);
   const { data: queues, isLoading, isError } = useQueues();
+  const [search, setSearch] = useState('');
+  const visibleQueues = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return (queues ?? []).filter(
+      (queue) =>
+        !query ||
+        queue.name.toLocaleLowerCase().includes(query) ||
+        queue.description?.toLocaleLowerCase().includes(query)
+    );
+  }, [queues, search]);
 
   return (
     <div>
@@ -20,6 +32,17 @@ export function QueuesPage() {
           + {t('queue.create')}
         </Link>
       </div>
+      <label className="mb-5 flex max-w-xl items-center gap-2 rounded-lg border border-gray-300 bg-white px-3">
+        <Search className="h-4 w-4 text-gray-400" aria-hidden="true" />
+        <span className="sr-only">{t('queue.search')}</span>
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder={t('queue.searchPlaceholder')}
+          className="min-w-0 flex-1 border-0 py-2.5 text-sm outline-none"
+        />
+      </label>
 
       {isLoading && (
         <div className="flex justify-center py-16">
@@ -31,10 +54,10 @@ export function QueuesPage() {
 
       {queues && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {queues.map((q) => (
-            <QueueCard key={q.id} queue={q} />
+          {visibleQueues.map((q, index) => (
+            <QueueCard key={q.id} queue={q} sequence={index + 1} />
           ))}
-          {queues.length === 0 && (
+          {visibleQueues.length === 0 && (
             <p className="text-gray-500 col-span-3 py-12 text-center">{t('queue.listEmpty')}</p>
           )}
         </div>

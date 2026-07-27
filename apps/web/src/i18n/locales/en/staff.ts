@@ -69,5 +69,7 @@ export const staff = {
     empty: 'No products yet.',
     prepaymentRequired: 'Prepayment required',
     remaining: '{{count}} remaining',
+    search: 'Search products and services',
+    searchPlaceholder: 'Search by name or product code',
   },
 } as const;

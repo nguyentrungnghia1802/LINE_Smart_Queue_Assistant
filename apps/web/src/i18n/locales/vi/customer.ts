@@ -100,6 +100,15 @@ export const customer = {
     lineEntryUnavailableHint: 'Hãy nhờ nhân viên cửa hàng kiểm tra cấu hình tiếp nhận LINE.',
     openingLine: 'Đang mở tiếp nhận bằng LINE',
     openingLineHint: 'Sau khi xác thực LINE, bạn có thể chọn sản phẩm và dịch vụ ngay.',
+    openProductDetails: 'Xem chi tiết {{name}}',
+  },
+  scanner: {
+    open: 'Mở trình quét QR',
+    scan: 'Quét QR',
+    title: 'Quét mã QR của cửa hàng',
+    hint: 'Đưa camera hướng vào mã QR tiếp nhận của Smart Queue.',
+    invalidCode: 'Đây không phải liên kết QR tiếp nhận của Smart Queue.',
+    cameraUnavailable: 'Không thể dùng camera. Hãy kiểm tra quyền trình duyệt và thử lại.',
   },
   ticket: {
     notFound: 'Không tìm thấy lượt',

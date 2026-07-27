@@ -26,6 +26,7 @@ vi.mock('../../../services/apiClient', () => ({
 
 const product = {
   id: 'product-id',
+  product_code: 'DV1',
   name: 'ヘアカット',
   description: null,
   image_url: null,
@@ -56,7 +57,7 @@ describe('ManagerProductsPage', () => {
     vi.mocked(get).mockReset().mockResolvedValueOnce([product]).mockResolvedValue([]);
     renderPage();
 
-    expect(await screen.findAllByText('ヘアカット')).toHaveLength(2);
+    expect(await screen.findAllByText('ヘアカット')).toHaveLength(1);
     fireEvent.click(screen.getAllByRole('button', { name: '削除' })[0]);
     const deleteButtons = screen.getAllByRole('button', { name: '削除' });
     fireEvent.click(deleteButtons[deleteButtons.length - 1]);

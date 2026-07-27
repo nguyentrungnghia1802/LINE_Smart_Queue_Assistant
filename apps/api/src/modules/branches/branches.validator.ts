@@ -61,6 +61,26 @@ export const UpdateMyBranchSchema = z
     addressLine2: z.string().trim().max(200).nullable().optional(),
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
+    paymentSettings: z
+      .object({
+        merchantName: z.string().trim().max(160).optional(),
+        settlementMethod: z.enum(['bank_transfer', 'card', 'paypay', 'cash']).optional(),
+        bankName: z.string().trim().max(120).optional(),
+        bankBranchName: z.string().trim().max(120).optional(),
+        accountType: z.enum(['ordinary', 'checking']).optional(),
+        accountHolder: z.string().trim().max(160).optional(),
+        accountNumberLast4: z
+          .string()
+          .trim()
+          .regex(/^[0-9]{4}$/)
+          .optional(),
+        invoiceRegistrationNumber: z
+          .string()
+          .trim()
+          .regex(/^T[0-9]{13}$/)
+          .optional(),
+      })
+      .optional(),
   })
   .and(CoordinatesSchema)
   .refine((value) => Object.values(value).some((item) => item !== undefined), {

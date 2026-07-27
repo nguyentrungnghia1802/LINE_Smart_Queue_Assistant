@@ -69,5 +69,7 @@ export const staff = {
     empty: 'Chưa có sản phẩm.',
     prepaymentRequired: 'Yêu cầu trả trước',
     remaining: 'Còn lại: {{count}}',
+    search: 'Tìm sản phẩm và dịch vụ',
+    searchPlaceholder: 'Tìm theo tên hoặc mã sản phẩm',
   },
 } as const;

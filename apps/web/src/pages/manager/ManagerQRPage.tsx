@@ -20,13 +20,16 @@ interface BranchInfo {
 
 const LIFF_ID = import.meta.env.VITE_LIFF_ID as string | undefined;
 
-export function ManagerQRPage() {
+export function ManagerQRPage({
+  endpoint = '/api/v1/branches/me',
+  queryKey = 'manager-my-branch',
+}: Readonly<{ endpoint?: string; queryKey?: string }>) {
   const { t } = useTranslation(['manager', 'common']);
   const printRef = useRef<HTMLDivElement>(null);
 
   const { data: branchData, isLoading } = useQuery<BranchInfo>({
-    queryKey: ['manager-my-branch'],
-    queryFn: () => get<BranchInfo>('/api/v1/branches/me'),
+    queryKey: [queryKey],
+    queryFn: () => get<BranchInfo>(endpoint),
   });
 
   const publicJoinUrl = branchData?.public_qr_token

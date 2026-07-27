@@ -18,7 +18,7 @@ interface OwnerManager {
 }
 
 export function AdminOrganizationDetailPage() {
-  const { t } = useTranslation(['admin', 'common']);
+  const { t } = useTranslation(['admin', 'common', 'marketing']);
   const { orgId = '' } = useParams();
   const navigate = useNavigate();
   const client = useQueryClient();
@@ -127,6 +127,10 @@ export function AdminOrganizationDetailPage() {
             <Info label={t('labels.phone', { ns: 'common' })} value={org.phone ?? '-'} />
             <Info label={t('labels.address', { ns: 'common' })} value={org.address ?? '-'} wide />
             <Info label={t('organizations.defaultLocale')} value={org.default_locale ?? 'ja'} />
+            <Info
+              label={t('organizations.subscriptionPlan')}
+              value={t(`pricing.${org.subscription_plan}.name`, { ns: 'marketing' })}
+            />
           </dl>
           <button
             type="button"

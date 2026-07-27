@@ -60,6 +60,7 @@ export const common = {
     refunded: 'Đã hoàn tiền',
   },
   labels: {
+    number: 'STT',
     name: 'Tên',
     displayName: 'Tên hiển thị',
     email: 'Email',

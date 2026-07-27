@@ -17,28 +17,15 @@ interface StatsData {
   averageEtaSeconds: number;
   totalProducts: number;
   currentQueueDepth: number;
-  dailyRevenue: Array<{ date: string; revenue: number; orders: number }>;
+  monthlyRevenue: Array<{ month: string; revenue: number; orders: number }>;
   topProducts: Array<{ product_name: string; total_sold: number; revenue: number }>;
-  recentOrders: Array<{
-    id: string;
-    order_number: string;
-    customer_name: string | null;
-    status: string;
-    subtotal: number;
-    payment_status: string;
-    created_at: string;
-    item_count: number;
-  }>;
-  recentQueueActivities: Array<{
-    entry_id: string;
-    queue_id: string;
-    queue_name: string;
-    ticket_code: string;
-    status: string;
-    updated_at: string;
-    order_number: string | null;
-    customer_name: string | null;
-  }>;
+  bestStaff: {
+    user_id: string;
+    display_name: string;
+    employee_code: string | null;
+    completed_orders: number;
+    revenue: number;
+  } | null;
 }
 
 interface WaitForecast {
@@ -146,7 +133,7 @@ export function ManagerDashboardPage() {
   const formatMinutes = (seconds: number) =>
     t('units.minutes', { ns: 'common', count: Math.ceil(seconds / 60) });
 
-  const maxRevenue = Math.max(...data.dailyRevenue.map((d) => d.revenue), 1);
+  const maxRevenue = Math.max(...data.monthlyRevenue.map((d) => d.revenue), 1);
   const cancellationRate = Math.round(data.cancellationRate * 100);
   const waitForecast = forecasts.data?.[0];
   const recommendedSlot = staffing.data?.reduce<StaffingRecommendation | undefined>(
@@ -154,13 +141,6 @@ export function ManagerDashboardPage() {
       !best || item.recommended_staff_count > best.recommended_staff_count ? item : best,
     undefined
   );
-  const peakSlot =
-    data.dailyRevenue.length === 0
-      ? t('dashboard.pendingData', { ns: 'manager' })
-      : data.dailyRevenue
-          .reduce((best, day) => (day.orders > best.orders ? day : best))
-          .date.slice(5);
-
   return (
     <div className="space-y-6">
       <div>
@@ -238,31 +218,39 @@ export function ManagerDashboardPage() {
           </p>
         </div>
         <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
-            {t('dashboard.analytics')}
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
+            {t('dashboard.bestStaff')}
           </p>
-          <h2 className="mt-2 text-lg font-bold text-gray-950">{t('dashboard.congestionTrend')}</h2>
-          <p className="mt-4 text-3xl font-bold text-gray-950">{peakSlot}</p>
-          <p className="mt-2 text-sm text-gray-500">{t('dashboard.busiestDay')}</p>
+          <h2 className="mt-2 text-lg font-bold text-gray-950">
+            {data.bestStaff?.display_name ?? t('dashboard.pendingData')}
+          </h2>
+          <p className="mt-4 text-3xl font-bold text-gray-950">
+            {data.bestStaff ? formatMoney(data.bestStaff.revenue) : '-'}
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            {data.bestStaff
+              ? t('dashboard.bestStaffOrders', { count: data.bestStaff.completed_orders })
+              : t('dashboard.pendingAggregation')}
+          </p>
         </div>
       </div>
 
       {/* Revenue chart */}
       <div className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-        <h2 className="mb-4 font-bold text-gray-950">{t('dashboard.salesLastSevenDays')}</h2>
-        {data.dailyRevenue.length === 0 ? (
+        <h2 className="mb-4 font-bold text-gray-950">{t('dashboard.monthlyRevenue')}</h2>
+        {data.monthlyRevenue.length === 0 ? (
           <p className="text-sm text-gray-400">{t('states.empty', { ns: 'common' })}</p>
         ) : (
           <div className="flex items-end gap-2 h-32">
-            {data.dailyRevenue.map((d) => (
-              <div key={d.date} className="flex flex-col items-center gap-1 flex-1">
+            {data.monthlyRevenue.map((d) => (
+              <div key={d.month} className="flex flex-col items-center gap-1 flex-1">
                 <div
                   className="w-full bg-brand-500 rounded-t"
                   style={{ height: `${Math.round((d.revenue / maxRevenue) * 100)}%`, minHeight: 4 }}
                   title={formatMoney(d.revenue)}
                 />
                 <span className="text-[10px] text-gray-400 truncate w-full text-center">
-                  {d.date.slice(5)}
+                  {d.month.slice(5)}
                 </span>
               </div>
             ))}
@@ -279,6 +267,7 @@ export function ManagerDashboardPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b border-gray-100">
+                <th className="w-12 pb-2 font-medium">{t('labels.number', { ns: 'common' })}</th>
                 <th className="pb-2 font-medium">{t('labels.product', { ns: 'common' })}</th>
                 <th className="pb-2 font-medium text-right">{t('dashboard.salesCount')}</th>
                 <th className="pb-2 font-medium text-right">{t('dashboard.revenue')}</th>
@@ -286,7 +275,8 @@ export function ManagerDashboardPage() {
             </thead>
             <tbody>
               {data.topProducts.map((p, i) => (
-                <tr key={i} className="border-b border-gray-50">
+                <tr key={p.product_name} className="border-b border-gray-50">
+                  <td className="py-2 text-gray-400">{i + 1}</td>
                   <td className="py-2 text-gray-800">{p.product_name}</td>
                   <td className="py-2 text-right text-gray-600">{p.total_sold}</td>
                   <td className="py-2 text-right text-gray-800">{formatMoney(p.revenue)}</td>
@@ -295,72 +285,6 @@ export function ManagerDashboardPage() {
             </tbody>
           </table>
         )}
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="overflow-hidden rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-          <h2 className="mb-3 font-bold text-gray-950">{t('dashboard.recentOrders')}</h2>
-          {data.recentOrders.length === 0 ? (
-            <p className="text-sm text-gray-400">{t('states.empty', { ns: 'common' })}</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-500 border-b border-gray-100">
-                  <th className="pb-2 font-medium">{t('dashboard.orderNumber')}</th>
-                  <th className="pb-2 font-medium">{t('dashboard.customer')}</th>
-                  <th className="pb-2 font-medium text-right">
-                    {t('labels.total', { ns: 'common' })}
-                  </th>
-                  <th className="pb-2 font-medium text-right">
-                    {t('labels.status', { ns: 'common' })}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recentOrders.map((order) => (
-                  <tr key={order.id} className="border-b border-gray-50">
-                    <td className="py-2 text-gray-800">{order.order_number}</td>
-                    <td className="py-2 text-gray-600">
-                      {order.customer_name ?? t('dashboard.guest', { ns: 'staff' })}
-                    </td>
-                    <td className="py-2 text-right text-gray-800">{formatMoney(order.subtotal)}</td>
-                    <td className="py-2 text-right text-gray-500">{order.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        <div className="overflow-hidden rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-          <h2 className="mb-3 font-bold text-gray-950">{t('dashboard.recentQueueActivity')}</h2>
-          {data.recentQueueActivities.length === 0 ? (
-            <p className="text-sm text-gray-400">{t('states.empty', { ns: 'common' })}</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-500 border-b border-gray-100">
-                  <th className="pb-2 font-medium">{t('dashboard.ticketNumber')}</th>
-                  <th className="pb-2 font-medium">{t('dashboard.queue')}</th>
-                  <th className="pb-2 font-medium">{t('dashboard.orderNumber')}</th>
-                  <th className="pb-2 font-medium text-right">
-                    {t('labels.status', { ns: 'common' })}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recentQueueActivities.map((activity) => (
-                  <tr key={activity.entry_id} className="border-b border-gray-50">
-                    <td className="py-2 text-gray-800">{activity.ticket_code}</td>
-                    <td className="py-2 text-gray-600">{activity.queue_name}</td>
-                    <td className="py-2 text-gray-600">{activity.order_number ?? '-'}</td>
-                    <td className="py-2 text-right text-gray-500">{activity.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -438,14 +362,17 @@ function OwnerManagerDashboard({
           <h2 className="font-bold text-gray-950">{t('ownerDashboard.branchPerformance')}</h2>
         </div>
         <div className="divide-y divide-gray-100">
-          {data.branches.map((branch) => (
+          {data.branches.map((branch, index) => (
             <Link
               key={branch.branch_id}
               to={`/manager/branches/${branch.branch_id}`}
               className="grid gap-3 px-5 py-4 transition hover:bg-gray-50 sm:grid-cols-[minmax(0,1fr)_repeat(3,auto)] sm:items-center sm:gap-8"
             >
               <div className="min-w-0">
-                <p className="truncate font-bold text-gray-950">{branch.branch_name}</p>
+                <p className="truncate font-bold text-gray-950">
+                  <span className="mr-2 text-gray-400">{index + 1}.</span>
+                  {branch.branch_name}
+                </p>
                 <p className="mt-1 text-xs text-gray-500">
                   {t('ownerDashboard.queueCount', { count: branch.queue_count })}
                 </p>
