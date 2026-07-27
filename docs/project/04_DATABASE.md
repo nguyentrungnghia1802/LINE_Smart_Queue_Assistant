@@ -66,6 +66,7 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 | `branch_business_hours`       | Weekly branch-local opening schedule                                         | Unique branch/weekday; closed/open time consistency                         |
 | `branch_exception_days`       | Branch holidays and exceptional opening/closure dates                        | Unique branch/date; overrides weekly schedule                               |
 | `line_accounts`               | One linked LINE identity per user                                            | Unique `line_user_id` and `user_id`                                         |
+| `auth_sessions`               | Rotating refresh sessions and revocation families                            | Hashed token; role policy; idle/absolute expiry; replay/revocation indexes  |
 | `organization_translations`   | Localized organization names                                                 | Composite organization/locale key; cascade delete                           |
 | `product_translations`        | Localized product names/descriptions                                         | Composite product/locale key; cascade delete                                |
 | `queue_translations`          | Localized queue names/descriptions                                           | Composite queue/locale key; cascade delete                                  |
@@ -221,6 +222,11 @@ Rules:
 Schema migrations live under `db/migrations/node-pg-migrate`. Root and `apps/api` workspace migration commands both execute this canonical `node-pg-migrate` history; the historical SQL runner is disabled by default.
 
 `npm run db:reset` is destructive and intended only for local/dev.
+
+Migration `000021_role_aware_auth_sessions` is additive and does not require reseeding. It creates
+only the session table and indexes; existing tenant, user, catalog, queue, order, and payment rows
+remain intact. Existing production access tokens without a session-family claim intentionally stop
+working after deployment, so signed-in users authenticate once to establish a revocable session.
 
 ## 10. Seed baseline
 

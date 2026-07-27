@@ -46,6 +46,9 @@ role and does not use branch-operation endpoints.
 | FR-AUTH-010 | Keep the login entry responsive and visually balanced across access paths      | Implemented |
 | FR-AUTH-011 | Block authenticated business roles from QR booking and direct queue admission  | Implemented |
 | FR-AUTH-012 | Require a verified LINE-derived customer JWT for payment intent and booking    | Implemented |
+| FR-AUTH-013 | Use 15-minute access tokens with revocable rotating server-side sessions       | Implemented |
+| FR-AUTH-014 | Expire business sessions after 15 idle minutes or 12 total hours               | Implemented |
+| FR-AUTH-015 | Allow LINE customer sessions to resume for at most 30 days                     | Implemented |
 
 ### Organization administration
 
@@ -192,6 +195,8 @@ role and does not use branch-operation endpoints.
 | BR-AUTH-001     | Public QR and slug routes are discovery/redirect entries; payment intent and booking require a verified LINE customer JWT.                             |
 | BR-AUTH-002     | A blocked business session remains active; opening customer LIFF is an explicit action that establishes a separate customer session.                   |
 | BR-AUTH-003     | Email/password login cannot issue a customer session; local customer testing uses the mock ID-token exchange.                                          |
+| BR-AUTH-004     | Admin, manager, and staff activity refreshes the server session; 15 idle minutes ends it even when a browser still has UI state.                       |
+| BR-AUTH-005     | Customer refresh sessions have a 30-day absolute limit and never bypass fresh LINE-link verification performed by authenticated requests.              |
 | BR-PRIVACY-001  | Location is optional, consent-based, purpose-limited, and must have a retention/deletion policy.                                                       |
 
 ## 5. Core acceptance criteria

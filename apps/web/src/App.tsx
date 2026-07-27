@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router-dom';
 
+import { AuthSessionManager } from './components/auth/AuthSessionManager';
 import { LocaleSync } from './components/i18n/LocaleSync';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { router } from './router';
@@ -19,7 +20,9 @@ export default function App() {
     <ErrorBoundary>
       <LocaleSync />
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <AuthSessionManager>
+          <RouterProvider router={router} />
+        </AuthSessionManager>
       </QueryClientProvider>
     </ErrorBoundary>
   );

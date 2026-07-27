@@ -22,6 +22,8 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     auth: false,
     validator: 'EmailPasswordLoginSchema',
   }),
+  endpoint('post', '/api/v1/auth/refresh', 'auth', { auth: false }),
+  endpoint('post', '/api/v1/auth/logout', 'auth', { auth: false }),
   endpoint('get', '/api/v1/auth/account-action', 'auth', {
     auth: false,
     validator: 'InspectAccountActionSchema',

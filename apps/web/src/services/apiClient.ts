@@ -3,7 +3,7 @@ import axios, { AxiosError, type AxiosInstance, type AxiosRequestConfig } from '
 import type { ApiErrorResponse, ApiResponse } from '@line-queue/shared';
 
 import { i18n } from '../i18n';
-import { clearAuthSession, getAuthToken } from '../store/authSession';
+import { clearAuthSession, getAuthToken, refreshAuthSession } from '../store/authSession';
 
 export class ApiClientError extends Error {
   constructor(
@@ -41,12 +41,28 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<ApiResponse<never> | ApiErrorResponse>) => {
+  async (error: AxiosError<ApiResponse<never> | ApiErrorResponse>) => {
     const skipAuthRedirect = error.config?.headers?.['X-Skip-Auth-Redirect'] === 'true';
-    if (error.response?.status === 401 && !skipAuthRedirect) {
-      clearAuthSession();
-      if (window.location.pathname !== '/login') {
-        window.location.replace('/login');
+    const retryConfig = error.config as
+      | (NonNullable<typeof error.config> & { _authRefreshAttempted?: boolean })
+      | undefined;
+
+    if (
+      error.response?.status === 401 &&
+      !skipAuthRedirect &&
+      retryConfig &&
+      !retryConfig._authRefreshAttempted
+    ) {
+      retryConfig._authRefreshAttempted = true;
+      try {
+        const refreshed = await refreshAuthSession();
+        retryConfig.headers['Authorization'] = `Bearer ${refreshed.token}`;
+        return apiClient.request(retryConfig);
+      } catch {
+        clearAuthSession();
+        if (window.location.pathname !== '/login') {
+          window.location.replace('/login');
+        }
       }
     }
     const payload = error.response?.data;

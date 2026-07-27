@@ -20,6 +20,12 @@ origin, `LINE_LOGIN_CHANNEL_ID`, `LINE_MESSAGING_CHANNEL_SECRET`,
 `LINE_LOGIN_LIFF_ID` for notification/Rich Menu deep links, and `LINE_RICH_MENU_IMAGE_PATH` for real
 Rich Menu sync. `VITE_*` variables are compiled into browser code and must never contain secrets.
 
+Authentication defaults are `JWT_ACCESS_EXPIRES_IN=15m`,
+`AUTH_BUSINESS_IDLE_TIMEOUT_MINUTES=15`, `AUTH_BUSINESS_ABSOLUTE_TIMEOUT_HOURS=12`, and
+`AUTH_CUSTOMER_SESSION_DAYS=30`. Local HTTP uses a non-secure `HttpOnly` refresh cookie;
+production automatically adds `Secure`. Do not restore the removed `JWT_EXPIRES_IN=7d` behavior or
+store access/refresh tokens in local storage.
+
 LINE notification delivery is durable by default. Local defaults are usually enough, but the worker can be tuned with `LINE_NOTIFICATION_BATCH_SIZE`, `LINE_NOTIFICATION_WORKER_INTERVAL_MS`, `LINE_NOTIFICATION_MAX_ATTEMPTS`, `LINE_NOTIFICATION_RETRY_BASE_SECONDS`, and `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS`.
 
 For ordinary UI/backend work without LINE credentials:

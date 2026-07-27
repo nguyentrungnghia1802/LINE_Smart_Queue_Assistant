@@ -386,6 +386,12 @@ export class UsersRepository extends BaseRepository {
       lineUserId,
     ]);
   }
+
+  async findLineAccountByUserId(userId: string): Promise<LineAccountRow | null> {
+    return this.queryOne<LineAccountRow>('SELECT * FROM line_accounts WHERE user_id = $1', [
+      userId,
+    ]);
+  }
 }
 
 export const usersRepository = new UsersRepository();

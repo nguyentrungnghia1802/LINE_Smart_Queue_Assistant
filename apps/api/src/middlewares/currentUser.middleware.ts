@@ -2,8 +2,10 @@ import { NextFunction, Request, Response } from 'express';
 
 import { UserRole } from '@line-queue/shared';
 
+import { config } from '../config';
 import { organizationsRepository } from '../db/repositories/organizations.repository';
 import { usersRepository } from '../db/repositories/users.repository';
+import { authSessionRepository } from '../modules/auth/auth-session.repository';
 import { AuthUser } from '../types/auth.types';
 import { AppError } from '../utils/AppError';
 import { verifyToken } from '../utils/jwt';
@@ -39,6 +41,12 @@ export async function currentUserMiddleware(
 
   try {
     const payload = verifyToken(token);
+    if (!payload.sid && config.nodeEnv !== 'test') {
+      return next(AppError.unauthorized('Authentication session is missing'));
+    }
+    if (payload.sid && !(await authSessionRepository.isActiveFamily(payload.sid, payload.sub))) {
+      return next(AppError.unauthorized('Authentication session is no longer active'));
+    }
     const userRow = await usersRepository.findById(payload.sub);
     if (!userRow?.is_active) {
       return next(AppError.unauthorized('User is inactive or no longer exists'));

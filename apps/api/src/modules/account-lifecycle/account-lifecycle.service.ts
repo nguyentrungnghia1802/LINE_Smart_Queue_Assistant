@@ -9,6 +9,7 @@ import { config } from '../../config';
 import { usersRepository } from '../../db/repositories/users.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
+import { authSessionService } from '../auth/auth-session.service';
 import { emailOutboxRepository } from '../email/email-outbox.repository';
 import { encryptEmailActionToken } from '../email/email-token.crypto';
 
@@ -175,7 +176,7 @@ export const accountLifecycleService = {
 
   async resetPassword(dto: CompleteAccountActionDto) {
     const passwordHash = await bcrypt.hash(dto.password, 12);
-    return withTransaction(async (client) => {
+    const result = await withTransaction(async (client) => {
       const context = await accountLifecycleRepository.lockValid(hashToken(dto.token), client);
       if (!context) {
         throw new AppError(
@@ -189,7 +190,9 @@ export const accountLifecycleService = {
         throw AppError.forbidden('This account is not active');
       }
       await accountLifecycleRepository.resetPassword(context, passwordHash, client);
-      return { reset: true };
+      return { reset: true, userId: context.user_id };
     });
+    await authSessionService.revokeAllForUser(result.userId, 'password_reset');
+    return { reset: true };
   },
 };

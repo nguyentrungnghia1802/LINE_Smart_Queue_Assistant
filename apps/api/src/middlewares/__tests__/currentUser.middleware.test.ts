@@ -4,12 +4,14 @@ import { UserRole } from '@line-queue/shared';
 
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
+import { authSessionRepository } from '../../modules/auth/auth-session.repository';
 import { AppError } from '../../utils/AppError';
 import { signToken, TokenPayload } from '../../utils/jwt';
 import { currentUserMiddleware } from '../currentUser.middleware';
 
 jest.mock('../../db/repositories/users.repository');
 jest.mock('../../db/repositories/organizations.repository');
+jest.mock('../../modules/auth/auth-session.repository');
 
 const mockFindById = usersRepository.findById as jest.MockedFunction<
   typeof usersRepository.findById
@@ -21,6 +23,9 @@ const mockFindMembershipByUserId =
   organizationsRepository.findMembershipByUserId as jest.MockedFunction<
     typeof organizationsRepository.findMembershipByUserId
   >;
+const mockIsActiveFamily = authSessionRepository.isActiveFamily as jest.MockedFunction<
+  typeof authSessionRepository.isActiveFamily
+>;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -65,6 +70,7 @@ describe('currentUserMiddleware', () => {
       last_synced_at: new Date(),
     });
     mockFindMembershipByUserId.mockResolvedValue(null);
+    mockIsActiveFamily.mockResolvedValue(true);
   });
 
   it('calls next() without setting req.user when no Authorization header is present', async () => {
@@ -99,6 +105,33 @@ describe('currentUserMiddleware', () => {
     expect(req.user?.id).toBe(basePayload.sub);
     expect(req.user?.lineUserId).toBe(basePayload.lineUserId);
     expect(req.user?.role).toBe(UserRole.CUSTOMER);
+  });
+
+  it('accepts an access token backed by an active session family', async () => {
+    const token = signToken({ ...basePayload, sid: 'active-family-id' });
+    const req = makeReq(`Bearer ${token}`) as Request;
+    const next = jest.fn() as jest.MockedFunction<NextFunction>;
+
+    await currentUserMiddleware(req, mockRes, next);
+
+    expect(mockIsActiveFamily).toHaveBeenCalledWith('active-family-id', basePayload.sub);
+    expect(next).toHaveBeenCalledWith();
+    expect(req.user?.id).toBe(basePayload.sub);
+  });
+
+  it('rejects an access token backed by a revoked session family', async () => {
+    mockIsActiveFamily.mockResolvedValue(false);
+    const token = signToken({ ...basePayload, sid: 'revoked-family-id' });
+    const req = makeReq(`Bearer ${token}`) as Request;
+    const next = jest.fn() as jest.MockedFunction<NextFunction>;
+
+    await currentUserMiddleware(req, mockRes, next);
+
+    expect(mockIsActiveFamily).toHaveBeenCalledWith('revoked-family-id', basePayload.sub);
+    expect(next).toHaveBeenCalledWith(expect.any(AppError));
+    expect(req.user).toBeUndefined();
+    const err = (next as jest.Mock).mock.calls[0][0] as AppError;
+    expect(err.statusCode).toBe(401);
   });
 
   it('drops lineUserId when the linked LINE account has been unlinked', async () => {

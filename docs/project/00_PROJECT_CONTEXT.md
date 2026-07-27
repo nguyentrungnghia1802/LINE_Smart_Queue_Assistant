@@ -49,6 +49,9 @@ The project is a working local/demo modular monolith, not yet a production-compl
 
 - Email/password authentication for admin, manager, and staff roles; customer email login is rejected.
 - LINE LIFF login with server-side ID-token verification and linked `line_accounts` records.
+- Fifteen-minute in-memory access tokens with PostgreSQL-backed rotating refresh sessions:
+  business roles expire after 15 idle minutes or 12 hours absolute; LINE customers can resume for
+  30 days.
 - LINE-only customer authentication: public organization slug/token entries redirect to LIFF, while local development uses the paired LIFF mock identity.
 - Localized customer, staff, manager, and admin portals with persisted language selection.
 - Shared responsive role navigation with full desktop tabs, icon-labelled mobile bottom navigation,

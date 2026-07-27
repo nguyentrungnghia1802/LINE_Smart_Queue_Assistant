@@ -19,6 +19,8 @@ export interface TokenPayload {
   lineUserId?: string;
   role: UserRole;
   orgId?: string;
+  /** Server-side session ID used for revocation. Optional only in test-issued tokens. */
+  sid?: string;
 }
 
 // ── Sign ──────────────────────────────────────────────────────────────────────
@@ -29,11 +31,11 @@ export interface TokenPayload {
  * Security notes:
  *   - Uses HS256 (HMAC-SHA256) with config.jwt.secret.
  *   - Secret MUST be at least 32 random bytes in production (env: JWT_SECRET).
- *   - Default expiry is 7 days; override with config.jwt.expiresIn.
+ *   - Access tokens are short-lived; the refresh session controls login duration.
  */
 export function signToken(payload: TokenPayload): string {
   return jwt.sign(payload, config.jwt.secret, {
-    expiresIn: config.jwt.expiresIn as jwt.SignOptions['expiresIn'],
+    expiresIn: config.jwt.accessTokenExpiresIn as jwt.SignOptions['expiresIn'],
     algorithm: 'HS256',
   });
 }
