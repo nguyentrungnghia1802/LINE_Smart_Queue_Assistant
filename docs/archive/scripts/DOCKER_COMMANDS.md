@@ -57,6 +57,27 @@ docker compose ps
 
 ## 2. Cac lenh deploy theo tung truong hop
 
+### Lam moi data (Nhu lan dau)
+
+```bash
+cd /opt/line-smart-queue
+# 1. Dừng toàn bộ stack + xóa volumes
+docker compose down -v
+# 2. Khởi động PostgreSQL trắng
+docker compose up -d postgres
+# 3. Kiểm tra đến khi postgres healthy
+docker compose p
+# 4. Chạy toàn bộ migration
+docker compose run --rm api npm run db:migrate
+# 5. Seed production
+# SEED_ADMIN_PASSWORD phải có trong .env
+docker compose run --rm api node /app/dist-seeds/index.js
+# 6. Khởi động toàn bộ hệ thống
+docker compose up -d
+# 7. Kiểm tra
+docker compose ps
+```
+
 ### Chi cap nhat API
 
 Dung khi chi co thay doi backend hoac migration.
