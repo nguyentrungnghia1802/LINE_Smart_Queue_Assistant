@@ -10,7 +10,7 @@ import {
   queueEntriesRepository,
   QueueEntryRow,
 } from '../../db/repositories/queue-entries.repository';
-import { QueueRow, queuesRepository } from '../../db/repositories/queues.repository';
+import { queuesRepository } from '../../db/repositories/queues.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
@@ -29,6 +29,7 @@ import {
   TicketPositionResult,
 } from './queue.types';
 import { JoinQueueDto } from './queue.validator';
+import { tryAutoCallNextWaiting } from './queue-auto-call.service';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -40,43 +41,6 @@ import { JoinQueueDto } from './queue.validator';
 function formatTicketCode(prefix: string, ticketNumber: number): string {
   const width = prefix ? 3 : 4;
   return `${prefix}${String(ticketNumber).padStart(width, '0')}`;
-}
-
-async function tryCallNextWaitingInClient(
-  queue: QueueRow,
-  client: PoolClient
-): Promise<QueueEntryRow | null> {
-  const alreadyCalled = await queueEntriesRepository.findByQueueAndStatus(
-    queue.id,
-    'called',
-    client
-  );
-  if (alreadyCalled) return null;
-
-  const [next, nextUp] = await queueEntriesRepository.listWaiting(queue.id, client);
-  if (!next) return null;
-
-  const called = await queueEntriesRepository.markCalled(next.id, client);
-  await queueNotificationService.notifyTicketCalled(
-    { ...called, estimated_wait_seconds: 0 },
-    {
-      organizationId: queue.organization_id,
-      aheadCount: 0,
-      estimatedWaitSeconds: 0,
-    },
-    notificationOutboxRepository,
-    client
-  );
-  if (nextUp) {
-    await queueNotificationService.notifyEtaWarning(
-      nextUp,
-      1,
-      { organizationId: queue.organization_id },
-      notificationOutboxRepository,
-      client
-    );
-  }
-  return called;
 }
 
 /**
@@ -114,18 +78,29 @@ function assertOwnership(
   }
 }
 
-async function assertQueueBelongsToOrg(queueId: string, organizationId?: string) {
+async function assertQueueBelongsToOrg(
+  queueId: string,
+  organizationId?: string,
+  branchId?: string
+) {
   if (!organizationId) throw AppError.forbidden('User has no organization');
   const queue = await queuesRepository.findById(queueId);
   if (!queue) throw AppError.notFound('Queue');
   if (queue.organization_id !== organizationId) {
     throw AppError.forbidden('Queue is outside your organization');
   }
+  if (branchId && queue.branch_id !== branchId) {
+    throw AppError.forbidden('Queue is outside your assigned branch');
+  }
   return queue;
 }
 
-async function assertEntryBelongsToOrg(entry: QueueEntryRow, organizationId?: string) {
-  return assertQueueBelongsToOrg(entry.queue_id, organizationId);
+async function assertEntryBelongsToOrg(
+  entry: QueueEntryRow,
+  organizationId?: string,
+  branchId?: string
+) {
+  return assertQueueBelongsToOrg(entry.queue_id, organizationId, branchId);
 }
 
 async function getWaitingPositionInTransaction(
@@ -248,7 +223,12 @@ export const queueService = {
         notificationOutboxRepository,
         client
       );
-      return { entry, aheadCount, estimatedWaitSeconds };
+      const autoCalled = await tryAutoCallNextWaiting(lockedQueue, client);
+      return {
+        entry: autoCalled?.id === entry.id ? autoCalled : entry,
+        aheadCount: autoCalled?.id === entry.id ? 0 : aheadCount,
+        estimatedWaitSeconds: autoCalled?.id === entry.id ? 0 : estimatedWaitSeconds,
+      };
     });
 
     return {
@@ -358,6 +338,8 @@ export const queueService = {
     if (!queue) throw AppError.notFound('Queue');
 
     await withTransaction(async (client) => {
+      const lockedQueue = await queuesRepository.lockById(queue.id, client);
+      if (!lockedQueue) throw AppError.notFound('Queue');
       const cancelled = await queueEntriesRepository.markCancelled(entryId, client);
       if (cancelled.order_id) {
         await paymentsService.refundOrderOnCancellationInClient({
@@ -384,6 +366,7 @@ export const queueService = {
         notificationOutboxRepository,
         client
       );
+      await tryAutoCallNextWaiting(lockedQueue, client);
     });
     metricsService.increment('queue_cancelled_total');
   },
@@ -468,12 +451,16 @@ export const queueService = {
     queueId: string,
     _adapter?: unknown,
     _log?: unknown,
-    actorOrganizationId?: string
+    actorOrganizationId?: string,
+    actorBranchId?: string
   ): Promise<QueueEntryRow> {
     const queue = await queuesRepository.findById(queueId);
     if (!queue) throw AppError.notFound('Queue');
     if (actorOrganizationId && queue.organization_id !== actorOrganizationId) {
       throw AppError.forbidden('Queue is outside your organization');
+    }
+    if (actorBranchId && queue.branch_id !== actorBranchId) {
+      throw AppError.forbidden('Queue is outside your assigned branch');
     }
 
     return withTransaction(async (client) => {
@@ -487,7 +474,7 @@ export const queueService = {
       if (existingCalled) {
         throw AppError.conflict('A ticket is already called in this queue');
       }
-      const called = await tryCallNextWaitingInClient(lockedQueue, client);
+      const called = await tryAutoCallNextWaiting(lockedQueue, client);
       if (!called) throw AppError.conflict('No waiting entries in this queue');
       return called;
     });
@@ -501,12 +488,13 @@ export const queueService = {
     entryId: string;
     actorUserId?: string;
     actorOrganizationId?: string;
+    actorBranchId?: string;
   }): Promise<QueueEntryRow> {
     const { entryId, actorOrganizationId } = params;
 
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
-    const queue = await assertEntryBelongsToOrg(entry, actorOrganizationId);
+    await assertEntryBelongsToOrg(entry, actorOrganizationId, params.actorBranchId);
 
     if (entry.status !== 'called') {
       throw AppError.conflict(
@@ -516,12 +504,6 @@ export const queueService = {
 
     return withTransaction(async (client) => {
       const serving = await queueEntriesRepository.markServing(entryId, client);
-      await queueNotificationService.notifyTicketServing(
-        serving,
-        { organizationId: queue.organization_id },
-        notificationOutboxRepository,
-        client
-      );
       return serving;
     });
   },
@@ -534,12 +516,13 @@ export const queueService = {
     entryId: string;
     actorUserId?: string;
     actorOrganizationId?: string;
+    actorBranchId?: string;
   }): Promise<QueueEntryRow> {
     const { entryId, actorOrganizationId } = params;
 
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
-    const queue = await assertEntryBelongsToOrg(entry, actorOrganizationId);
+    const queue = await assertEntryBelongsToOrg(entry, actorOrganizationId, params.actorBranchId);
 
     if (entry.status !== 'serving') {
       throw AppError.conflict(
@@ -553,10 +536,20 @@ export const queueService = {
       const updated = await queueEntriesRepository.markServed(entryId, client);
       if (updated.order_id) {
         await inventoryService.consumeOrder(updated.order_id, client, params.actorUserId);
-        await client.query(
-          `UPDATE orders SET status = 'completed' WHERE id = $1 AND status IN ('pending','processing')`,
-          [updated.order_id]
-        );
+        if (params.actorUserId) {
+          await ordersRepository.completeWithFulfillment(
+            updated.order_id,
+            params.actorUserId,
+            client
+          );
+        } else {
+          await client.query(
+            `UPDATE orders
+             SET status = 'completed', fulfilled_at = NOW()
+             WHERE id = $1 AND status IN ('pending','processing')`,
+            [updated.order_id]
+          );
+        }
       }
       await queueNotificationService.notifyTicketCompleted(
         updated,
@@ -572,7 +565,7 @@ export const queueService = {
         client,
         params.actorUserId
       );
-      await tryCallNextWaitingInClient(lockedQueue, client);
+      await tryAutoCallNextWaiting(lockedQueue, client);
       return updated;
     });
     metricsService.increment('queue_served_total');
@@ -580,8 +573,8 @@ export const queueService = {
   },
 
   /**
-   * Move a called customer behind everyone currently waiting. When another
-   * customer is available, call that next customer in the same transaction.
+   * Move an absent customer three places back. The third absence cancels the
+   * ticket, refunds collected payment, and calls the next waiting customer.
    */
   async deferCalledTicket(params: {
     entryId: string;
@@ -599,9 +592,58 @@ export const queueService = {
       const lockedQueue = await queuesRepository.lockById(queue.id, client);
       if (!lockedQueue) throw AppError.notFound('Queue');
       const waitingBeforeDefer = await queueEntriesRepository.listWaiting(queue.id, client);
-      const deferred = await queueEntriesRepository.deferCalledToBack(
+      const nextAbsenceCount = (entry.absence_count ?? 0) + 1;
+      if (nextAbsenceCount >= (lockedQueue.max_absence_count ?? 3)) {
+        const noShow = await queueEntriesRepository.markNoShow(params.entryId, client, true);
+        if (noShow.order_id) {
+          await paymentsService.refundOrderOnCancellationInClient({
+            orderId: noShow.order_id,
+            organizationId: queue.organization_id,
+            actorId: params.actorUserId,
+            reason: 'Queue ticket cancelled after repeated customer absence',
+            client,
+          });
+          await inventoryService.releaseOrder(
+            noShow.order_id,
+            client,
+            'customer_no_show',
+            params.actorUserId
+          );
+          await client.query(
+            `UPDATE orders
+             SET status = 'cancelled'
+             WHERE id = $1 AND status IN ('pending','processing')`,
+            [noShow.order_id]
+          );
+        }
+        await queueNotificationService.notifyTicketNoShow(
+          noShow,
+          { organizationId: queue.organization_id },
+          notificationOutboxRepository,
+          client
+        );
+        await queueEntriesRepository.archiveToHistory(
+          noShow,
+          'called',
+          'no_show',
+          'automatic_cancellation_after_repeated_absence',
+          client,
+          params.actorUserId
+        );
+        await tryAutoCallNextWaiting(lockedQueue, client);
+        return noShow;
+      }
+
+      const deferred = await queueEntriesRepository.deferCalledBySlots(
         params.entryId,
         queue.id,
+        lockedQueue.absence_deferral_slots ?? 3,
+        client
+      );
+      await queueNotificationService.notifyTicketDeferred(
+        deferred,
+        { organizationId: queue.organization_id },
+        notificationOutboxRepository,
         client
       );
       await queueEntriesRepository.archiveToHistory(
@@ -613,7 +655,7 @@ export const queueService = {
         params.actorUserId
       );
       if (waitingBeforeDefer.length > 0) {
-        await tryCallNextWaitingInClient(lockedQueue, client);
+        await tryAutoCallNextWaiting(lockedQueue, client);
       }
       return deferred;
     });
@@ -641,8 +683,17 @@ export const queueService = {
     }
 
     return withTransaction(async (client) => {
+      const lockedQueue = await queuesRepository.lockById(queue.id, client);
+      if (!lockedQueue) throw AppError.notFound('Queue');
       const noShow = await queueEntriesRepository.markNoShow(entryId, client);
       if (noShow.order_id) {
+        await paymentsService.refundOrderOnCancellationInClient({
+          orderId: noShow.order_id,
+          organizationId: queue.organization_id,
+          actorId: params.actorUserId,
+          reason: 'Queue ticket marked as no-show',
+          client,
+        });
         await inventoryService.releaseOrder(
           noShow.order_id,
           client,
@@ -668,6 +719,7 @@ export const queueService = {
         client,
         params.actorUserId
       );
+      await tryAutoCallNextWaiting(lockedQueue, client);
       return noShow;
     });
   },

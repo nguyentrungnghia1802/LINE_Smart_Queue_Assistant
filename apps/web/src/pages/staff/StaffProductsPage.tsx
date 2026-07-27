@@ -54,9 +54,9 @@ export function StaffProductsPage() {
             className="overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[var(--shadow-soft)]"
           >
             {p.image_url ? (
-              <img src={p.image_url} alt={p.name} className="w-full h-36 object-cover" />
+              <img src={p.image_url} alt={p.name} className="aspect-square w-full object-cover" />
             ) : (
-              <div className="flex h-36 w-full items-center justify-center bg-gray-100 text-xl font-bold text-gray-400">
+              <div className="flex aspect-square w-full items-center justify-center bg-gray-100 text-xl font-bold text-gray-400">
                 {p.name.slice(0, 1)}
               </div>
             )}

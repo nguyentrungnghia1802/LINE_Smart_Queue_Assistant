@@ -1,40 +1,24 @@
 import { Request, Response } from 'express';
 
 import { asyncHandler } from '../../utils/asyncHandler';
-import { sendCreated, sendNoContent, sendSuccess } from '../../utils/response';
+import { sendNoContent, sendSuccess } from '../../utils/response';
 
 import { adminService } from './admin.service';
-import { CreateManagerDto, UpdateManagerDto, UpdateOrganizationDto } from './admin.validator';
+import { UpdateManagerDto } from './admin.validator';
 
 export const listOrganizations = asyncHandler(async (_req: Request, res: Response) => {
   const orgs = await adminService.listOrganizations();
   sendSuccess(res, orgs);
 });
 
-export const updateOrganization = asyncHandler(async (req: Request, res: Response) => {
-  const org = await adminService.updateOrganization(
-    req.params['orgId'] ?? '',
-    req.body as UpdateOrganizationDto
-  );
-  sendSuccess(res, org);
-});
-
 export const removeOrganization = asyncHandler(async (req: Request, res: Response) => {
-  await adminService.removeOrganization(req.params['orgId'] ?? '');
+  await adminService.removeOrganization(req.params['orgId'] ?? '', req.user?.id ?? '');
   sendNoContent(res);
 });
 
 export const listManagers = asyncHandler(async (req: Request, res: Response) => {
   const managers = await adminService.listManagers(req.params['orgId'] ?? '');
   sendSuccess(res, managers);
-});
-
-export const createManager = asyncHandler(async (req: Request, res: Response) => {
-  const manager = await adminService.createManager(
-    req.params['orgId'] ?? '',
-    req.body as CreateManagerDto
-  );
-  sendCreated(res, manager);
 });
 
 export const updateManager = asyncHandler(async (req: Request, res: Response) => {
@@ -44,9 +28,4 @@ export const updateManager = asyncHandler(async (req: Request, res: Response) =>
     req.body as UpdateManagerDto
   );
   sendSuccess(res, manager);
-});
-
-export const removeManager = asyncHandler(async (req: Request, res: Response) => {
-  await adminService.removeManager(req.params['orgId'] ?? '', req.params['userId'] ?? '');
-  sendNoContent(res);
 });

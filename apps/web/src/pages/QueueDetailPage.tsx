@@ -1,3 +1,4 @@
+import { ClipboardList, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
@@ -50,19 +51,15 @@ export function QueueDetailPage() {
           to={`/manager/queues/${id}/manage`}
           className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
-          📋 {t('queue.manage')}
-        </Link>
-        <Link
-          to={`/manager/queues/${id}/display`}
-          className="inline-flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          📺 {t('queue.showQr')}
+          <ClipboardList className="h-4 w-4" />
+          {t('queue.manage')}
         </Link>
         <Link
           to={`/manager/queues/${id}/settings`}
           className="inline-flex items-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
-          ⚙️ {t('nav.settings', { ns: 'common' })}
+          <Settings className="h-4 w-4" />
+          {t('nav.settings', { ns: 'common' })}
         </Link>
       </div>
 

@@ -92,9 +92,14 @@ export const common = {
     unlimited: 'Unlimited',
   },
   errors: {
+    AUTH_ACCOUNT_NOT_FOUND: 'No account is registered for this email address.',
+    AUTH_ACCOUNT_NOT_ACTIVATED: 'This account is not active yet. Check your invitation email.',
+    AUTH_ACCOUNT_DISABLED: 'This account has been disabled. Contact an administrator.',
+    AUTH_INVALID_PASSWORD: 'The password is incorrect.',
     UNAUTHORIZED: 'Please log in again.',
     FORBIDDEN: 'You do not have permission to perform this action.',
     CUSTOMER_ACCOUNT_REQUIRED: 'A customer account is required to start reception.',
+    BRANCH_PLAN_LIMIT_REACHED: 'Your current service plan does not allow any more branches.',
     QUEUE_NOT_ACCEPTING: 'No queue is currently accepting bookings.',
     PAYMENT_ALREADY_USED:
       'The previous payment has already been used. Please complete payment again.',

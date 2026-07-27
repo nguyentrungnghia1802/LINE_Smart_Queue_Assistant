@@ -8,6 +8,8 @@ const PaymentItemSchema = z.object({
 export const CreatePaymentIntentSchema = z
   .object({
     orgSlug: z.string().min(1).max(120),
+    branchId: z.string().uuid(),
+    queueId: z.string().uuid(),
     items: z.array(PaymentItemSchema).min(1),
     scope: z.enum(['required_items', 'all_items']),
     provider: z.enum(['demo', 'stripe', 'komoju', 'paypay']).default('demo'),

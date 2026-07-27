@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { TFunction } from 'i18next';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -19,6 +20,7 @@ interface OrderItem {
   subtotal: string;
   payment_status?: string;
   prepaid_amount?: string;
+  refunded_amount?: string;
   requires_prepayment_snapshot?: boolean;
 }
 
@@ -29,12 +31,27 @@ interface Order {
   customer_name: string | null;
   customer_phone: string | null;
   customer_line_display_name?: string | null;
+  organization_name_snapshot: string;
+  branch_name_snapshot: string;
+  queue_name_snapshot: string;
+  fulfilled_by_name: string | null;
+  fulfilled_by_employee_code: string | null;
+  fulfilled_at: string | null;
   status: string;
   subtotal: string;
   payment_status: string;
   ticket_code: string | null;
   queue_entry_status: string | null;
   created_at: string;
+  items: OrderItem[];
+}
+
+interface DisplayOrder {
+  id: string;
+  order_number: string;
+  status: string;
+  payment_status: string;
+  subtotal: string;
   items: OrderItem[];
 }
 
@@ -48,6 +65,7 @@ interface QueueEntry {
 interface MyQueueOverview {
   queueId: string | null;
   queueName: string | null;
+  availableQueues: Array<{ id: string; name: string }>;
   waitingCount: number;
   totalActiveCount: number;
   waitingEntriesWithOrders: QueueEntry[];
@@ -93,12 +111,72 @@ function formatCurrency(n: string | number) {
   return formatLocalizedCurrency(Number(n), i18n.resolvedLanguage ?? 'ja');
 }
 
+interface PaymentSummary {
+  total: number;
+  prepaid: number;
+  requiredPrepaid: number;
+  amountDue: number;
+}
+
+function summarizeItems(items: OrderItem[]): PaymentSummary {
+  return items.reduce<PaymentSummary>(
+    (summary, item) => {
+      const subtotal = Number(item.subtotal);
+      const netPrepaid = Math.max(
+        0,
+        Number(item.prepaid_amount ?? 0) - Number(item.refunded_amount ?? 0)
+      );
+      summary.total += subtotal;
+      summary.prepaid += netPrepaid;
+      if (item.requires_prepayment_snapshot) summary.requiredPrepaid += netPrepaid;
+      summary.amountDue += Math.max(0, subtotal - netPrepaid);
+      return summary;
+    },
+    { total: 0, prepaid: 0, requiredPrepaid: 0, amountDue: 0 }
+  );
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function PaymentBreakdown({ summary, t }: { summary: PaymentSummary; t: TFunction }) {
+  return (
+    <div className="space-y-2 border-t border-gray-100 px-4 py-4">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-semibold text-gray-600">{t('labels.total', { ns: 'common' })}</span>
+        <span className="font-bold text-gray-900">{formatCurrency(summary.total)}</span>
+      </div>
+      {summary.requiredPrepaid > 0 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-semibold text-emerald-700">{t('dashboard.prepaidAmount')}</span>
+          <span className="font-bold text-emerald-700">
+            {formatCurrency(summary.requiredPrepaid)}
+          </span>
+        </div>
+      )}
+      <div className="flex items-center justify-between border-t border-gray-100 pt-2">
+        <span className="font-bold text-gray-950">{t('dashboard.amountDue')}</span>
+        <span className="text-xl font-black text-gray-950">
+          {formatCurrency(summary.amountDue)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function printReceipt(order: Order, ticketCode: string) {
+  const summary = summarizeItems(order.items);
   const rows = order.items
     .map(
       (item) => `
         <tr>
-          <td>${item.product_name}</td>
+          <td>${escapeHtml(item.product_name)}</td>
           <td class="right">${item.quantity}</td>
           <td class="right">${formatCurrency(item.product_price)}</td>
           <td class="right">${formatCurrency(item.subtotal)}</td>
@@ -125,10 +203,15 @@ function printReceipt(order: Order, ticketCode: string) {
       <body>
         <h1>${i18n.t('staff:dashboard.printReceipt')}</h1>
         <div class="meta">
-          ${i18n.t('staff:dashboard.receiptOrderNumber')}: ${order.order_number}<br />
-          ${i18n.t('staff:dashboard.receiptTicketNumber')}: ${ticketCode}<br />
-          ${i18n.t('staff:dashboard.receiptCustomer')}: ${order.customer_name ?? i18n.t('staff:dashboard.guest')}<br />
-          ${i18n.t('common:labels.status')}: ${formatDateTime(new Date(), i18n.resolvedLanguage ?? 'ja')}
+          ${i18n.t('staff:dashboard.receiptOrganization')}: ${escapeHtml(order.organization_name_snapshot)}<br />
+          ${i18n.t('staff:dashboard.receiptBranch')}: ${escapeHtml(order.branch_name_snapshot)}<br />
+          ${i18n.t('staff:dashboard.receiptQueue')}: ${escapeHtml(order.queue_name_snapshot)}<br />
+          ${i18n.t('staff:dashboard.receiptOrderNumber')}: ${escapeHtml(order.order_number)}<br />
+          ${i18n.t('staff:dashboard.receiptTicketNumber')}: ${escapeHtml(ticketCode)}<br />
+          ${i18n.t('staff:dashboard.receiptCustomer')}: ${escapeHtml(order.customer_name ?? i18n.t('staff:dashboard.guest'))}<br />
+          ${i18n.t('staff:dashboard.receiptStaff')}: ${escapeHtml(order.fulfilled_by_name ?? i18n.t('staff:dashboard.contactUnavailable'))}${order.fulfilled_by_employee_code ? ` (${escapeHtml(order.fulfilled_by_employee_code)})` : ''}<br />
+          ${i18n.t('staff:dashboard.receiptOrderedAt')}: ${formatDateTime(order.created_at, i18n.resolvedLanguage ?? 'ja')}<br />
+          ${i18n.t('staff:dashboard.receiptFulfilledAt')}: ${formatDateTime(order.fulfilled_at ?? new Date(), i18n.resolvedLanguage ?? 'ja')}
         </div>
         <table>
           <thead>
@@ -136,7 +219,9 @@ function printReceipt(order: Order, ticketCode: string) {
           </thead>
           <tbody>${rows}</tbody>
         </table>
-        <div class="total">${i18n.t('common:labels.total')} ${formatCurrency(order.subtotal)}</div>
+        <div class="total">${i18n.t('common:labels.total')} ${formatCurrency(summary.total)}</div>
+        ${summary.requiredPrepaid > 0 ? `<div class="total">${i18n.t('staff:dashboard.prepaidAmount')} ${formatCurrency(summary.requiredPrepaid)}</div>` : ''}
+        <div class="total">${i18n.t('staff:dashboard.amountDue')} ${formatCurrency(summary.amountDue)}</div>
         <span class="paid">${i18n.t('common:states.paid')}</span>
       </body>
     </html>
@@ -152,11 +237,19 @@ export function StaffDashboardPage() {
   const orgId = user?.organizationId;
   const queryClient = useQueryClient();
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [selectedQueueId, setSelectedQueueId] = useState('');
+  const [lastCompletedReceipt, setLastCompletedReceipt] = useState<{
+    order: Order;
+    ticketCode: string;
+  } | null>(null);
 
   // Unified queue + orders endpoint
   const { data: queueData, isLoading: queueLoading } = useQuery<MyQueueOverview>({
-    queryKey: ['staff-my-queue', orgId],
-    queryFn: () => get<MyQueueOverview>('/api/v1/staff/my-queue'),
+    queryKey: ['staff-my-queue', orgId, selectedQueueId],
+    queryFn: () =>
+      get<MyQueueOverview>(
+        `/api/v1/staff/my-queue${selectedQueueId ? `?queueId=${selectedQueueId}` : ''}`
+      ),
     enabled: !!orgId,
     refetchInterval: 10_000,
   });
@@ -180,6 +273,24 @@ export function StaffDashboardPage() {
     relatedBookings.data?.orders.filter(
       (order) => order.ticket && ['waiting', 'called', 'serving'].includes(order.ticket.status)
     ) ?? [];
+  const displayedOrders: DisplayOrder[] =
+    activeRelatedOrders.length > 0
+      ? activeRelatedOrders.map((order) =>
+          order.id === selectedEntry?.order?.id
+            ? { ...order, ...selectedEntry.order, items: selectedEntry.order.items }
+            : {
+                ...order,
+                items: order.items.map((item) => ({
+                  ...item,
+                  product_price: item.product_price ?? '0',
+                  service_time_minutes: item.service_time_minutes ?? 0,
+                })),
+              }
+        )
+      : selectedEntry?.order
+        ? [selectedEntry.order]
+        : [];
+  const groupedPaymentSummary = summarizeItems(displayedOrders.flatMap((order) => order.items));
 
   const invalidateQueue = () =>
     queryClient.invalidateQueries({ queryKey: ['staff-my-queue', orgId] });
@@ -190,15 +301,26 @@ export function StaffDashboardPage() {
     onSuccess: invalidateQueue,
   });
   const completeMutation = useMutation({
-    mutationFn: (entryId: string) => staffApi.complete(entryId),
-    onSuccess: invalidateQueue,
+    mutationFn: async ({
+      entryId,
+      orderId,
+      ticketCode,
+    }: {
+      entryId: string;
+      orderId?: string;
+      ticketCode: string;
+    }) => {
+      await staffApi.complete(entryId);
+      const order = orderId ? await get<Order>(`/api/v1/orders/${orderId}/receipt`) : null;
+      return { order, ticketCode };
+    },
+    onSuccess: ({ order, ticketCode }) => {
+      if (order) setLastCompletedReceipt({ order, ticketCode });
+      void invalidateQueue();
+    },
   });
   const deferMutation = useMutation({
     mutationFn: (entryId: string) => staffApi.defer(entryId),
-    onSuccess: invalidateQueue,
-  });
-  const noShowMutation = useMutation({
-    mutationFn: (entryId: string) => post(`/api/v1/staff/entries/${entryId}/no-show`, {}),
     onSuccess: invalidateQueue,
   });
   const cancelEntryMutation = useMutation({
@@ -209,14 +331,17 @@ export function StaffDashboardPage() {
   // Order actions
   const paymentMutation = useMutation({
     mutationFn: ({
-      id,
+      ids,
       paymentStatus,
       reason,
     }: {
-      id: string;
+      ids: string[];
       paymentStatus: string;
       reason?: string;
-    }) => patch(`/api/v1/orders/${id}/payment`, { paymentStatus, reason }),
+    }) =>
+      Promise.all(
+        ids.map((id) => patch(`/api/v1/orders/${id}/payment`, { paymentStatus, reason }))
+      ),
     onSuccess: invalidateQueue,
   });
   const receiptMutation = useMutation({
@@ -233,6 +358,23 @@ export function StaffDashboardPage() {
       <aside className="flex w-full shrink-0 flex-col border-b border-gray-200 bg-white md:w-72 md:border-b-0 md:border-r xl:w-80">
         {/* Queue header */}
         <div className="border-b border-gray-100 px-3 py-2.5 md:px-4 md:py-3">
+          {(queueData?.availableQueues?.length ?? 0) > 1 && (
+            <select
+              aria-label={t('dashboard.queueSelector')}
+              value={selectedQueueId || queueData?.queueId || ''}
+              onChange={(event) => {
+                setSelectedQueueId(event.target.value);
+                setSelectedEntryId(null);
+              }}
+              className="mb-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800"
+            >
+              {queueData?.availableQueues?.map((queue) => (
+                <option key={queue.id} value={queue.id}>
+                  {queue.name}
+                </option>
+              ))}
+            </select>
+          )}
           <div className="flex items-center justify-between">
             <h2 className="flex items-center text-xs font-semibold text-gray-700 md:text-sm">
               <span className="hidden md:inline">
@@ -308,6 +450,27 @@ export function StaffDashboardPage() {
 
       {/* Main: selected entry detail */}
       <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6">
+        {lastCompletedReceipt && (
+          <div className="mb-4 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-bold text-emerald-950">{t('dashboard.receiptReady')}</p>
+              <p className="mt-0.5 text-sm text-emerald-800">
+                {t('dashboard.order', {
+                  number: lastCompletedReceipt.order.order_number,
+                })}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                printReceipt(lastCompletedReceipt.order, lastCompletedReceipt.ticketCode)
+              }
+              className="rounded-lg bg-gray-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-gray-800"
+            >
+              {t('dashboard.printReceipt')}
+            </button>
+          </div>
+        )}
         {!selected ? (
           <div className="flex items-center justify-center h-full text-gray-400">
             {t('dashboard.selectTicket')}
@@ -417,12 +580,10 @@ export function StaffDashboardPage() {
                   </div>
                 )}
 
-                {/* Items table — show if entry has an order */}
-                {selected.order ? (
-                  (() => {
-                    const order = selected.order;
-                    return (
-                      <div className="overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[var(--shadow-soft)]">
+                {displayedOrders.length > 0 ? (
+                  <div className="overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[var(--shadow-soft)]">
+                    {displayedOrders.map((order) => (
+                      <section key={order.id} className="border-b border-gray-100 last:border-b-0">
                         <div className="flex flex-col gap-2 border-b border-gray-100 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                           <span className="text-xs font-medium uppercase text-gray-500">
                             {t('dashboard.order', { number: order.order_number })}
@@ -466,9 +627,9 @@ export function StaffDashboardPage() {
                                 <p className="mt-1 text-xs text-gray-500">
                                   {t('units.minutes', {
                                     ns: 'common',
-                                    count: item.service_time_minutes,
+                                    count: item.service_time_minutes ?? 0,
                                   })}{' '}
-                                  · {formatCurrency(item.product_price)} x {item.quantity}
+                                  · {formatCurrency(item.product_price ?? 0)} x {item.quantity}
                                 </p>
                               </div>
                               <div className="col-span-2 flex items-center justify-between border-t border-gray-100 pt-3 sm:col-span-1 sm:block sm:border-t-0 sm:pt-0 sm:text-right xl:col-span-2 xl:flex xl:border-t xl:pt-3">
@@ -482,17 +643,10 @@ export function StaffDashboardPage() {
                             </div>
                           ))}
                         </div>
-                        <div className="flex items-center justify-between border-t border-gray-100 px-4 py-4">
-                          <span className="font-semibold text-gray-700">
-                            {t('labels.total', { ns: 'common' })}
-                          </span>
-                          <span className="text-lg font-bold text-gray-900">
-                            {formatCurrency(order.subtotal)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()
+                      </section>
+                    ))}
+                    <PaymentBreakdown summary={groupedPaymentSummary} t={t} />
+                  </div>
                 ) : (
                   <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-gray-400 text-sm">
                     {t('dashboard.noLinkedOrder')}
@@ -507,17 +661,29 @@ export function StaffDashboardPage() {
                       {t('dashboard.checkout')}
                     </p>
                     <p className="mt-2 text-3xl font-black text-gray-950">
-                      {formatCurrency(selected.order.subtotal)}
+                      {formatCurrency(groupedPaymentSummary.amountDue)}
                     </p>
+                    <div className="mt-3 space-y-1 border-t border-gray-100 pt-3 text-sm">
+                      <div className="flex justify-between text-gray-500">
+                        <span>{t('labels.total', { ns: 'common' })}</span>
+                        <span>{formatCurrency(groupedPaymentSummary.total)}</span>
+                      </div>
+                      {groupedPaymentSummary.requiredPrepaid > 0 && (
+                        <div className="flex justify-between text-emerald-700">
+                          <span>{t('dashboard.prepaidAmount')}</span>
+                          <span>{formatCurrency(groupedPaymentSummary.requiredPrepaid)}</span>
+                        </div>
+                      )}
+                    </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                          selected.order.payment_status === 'paid'
+                          groupedPaymentSummary.amountDue === 0
                             ? 'bg-green-100 text-green-700'
                             : 'bg-orange-100 text-orange-700'
                         }`}
                       >
-                        {selected.order.payment_status === 'paid'
+                        {groupedPaymentSummary.amountDue === 0
                           ? t('states.paid', { ns: 'common' })
                           : t('states.unpaid', { ns: 'common' })}
                       </span>
@@ -550,13 +716,6 @@ export function StaffDashboardPage() {
                           {t('dashboard.startService')}
                         </button>
                         <button
-                          onClick={() => noShowMutation.mutate(selected.id)}
-                          disabled={noShowMutation.isPending}
-                          className="rounded-xl bg-orange-100 px-4 py-2.5 text-sm font-medium text-orange-700 hover:bg-orange-200 disabled:opacity-50"
-                        >
-                          {t('dashboard.noShow')}
-                        </button>
-                        <button
                           onClick={() => {
                             if (confirm(t('dashboard.deferConfirm'))) {
                               deferMutation.mutate(selected.id);
@@ -573,8 +732,17 @@ export function StaffDashboardPage() {
                     )}
                     {selected.status === 'serving' && (
                       <button
-                        onClick={() => completeMutation.mutate(selected.id)}
-                        disabled={completeMutation.isPending}
+                        onClick={() =>
+                          completeMutation.mutate({
+                            entryId: selected.id,
+                            orderId: selected.order?.id,
+                            ticketCode: selected.ticket_code,
+                          })
+                        }
+                        disabled={
+                          completeMutation.isPending ||
+                          (displayedOrders.length > 0 && groupedPaymentSummary.amountDue > 0)
+                        }
                         className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
                       >
                         {t('dashboard.complete')}
@@ -609,16 +777,18 @@ export function StaffDashboardPage() {
                               type="button"
                               onClick={() =>
                                 paymentMutation.mutate({
-                                  id: order.id,
+                                  ids: displayedOrders
+                                    .filter((displayed) => displayed.payment_status !== 'paid')
+                                    .map((displayed) => displayed.id),
                                   paymentStatus: 'paid',
                                 })
                               }
                               disabled={
-                                paymentMutation.isPending || order.payment_status === 'paid'
+                                paymentMutation.isPending || groupedPaymentSummary.amountDue === 0
                               }
                               className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:bg-gray-100 disabled:text-gray-500"
                             >
-                              {order.payment_status === 'paid'
+                              {groupedPaymentSummary.amountDue === 0
                                 ? t('states.paid', { ns: 'common' })
                                 : t('dashboard.markPaid', { ns: 'staff' })}
                             </button>

@@ -14,6 +14,7 @@ import { notificationOutboxRepository } from '../notifications/notification-outb
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { paymentsService } from '../payments/payments.service';
 import { queueService } from '../queue/queue.service';
+import { tryAutoCallNextWaiting } from '../queue/queue-auto-call.service';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ export interface EntryWithOrder extends QueueEntryRow {
 export interface EnrichedQueueOverview {
   queueId: string;
   queueName: string;
+  availableQueues: Array<{ id: string; name: string }>;
   orgId: string;
   waitingEntriesWithOrders: EntryWithOrder[];
   calledEntryWithOrder: EntryWithOrder | null;
@@ -46,12 +48,8 @@ export interface EnrichedQueueOverview {
 
 const STAFF_QUEUE_PREVIEW_LIMIT = 8;
 
-function assertBranchAccess(
-  branchId: string | undefined,
-  actorBranchIds: string[],
-  isOrganizationOwner: boolean
-): void {
-  if (!isOrganizationOwner && (!branchId || !actorBranchIds.includes(branchId))) {
+function assertBranchAccess(branchId: string | undefined, actorBranchIds: string[]): void {
+  if (!branchId || !actorBranchIds.includes(branchId)) {
     throw AppError.forbidden('Queue is outside your assigned branches');
   }
 }
@@ -59,32 +57,25 @@ function assertBranchAccess(
 async function assertQueueAccess(
   queueId: string,
   actorOrganizationId?: string,
-  actorBranchIds: string[] = [],
-  isOrganizationOwner = true
+  actorBranchIds: string[] = []
 ) {
   const queue = await queuesRepository.findById(queueId);
   if (!queue) throw AppError.notFound('Queue');
   if (actorOrganizationId && queue.organization_id !== actorOrganizationId) {
     throw AppError.forbidden('Queue is outside your organization');
   }
-  assertBranchAccess(queue.branch_id, actorBranchIds, isOrganizationOwner);
+  assertBranchAccess(queue.branch_id, actorBranchIds);
   return queue;
 }
 
 async function assertEntryAccess(
   entryId: string,
   actorOrganizationId?: string,
-  actorBranchIds: string[] = [],
-  isOrganizationOwner = true
+  actorBranchIds: string[] = []
 ) {
   const entry = await queueEntriesRepository.findById(entryId);
   if (!entry) throw AppError.notFound('Ticket');
-  const queue = await assertQueueAccess(
-    entry.queue_id,
-    actorOrganizationId,
-    actorBranchIds,
-    isOrganizationOwner
-  );
+  const queue = await assertQueueAccess(entry.queue_id, actorOrganizationId, actorBranchIds);
   return { entry, queue };
 }
 
@@ -123,15 +114,9 @@ export const staffService = {
   async getQueueOverview(
     queueId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = [],
-    isOrganizationOwner = true
+    actorBranchIds: string[] = []
   ): Promise<QueueOverview> {
-    const queue = await assertQueueAccess(
-      queueId,
-      actorOrganizationId,
-      actorBranchIds,
-      isOrganizationOwner
-    );
+    const queue = await assertQueueAccess(queueId, actorOrganizationId, actorBranchIds);
 
     const [waitingCount, totalActiveCount, calledEntry, servingEntry] = await Promise.all([
       queueEntriesRepository.countWaiting(queueId),
@@ -162,17 +147,15 @@ export const staffService = {
     queueId: string,
     actorUserId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = [],
-    isOrganizationOwner = true
+    actorBranchIds: string[] = []
   ): Promise<QueueEntryRow> {
-    if (!isOrganizationOwner) {
-      await assertQueueAccess(queueId, actorOrganizationId, actorBranchIds, isOrganizationOwner);
-    }
+    await assertQueueAccess(queueId, actorOrganizationId, actorBranchIds);
     const entry = await queueService.callNextTicket(
       queueId,
       undefined,
       undefined,
-      actorOrganizationId
+      actorOrganizationId,
+      actorBranchIds[0]
     );
     auditStaff(actorUserId, 'call_next', 'queue_entry', entry.id, {
       queueId,
@@ -186,13 +169,15 @@ export const staffService = {
     entryId: string,
     actorUserId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = [],
-    isOrganizationOwner = true
+    actorBranchIds: string[] = []
   ): Promise<QueueEntryRow> {
-    if (!isOrganizationOwner) {
-      await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds, isOrganizationOwner);
-    }
-    const entry = await queueService.serveTicket({ entryId, actorUserId, actorOrganizationId });
+    await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds);
+    const entry = await queueService.serveTicket({
+      entryId,
+      actorUserId,
+      actorOrganizationId,
+      actorBranchId: actorBranchIds[0],
+    });
     auditStaff(actorUserId, 'serve', 'queue_entry', entry.id, {
       ticket: entry.ticket_code,
     });
@@ -204,13 +189,15 @@ export const staffService = {
     entryId: string,
     actorUserId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = [],
-    isOrganizationOwner = true
+    actorBranchIds: string[] = []
   ): Promise<QueueEntryRow> {
-    if (!isOrganizationOwner) {
-      await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds, isOrganizationOwner);
-    }
-    const entry = await queueService.completeTicket({ entryId, actorUserId, actorOrganizationId });
+    await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds);
+    const entry = await queueService.completeTicket({
+      entryId,
+      actorUserId,
+      actorOrganizationId,
+      actorBranchId: actorBranchIds[0],
+    });
     auditStaff(actorUserId, 'complete', 'queue_entry', entry.id, {
       ticket: entry.ticket_code,
     });
@@ -222,12 +209,9 @@ export const staffService = {
     entryId: string,
     actorUserId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = [],
-    isOrganizationOwner = true
+    actorBranchIds: string[] = []
   ): Promise<QueueEntryRow> {
-    if (!isOrganizationOwner) {
-      await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds, isOrganizationOwner);
-    }
+    await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds);
     const entry = await queueService.deferCalledTicket({
       entryId,
       actorUserId,
@@ -247,12 +231,9 @@ export const staffService = {
     entryId: string,
     actorUserId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = [],
-    isOrganizationOwner = true
+    actorBranchIds: string[] = []
   ): Promise<QueueEntryRow> {
-    if (!isOrganizationOwner) {
-      await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds, isOrganizationOwner);
-    }
+    await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds);
     const entry = await queueService.noShowTicket({ entryId, actorUserId, actorOrganizationId });
     auditStaff(actorUserId, 'no_show', 'queue_entry', entry.id, {
       ticket: entry.ticket_code,
@@ -268,15 +249,9 @@ export const staffService = {
     entryId: string,
     actorUserId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = [],
-    isOrganizationOwner = true
+    actorBranchIds: string[] = []
   ): Promise<QueueEntryRow> {
-    const { entry, queue } = await assertEntryAccess(
-      entryId,
-      actorOrganizationId,
-      actorBranchIds,
-      isOrganizationOwner
-    );
+    const { entry, queue } = await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds);
 
     if (!['waiting', 'called'].includes(entry.status)) {
       throw AppError.conflict(
@@ -285,6 +260,8 @@ export const staffService = {
     }
 
     const cancelled = await withTransaction(async (client) => {
+      const lockedQueue = await queuesRepository.lockById(queue.id, client);
+      if (!lockedQueue) throw AppError.notFound('Queue');
       const updated = await queueEntriesRepository.markCancelled(entryId, client);
       if (updated.order_id) {
         await paymentsService.refundOrderOnCancellationInClient({
@@ -311,6 +288,7 @@ export const staffService = {
         notificationOutboxRepository,
         client
       );
+      await tryAutoCallNextWaiting(lockedQueue, client);
       return updated;
     });
     metricsService.increment('queue_cancelled_total');
@@ -328,30 +306,25 @@ export const staffService = {
   async getMyQueueOverview(
     organizationId: string,
     branchIds: string[] = [],
-    isOrganizationOwner = true
+    requestedQueueId?: string
   ): Promise<EnrichedQueueOverview | null> {
-    const queues = isOrganizationOwner
-      ? await queuesRepository.findActiveByOrg(organizationId)
-      : await queuesRepository.findActiveByBranches(organizationId, branchIds);
+    const queues = await queuesRepository.findActiveByBranches(organizationId, branchIds);
     if (queues.length === 0) return null;
     const overviews = await Promise.all(
       queues.map(async (queue) => ({
         queue,
-        overview: await this.getQueueOverview(
-          queue.id,
-          organizationId,
-          branchIds,
-          isOrganizationOwner
-        ),
+        overview: await this.getQueueOverview(queue.id, organizationId, branchIds),
       }))
     );
-    const selected =
-      overviews.find(
-        ({ overview }) =>
-          overview.totalActiveCount > 0 ||
-          overview.calledEntry !== null ||
-          overview.servingEntry !== null
-      ) ?? overviews[0];
+    const selected = requestedQueueId
+      ? overviews.find(({ queue }) => queue.id === requestedQueueId)
+      : (overviews.find(
+          ({ overview }) =>
+            overview.totalActiveCount > 0 ||
+            overview.calledEntry !== null ||
+            overview.servingEntry !== null
+        ) ?? overviews[0]);
+    if (!selected) throw AppError.forbidden('Queue is outside your assigned branch');
     const { queue, overview } = selected;
 
     const enrichEntry = async (entry: QueueEntryRow | null): Promise<EntryWithOrder | null> => {
@@ -369,6 +342,7 @@ export const staffService = {
     return {
       queueId: queue.id,
       queueName: queue.name,
+      availableQueues: queues.map((item) => ({ id: item.id, name: item.name })),
       orgId: organizationId,
       waitingEntriesWithOrders: waitingWithOrders.filter(Boolean) as EntryWithOrder[],
       calledEntryWithOrder: calledWithOrder,

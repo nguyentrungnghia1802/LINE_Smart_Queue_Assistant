@@ -35,6 +35,8 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 
 Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and `/media/*` to the internal `api:4000` service without stripping either prefix, so browser code and locally persisted media use the same public origin. The Vite development server proxies these same prefixes to the local API, keeping persisted image URLs working at `localhost:5173`. Production API requests use an empty `VITE_API_URL` because service paths already include `/api/v1`.
 
+The deployed production request path uses two proxy hops before Express: the host TLS nginx and the web-container nginx. The API therefore sets Express `trust proxy` to `2` so `req.ip` is derived from the forwarded client chain instead of the container socket address. This is important for strict rate limiting and request attribution. API port `4000` remains internal to the Compose network and is not published directly to the internet.
+
 ## 3. Backend module architecture
 
 The API entry is `apps/api/src/server.ts`; `app.ts` composes middleware, health routes, docs, and `/api/v1` modules.
@@ -44,11 +46,12 @@ The API entry is `apps/api/src/server.ts`; `app.ts` composes middleware, health 
 | `auth`                      | Business email/password login and customer LINE ID-token login  |
 | `admin`                     | Approved organization and manager lifecycle                     |
 | `organization-applications` | Public submission, server-side demo pricing, and admin approval |
-| `orgs`                      | Public organization lookup and manager settings                 |
-| `products`                  | Catalog and finite/unlimited inventory configuration            |
-| `queues`                    | Manager queue configuration                                     |
+| `orgs`                      | Public organization/branch booking resolution                   |
+| `branches`                  | Owner branch lifecycle/analytics and branch-manager settings    |
+| `products`                  | Branch catalog, queue assignment, and inventory configuration   |
+| `queues`                    | Branch-manager multi-queue configuration                        |
 | `queue`                     | Customer ticket operations and shared ticket transitions        |
-| `staff`                     | Organization-scoped operational queue board/actions             |
+| `staff`                     | Branch-scoped operational queue board/actions                   |
 | `orders`                    | Reservation/order/payment/item/inventory/location transaction   |
 | `users`                     | Profiles and manager-owned staff accounts                       |
 | `line`                      | Webhook signature handling, reply/push transport                |
@@ -73,7 +76,10 @@ Routes and controllers must not contain domain policy. Repositories must not kno
 - Customer LINE entry redirects: `/q/:orgSlug`, `/qr/:token`
 - LINE-first customer: `/liff/home`, `/liff/q/:orgSlug`, `/liff/qr/:token`, `/liff/checkout/demo/:sessionId`, `/liff/tickets`, `/liff/tickets/:entryId`
 - Staff: `/staff`, `/staff/products`
-- Manager: `/manager/*`
+- Organization owner manager: `/manager`, `/manager/branches/*`, `/manager/audit`,
+  `/manager/settings`
+- Branch manager: `/manager`, `/manager/products/*`, `/manager/queues/*`, `/manager/users`,
+  `/manager/qr`, `/manager/settings`
 - Platform admin: `/admin/*`
 - Public product/onboarding: `/`, `/business/register`
 - Legacy/general authenticated workspace: `/app/*`
@@ -82,9 +88,9 @@ Frontend responsibilities are split into route pages, reusable components/layout
 
 ## 5. Data ownership
 
-- PostgreSQL owns organization applications, organizations, identities, memberships, products,
-  queues, tickets, orders, payments, stock reservations, notifications, penalties, history, and
-  audit data. Pending application passwords are hashes and are cleared after review.
+- PostgreSQL owns organization applications, organizations, branches, identities, organization
+  memberships, branch memberships, branch calendars, products, queue-product assignments, queues,
+  tickets, orders, payments, stock reservations, notifications, penalties, history, and audit data.
 - LINE owns LINE account identity and chat transport; the system stores only linked identifiers/profile snapshots needed for the service.
 - The browser owns temporary checkout session/draft state and a local device key. Server validation remains authoritative.
 - Future payment providers own settlement state; verified webhooks must update local transaction/order/item records.
@@ -100,7 +106,11 @@ email login for customer-role users and exposes no public customer registration 
 2. API validates the hash and active user state.
 3. API issues a signed JWT.
 4. `currentUserMiddleware` resolves optional identity; `requireAuth` and `requireRole` enforce protected routes.
-5. Services/repositories must also constrain tenant-owned resources by organization ID.
+5. `currentUserMiddleware` reloads active organization membership, owner flag, and branch IDs from
+   PostgreSQL; browser/JWT request bodies do not establish tenant scope.
+6. Owner-only services require `organization_members.is_owner = TRUE`.
+7. Branch manager/staff services require exactly one active branch assignment and constrain every
+   resource by both organization ID and branch ID.
 
 ### LINE LIFF
 
@@ -114,6 +124,8 @@ email login for customer-role users and exposes no public customer registration 
 8. After authentication, the client synchronizes the Official Account friendship state without overriding a later explicit notification opt-out.
 9. Queue entries that store that verified linked LINE user ID can be targeted through Messaging API push.
 10. Rich Menu entry points open safe `/liff/*` routes. `/liff/home?mode=ticket` resolves the current active ticket for the authenticated LINE user instead of depending on a fixed entry ID.
+11. A branch QR resolves its branch token, active queues, queue-specific products, current waiting
+    count, ETA, and branch-open state. The customer selects a queue before payment or order creation.
 
 LINE Login does not send messages. Messaging API does not authenticate the web session. A complete setup needs both capabilities under the intended provider and a consistent LINE user relationship.
 
@@ -132,6 +144,9 @@ copy only this trusted claim into new queue entries; public request bodies canno
 - LINE copy is split into `ja`, `vi`, and `en` backend templates. The outbox stores the resolved customer locale at enqueue time.
 - Rich Menu management is separate from runtime startup. `rich-menu.definition.ts` owns the Japanese menu actions and LIFF routes, `rich-menu.adapter.ts` owns LINE transport, `rich-menu.sync.service.ts` owns idempotent create/reuse/replace behavior, and `npm run line:rich-menu:sync` performs the explicit synchronization. Uploading Rich Menu images uses LINE's data API host, while create/list/default/delete use the Messaging API host.
 - Payment originates as a server-created intent. Browser return is a UX signal; demo completion and future PSP callbacks are verified server-side before an order can consume the transaction.
+- Branch hours are evaluated in `organization_branches.timezone`; a matching exception date
+  overrides weekly hours. Payment intent and order creation independently revalidate the selected
+  branch, queue, and queue-product assignments.
 
 ## 8. Background jobs
 

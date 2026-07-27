@@ -1,19 +1,24 @@
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { post } from '../../services/apiClient';
-import { useAuthStore } from '../../store/authStore';
+import { get, post } from '../../services/apiClient';
 
 interface QueueRow {
   id: string;
   name: string;
 }
 
+interface ProductRow {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
 export function CreateQueuePage() {
   const { t } = useTranslation(['manager', 'common']);
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
@@ -23,32 +28,35 @@ export function CreateQueuePage() {
     status: 'open',
     maxCapacity: '',
     avgServiceTimeMinutes: '',
-    autoNoShowMinutes: '',
+    absenceGraceMinutes: '5',
+    productIds: [] as string[],
   });
 
-  function set(field: string, value: string) {
+  const { data: products = [] } = useQuery({
+    queryKey: ['manager-products-for-queue'],
+    queryFn: () => get<ProductRow[]>('/api/v1/products'),
+  });
+
+  function set(field: string, value: string | string[]) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!user?.organizationId) {
-      setError(t('queue.organizationMissing'));
-      return;
-    }
     setError('');
     setSaving(true);
     try {
       const queue = await post<QueueRow>('/api/v1/queues', {
-        orgId: user.organizationId,
         name: form.name,
         description: form.description || undefined,
         status: form.status,
         prefix: form.prefix || undefined,
         maxCapacity: form.maxCapacity ? parseInt(form.maxCapacity) : undefined,
-        avgServiceMs: form.avgServiceTimeMinutes
-          ? parseInt(form.avgServiceTimeMinutes) * 60 * 1000
+        avgServiceTimeMinutes: form.avgServiceTimeMinutes
+          ? parseInt(form.avgServiceTimeMinutes)
           : undefined,
+        absenceGraceMinutes: parseInt(form.absenceGraceMinutes),
+        productIds: form.productIds,
       });
       navigate(`/manager/queues/${queue.id}`);
     } catch (err: unknown) {
@@ -126,7 +134,45 @@ export function CreateQueuePage() {
               className={inputCls}
             />
           </Field>
+          <Field label={t('queue.absenceGrace')}>
+            <input
+              type="number"
+              min="1"
+              max="120"
+              placeholder="5"
+              value={form.absenceGraceMinutes}
+              onChange={(e) => set('absenceGraceMinutes', e.target.value)}
+              className={inputCls}
+            />
+          </Field>
         </div>
+
+        <Field label={t('queue.products')}>
+          <div className="grid gap-2 rounded-lg border border-gray-200 p-3 sm:grid-cols-2">
+            {products
+              .filter((product) => product.is_active)
+              .map((product) => (
+                <label key={product.id} className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={form.productIds.includes(product.id)}
+                    onChange={(event) =>
+                      set(
+                        'productIds',
+                        event.target.checked
+                          ? [...form.productIds, product.id]
+                          : form.productIds.filter((id) => id !== product.id)
+                      )
+                    }
+                  />
+                  <span className="min-w-0 truncate">{product.name}</span>
+                </label>
+              ))}
+            {products.length === 0 && (
+              <p className="text-xs text-gray-500">{t('queue.productsEmpty')}</p>
+            )}
+          </div>
+        </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t('queue.averageService')}>
@@ -136,16 +182,6 @@ export function CreateQueuePage() {
               placeholder="15"
               value={form.avgServiceTimeMinutes}
               onChange={(e) => set('avgServiceTimeMinutes', e.target.value)}
-              className={inputCls}
-            />
-          </Field>
-          <Field label={t('queue.autoCancel')}>
-            <input
-              type="number"
-              min="1"
-              placeholder="10"
-              value={form.autoNoShowMinutes}
-              onChange={(e) => set('autoNoShowMinutes', e.target.value)}
               className={inputCls}
             />
           </Field>

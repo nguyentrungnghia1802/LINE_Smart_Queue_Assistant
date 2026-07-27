@@ -50,9 +50,13 @@ interface OrgInfo {
 interface QueueInfo {
   id: string;
   name: string;
+  description: string | null;
   prefix: string;
+  status: 'open' | 'paused' | 'closed';
+  isAcceptingBookings: boolean;
   waitingCount: number;
   avgWaitMinutes: number;
+  products: Product[];
 }
 
 interface Product {
@@ -69,6 +73,21 @@ interface Product {
 
 interface OrgResponse {
   org: OrgInfo;
+  branch: {
+    id: string;
+    name: string;
+    phone: string;
+    email: string | null;
+    postalCode: string;
+    prefecture: string;
+    city: string;
+    addressLine1: string;
+    addressLine2: string | null;
+    latitude: string | null;
+    longitude: string | null;
+    isOpen: boolean;
+  };
+  queues: QueueInfo[];
   queue: QueueInfo | null;
   products: Product[];
 }
@@ -161,6 +180,7 @@ export function CustomerJoinPage({
       : null;
 
   const [cart, setCart] = useState<Record<string, number>>({});
+  const [selectedQueueId, setSelectedQueueId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -187,6 +207,11 @@ export function CustomerJoinPage({
     enabled: !!(orgSlug || token),
     staleTime: 30_000,
   });
+  const selectedQueue = useMemo(
+    () => data?.queues.find((queue) => queue.id === selectedQueueId) ?? null,
+    [data?.queues, selectedQueueId]
+  );
+  const products = useMemo(() => selectedQueue?.products ?? [], [selectedQueue]);
 
   useEffect(() => {
     if (
@@ -210,10 +235,9 @@ export function CustomerJoinPage({
   );
 
   const checkoutItems = useMemo<CheckoutItem[]>(() => {
-    if (!data) return [];
     return cartItems
       .map((item) => {
-        const product = data.products.find((p) => p.id === item.productId);
+        const product = products.find((p) => p.id === item.productId);
         if (!product) return null;
         const unitPrice = Number(product.price);
         return {
@@ -227,7 +251,7 @@ export function CustomerJoinPage({
         };
       })
       .filter((item): item is CheckoutItem => item !== null);
-  }, [cartItems, data]);
+  }, [cartItems, products]);
 
   const subtotal = useMemo(
     () => checkoutItems.reduce((sum, item) => sum + item.subtotal, 0),
@@ -242,7 +266,8 @@ export function CustomerJoinPage({
     [requiredPrepaymentItems]
   );
   const currentCartSignature = useMemo(() => cartSignature(cartItems), [cartItems]);
-  const paymentKeyBase = data ? `${data.org.slug}:${currentCartSignature}` : '';
+  const paymentKeyBase =
+    data && selectedQueue ? `${data.org.slug}:${selectedQueue.id}:${currentCartSignature}` : '';
   const requiredPaymentKey = paymentKeyBase ? paymentKeyFor(paymentKeyBase, 'required_items') : '';
   const fullPaymentKey = paymentKeyBase ? paymentKeyFor(paymentKeyBase, 'all_items') : '';
   const needsPrepayment = requiredPrepaymentItems.length > 0;
@@ -274,7 +299,7 @@ export function CustomerJoinPage({
   function stockViolation(items: CartItem[] = cartItems): string | null {
     if (!data) return null;
     for (const item of items) {
-      const product = data.products.find((p) => p.id === item.productId);
+      const product = products.find((p) => p.id === item.productId);
       if (!product || product.stock_quantity === null) continue;
       if (product.stock_quantity <= 0)
         return t('booking.stockUnavailable', { ns: 'customer', name: product.name });
@@ -298,10 +323,12 @@ export function CustomerJoinPage({
       setCart(draft.cart);
       setCustomerName(draft.customerName);
       setCustomerPhone(draft.customerPhone);
+      setSelectedQueueId(draft.selectedQueueId ?? '');
     } else {
       setCart({});
       setCustomerName('');
       setCustomerPhone('');
+      setSelectedQueueId('');
     }
     setPaidRequiredCheckout(null);
     setPaidFullCheckout(null);
@@ -311,8 +338,13 @@ export function CustomerJoinPage({
   useEffect(() => {
     if (hydratedDraftKeyRef.current !== draftKey) return;
     if (bookingCompletedRef.current) return;
-    saveCheckoutDraft(draftKey, { cart, customerName, customerPhone });
-  }, [cart, customerName, customerPhone, draftKey]);
+    saveCheckoutDraft(draftKey, { cart, customerName, customerPhone, selectedQueueId });
+  }, [cart, customerName, customerPhone, draftKey, selectedQueueId]);
+
+  useEffect(() => {
+    if (!data || selectedQueueId) return;
+    if (data.queues.length === 1) setSelectedQueueId(data.queues[0].id);
+  }, [data, selectedQueueId]);
 
   useEffect(() => {
     if (!currentCartSignature) {
@@ -325,11 +357,18 @@ export function CustomerJoinPage({
   }, [currentCartSignature, requiredPaymentKey, fullPaymentKey]);
 
   useEffect(() => {
-    if (!data) return;
+    if (!selectedQueue) return;
     setCart((prev) => {
       let changed = false;
       const next = { ...prev };
-      for (const product of data.products) {
+      const availableIds = new Set(products.map((product) => product.id));
+      for (const productId of Object.keys(next)) {
+        if (!availableIds.has(productId) && next[productId] !== 0) {
+          next[productId] = 0;
+          changed = true;
+        }
+      }
+      for (const product of products) {
         const current = next[product.id] ?? 0;
         const max = product.stock_quantity === null ? 99 : Math.max(0, product.stock_quantity);
         if (current > max) {
@@ -339,7 +378,16 @@ export function CustomerJoinPage({
       }
       return changed ? next : prev;
     });
-  }, [data]);
+  }, [products, selectedQueue]);
+
+  function selectQueue(queueId: string) {
+    if (queueId === selectedQueueId) return;
+    setSelectedQueueId(queueId);
+    setCart({});
+    setPaidRequiredCheckout(null);
+    setPaidFullCheckout(null);
+    setError('');
+  }
 
   function setQty(product: Product, delta: number) {
     setCart((prev) => {
@@ -358,7 +406,7 @@ export function CustomerJoinPage({
 
   function startPayment() {
     if (!data || checkoutItems.length === 0 || !currentCartSignature) return;
-    if (!data.queue) {
+    if (!selectedQueue?.isAcceptingBookings) {
       setError(t('booking.queueClosed', { ns: 'customer' }));
       return;
     }
@@ -377,12 +425,14 @@ export function CustomerJoinPage({
       return;
     }
     if (requiredPrepaymentItems.length === 0) return;
-    saveCheckoutDraft(draftKey, { cart, customerName, customerPhone });
+    saveCheckoutDraft(draftKey, { cart, customerName, customerPhone, selectedQueueId });
     const sessionId = createCheckoutId();
     saveCheckoutSession({
       id: sessionId,
       orgSlug: data.org.slug,
-      orgName: data.org.name,
+      orgName: data.branch.name,
+      branchId: data.branch.id,
+      queueId: selectedQueue.id,
       returnPath: location.pathname,
       cartSignature: currentCartSignature,
       paymentKey: requiredPaymentKey,
@@ -430,7 +480,7 @@ export function CustomerJoinPage({
   }
 
   async function submitBooking(paidCheckoutOverride?: PaidCheckout) {
-    if (!queue) {
+    if (!selectedQueue?.isAcceptingBookings) {
       setError(t('booking.queueClosed', { ns: 'customer' }));
       return;
     }
@@ -464,10 +514,15 @@ export function CustomerJoinPage({
     setError('');
     setSubmitting(true);
     try {
-      const result = await post<{ order: { id: string }; queueEntry: { id: string } }>(
+      const result = await post<{
+        order: { id: string; booking_group_id?: string | null };
+        queueEntry: { id: string };
+      }>(
         '/api/v1/orders',
         {
           orgSlug: data?.org.slug,
+          branchId: data?.branch.id,
+          queueId: selectedQueue.id,
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
           items: cartItems,
@@ -490,7 +545,12 @@ export function CustomerJoinPage({
       );
       const nextGroup = appendBookingRecord(
         draftKey,
-        { orgSlug: data?.org.slug ?? '', token, localDeviceKey, groupId: bookingGroupId },
+        {
+          orgSlug: data?.org.slug ?? '',
+          token,
+          localDeviceKey,
+          groupId: result.order.booking_group_id ?? bookingGroupId,
+        },
         {
           orderId: result.order.id,
           queueEntryId: result.queueEntry.id,
@@ -609,7 +669,8 @@ export function CustomerJoinPage({
     );
   }
 
-  const { org, queue, products } = data;
+  const { org } = data;
+  const branchAddress = `〒${data.branch.postalCode} ${data.branch.prefecture}${data.branch.city}${data.branch.addressLine1}${data.branch.addressLine2 ?? ''}`;
 
   if (isBusinessAccount) {
     return (
@@ -650,8 +711,8 @@ export function CustomerJoinPage({
                 </div>
               )}
               <div className="min-w-0">
-                <h1 className="truncate text-sm font-bold text-gray-900">{org.name}</h1>
-                {org.address && <p className="truncate text-xs text-gray-500">{org.address}</p>}
+                <h1 className="truncate text-sm font-bold text-gray-900">{data.branch.name}</h1>
+                <p className="truncate text-xs text-gray-500">{branchAddress}</p>
               </div>
             </div>
             {isLiffMode ? (
@@ -701,18 +762,63 @@ export function CustomerJoinPage({
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="truncate text-base font-bold text-gray-950">{org.name}</h1>
-              {org.address && <p className="truncate text-xs text-gray-500">{org.address}</p>}
+              <h1 className="truncate text-base font-bold text-gray-950">{data.branch.name}</h1>
+              <p className="truncate text-xs text-gray-500">{branchAddress}</p>
             </div>
           </section>
         )}
 
         <div className="space-y-6">
-          {queue ? (
+          <section className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
+                {t('booking.queueStep', { ns: 'customer' })}
+              </p>
+              <h2 className="mt-1 text-lg font-bold text-gray-950">
+                {t('booking.selectQueue', { ns: 'customer' })}
+              </h2>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {data.queues.map((queueOption) => (
+                <button
+                  key={queueOption.id}
+                  type="button"
+                  onClick={() => selectQueue(queueOption.id)}
+                  className={`min-h-24 rounded-xl border p-4 text-left transition ${
+                    selectedQueueId === queueOption.id
+                      ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100'
+                      : 'border-gray-200 bg-white hover:border-brand-200'
+                  }`}
+                >
+                  <span className="block font-bold text-gray-950">{queueOption.name}</span>
+                  {queueOption.description && (
+                    <span className="mt-1 line-clamp-2 block text-xs text-gray-500">
+                      {queueOption.description}
+                    </span>
+                  )}
+                  <span className="mt-3 block text-xs font-medium text-gray-600">
+                    {t('labels.peopleAhead', { ns: 'common' })}: {queueOption.waitingCount}
+                    {' · '}
+                    {t('units.minutes', {
+                      ns: 'common',
+                      count: queueOption.avgWaitMinutes,
+                    })}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {data.queues.length === 0 && (
+              <p className="text-sm text-amber-700">
+                {t('booking.queueClosed', { ns: 'customer' })}
+              </p>
+            )}
+          </section>
+
+          {selectedQueue?.isAcceptingBookings ? (
             <section className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-950">{queue.name}</h2>
+                  <h2 className="text-lg font-bold text-gray-950">{selectedQueue.name}</h2>
                   <p className="mt-1 text-sm text-gray-500">
                     {t('booking.online', { ns: 'customer' })}
                   </p>
@@ -720,20 +826,23 @@ export function CustomerJoinPage({
                 <div className="grid grid-cols-2 gap-3 text-center">
                   <Metric
                     label={t('labels.peopleAhead', { ns: 'common' })}
-                    value={`${queue.waitingCount}`}
+                    value={`${selectedQueue.waitingCount}`}
                   />
                   <Metric
                     label={t('labels.estimatedWait', { ns: 'common' })}
-                    value={t('units.minutes', { ns: 'common', count: queue.avgWaitMinutes })}
+                    value={t('units.minutes', {
+                      ns: 'common',
+                      count: selectedQueue.avgWaitMinutes,
+                    })}
                   />
                 </div>
               </div>
             </section>
-          ) : (
+          ) : selectedQueue ? (
             <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
               {t('booking.queueClosed', { ns: 'customer' })}
             </section>
-          )}
+          ) : null}
 
           <section>
             <div className="mb-4 flex items-end justify-between">
@@ -905,12 +1014,17 @@ export function CustomerJoinPage({
 
           <button
             type="submit"
-            disabled={submitting || !queue || cartItems.length === 0 || !isLineAuthenticated}
+            disabled={
+              submitting ||
+              !selectedQueue?.isAcceptingBookings ||
+              cartItems.length === 0 ||
+              !isLineAuthenticated
+            }
             className="w-full rounded-xl bg-gray-950 px-4 py-3 text-base font-bold text-white transition hover:bg-gray-800 disabled:opacity-50"
           >
             {submitting
               ? t('booking.booking', { ns: 'customer' })
-              : !queue
+              : !selectedQueue?.isAcceptingBookings
                 ? t('booking.queueClosed', { ns: 'customer' })
                 : needsPrepayment && !canBook
                   ? t('booking.payAndBook', { ns: 'customer' })

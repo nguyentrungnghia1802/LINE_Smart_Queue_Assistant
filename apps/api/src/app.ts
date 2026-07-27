@@ -20,8 +20,9 @@ import { v1Router } from './routes/v1.routes';
 export function createApp(): Application {
   const app = express();
 
-  // Trust first proxy hop so req.ip reflects real client IP behind Docker/nginx.
-  app.set('trust proxy', 1);
+  // Trust the host nginx and web-container nginx hops so req.ip reflects the
+  // client address used by rate limiters and request logging.
+  app.set('trust proxy', 2);
 
   // ── 1. Security headers ──────────────────────────────────────────────────────
   app.use(helmet());

@@ -40,7 +40,8 @@ export const useAuthStore = create<AuthState>()(
           {
             email,
             password,
-          }
+          },
+          { headers: { 'X-Skip-Auth-Redirect': 'true' } }
         );
         localStorage.setItem('auth_token', token);
         set({ user, token, isAuthenticated: true });

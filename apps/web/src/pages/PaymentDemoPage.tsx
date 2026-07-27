@@ -74,6 +74,8 @@ export function PaymentDemoPage() {
         '/api/v1/payments/intents',
         {
           orgSlug: session.orgSlug,
+          branchId: session.branchId,
+          queueId: session.queueId,
           items: session.items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,

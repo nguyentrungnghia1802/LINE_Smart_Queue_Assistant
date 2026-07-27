@@ -27,6 +27,10 @@ const mockFindPendingByEmail =
 const mockCreateApplication = organizationApplicationsRepository.create as jest.MockedFunction<
   typeof organizationApplicationsRepository.create
 >;
+const mockUpdateApplication =
+  organizationApplicationsRepository.updatePending as jest.MockedFunction<
+    typeof organizationApplicationsRepository.updatePending
+  >;
 const mockFindByIdForUpdate =
   organizationApplicationsRepository.findByIdForUpdate as jest.MockedFunction<
     typeof organizationApplicationsRepository.findByIdForUpdate
@@ -167,6 +171,45 @@ describe('organizationApplicationsService', () => {
       code: 'CONFLICT',
     });
     expect(mockCreateApplication).not.toHaveBeenCalled();
+  });
+
+  it('updates only a pending application and recalculates its server-side price', async () => {
+    const application = makeApplication();
+    const updated = makeApplication({ trade_name: 'Updated Reception' });
+    mockFindByIdForUpdate.mockResolvedValue(application);
+    mockFindPendingByEmail.mockResolvedValue(application);
+    mockUpdateApplication.mockResolvedValue(updated);
+
+    await expect(
+      organizationApplicationsService.update(APPLICATION_ID, {
+        ...validDto,
+        tradeName: 'Updated Reception',
+      })
+    ).resolves.toEqual(updated);
+
+    expect(mockUpdateApplication).toHaveBeenCalledWith(
+      APPLICATION_ID,
+      expect.objectContaining({
+        tradeName: 'Updated Reception',
+        amountYen: 298_000,
+      }),
+      expect.anything()
+    );
+  });
+
+  it('rejects changing a pending application to another pending work email', async () => {
+    mockFindByIdForUpdate.mockResolvedValue(makeApplication());
+    mockFindPendingByEmail.mockResolvedValue(
+      makeApplication({ id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' })
+    );
+
+    await expect(
+      organizationApplicationsService.update(APPLICATION_ID, validDto)
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'CONFLICT',
+    });
+    expect(mockUpdateApplication).not.toHaveBeenCalled();
   });
 
   it('approves once and creates organization, manager, and membership atomically', async () => {

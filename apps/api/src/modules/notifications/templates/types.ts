@@ -8,6 +8,7 @@ export type TicketNotificationEventType =
   | 'completed'
   | 'cancelled'
   | 'no_show'
+  | 'deferred'
   | 'location_warning';
 
 export interface LineNotificationCopy {

@@ -20,11 +20,8 @@ import {
   notificationOutboxRepository,
 } from './notification-outbox.repository';
 
-/**
- * Send an ETA warning when this many entries are still ahead of the customer.
- * Threshold of 2 means "you are 3rd in line or closer".
- */
-export const ETA_WARNING_THRESHOLD = 2;
+export const ETA_WARNING_POSITIONS = [5] as const;
+export const ETA_WARNING_THRESHOLD = Math.max(...ETA_WARNING_POSITIONS);
 
 interface TicketNotificationSnapshot {
   organizationId?: string;
@@ -54,7 +51,8 @@ async function enqueueTicketNotification(
   eventType: TicketNotificationEventType,
   snapshot: TicketNotificationSnapshot,
   repository: NotificationOutboxRepository,
-  client?: PoolClient
+  client?: PoolClient,
+  eventKeySuffix?: string
 ): Promise<void> {
   if (!entry.line_user_id) return;
 
@@ -64,7 +62,8 @@ async function enqueueTicketNotification(
     return;
   }
 
-  const eventKey = buildQueueNotificationEventKey(entry.id, eventType);
+  const baseEventKey = buildQueueNotificationEventKey(entry.id, eventType);
+  const eventKey = eventKeySuffix ? `${baseEventKey}:${eventKeySuffix}` : baseEventKey;
   await repository.enqueue(
     {
       organizationId,
@@ -123,13 +122,15 @@ export const queueNotificationService = {
     repository: NotificationOutboxRepository = notificationOutboxRepository,
     client?: PoolClient
   ): Promise<void> {
-    if (aheadCount > ETA_WARNING_THRESHOLD) return;
+    if (!ETA_WARNING_POSITIONS.includes(aheadCount as (typeof ETA_WARNING_POSITIONS)[number]))
+      return;
     await enqueueTicketNotification(
       entry,
       'eta_warning',
       { ...snapshot, aheadCount },
       repository,
-      client
+      client,
+      `ahead:${aheadCount}`
     );
   },
 
@@ -145,6 +146,22 @@ export const queueNotificationService = {
       { ...snapshot, aheadCount: snapshot.aheadCount ?? 0, estimatedWaitSeconds: 0 },
       repository,
       client
+    );
+  },
+
+  async notifyTicketDeferred(
+    entry: QueueEntryRow,
+    snapshot: TicketNotificationSnapshot = {},
+    repository: NotificationOutboxRepository = notificationOutboxRepository,
+    client?: PoolClient
+  ): Promise<void> {
+    await enqueueTicketNotification(
+      entry,
+      'deferred',
+      snapshot,
+      repository,
+      client,
+      `absence:${entry.absence_count ?? 1}`
     );
   },
 

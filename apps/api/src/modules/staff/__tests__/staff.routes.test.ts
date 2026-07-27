@@ -15,6 +15,7 @@ jest.mock('../staff.service');
 const USER_ID = '11111111-1111-4111-8111-111111111111';
 const ORG_ID = '22222222-2222-4222-8222-222222222222';
 const ENTRY_ID = '33333333-3333-4333-8333-333333333333';
+const BRANCH_ID = '66666666-6666-4666-8666-666666666666';
 
 const app = createApp();
 
@@ -28,6 +29,10 @@ const mockFindMembershipByUserId =
 const mockFindOrganizationById = organizationsRepository.findById as jest.MockedFunction<
   typeof organizationsRepository.findById
 >;
+const mockFindBranchIdsForUser =
+  organizationsRepository.findBranchIdsForUser as jest.MockedFunction<
+    typeof organizationsRepository.findBranchIdsForUser
+  >;
 const mockComplete = staffService.complete as jest.MockedFunction<typeof staffService.complete>;
 const mockDefer = staffService.deferCalled as jest.MockedFunction<typeof staffService.deferCalled>;
 
@@ -55,6 +60,7 @@ beforeEach(() => {
     role: UserRole.STAFF,
     joined_at: new Date(),
   });
+  mockFindBranchIdsForUser.mockResolvedValue([BRANCH_ID]);
   mockFindOrganizationById.mockResolvedValue({
     id: ORG_ID,
     name: 'Test Organization',
@@ -133,7 +139,7 @@ describe('POST /api/v1/staff/entries/:entryId/complete', () => {
       success: true,
       data: { entry: { id: ENTRY_ID, status: 'served' } },
     });
-    expect(mockComplete).toHaveBeenCalledWith(ENTRY_ID, USER_ID, ORG_ID, undefined, false);
+    expect(mockComplete).toHaveBeenCalledWith(ENTRY_ID, USER_ID, ORG_ID, [BRANCH_ID]);
   });
 
   it('returns a useful field error for an invalid entry UUID', async () => {
@@ -158,6 +164,6 @@ describe('POST /api/v1/staff/entries/:entryId/defer', () => {
       success: true,
       data: { entry: { id: ENTRY_ID, status: 'waiting' } },
     });
-    expect(mockDefer).toHaveBeenCalledWith(ENTRY_ID, USER_ID, ORG_ID, undefined, false);
+    expect(mockDefer).toHaveBeenCalledWith(ENTRY_ID, USER_ID, ORG_ID, [BRANCH_ID]);
   });
 });

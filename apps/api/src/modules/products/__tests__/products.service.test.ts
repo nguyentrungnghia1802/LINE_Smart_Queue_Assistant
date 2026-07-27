@@ -22,13 +22,18 @@ const mockAuditCreate = auditLogRepository.create as jest.MockedFunction<
 >;
 
 const ORG_ID = '11111111-1111-4111-8111-111111111111';
+const BRANCH_ID = '44444444-4444-4444-8444-444444444444';
+const QUEUE_ID = '55555555-5555-4555-8555-555555555555';
 const PRODUCT_ID = '22222222-2222-4222-8222-222222222222';
 const ACTOR_ID = '33333333-3333-4333-8333-333333333333';
+const scope = { organizationId: ORG_ID, branchId: BRANCH_ID };
 
 function makeProduct(overrides: Partial<ProductRow> = {}): ProductRow {
   return {
     id: PRODUCT_ID,
     organization_id: ORG_ID,
+    branch_id: BRANCH_ID,
+    queue_ids: [QUEUE_ID],
     name: 'Haircut',
     description: 'Basic haircut',
     image_url: null,
@@ -63,11 +68,22 @@ describe('productsService CRUD audit logging', () => {
       productType: 'service' as const,
     };
 
-    await expect(productsService.create(ORG_ID, dto, { actorUserId: ACTOR_ID })).resolves.toEqual(
+    await expect(productsService.create(scope, dto, { actorUserId: ACTOR_ID })).resolves.toEqual(
       created
     );
 
-    expect(mockCreate).toHaveBeenCalledWith({ organizationId: ORG_ID, ...dto });
+    expect(mockCreate).toHaveBeenCalledWith(
+      {
+        organizationId: ORG_ID,
+        branchId: BRANCH_ID,
+        name: dto.name,
+        price: dto.price,
+        serviceTimeMinutes: dto.serviceTimeMinutes,
+        requiresPrepayment: dto.requiresPrepayment,
+        productType: dto.productType,
+      },
+      expect.anything()
+    );
     expect(mockAuditCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         actorId: ACTOR_ID,
@@ -89,7 +105,7 @@ describe('productsService CRUD audit logging', () => {
     await expect(
       productsService.update(
         PRODUCT_ID,
-        ORG_ID,
+        scope,
         { name: 'Premium Haircut' },
         { actorUserId: ACTOR_ID }
       )
@@ -108,7 +124,7 @@ describe('productsService CRUD audit logging', () => {
     mockFindById.mockResolvedValue(makeProduct({ price: '0' }));
 
     await expect(
-      productsService.update(PRODUCT_ID, ORG_ID, { requiresPrepayment: true })
+      productsService.update(PRODUCT_ID, scope, { requiresPrepayment: true })
     ).rejects.toMatchObject({ statusCode: 422 });
     expect(mockUpdate).not.toHaveBeenCalled();
   });
@@ -119,11 +135,12 @@ describe('productsService CRUD audit logging', () => {
     mockFindById.mockResolvedValue(existing);
     mockUpdate.mockResolvedValue(updated);
 
-    await productsService.update(PRODUCT_ID, ORG_ID, { productType: 'service' });
+    await productsService.update(PRODUCT_ID, scope, { productType: 'service' });
 
     expect(mockUpdate).toHaveBeenCalledWith(
       PRODUCT_ID,
-      expect.objectContaining({ productType: 'service', stockQuantity: null })
+      expect.objectContaining({ productType: 'service', stockQuantity: null }),
+      expect.anything()
     );
   });
 
@@ -132,7 +149,7 @@ describe('productsService CRUD audit logging', () => {
     mockFindById.mockResolvedValue(existing);
     mockSoftDelete.mockResolvedValue(undefined);
 
-    await productsService.remove(PRODUCT_ID, ORG_ID, { actorUserId: ACTOR_ID });
+    await productsService.remove(PRODUCT_ID, scope, { actorUserId: ACTOR_ID });
 
     expect(mockSoftDelete).toHaveBeenCalledWith(PRODUCT_ID);
     expect(mockAuditCreate).toHaveBeenCalledWith(

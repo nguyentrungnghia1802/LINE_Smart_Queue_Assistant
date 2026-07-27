@@ -88,6 +88,65 @@ function renderLiffBooking(authStatus: LiffContext['authStatus'] = 'authenticate
   );
 }
 
+function makeOrgResponse({
+  productName = 'カット',
+  requiresPrepayment = false,
+  isAcceptingBookings = true,
+}: {
+  productName?: string;
+  requiresPrepayment?: boolean;
+  isAcceptingBookings?: boolean;
+} = {}) {
+  const product = {
+    id: 'product-1',
+    name: productName,
+    description: null,
+    image_url: null,
+    price: '3000',
+    service_time_minutes: 30,
+    requires_prepayment: requiresPrepayment,
+    stock_quantity: null,
+    product_type: 'service',
+  };
+  const queue = {
+    id: 'queue-1',
+    name: '受付',
+    description: null,
+    prefix: 'A',
+    status: isAcceptingBookings ? 'open' : 'closed',
+    isAcceptingBookings,
+    waitingCount: 0,
+    avgWaitMinutes: 5,
+    products: [product],
+  };
+  return {
+    org: {
+      id: 'org-1',
+      name: 'テスト店舗',
+      slug: 'test-store',
+      logoUrl: null,
+      phone: null,
+      address: 'Tokyo',
+      paymentInfo: null,
+    },
+    branch: {
+      id: 'branch-1',
+      name: '東京店',
+      phone: '03-1234-5678',
+      email: 'tokyo@example.com',
+      postalCode: '100-0001',
+      prefecture: '東京都',
+      city: '千代田区',
+      addressLine1: '千代田1-1',
+      addressLine2: null,
+      isOpen: isAcceptingBookings,
+    },
+    queues: [queue],
+    queue,
+    products: [product],
+  };
+}
+
 describe('LiffCustomerJoinPage', () => {
   beforeEach(() => {
     sessionStorage.clear();
@@ -97,37 +156,7 @@ describe('LiffCustomerJoinPage', () => {
       (route: string) => `https://liff.line.me/test-id?route=${route}`
     );
     useAuthStore.setState({ user: null, token: null, isAuthenticated: false });
-    vi.mocked(get).mockResolvedValue({
-      org: {
-        id: 'org-1',
-        name: 'テスト店舗',
-        slug: 'test-store',
-        logoUrl: null,
-        phone: null,
-        address: 'Tokyo',
-        paymentInfo: null,
-      },
-      queue: {
-        id: 'queue-1',
-        name: '受付',
-        prefix: 'A',
-        waitingCount: 0,
-        avgWaitMinutes: 5,
-      },
-      products: [
-        {
-          id: 'product-1',
-          name: 'カット',
-          description: null,
-          image_url: null,
-          price: '3000',
-          service_time_minutes: 30,
-          requires_prepayment: false,
-          stock_quantity: null,
-          product_type: 'service',
-        },
-      ],
-    });
+    vi.mocked(get).mockResolvedValue(makeOrgResponse());
     vi.mocked(post).mockResolvedValue({
       order: { id: 'order-1' },
       queueEntry: { id: 'entry-123' },
@@ -138,11 +167,11 @@ describe('LiffCustomerJoinPage', () => {
     const user = userEvent.setup();
     renderLiffBooking();
 
-    await screen.findByRole('heading', { name: 'テスト店舗' });
+    await screen.findByRole('heading', { name: '東京店' });
     await user.click(screen.getByRole('button', { name: 'カット を追加' }));
     await user.type(screen.getByLabelText('お名前（必須）'), '山田太郎');
     await user.type(screen.getByLabelText('電話番号（必須）'), '0901234567');
-    await user.click(screen.getByRole('button', { name: '予約する' }));
+    await user.click(await screen.findByRole('button', { name: '予約する' }));
 
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
@@ -156,6 +185,8 @@ describe('LiffCustomerJoinPage', () => {
     const payload = vi.mocked(post).mock.calls[0][1] as Record<string, unknown>;
     expect(payload).toMatchObject({
       orgSlug: 'test-store',
+      branchId: 'branch-1',
+      queueId: 'queue-1',
       customerName: '山田太郎',
       customerPhone: '0901234567',
       items: [{ productId: 'product-1', quantity: 1 }],
@@ -164,40 +195,50 @@ describe('LiffCustomerJoinPage', () => {
     expect(await screen.findByTestId('location')).toHaveTextContent('/liff/tickets/entry-123');
   });
 
-  it('clears the completed draft and used payment before a new booking attempt', async () => {
+  it('shows only the catalog assigned to the selected branch queue', async () => {
+    const response = makeOrgResponse();
     vi.mocked(get).mockResolvedValue({
-      org: {
-        id: 'org-1',
-        name: 'テスト店舗',
-        slug: 'test-store',
-        logoUrl: null,
-        phone: null,
-        address: 'Tokyo',
-        paymentInfo: null,
-      },
-      queue: {
-        id: 'queue-1',
-        name: '受付',
-        prefix: 'A',
-        waitingCount: 0,
-        avgWaitMinutes: 5,
-      },
-      products: [
+      ...response,
+      queues: [
+        response.queues[0],
         {
-          id: 'product-1',
-          name: '前払いカット',
-          description: null,
-          image_url: null,
-          price: '3000',
-          service_time_minutes: 30,
-          requires_prepayment: true,
-          stock_quantity: null,
-          product_type: 'service',
+          ...response.queues[0],
+          id: 'queue-2',
+          name: 'カラー受付',
+          waitingCount: 4,
+          avgWaitMinutes: 20,
+          products: [
+            {
+              ...response.products[0],
+              id: 'product-2',
+              name: 'ヘアカラー',
+            },
+          ],
         },
       ],
+      queue: response.queues[0],
+      products: response.products,
     });
+    const user = userEvent.setup();
+
+    renderLiffBooking();
+
+    await screen.findByRole('heading', { name: '東京店' });
+    expect(screen.queryByRole('button', { name: 'カット を追加' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /カラー受付/ }));
+
+    expect(screen.getByRole('button', { name: 'ヘアカラー を追加' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'カット を追加' })).not.toBeInTheDocument();
+    expect(screen.getByText('20分')).toBeInTheDocument();
+  });
+
+  it('clears the completed draft and used payment before a new booking attempt', async () => {
+    vi.mocked(get).mockResolvedValue(
+      makeOrgResponse({ productName: '前払いカット', requiresPrepayment: true })
+    );
     const draftKey = 'liff:qr:demo-token';
-    const paymentKey = paymentKeyFor('test-store:product-1:1', 'required_items');
+    const paymentKey = paymentKeyFor('test-store:queue-1:product-1:1', 'required_items');
     sessionStorage.setItem(
       `${CHECKOUT_DRAFT_PREFIX}${draftKey}`,
       JSON.stringify({
@@ -229,52 +270,25 @@ describe('LiffCustomerJoinPage', () => {
     firstRender.unmount();
     renderLiffBooking();
 
-    await screen.findByRole('heading', { name: 'テスト店舗' });
+    await screen.findByRole('heading', { name: '東京店' });
     expect(screen.getByPlaceholderText('例: 山田太郎')).toHaveValue('');
     expect(screen.getByPlaceholderText('例: 0901234567')).toHaveValue('');
     expect(screen.getByRole('button', { name: '予約する' })).toBeDisabled();
   });
 
   it('discards a legacy used payment and keeps the cart ready for repayment', async () => {
-    vi.mocked(get).mockResolvedValue({
-      org: {
-        id: 'org-1',
-        name: 'テスト店舗',
-        slug: 'test-store',
-        logoUrl: null,
-        phone: null,
-        address: 'Tokyo',
-        paymentInfo: null,
-      },
-      queue: {
-        id: 'queue-1',
-        name: '受付',
-        prefix: 'A',
-        waitingCount: 0,
-        avgWaitMinutes: 5,
-      },
-      products: [
-        {
-          id: 'product-1',
-          name: '前払いカット',
-          description: null,
-          image_url: null,
-          price: '3000',
-          service_time_minutes: 30,
-          requires_prepayment: true,
-          stock_quantity: null,
-          product_type: 'service',
-        },
-      ],
-    });
+    vi.mocked(get).mockResolvedValue(
+      makeOrgResponse({ productName: '前払いカット', requiresPrepayment: true })
+    );
     const draftKey = 'liff:qr:demo-token';
-    const paymentKey = paymentKeyFor('test-store:product-1:1', 'required_items');
+    const paymentKey = paymentKeyFor('test-store:queue-1:product-1:1', 'required_items');
     sessionStorage.setItem(
       `${CHECKOUT_DRAFT_PREFIX}${draftKey}`,
       JSON.stringify({
         cart: { 'product-1': 1 },
         customerName: '山田太郎',
         customerPhone: '0901234567',
+        selectedQueueId: 'queue-1',
       })
     );
     savePaidCheckout(paymentKey, {
@@ -294,8 +308,8 @@ describe('LiffCustomerJoinPage', () => {
 
     const user = userEvent.setup();
     renderLiffBooking();
-    await screen.findByRole('heading', { name: 'テスト店舗' });
-    await user.click(screen.getByRole('button', { name: '予約する' }));
+    await screen.findByRole('heading', { name: '東京店' });
+    await user.click(await screen.findByRole('button', { name: '予約する' }));
 
     expect(
       await screen.findByText(i18n.t('common:errors.PAYMENT_ALREADY_USED'))
@@ -306,41 +320,13 @@ describe('LiffCustomerJoinPage', () => {
   });
 
   it('uses one booking button and continues to payment when prepayment is required', async () => {
-    vi.mocked(get).mockResolvedValue({
-      org: {
-        id: 'org-1',
-        name: 'テスト店舗',
-        slug: 'test-store',
-        logoUrl: null,
-        phone: null,
-        address: 'Tokyo',
-        paymentInfo: null,
-      },
-      queue: {
-        id: 'queue-1',
-        name: '受付',
-        prefix: 'A',
-        waitingCount: 0,
-        avgWaitMinutes: 5,
-      },
-      products: [
-        {
-          id: 'product-1',
-          name: '前払いカット',
-          description: null,
-          image_url: null,
-          price: '3000',
-          service_time_minutes: 30,
-          requires_prepayment: true,
-          stock_quantity: null,
-          product_type: 'service',
-        },
-      ],
-    });
+    vi.mocked(get).mockResolvedValue(
+      makeOrgResponse({ productName: '前払いカット', requiresPrepayment: true })
+    );
     const user = userEvent.setup();
     renderLiffBooking();
 
-    await screen.findByRole('heading', { name: 'テスト店舗' });
+    await screen.findByRole('heading', { name: '東京店' });
     await user.click(screen.getByRole('button', { name: '前払いカット を追加' }));
     await user.type(screen.getByLabelText('お名前（必須）'), '山田太郎');
     await user.type(screen.getByLabelText('電話番号（必須）'), '0901234567');
@@ -355,38 +341,20 @@ describe('LiffCustomerJoinPage', () => {
   it('blocks booking until LINE authentication is complete', async () => {
     renderLiffBooking('authenticating');
 
-    await screen.findByRole('heading', { name: 'テスト店舗' });
+    await screen.findByRole('heading', { name: '東京店' });
     expect(screen.getByText(i18n.t('customer:home.authenticating'))).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '予約する' })).toBeDisabled();
     expect(post).not.toHaveBeenCalled();
   });
 
   it('blocks payment and booking when no queue is accepting customers', async () => {
-    vi.mocked(get).mockResolvedValue({
-      org: {
-        id: 'org-1',
-        name: 'テスト店舗',
-        slug: 'test-store',
-        logoUrl: null,
-        phone: null,
-        address: 'Tokyo',
-        paymentInfo: null,
-      },
-      queue: null,
-      products: [
-        {
-          id: 'product-1',
-          name: '前払いカット',
-          description: null,
-          image_url: null,
-          price: '3000',
-          service_time_minutes: 30,
-          requires_prepayment: true,
-          stock_quantity: null,
-          product_type: 'service',
-        },
-      ],
-    });
+    vi.mocked(get).mockResolvedValue(
+      makeOrgResponse({
+        productName: '前払いカット',
+        requiresPrepayment: true,
+        isAcceptingBookings: false,
+      })
+    );
     const user = userEvent.setup();
     renderLiffBooking();
 
@@ -411,7 +379,7 @@ describe('LiffCustomerJoinPage', () => {
       </QueryClientProvider>
     );
 
-    await screen.findByRole('heading', { name: 'テスト店舗' });
+    await screen.findByRole('heading', { name: '東京店' });
     expect(screen.getByText('Smart Queue Assistant')).toBeInTheDocument();
     expect(container.querySelector('header img[src="/logo.svg"]')).toBeInTheDocument();
   });

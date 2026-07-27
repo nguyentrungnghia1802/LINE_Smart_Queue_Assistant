@@ -17,6 +17,7 @@ import { inventoryService } from '../../inventory/inventory.service';
 import { queueNotificationService } from '../../notifications/queue-notification.service';
 import { paymentsService } from '../../payments/payments.service';
 import { queueService } from '../../queue/queue.service';
+import { tryAutoCallNextWaiting } from '../../queue/queue-auto-call.service';
 import { staffService } from '../staff.service';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
@@ -39,6 +40,9 @@ jest.mock('../../payments/payments.service', () => ({
     }),
   },
 }));
+jest.mock('../../queue/queue-auto-call.service', () => ({
+  tryAutoCallNextWaiting: jest.fn().mockResolvedValue(null),
+}));
 jest.mock('../../queue/queue.service');
 
 // db/client must be mocked so repository module loads cleanly
@@ -54,6 +58,9 @@ jest.mock('../../../db/client', () => ({
 
 const mockFindQueueById = queuesRepository.findById as jest.MockedFunction<
   typeof queuesRepository.findById
+>;
+const mockLockQueueById = queuesRepository.lockById as jest.MockedFunction<
+  typeof queuesRepository.lockById
 >;
 const mockFindEntryById = queueEntriesRepository.findById as jest.MockedFunction<
   typeof queueEntriesRepository.findById
@@ -172,6 +179,7 @@ beforeEach(() => {
   // Audit log should succeed silently by default
   mockAuditCreate.mockResolvedValue(auditLogRow);
   mockFindQueueById.mockResolvedValue(baseQueue);
+  mockLockQueueById.mockResolvedValue(baseQueue);
   mockCountWaitingEntries.mockResolvedValue(0);
   mockCountActiveEntries.mockResolvedValue(0);
   mockWithTransaction.mockImplementation(async (fn) =>
@@ -189,7 +197,9 @@ describe('staffService.getQueueOverview', () => {
     mockListWaiting.mockResolvedValue([]);
     mockFindByQueueAndStatus.mockResolvedValue(null);
 
-    const overview = await staffService.getQueueOverview(QUEUE_ID);
+    const overview = await staffService.getQueueOverview(QUEUE_ID, baseQueue.organization_id, [
+      BRANCH_ID,
+    ]);
 
     expect(overview.queueId).toBe(QUEUE_ID);
     expect(overview.queueName).toBe('Test Queue');
@@ -211,7 +221,9 @@ describe('staffService.getQueueOverview', () => {
       .mockResolvedValueOnce(calledEntry) // called
       .mockResolvedValueOnce(servingEntry); // serving
 
-    const overview = await staffService.getQueueOverview(QUEUE_ID);
+    const overview = await staffService.getQueueOverview(QUEUE_ID, baseQueue.organization_id, [
+      BRANCH_ID,
+    ]);
 
     expect(overview.calledEntry?.status).toBe('called');
     expect(overview.servingEntry?.status).toBe('serving');
@@ -222,19 +234,18 @@ describe('staffService.getQueueOverview', () => {
   it('throws 404 when queue not found', async () => {
     mockFindQueueById.mockResolvedValue(null);
 
-    await expect(staffService.getQueueOverview(QUEUE_ID)).rejects.toMatchObject({
+    await expect(
+      staffService.getQueueOverview(QUEUE_ID, baseQueue.organization_id, [BRANCH_ID])
+    ).rejects.toMatchObject({
       statusCode: 404,
     });
   });
 
   it('rejects staff assigned to a different branch', async () => {
     await expect(
-      staffService.getQueueOverview(
-        QUEUE_ID,
-        baseQueue.organization_id,
-        ['00000000-0000-0000-0000-000000000099'],
-        false
-      )
+      staffService.getQueueOverview(QUEUE_ID, baseQueue.organization_id, [
+        '00000000-0000-0000-0000-000000000099',
+      ])
     ).rejects.toMatchObject({ statusCode: 403 });
   });
 });
@@ -246,16 +257,26 @@ describe('staffService.callNext', () => {
     const called = { ...baseEntry, status: 'called' };
     mockCallNextTicket.mockResolvedValue(called);
 
-    const result = await staffService.callNext(QUEUE_ID, ACTOR_ID);
+    const result = await staffService.callNext(QUEUE_ID, ACTOR_ID, baseQueue.organization_id, [
+      BRANCH_ID,
+    ]);
 
     expect(result.status).toBe('called');
-    expect(mockCallNextTicket).toHaveBeenCalledWith(QUEUE_ID, undefined, undefined, undefined);
+    expect(mockCallNextTicket).toHaveBeenCalledWith(
+      QUEUE_ID,
+      undefined,
+      undefined,
+      baseQueue.organization_id,
+      BRANCH_ID
+    );
   });
 
   it('propagates errors from callNextTicket', async () => {
     mockCallNextTicket.mockRejectedValue({ statusCode: 409, message: 'No waiting entries' });
 
-    await expect(staffService.callNext(QUEUE_ID, ACTOR_ID)).rejects.toMatchObject({
+    await expect(
+      staffService.callNext(QUEUE_ID, ACTOR_ID, baseQueue.organization_id, [BRANCH_ID])
+    ).rejects.toMatchObject({
       statusCode: 409,
     });
   });
@@ -268,10 +289,18 @@ describe('staffService.serve', () => {
     const serving = { ...baseEntry, status: 'serving' };
     mockServeTicket.mockResolvedValue(serving);
 
-    const result = await staffService.serve(ENTRY_ID, ACTOR_ID);
+    mockFindEntryById.mockResolvedValue(baseEntry);
+    const result = await staffService.serve(ENTRY_ID, ACTOR_ID, baseQueue.organization_id, [
+      BRANCH_ID,
+    ]);
 
     expect(result.status).toBe('serving');
-    expect(mockServeTicket).toHaveBeenCalledWith({ entryId: ENTRY_ID, actorUserId: ACTOR_ID });
+    expect(mockServeTicket).toHaveBeenCalledWith({
+      entryId: ENTRY_ID,
+      actorUserId: ACTOR_ID,
+      actorOrganizationId: baseQueue.organization_id,
+      actorBranchId: BRANCH_ID,
+    });
   });
 });
 
@@ -282,10 +311,18 @@ describe('staffService.complete', () => {
     const completed = { ...baseEntry, status: 'completed' };
     mockCompleteTicket.mockResolvedValue(completed);
 
-    const result = await staffService.complete(ENTRY_ID, ACTOR_ID);
+    mockFindEntryById.mockResolvedValue(baseEntry);
+    const result = await staffService.complete(ENTRY_ID, ACTOR_ID, baseQueue.organization_id, [
+      BRANCH_ID,
+    ]);
 
     expect(result.status).toBe('completed');
-    expect(mockCompleteTicket).toHaveBeenCalledWith({ entryId: ENTRY_ID, actorUserId: ACTOR_ID });
+    expect(mockCompleteTicket).toHaveBeenCalledWith({
+      entryId: ENTRY_ID,
+      actorUserId: ACTOR_ID,
+      actorOrganizationId: baseQueue.organization_id,
+      actorBranchId: BRANCH_ID,
+    });
   });
 });
 
@@ -294,7 +331,10 @@ describe('staffService.deferCalled', () => {
     const deferred = { ...baseEntry, status: 'waiting' };
     mockDeferCalledTicket.mockResolvedValue(deferred);
 
-    const result = await staffService.deferCalled(ENTRY_ID, ACTOR_ID, baseQueue.organization_id);
+    mockFindEntryById.mockResolvedValue({ ...baseEntry, status: 'called' });
+    const result = await staffService.deferCalled(ENTRY_ID, ACTOR_ID, baseQueue.organization_id, [
+      BRANCH_ID,
+    ]);
 
     expect(result.status).toBe('waiting');
     expect(mockDeferCalledTicket).toHaveBeenCalledWith({
@@ -312,16 +352,26 @@ describe('staffService.markNoShow', () => {
     const noShow = { ...baseEntry, status: 'no_show' };
     mockNoShowTicket.mockResolvedValue(noShow);
 
-    const result = await staffService.markNoShow(ENTRY_ID, ACTOR_ID);
+    mockFindEntryById.mockResolvedValue({ ...baseEntry, status: 'called' });
+    const result = await staffService.markNoShow(ENTRY_ID, ACTOR_ID, baseQueue.organization_id, [
+      BRANCH_ID,
+    ]);
 
     expect(result.status).toBe('no_show');
-    expect(mockNoShowTicket).toHaveBeenCalledWith({ entryId: ENTRY_ID, actorUserId: ACTOR_ID });
+    expect(mockNoShowTicket).toHaveBeenCalledWith({
+      entryId: ENTRY_ID,
+      actorUserId: ACTOR_ID,
+      actorOrganizationId: baseQueue.organization_id,
+    });
   });
 
   it('propagates 409 when entry is not in called status', async () => {
     mockNoShowTicket.mockRejectedValue({ statusCode: 409, message: "must be in 'called'" });
 
-    await expect(staffService.markNoShow(ENTRY_ID, ACTOR_ID)).rejects.toMatchObject({
+    mockFindEntryById.mockResolvedValue({ ...baseEntry, status: 'called' });
+    await expect(
+      staffService.markNoShow(ENTRY_ID, ACTOR_ID, baseQueue.organization_id, [BRANCH_ID])
+    ).rejects.toMatchObject({
       statusCode: 409,
     });
   });
@@ -335,7 +385,9 @@ describe('staffService.cancelEntry', () => {
     mockFindEntryById.mockResolvedValue(baseEntry); // status: 'waiting'
     mockMarkCancelled.mockResolvedValue(cancelled);
 
-    const result = await staffService.cancelEntry(ENTRY_ID, ACTOR_ID);
+    const result = await staffService.cancelEntry(ENTRY_ID, ACTOR_ID, baseQueue.organization_id, [
+      BRANCH_ID,
+    ]);
 
     expect(result.status).toBe('cancelled');
     expect(mockMarkCancelled).toHaveBeenCalledWith(ENTRY_ID, expect.anything());
@@ -345,6 +397,7 @@ describe('staffService.cancelEntry', () => {
       expect.anything(),
       expect.anything()
     );
+    expect(tryAutoCallNextWaiting).toHaveBeenCalledWith(baseQueue, expect.anything());
   });
 
   it('cancels a called entry', async () => {
@@ -353,7 +406,9 @@ describe('staffService.cancelEntry', () => {
     mockFindEntryById.mockResolvedValue(calledEntry);
     mockMarkCancelled.mockResolvedValue(cancelled);
 
-    const result = await staffService.cancelEntry(ENTRY_ID, ACTOR_ID);
+    const result = await staffService.cancelEntry(ENTRY_ID, ACTOR_ID, baseQueue.organization_id, [
+      BRANCH_ID,
+    ]);
 
     expect(result.status).toBe('cancelled');
   });
@@ -364,7 +419,7 @@ describe('staffService.cancelEntry', () => {
     mockFindEntryById.mockResolvedValue(orderedEntry);
     mockMarkCancelled.mockResolvedValue(cancelled);
 
-    await staffService.cancelEntry(ENTRY_ID, ACTOR_ID, baseQueue.organization_id);
+    await staffService.cancelEntry(ENTRY_ID, ACTOR_ID, baseQueue.organization_id, [BRANCH_ID]);
 
     expect(paymentsService.refundOrderOnCancellationInClient).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -378,7 +433,9 @@ describe('staffService.cancelEntry', () => {
   it('throws 404 when entry not found', async () => {
     mockFindEntryById.mockResolvedValue(null);
 
-    await expect(staffService.cancelEntry(ENTRY_ID, ACTOR_ID)).rejects.toMatchObject({
+    await expect(
+      staffService.cancelEntry(ENTRY_ID, ACTOR_ID, baseQueue.organization_id, [BRANCH_ID])
+    ).rejects.toMatchObject({
       statusCode: 404,
     });
   });
@@ -386,7 +443,9 @@ describe('staffService.cancelEntry', () => {
   it('throws 409 when entry is already in a terminal status', async () => {
     mockFindEntryById.mockResolvedValue({ ...baseEntry, status: 'completed' });
 
-    await expect(staffService.cancelEntry(ENTRY_ID, ACTOR_ID)).rejects.toMatchObject({
+    await expect(
+      staffService.cancelEntry(ENTRY_ID, ACTOR_ID, baseQueue.organization_id, [BRANCH_ID])
+    ).rejects.toMatchObject({
       statusCode: 409,
     });
   });

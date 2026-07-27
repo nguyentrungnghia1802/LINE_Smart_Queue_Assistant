@@ -6,11 +6,14 @@
 Organization
   ^-- approved OrganizationApplication
   |--< OrganizationMember >-- User --0..1-- LineAccount
-  |--< Product
-  |--< Queue --< QueueEntry >--0..1-- Order --< OrderItem >-- Product
-  |                         \             |--< PaymentTransaction
-  |                          \            |--< InventoryReservation
-  |                           \--< QueueHistory
+  |--< OrganizationBranch --< BranchMembership >-- User
+  |                       |--< Product >--< QueueProduct >-- Queue
+  |                       |--< BranchBusinessHour
+  |                       |--< BranchExceptionDay
+  |                       \--< Queue --< QueueEntry >--0..1-- Order --< OrderItem >-- Product
+  |                                                     |             |--< PaymentTransaction
+  |                                                     |             |--< InventoryReservation
+  |                                                     \--< QueueHistory
   |--< BookingGroup --< Order
   |--< CustomerLocation --< LocationAlert
   |--< Notification
@@ -22,26 +25,29 @@ Organization
 
 ### Entity responsibilities
 
-| Entity                                  | Responsibility                                                                  |
-| --------------------------------------- | ------------------------------------------------------------------------------- |
-| Organization                            | Tenant identity, public routes/token, branding, location, timezone, settings    |
-| OrganizationApplication                 | Public business application, plan/demo payment, review, and provisioning source |
-| User                                    | Platform identity and global role                                               |
-| OrganizationMember                      | Active manager/staff role within one tenant                                     |
-| LineAccount                             | Verified LINE user link for login/profile/push targeting                        |
-| Product                                 | Product/service price, duration, image, prepayment rule, finite/unlimited stock |
-| Queue                                   | Operational line, ticket counter, capacity, timing and policy settings          |
-| QueueEntry                              | Customer ticket and queue state machine                                         |
-| BookingGroup                            | Association of separate repeat bookings from one identity/device                |
-| Order                                   | Reservation commercial header, customer contact, total, status, payment summary |
-| OrderItem                               | Immutable commercial/service snapshot and per-item payment state                |
-| PaymentTransaction                      | Provider attempt/status/payload/audit record                                    |
-| InventoryReservation                    | Finite-stock allocation lifecycle                                               |
-| CustomerLocation                        | Consent-based location snapshot and distance calculation                        |
-| LocationAlert                           | Pending/sent/skipped/failed proximity notification intent                       |
-| Notification                            | Durable LINE notification outbox and delivery log for queue lifecycle messages  |
-| QueueHistory/AuditLog                   | Domain and administrative traceability                                          |
-| WaitTimeForecast/StaffingRecommendation | Model output history; runtime producer not implemented                          |
+| Entity                                  | Responsibility                                                                   |
+| --------------------------------------- | -------------------------------------------------------------------------------- |
+| Organization                            | Tenant identity, public routes/token, branding, location, timezone, settings     |
+| OrganizationApplication                 | Public business application, plan/demo payment, review, and provisioning source  |
+| User                                    | Platform identity and global role                                                |
+| OrganizationMember                      | Active manager/staff role within one tenant                                      |
+| OrganizationBranch                      | Physical branch identity, branch QR, address, timezone, and business calendar    |
+| BranchMembership                        | One branch assignment for a manager or staff operator                            |
+| LineAccount                             | Verified LINE user link for login/profile/push targeting                         |
+| Product                                 | Branch product/service, price, duration, image, prepayment, and stock rule       |
+| QueueProduct                            | Active product availability and display order for one branch queue               |
+| Queue                                   | Named branch service line, ticket counter, capacity, timing, and policy settings |
+| QueueEntry                              | Customer ticket and queue state machine                                          |
+| BookingGroup                            | Association of separate repeat bookings from one identity/device                 |
+| Order                                   | Reservation commercial header, customer contact, total, status, payment summary  |
+| OrderItem                               | Immutable commercial/service snapshot and per-item payment state                 |
+| PaymentTransaction                      | Provider attempt/status/payload/audit record                                     |
+| InventoryReservation                    | Finite-stock allocation lifecycle                                                |
+| CustomerLocation                        | Consent-based location snapshot and distance calculation                         |
+| LocationAlert                           | Pending/sent/skipped/failed proximity notification intent                        |
+| Notification                            | Durable LINE notification outbox and delivery log for queue lifecycle messages   |
+| QueueHistory/AuditLog                   | Domain and administrative traceability                                           |
+| WaitTimeForecast/StaffingRecommendation | Model output history; runtime producer not implemented                           |
 
 ## 2. State machines
 
@@ -53,49 +59,56 @@ Organization
 | `pending` | Approve paid application        | `approved` | Platform admin  |
 | `pending` | Reject and demo-refund          | `rejected` | Platform admin  |
 
-Submission stores business/contact/address/usage/plan data and a bcrypt manager password hash. It
-does not create a tenant. Approval locks the application and atomically creates the organization,
-generated slug/QR token, manager account, and active membership, then removes the pending password
-hash. Rejection removes the hash and marks a paid demo application refunded. Reviewed applications
-cannot be processed twice.
+Submission stores business/contact/address/usage/plan data and does not accept credentials or
+create a tenant. An admin may correct those submitted fields while the application is pending.
+Approval locks the application and atomically creates the inactive organization, invited
+owner-manager membership, single-use activation token, and email outbox row. It deliberately does
+not create a branch or queue. Rejection marks a paid demo application refunded. Reviewed
+applications cannot be processed twice.
 
 ### Queue
 
 PostgreSQL values are `closed`, `open`, `paused`, and `archived`.
 
-| Current         | Action          | Next       | Actor         |
-| --------------- | --------------- | ---------- | ------------- |
-| `closed`        | Open queue      | `open`     | Manager/admin |
-| `open`          | Pause admission | `paused`   | Manager/admin |
-| `paused`        | Resume          | `open`     | Manager/admin |
-| `open`/`paused` | Close           | `closed`   | Manager/admin |
-| non-archived    | Retire          | `archived` | Manager/admin |
+| Current         | Action          | Next       | Actor                   |
+| --------------- | --------------- | ---------- | ----------------------- |
+| `closed`        | Open queue      | `open`     | Assigned branch manager |
+| `open`          | Pause admission | `paused`   | Assigned branch manager |
+| `paused`        | Resume          | `open`     | Assigned branch manager |
+| `open`/`paused` | Close           | `closed`   | Assigned branch manager |
+| non-archived    | Retire          | `archived` | Assigned branch manager |
 
-Only `open` queues accept a new booking/ticket.
+Only active `open` queues accept a new booking/ticket, and only while the branch calendar is open.
+A new branch starts without a queue. Its assigned branch manager creates one or more named queues
+and may retire all queues while reconfiguring the branch.
 
 ### Queue entry
 
 PostgreSQL values are `waiting`, `called`, `serving`, `served`, `skipped`, `cancelled`, and `no_show`.
 
-| Current            | Action                    | Next                                | Actor                    |
-| ------------------ | ------------------------- | ----------------------------------- | ------------------------ |
-| new                | Create successful booking | `waiting`                           | Customer/system          |
-| `waiting`          | Call next                 | `called`                            | Staff/manager/admin      |
-| `called`           | Begin service             | `serving`                           | Staff/manager/admin      |
-| `called`           | Defer late arrival        | `waiting` at current queue tail     | Staff/manager/admin      |
-| `serving`          | Complete service          | `served`                            | Staff/manager/admin      |
-| `waiting`/eligible | Skip                      | `skipped` or policy-specific result | Customer/staff policy    |
-| eligible active    | Cancel                    | `cancelled`                         | Owner or tenant operator |
-| called/eligible    | Mark absent               | `no_show`                           | Staff/manager/admin      |
+| Current            | Action                    | Next                                | Actor                         |
+| ------------------ | ------------------------- | ----------------------------------- | ----------------------------- |
+| new                | Create successful booking | `waiting`                           | Customer/system               |
+| `waiting`          | Call next                 | `called`                            | Assigned staff/branch manager |
+| `called`           | Begin service             | `serving`                           | Assigned staff/branch manager |
+| `called`           | Defer late arrival        | `waiting` at current queue tail     | Assigned staff/branch manager |
+| `serving`          | Complete service          | `served`                            | Assigned staff/branch manager |
+| `waiting`/eligible | Skip                      | `skipped` or policy-specific result | Customer/staff policy         |
+| eligible active    | Cancel                    | `cancelled`                         | Owner or tenant operator      |
+| called/eligible    | Mark absent               | `no_show`                           | Assigned staff/branch manager |
 
 Terminal states are `served`, `cancelled`, and `no_show`. Exact transition guards in queue/staff services are authoritative.
 
 ### Customer QR admission
 
-1. A QR URL resolves public organization/catalog data and remains usable by a guest for the documented public fallback flow.
+1. A branch QR URL resolves the organization, branch, active named queues, waiting count, ETA, branch-open state, and queue-specific catalogs.
 2. If a JWT is present, only a `customer` role may create an order or join a queue. The API rejects a staff, manager, or admin JWT with `CUSTOMER_ACCOUNT_REQUIRED` before business services run.
 3. The public QR UI detects the same business session, keeps it unchanged, and offers a return path to that role's dashboard.
 4. The UI creates the current QR LIFF deep link only as an explicit customer action. LIFF then verifies the LINE identity and exchanges the ID token for the customer JWT before booking.
+5. With multiple queues, the customer selects a queue first. Changing queues clears the previous
+   cart/payment draft and displays only products mapped to the new queue.
+6. Payment intent and order creation reload the branch, queue, queue-product mapping, price, stock,
+   and branch calendar; IDs supplied by the browser are selectors, never authorization.
 
 ### Order
 
@@ -185,12 +198,14 @@ transaction, so the same verified payment cannot create two bookings under concu
 
 ## 6. Repeat/additional booking flow
 
-1. Browser creates a stable local device key and a booking-group UUID.
-2. First reservation creates an independent order/ticket and optionally the server booking group.
-3. A later reservation starts with a clean cart/payment attempt and creates another independent
-   order/ticket using the same group ID.
+1. Browser may keep a local device key for draft recovery, but it is not grouping authority.
+2. First reservation creates an independent order/ticket and a server booking group.
+3. A later reservation starts with a clean cart/payment attempt. For a verified LINE customer, the
+   server reuses the active group only when the organization and branch match; otherwise it creates
+   a new group.
 4. The authenticated customer history API resolves the group by internal user identity, supports pagination across devices, and returns each order/ticket independently.
-5. Tenant staff may inspect a related group from the staff workspace; customer ownership and staff organization scope are enforced server-side.
+5. Tenant staff sees active orders in the resolved group as one working card. Served, cancelled,
+   and no-show history is excluded from that operational card.
 6. Cancellation, queue state, item/payment records, and receipts remain per order.
 
 A paid transaction can be attached to only one order. Legacy browser state that references an
@@ -201,11 +216,15 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
 
 ## 7. Staff queue flow
 
-1. Staff authenticates and the API resolves active organization membership.
-2. `/staff/my-queue` selects an organization queue with waiting/called/serving activity (falling back to the first active queue), returns at most the next eight active entries for the board, exposes separate total-active and waiting counts, and includes order details, booking name/telephone, and the linked LINE display name when available.
-3. Completion atomically transitions the current service to `served` and calls the next eligible
-   waiting entry when no other ticket is already `called`; the Staff UI therefore has no manual
-   call-next control.
+1. Staff or a branch manager authenticates and the API resolves one active organization membership
+   and exactly one active branch assignment.
+2. `/staff/my-queue` selects a queue only inside that branch with waiting/called/serving activity
+   (falling back to the first active branch queue), returns at most the next eight active entries,
+   exposes separate total-active and waiting counts, and includes order details, booking
+   name/telephone, and the linked LINE display name when available.
+3. Booking into an idle queue and transitions that free its active slot atomically call the next
+   eligible waiting entry when no ticket is already `called` or `serving`; the Staff UI therefore
+   has no manual call-next control.
 4. The queue transition and LINE outbox row, including resolved locale, are written in the same transaction; a worker sends the localized message after commit.
 5. Staff starts service, completes, marks no-show, cancels, or moves a called late arrival behind
    everyone currently waiting through guarded transitions. Defer preserves the ticket code and calls
@@ -213,7 +232,8 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
 6. Staff can collect an outstanding balance. The API creates an audited manual payment transaction
    for unpaid items, reconciles item payment states, and marks the order paid only when no unpaid
    item remains.
-7. Receipt printing is available after the applicable payment success state.
+7. Receipt printing uses immutable organization/branch/queue and fulfilling-staff snapshots. It
+   shows gross total, collected prepayment, and remaining balance without charging prepaid items twice.
 8. Related booking groups are historical associations, but the Staff working context filters them
    to tickets in `waiting`, `called`, or `serving`.
 
@@ -259,7 +279,11 @@ links such as `https://liff.line.me/{LINE_LOGIN_LIFF_ID}/tickets/:entryId` for t
 endpoint. When the LIFF ID is not configured, the backend falls back to `WEB_ORIGIN` plus
 `/liff/tickets/:entryId`.
 
-Ticket lifecycle notifications currently cover booking-created, ETA warning, called, serving, completed, cancelled, and no-show events. Each Flex Message shows the system name, ticket code, current status, people ahead, ETA, next action guidance, and a button that opens the LIFF ticket detail.
+The standard ticket notification journey covers booking-created, exactly five people ahead,
+called, and completed. Exceptional deferred, cancelled, and no-show transitions also notify the
+customer. Each event has a distinct durable event key. Each Flex Message shows the system name, ticket
+code, current status, people ahead, ETA, next action guidance, and a button that opens the LIFF
+ticket detail.
 
 ## 9. LINE Rich Menu navigation flow
 
@@ -318,8 +342,24 @@ The PostgreSQL-locked forecasting job aggregates the previous eight weeks by org
 # Business account lifecycle and branches
 
 - A public organization application never accepts or stores a manager password.
-- Admin approval atomically creates an inactive organization, its main branch, one closed queue, an invited owner-manager membership, and an account-activation email outbox record.
+- Admin approval atomically creates an inactive organization, an invited owner-manager membership,
+  and an account-activation email outbox record. No branch or queue is provisioned automatically.
 - The owner manager activates the tenant by opening the single-use email link and choosing a password. Owner managers cannot remove themselves.
-- An owner manager may create branches and invite one or more branch managers. Every branch must retain at least one assigned manager and has exactly one active queue in the current scope.
-- Managers invite staff to an assigned branch. Invitees set their own password; staff removal is soft deactivation and records the acting manager in `audit_logs`.
+- An owner manager may create branches and invite one or more branch managers. Every branch retains
+  at least one assigned manager, but its queues are created later by an assigned branch manager.
+- Branch creation is serialized against the organization and enforces the subscription plan. The
+  Standard plan permits at most three active branches.
+- The owner manager uses only organization-level branch, manager, audit, and aggregate-performance
+  views. The owner flag remains an organization membership property, not a new global role.
+- Each branch manager has exactly one active branch assignment and may create multiple named queues.
+  A branch may temporarily have no queue and has one stable public QR token.
+- Products belong to one branch; queue configuration selects the products served by that queue. Customer QR
+  admission selects a queue before loading its catalog.
+- Branch managers maintain weekly hours/exception dates and invite staff to their assigned branch.
+  Invitees set their own password; staff removal is soft deactivation and records the acting
+  manager in `audit_logs`.
+- Staff invitation bodies do not choose a branch. The server derives the manager's assigned branch,
+  and every staff invitation requires an employee code.
+- A normalized email address belongs to one platform account only; a second role cannot be created
+  by reusing that email.
 - Customers continue to authenticate through LINE. Admin, owner manager, manager, and staff use the shared business login screen.

@@ -18,6 +18,10 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 12. `000012_media_storage.js`
 13. `000013_internationalization.js`
 14. `000014_organization_applications.js`
+15. `000015_account_lifecycle_and_branches.js`
+16. `000016_branch_scoped_multi_queue.js`
+17. `000017_order_fulfillment_and_scope.js`
+18. `000018_system_workflow_hardening.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -25,9 +29,12 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 
 ```text
 organization_applications 0..1---1 organizations 1---* organization_members *---1 users 1---0..1 line_accounts
-      |                                            |
-      |---* products                               |
-      |---* queues 1---* queue_entries ------------+
+      |                          |                 |
+      |                          |---* organization_branches 1---* branch_memberships ---+
+      |                                      |---* branch_business_hours
+      |                                      |---* branch_exception_days
+      |                                      |---* products *---* queues (through queue_products)
+      |                                      \---* queues 1---* queue_entries ----------+
       |                    | 0..1
       |                    v
       |---* booking_groups 1---* orders 1---* order_items *---1 products
@@ -52,8 +59,12 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 | `organization_applications`   | Public business details, plan/demo payment, and admin review                 | Status/payment checks; pending-email uniqueness; reviewer/organization FKs  |
 | `organization_business_hours` | Weekly local opening schedule                                                | Unique tenant/weekday; closed/open time consistency                         |
 | `organization_exception_days` | Holidays and exceptional opening/closure dates                               | Unique tenant/date; closed/open time consistency                            |
-| `users`                       | Platform identity, role, password/profile, preferred locale                  | Unique optional email; nullable `preferred_locale`; active flag             |
+| `users`                       | Platform identity, role, password/profile, preferred locale                  | Globally unique normalized optional email; nullable locale; active flag     |
 | `organization_members`        | Tenant manager/staff authorization                                           | Unique organization/user pair; cascading tenant/user delete                 |
+| `organization_branches`       | Physical branch, stable QR, address, timezone, and owner-created lifecycle   | Unique branch QR and organization/code; soft active flag                    |
+| `branch_memberships`          | Manager/staff branch assignment                                              | Branch/member FK; one active branch for a manager                           |
+| `branch_business_hours`       | Weekly branch-local opening schedule                                         | Unique branch/weekday; closed/open time consistency                         |
+| `branch_exception_days`       | Branch holidays and exceptional opening/closure dates                        | Unique branch/date; overrides weekly schedule                               |
 | `line_accounts`               | One linked LINE identity per user                                            | Unique `line_user_id` and `user_id`                                         |
 | `organization_translations`   | Localized organization names                                                 | Composite organization/locale key; cascade delete                           |
 | `product_translations`        | Localized product names/descriptions                                         | Composite product/locale key; cascade delete                                |
@@ -62,18 +73,19 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 
 ### Catalog, queue, and orders
 
-| Table                               | Key purpose                           | Important constraints                                                           |
-| ----------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------- |
-| `products`                          | Product/service snapshot source       | Nonnegative price/stock; positive duration; service stock must be `NULL`        |
-| `queues`                            | Queue configuration and daily counter | Tenant FK, capacity/time/policy checks and status indexes                       |
-| `booking_groups`                    | Group separate repeat bookings        | Tenant/customer/device keys; active/completed/cancelled check                   |
-| `orders`                            | Commercial reservation header         | Tenant/order number, optional queue entry/customer/group, totals/status         |
-| `order_items`                       | Price/name/duration/payment snapshots | Positive quantity, nonnegative subtotal/prepaid amount                          |
-| `payment_transactions`              | Provider intent/state/reconciliation  | Tenant/order, amount/currency, provider intent/external-ID indexes              |
-| `payment_webhook_events`            | Idempotent provider callback log      | Unique provider/event ID; replay-safe status                                    |
-| `inventory_reservations`            | Finite stock allocation               | Positive quantity; reserved/consumed/released/expired check                     |
-| `payment_reconciliation_operations` | Audited payment decisions             | Unique idempotency key; tenant, transaction, order, actor and amount references |
-| `queue_entries`                     | Ticket lifecycle and ETA fields       | Unique queue/ticket number and code; active-user/LINE indexes                   |
+| Table                               | Key purpose                               | Important constraints                                                                     |
+| ----------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `products`                          | Branch product/service snapshot source    | Organization/branch FK; nonnegative price/stock; service stock must be `NULL`             |
+| `queues`                            | Named branch queue and daily counter      | Organization/branch FK; unique active branch/name; capacity/time checks                   |
+| `queue_products`                    | Queue-specific branch catalog             | Composite queue/product scope FKs; unique mapping and active display order                |
+| `booking_groups`                    | Group separate repeat bookings            | Tenant/customer/device keys; active/completed/cancelled check                             |
+| `orders`                            | Commercial reservation and receipt header | Direct branch/queue scope, group, totals/status, immutable business/fulfillment snapshots |
+| `order_items`                       | Price/name/duration/payment snapshots     | Positive quantity, nonnegative subtotal/prepaid amount                                    |
+| `payment_transactions`              | Provider intent/state/reconciliation      | Tenant/order, amount/currency, provider intent/external-ID indexes                        |
+| `payment_webhook_events`            | Idempotent provider callback log          | Unique provider/event ID; replay-safe status                                              |
+| `inventory_reservations`            | Finite stock allocation                   | Positive quantity; reserved/consumed/released/expired check                               |
+| `payment_reconciliation_operations` | Audited payment decisions                 | Unique idempotency key; tenant, transaction, order, actor and amount references           |
+| `queue_entries`                     | Ticket lifecycle and ETA fields           | Unique queue/ticket number and code; active-user/LINE indexes                             |
 
 ### Location, analysis, messaging, and audit
 
@@ -111,9 +123,18 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 
 - `organizations.slug` and `public_qr_token` are globally unique.
 - Only one pending organization application can exist per normalized work email.
+- One normalized email address can identify only one platform user and therefore cannot carry
+  multiple platform roles.
 - Application approval requires `payment_status = 'paid'`; reviewed state requires reviewer/time,
-  and the pending manager password hash is cleared after either review outcome.
+  and approval creates a single-use owner activation action instead of accepting an applicant password.
 - Product stock cannot be negative; services cannot carry finite stock.
+- Active queue names are unique within a branch. A branch may have zero queues during initial setup
+  or operational reconfiguration.
+- A non-owner manager can have only one active branch membership. The organization owner may retain
+  a compatibility membership created during activation, but that row never grants branch-operation
+  authorization.
+- Staff invitations derive the target branch from the authenticated branch manager and require a
+  non-empty employee code; request-body branch identifiers are not accepted as authority.
 - Queue ticket number/code uniqueness is scoped to queue as defined by migrations.
 - Active queue-entry lookup indexes support customer/LINE and queue/status ordering.
 - Payment transaction lookup is indexed by provider external ID and provider intent ID.
@@ -151,7 +172,14 @@ An insufficient-stock update affects zero rows, raises a conflict, and rolls bac
   idempotent reconciliation operations, updates transaction/item/order refund summaries, releases
   inventory, cancels the order/ticket, and enqueues the LINE cancellation notification in one transaction.
 - Service completion locks the queue before serving completion and automatic call-next selection.
-  Defer also locks the queue while re-ranking current waiters and returning the called ticket to the tail.
+  Booking into an idle queue, cancellation, no-show, and defer use the same queue-locked auto-call
+  boundary. It never calls a second customer while another ticket is called or serving.
+- A recorded absence increments `queue_entries.absence_count`; the first two occurrences move the
+  ticket back by the queue's configured slot count (default three), while the configured maximum
+  (default three) cancels the order, refunds collected payment, releases inventory, and enqueues
+  the no-show notification in one transaction.
+- Completion snapshots the responsible staff user, display name, employee code, and completion time
+  on the order. Order creation snapshots organization, branch, and queue names for durable receipts.
 
 Queue capacity, call-next, daily ticket numbering, and organization order numbering use transaction locks or atomic counters. Production load testing remains required.
 
@@ -165,10 +193,11 @@ Queue capacity, call-next, daily ticket numbering, and organization order number
 
 ## 8. Sensitive data
 
-Sensitive or regulated fields include pending application/manager password hashes, email/phone,
-LINE user IDs/profile URLs, coordinates, IP/user agent audit data, payment external IDs, redirect
-URLs, and raw provider payloads. Application list/response contracts never expose password hashes.
-Do not seed production data, log secrets, or expose raw payloads through general APIs.
+Sensitive or regulated fields include account password hashes, encrypted invitation/reset tokens,
+email/phone, LINE user IDs/profile URLs, coordinates, IP/user agent audit data, payment external
+IDs, redirect URLs, and raw provider payloads. Application/API contracts never expose password
+hashes or action tokens. Do not seed production data, log secrets, or expose raw payloads through
+general APIs.
 
 ## 9. Migration workflow
 
@@ -178,7 +207,7 @@ npm run db:migrate -w apps/api
 npm run db:migrate:status
 npm run db:migrate
 npm run db:seed
-npm run db:seed:demo
+npm run db:fixture:e2e
 ```
 
 Rules:
@@ -195,9 +224,16 @@ Schema migrations live under `db/migrations/node-pg-migrate`. Root and `apps/api
 
 ## 10. Seed baseline
 
-The default `npm run db:seed` profile creates one Japan-localized organization plus deterministic development users and valid organization memberships. It deliberately creates no products, queues, orders, tickets, payments, notifications, or penalties.
+The default `npm run db:seed` profile creates only the platform administrator. It deliberately
+creates no organization, branch, manager, staff, customer, product, queue, order, ticket, payment,
+notification, or penalty data. Production seeding requires `SEED_ADMIN_PASSWORD`; the local
+fallback password exists only for development.
 
-`npm run db:seed:demo` explicitly adds the full demonstration catalog and transactional fixtures. Demo cleanup is restricted to rows marked by the seed profile so reruns do not delete unrelated records. `db:seed:reset` and `db:seed:demo:reset` truncate tenant/application data through foreign-key cascades before reseeding; they are blocked in production and require `ALLOW_DESTRUCTIVE_SEED_RESET=true` for a non-loopback isolated development database. Passwords and fixed IDs are for local demonstration only.
+`npm run db:fixture:e2e` explicitly loads the isolated browser-test organization, identities,
+branches, queue catalogs, orders, and notification fixtures. It is not a production seed and must
+not run as part of server startup. `db:seed:reset` truncates application data before restoring only
+the administrator; it is blocked in production and requires
+`ALLOW_DESTRUCTIVE_SEED_RESET=true` for a non-loopback isolated development database.
 
 ## 11. Schema gaps requiring follow-up
 
@@ -205,13 +241,20 @@ The default `npm run db:seed` profile creates one Japan-localized organization p
 - Forecast calibration still needs production history and measured accuracy review before any ML claim.
 - Advanced notification operations UI, manual replay/cancel controls, and long-term notification retention policy are not implemented.
 
-# Account lifecycle schema (migration 000015)
+## 12. Account lifecycle, branch scope, and receipts (migrations 000015-000017)
 
 - `organizations.activation_status` separates pending activation, active, and suspended tenants.
 - `users.account_status` and invitation/profile fields model invited, active, and disabled business accounts.
 - `organization_members.is_owner` identifies the immutable organization owner manager.
 - `organization_branches` and `branch_memberships` scope managers and staff to physical branches.
-- `queues.branch_id` is required; a partial unique index enforces one active queue per branch.
+- `organization_branches.public_qr_token` provides one stable QR per branch.
+- `branch_business_hours` and `branch_exception_days` control branch-local booking availability.
+- `queues.branch_id` is required; a branch can have multiple active queues with unique active names.
+- `products.branch_id` and `queue_products` enforce queue-specific catalogs inside one branch.
+- `orders.branch_id` and `orders.queue_id` preserve direct operational scope, while organization,
+  branch, queue, and fulfilling-staff snapshots preserve receipt meaning after later profile changes.
+- Active reservations made by the same verified LINE user in one branch reuse the current active
+  booking group. Completed/cancelled history remains separate and is excluded from Staff work cards.
 - `account_action_tokens` stores only SHA-256 token hashes and supports single-use activation/reset links.
 - `email_outbox` provides durable, retryable delivery. Its action token is encrypted at rest and cleared after successful delivery.
-- Baseline seeding creates only the admin account. Organization/demo queue data requires the explicit `--demo` seed profile.
+- Baseline seeding creates only the admin account. Browser-test data requires the explicit E2E fixture command.

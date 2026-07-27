@@ -92,9 +92,15 @@ export const common = {
     unlimited: '無制限',
   },
   errors: {
+    AUTH_ACCOUNT_NOT_FOUND: 'このメールアドレスのアカウントは登録されていません。',
+    AUTH_ACCOUNT_NOT_ACTIVATED:
+      'このアカウントはまだ有効化されていません。招待メールをご確認ください。',
+    AUTH_ACCOUNT_DISABLED: 'このアカウントは無効化されています。管理者へお問い合わせください。',
+    AUTH_INVALID_PASSWORD: 'パスワードが正しくありません。',
     UNAUTHORIZED: '認証が必要です。もう一度ログインしてください。',
     FORBIDDEN: 'この操作を行う権限がありません。',
     CUSTOMER_ACCOUNT_REQUIRED: '受付にはお客様アカウントが必要です。',
+    BRANCH_PLAN_LIMIT_REACHED: '現在のサービスプランでは、これ以上の支店を追加できません。',
     QUEUE_NOT_ACCEPTING: '現在受付中のキューはありません。',
     PAYMENT_ALREADY_USED:
       '前回のお支払い情報はすでに使用されています。もう一度お支払い手続きを行ってください。',

@@ -132,6 +132,7 @@ export function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder={t('login.emailPlaceholder', { ns: 'auth' })}
                 className="w-full rounded-xl border border-gray-200 px-3 py-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
               />
             </div>
@@ -148,6 +149,7 @@ export function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder={t('login.passwordPlaceholder', { ns: 'auth' })}
                   className="w-full rounded-xl border border-gray-200 px-3 py-3 pr-11 text-sm focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
                 />
                 <button
@@ -286,6 +288,13 @@ function resolveLoginErrorMessage(
   t: ReturnType<typeof useTranslation>['t']
 ): string {
   if (error instanceof ApiClientError) {
+    if (error.code.startsWith('AUTH_')) {
+      const translatedAuthCode = t(`errors.${error.code}`, {
+        ns: 'common',
+        defaultValue: '',
+      });
+      if (translatedAuthCode) return translatedAuthCode;
+    }
     const backendMessage = error.message?.trim();
     if (backendMessage) {
       return backendMessage;

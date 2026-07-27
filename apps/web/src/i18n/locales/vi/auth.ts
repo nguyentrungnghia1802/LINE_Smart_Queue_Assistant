@@ -8,6 +8,8 @@ export const auth = {
     submit: 'Đăng nhập',
     submitting: 'Đang đăng nhập…',
     invalid: 'Email hoặc mật khẩu không chính xác.',
+    emailPlaceholder: 'Ví dụ: staff@example.com',
+    passwordPlaceholder: 'Nhập mật khẩu',
     showPassword: 'Hiện mật khẩu',
     hidePassword: 'Ẩn mật khẩu',
     forgotPassword: 'Quên mật khẩu?',

@@ -55,10 +55,16 @@ export interface Queue extends BaseEntity {
   /** Average minutes per ticket — used for ETA calculation */
   avgServiceTimeMinutes?: number;
   organizationId: string;
+  /** Branch that owns this queue. */
+  branchId?: string;
   /** Prefix prepended to display number, e.g. "A" → "A001" */
   ticketPrefix?: string;
   /** Relative sort order when listing queues within an org */
   displayOrder?: number;
+  /** Products and services currently offered by this queue. */
+  productIds?: string[];
+  /** Minutes staff wait after calling before recording an absence. */
+  absenceGraceMinutes?: number;
 }
 
 /** Queue enriched with live counters — used in list / dashboard views */

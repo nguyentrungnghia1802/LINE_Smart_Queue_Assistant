@@ -15,12 +15,14 @@ import {
   listOrganizationApplications,
   rejectOrganizationApplication,
   submitOrganizationApplication,
+  updateOrganizationApplication,
 } from './organization-applications.controller';
 import {
   CreateOrganizationApplicationSchema,
   OrganizationApplicationIdParamSchema,
   OrganizationApplicationListQuerySchema,
   ReviewOrganizationApplicationSchema,
+  UpdateOrganizationApplicationSchema,
 } from './organization-applications.validator';
 
 export const organizationApplicationsRouter = Router();
@@ -38,6 +40,16 @@ organizationApplicationsRouter.get(
   requireRole(UserRole.ADMIN),
   validate(OrganizationApplicationListQuerySchema, 'query'),
   listOrganizationApplications
+);
+
+organizationApplicationsRouter.patch(
+  '/:applicationId',
+  requireAuth,
+  requireRole(UserRole.ADMIN),
+  authenticatedActionRateLimiter,
+  validate(OrganizationApplicationIdParamSchema, 'params'),
+  validate(UpdateOrganizationApplicationSchema),
+  updateOrganizationApplication
 );
 
 organizationApplicationsRouter.post(

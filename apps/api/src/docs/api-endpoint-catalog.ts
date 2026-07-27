@@ -38,6 +38,15 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     auth: false,
     validator: 'CompleteAccountActionSchema',
   }),
+  endpoint('get', '/api/v1/branches/me', 'branches'),
+  endpoint('patch', '/api/v1/branches/me', 'branches', {
+    validator: 'UpdateMyBranchSchema',
+  }),
+  endpoint('get', '/api/v1/branches/me/business-calendar', 'branches'),
+  endpoint('put', '/api/v1/branches/me/business-calendar', 'branches', {
+    validator: 'BusinessCalendarSchema',
+  }),
+  endpoint('get', '/api/v1/branches/analytics', 'branches'),
   endpoint('get', '/api/v1/branches', 'branches'),
   endpoint('post', '/api/v1/branches', 'branches', { validator: 'CreateBranchSchema' }),
   endpoint('get', '/api/v1/branches/audit', 'branches', {
@@ -56,6 +65,12 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     validator: 'OrganizationApplicationListQuerySchema',
   }),
   endpoint(
+    'patch',
+    '/api/v1/organization-applications/{applicationId}',
+    'organization-applications',
+    { validator: 'UpdateOrganizationApplicationSchema' }
+  ),
+  endpoint(
     'post',
     '/api/v1/organization-applications/{applicationId}/approve',
     'organization-applications',
@@ -67,18 +82,11 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     'organization-applications',
     { validator: 'ReviewOrganizationApplicationSchema' }
   ),
-  endpoint('patch', '/api/v1/admin/organizations/{orgId}', 'admin', {
-    validator: 'UpdateOrganizationSchema',
-  }),
   endpoint('delete', '/api/v1/admin/organizations/{orgId}', 'admin'),
   endpoint('get', '/api/v1/admin/organizations/{orgId}/managers', 'admin'),
-  endpoint('post', '/api/v1/admin/organizations/{orgId}/managers', 'admin', {
-    validator: 'CreateManagerSchema',
-  }),
   endpoint('patch', '/api/v1/admin/organizations/{orgId}/managers/{userId}', 'admin', {
     validator: 'UpdateManagerSchema',
   }),
-  endpoint('delete', '/api/v1/admin/organizations/{orgId}/managers/{userId}', 'admin'),
 
   endpoint('get', '/api/v1/booking-groups/me', 'bookings', {
     pagination: true,

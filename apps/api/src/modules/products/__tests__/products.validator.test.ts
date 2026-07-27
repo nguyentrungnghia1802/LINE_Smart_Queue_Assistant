@@ -50,6 +50,11 @@ describe('CreateProductSchema — productType field', () => {
     expect(result.success).toBe(false);
   });
 
+  it('allows creation before a queue selects the product', () => {
+    const result = CreateProductSchema.safeParse(baseProduct);
+    expect(result.success).toBe(true);
+  });
+
   it('accepts the same-origin media URL returned by the image upload endpoint', () => {
     const result = CreateProductSchema.safeParse({
       ...baseProduct,

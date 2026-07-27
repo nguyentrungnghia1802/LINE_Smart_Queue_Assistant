@@ -24,7 +24,7 @@ jest.mock('../../db/repositories/queue-entries.repository', () => ({
 }));
 
 jest.mock('../../modules/notifications/queue-notification.service', () => ({
-  ETA_WARNING_THRESHOLD: 2,
+  ETA_WARNING_THRESHOLD: 5,
   queueNotificationService: {
     notifyEtaWarning: jest.fn().mockResolvedValue(undefined),
     notifyTicketCalled: jest.fn().mockResolvedValue(undefined),
@@ -93,26 +93,26 @@ describe('scanEtaWarnings', () => {
   });
 
   it('calls notifyEtaWarning for each entry with correct ahead_count', async () => {
-    const e1 = makeEntry({ id: 'e1', ahead_count: 1 });
-    const e2 = makeEntry({ id: 'e2', ahead_count: 2 });
+    const e1 = makeEntry({ id: 'e1', ahead_count: 5 });
+    const e2 = makeEntry({ id: 'e2', ahead_count: 3 });
     mockRepo.findNearThresholdWaiting.mockResolvedValue([e1, e2]);
 
     await scanEtaWarnings();
 
     expect(mockNotif.notifyEtaWarning).toHaveBeenCalledTimes(2);
-    expect(mockNotif.notifyEtaWarning).toHaveBeenCalledWith(e1, 1);
-    expect(mockNotif.notifyEtaWarning).toHaveBeenCalledWith(e2, 2);
+    expect(mockNotif.notifyEtaWarning).toHaveBeenCalledWith(e1, 5);
+    expect(mockNotif.notifyEtaWarning).toHaveBeenCalledWith(e2, 3);
   });
 
-  it('queries with the ETA_WARNING_THRESHOLD constant (2)', async () => {
+  it('queries with the maximum configured ETA milestone (5)', async () => {
     mockRepo.findNearThresholdWaiting.mockResolvedValue([]);
     await scanEtaWarnings();
-    expect(mockRepo.findNearThresholdWaiting).toHaveBeenCalledWith(2);
+    expect(mockRepo.findNearThresholdWaiting).toHaveBeenCalledWith(5);
   });
 
   it('continues processing other entries when one notification throws', async () => {
-    const e1 = makeEntry({ id: 'e1', ahead_count: 1 });
-    const e2 = makeEntry({ id: 'e2', ahead_count: 2 });
+    const e1 = makeEntry({ id: 'e1', ahead_count: 5 });
+    const e2 = makeEntry({ id: 'e2', ahead_count: 3 });
     mockRepo.findNearThresholdWaiting.mockResolvedValue([e1, e2]);
     mockNotif.notifyEtaWarning
       .mockRejectedValueOnce(new Error('LINE down'))

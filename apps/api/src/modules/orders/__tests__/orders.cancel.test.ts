@@ -54,6 +54,9 @@ const mockFindById = ordersRepository.findById as jest.MockedFunction<
 const mockUpdateStatus = ordersRepository.updateStatus as jest.MockedFunction<
   typeof ordersRepository.updateStatus
 >;
+const mockFindBranchIdForOrder = ordersRepository.findBranchIdForOrder as jest.MockedFunction<
+  typeof ordersRepository.findBranchIdForOrder
+>;
 const mockMarkCancelled = queueEntriesRepository.markCancelled as jest.MockedFunction<
   typeof queueEntriesRepository.markCancelled
 >;
@@ -73,6 +76,7 @@ const mockRefundOrder = paymentsService.refundOrderOnCancellationInClient as jes
 const ORDER_ID = 'order-uuid-001';
 const ENTRY_ID = 'entry-uuid-001';
 const USER_ID = 'user-uuid-001';
+const BRANCH_ID = 'branch-uuid-001';
 const cancelledEntry: QueueEntryRow = {
   id: ENTRY_ID,
   queue_id: 'queue-uuid-001',
@@ -105,6 +109,8 @@ function makeOrder(
   return {
     id: ORDER_ID,
     organization_id: 'org-001',
+    branch_id: BRANCH_ID,
+    queue_id: 'queue-uuid-001',
     queue_entry_id: ENTRY_ID,
     order_number: 'A001',
     customer_name: 'Test',
@@ -115,6 +121,13 @@ function makeOrder(
     payment_status: 'unpaid',
     payment_code: null,
     notes: null,
+    organization_name_snapshot: 'Test Organization',
+    branch_name_snapshot: 'Test Branch',
+    queue_name_snapshot: 'Test Queue',
+    fulfilled_by_user_id: null,
+    fulfilled_by_name: null,
+    fulfilled_by_employee_code: null,
+    fulfilled_at: null,
     created_at: new Date(),
     updated_at: new Date(),
     items: [],
@@ -125,13 +138,19 @@ function makeOrder(
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('ordersService.cancelByOrderId', () => {
-  const operatorActor = { userId: 'staff-uuid-001', role: 'staff', organizationId: 'org-001' };
+  const operatorActor = {
+    userId: 'staff-uuid-001',
+    role: 'staff',
+    organizationId: 'org-001',
+    branchIds: [BRANCH_ID],
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockFindEntryById.mockResolvedValue({ ...cancelledEntry, status: 'waiting' });
     mockMarkCancelled.mockResolvedValue(cancelledEntry);
     mockUpdateStatus.mockResolvedValue({ ...makeOrder(), status: 'cancelled' });
+    mockFindBranchIdForOrder.mockResolvedValue(BRANCH_ID);
     mockNotifyTicketCancelled.mockResolvedValue(undefined);
   });
 
@@ -212,12 +231,23 @@ describe('ordersService.cancelByOrderId', () => {
     expect(mockNotifyTicketCancelled).not.toHaveBeenCalled();
   });
 
-  it('handles order with no queue_entry_id gracefully', async () => {
+  it('rejects operator cancellation when a legacy order has no branch scope', async () => {
     mockFindById.mockResolvedValue(makeOrder({ queue_entry_id: null }));
+    mockFindBranchIdForOrder.mockResolvedValue(null);
 
-    await ordersService.cancelByOrderId(ORDER_ID, operatorActor);
-
-    expect(mockUpdateStatus).toHaveBeenCalledWith(ORDER_ID, 'cancelled', expect.anything());
+    await expect(ordersService.cancelByOrderId(ORDER_ID, operatorActor)).rejects.toMatchObject({
+      statusCode: 403,
+    });
+    expect(mockUpdateStatus).not.toHaveBeenCalled();
     expect(mockMarkCancelled).not.toHaveBeenCalled();
+  });
+
+  it('rejects an operator from a different branch', async () => {
+    mockFindById.mockResolvedValue(makeOrder());
+    mockFindBranchIdForOrder.mockResolvedValue('branch-uuid-002');
+
+    await expect(ordersService.cancelByOrderId(ORDER_ID, operatorActor)).rejects.toMatchObject({
+      statusCode: 403,
+    });
   });
 });
