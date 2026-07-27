@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg';
 
-import { ORDERS, ORG_ID, PRODUCTS, QUEUE_ENTRIES, QUEUES, USERS } from './_ids';
+import { BRANCHES, ORDERS, ORG_ID, PRODUCTS, QUEUE_ENTRIES, QUEUES, USERS } from './_ids';
 
 type OrderSeed = {
   id: string;
@@ -185,11 +185,24 @@ export async function seed(client: PoolClient): Promise<void> {
     await client.query(
       `
         INSERT INTO orders (
-          id, organization_id, customer_user_id, order_number, customer_name,
-          customer_phone, status, subtotal, payment_status, payment_code, notes
+          id, organization_id, branch_id, queue_id, customer_user_id, order_number, customer_name,
+          customer_phone, status, subtotal, payment_status, payment_code, notes,
+          organization_name_snapshot, branch_name_snapshot, queue_name_snapshot
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7::order_status, $8, $9::payment_status, $10, $11)
+        SELECT
+          $1, $2, $3, $4, $5, $6, $7, $8, $9::order_status, $10,
+          $11::payment_status, $12, $13, organization.name, branch.name, queue.name
+        FROM organizations organization
+        JOIN organization_branches branch
+          ON branch.id = $3 AND branch.organization_id = organization.id
+        JOIN queues queue
+          ON queue.id = $4
+         AND queue.organization_id = organization.id
+         AND queue.branch_id = branch.id
+        WHERE organization.id = $2
         ON CONFLICT (id) DO UPDATE SET
+          branch_id = EXCLUDED.branch_id,
+          queue_id = EXCLUDED.queue_id,
           customer_user_id = EXCLUDED.customer_user_id,
           order_number = EXCLUDED.order_number,
           customer_name = EXCLUDED.customer_name,
@@ -198,12 +211,17 @@ export async function seed(client: PoolClient): Promise<void> {
           subtotal = EXCLUDED.subtotal,
           payment_status = EXCLUDED.payment_status,
           payment_code = EXCLUDED.payment_code,
+          organization_name_snapshot = EXCLUDED.organization_name_snapshot,
+          branch_name_snapshot = EXCLUDED.branch_name_snapshot,
+          queue_name_snapshot = EXCLUDED.queue_name_snapshot,
           notes = EXCLUDED.notes,
           updated_at = NOW();
       `,
       [
         order.id,
         ORG_ID,
+        BRANCHES.TOKYO_MAIN,
+        QUEUES.COUNTER_A,
         order.customerId,
         order.number,
         order.customerName,
