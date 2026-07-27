@@ -10,6 +10,7 @@ import { queueEntriesRepository } from '../../db/repositories/queue-entries.repo
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
 import { invalidateProductCatalog } from '../../utils/cache';
+import { branchesRepository } from '../branches/branches.repository';
 import { etaService } from '../eta/eta.service';
 import { inventoryService } from '../inventory/inventory.service';
 import { locationRepository } from '../location/location.repository';
@@ -73,23 +74,26 @@ async function getWaitingPositionInTransaction(
 }
 
 export const ordersService = {
-  async getByOrg(orgId: string, status?: string) {
-    return ordersRepository.findByOrg(orgId, status);
+  async getByOrg(orgId: string, branchId: string, status?: string) {
+    return ordersRepository.findByOrg(orgId, status, branchId);
   },
 
-  async getById(id: string, orgId?: string) {
+  async getById(id: string, orgId?: string, branchId?: string) {
     const order = await ordersRepository.findById(id);
     if (!order) throw AppError.notFound('Order not found');
 
     if (orgId && order.organization_id !== orgId) {
       throw AppError.forbidden("Access denied to this organization's order");
     }
+    if (branchId && (await ordersRepository.findBranchIdForOrder(id)) !== branchId) {
+      throw AppError.forbidden('Order is outside your assigned branch');
+    }
 
     return order;
   },
 
-  async getStats(orgId: string) {
-    return ordersRepository.getStats(orgId);
+  async getStats(orgId: string, branchId: string) {
+    return ordersRepository.getStats(orgId, branchId);
   },
 
   async create(dto: CreateOrderDto, actor?: OrderActorIdentity) {
@@ -97,11 +101,21 @@ export const ordersService = {
     const org = await organizationsRepository.findBySlug(dto.orgSlug);
     if (!org) throw AppError.notFound('Organization not found');
 
-    const queues = await queuesRepository.findOpenByOrg(org.id);
-    if (queues.length === 0) {
+    const queue = await queuesRepository.findById(dto.queueId);
+    if (
+      !queue ||
+      queue.organization_id !== org.id ||
+      queue.branch_id !== dto.branchId ||
+      queue.status !== 'open'
+    ) {
       throw new AppError('No queue is currently accepting bookings', 409, 'QUEUE_NOT_ACCEPTING');
     }
-    const queue = queues[0];
+    if (!(await branchesRepository.isOpenNow(dto.branchId))) {
+      throw new AppError('Branch is outside business hours', 409, 'BRANCH_CLOSED');
+    }
+    const availableProducts = new Set(
+      (await productsRepository.findByQueue(queue.id)).map((product) => product.id)
+    );
 
     // Validate + fetch all products
     const productRows = await Promise.all(
@@ -110,6 +124,9 @@ export const ordersService = {
         if (!p) throw AppError.notFound(`Product ${item.productId} not found`);
         if (p.organization_id !== org.id)
           throw AppError.badRequest('Product does not belong to this organization');
+        if (p.branch_id !== dto.branchId || !availableProducts.has(p.id)) {
+          throw AppError.badRequest('Product is not available in the selected queue');
+        }
         if (!p.is_active) throw AppError.badRequest(`Product "${p.name}" is not available`);
         const price = Number.parseFloat(p.price);
         return { product: p, quantity: item.quantity, price };
@@ -393,17 +410,17 @@ export const ordersService = {
   async updateStatus(
     id: string,
     orgId: string,
+    branchId: string,
     dto: UpdateOrderStatusDto,
     actor: { userId: string; role: string }
   ) {
-    const order = await ordersRepository.findById(id);
-    if (!order) throw AppError.notFound('Order not found');
-    if (order.organization_id !== orgId) throw AppError.forbidden();
+    const order = await this.getById(id, orgId, branchId);
     if (dto.status === 'cancelled') {
       return this.cancelByOrderId(id, {
         userId: actor.userId,
         role: actor.role,
         organizationId: orgId,
+        branchIds: [branchId],
       });
     }
     if (dto.status === 'completed' && order.queue_entry_id) {
@@ -417,13 +434,12 @@ export const ordersService = {
   async updatePayment(
     id: string,
     orgId: string,
+    branchId: string,
     dto: UpdateOrderPaymentDto,
     actorId: string,
     idempotencyKey: string
   ) {
-    const order = await ordersRepository.findById(id);
-    if (!order) throw AppError.notFound('Order not found');
-    if (order.organization_id !== orgId) throw AppError.forbidden();
+    await this.getById(id, orgId, branchId);
     await paymentsService.manualReconcileOrder({
       orderId: id,
       organizationId: orgId,
@@ -433,11 +449,11 @@ export const ordersService = {
       reason: dto.reason,
       idempotencyKey,
     });
-    return this.getById(id, orgId);
+    return this.getById(id, orgId, branchId);
   },
 
-  async getReceipt(id: string, orgId: string) {
-    const order = await this.getById(id, orgId);
+  async getReceipt(id: string, orgId: string, branchId: string) {
+    const order = await this.getById(id, orgId, branchId);
     if (order.status !== 'completed' || order.payment_status !== 'paid') {
       throw AppError.conflict('Receipt is available only for completed and fully paid orders');
     }
@@ -451,7 +467,15 @@ export const ordersService = {
    */
   async cancelByOrderId(
     orderId: string,
-    actor?: string | { userId: string; role: string; organizationId?: string }
+    actor?:
+      | string
+      | {
+          userId: string;
+          role: string;
+          organizationId?: string;
+          branchIds?: string[];
+          isOrganizationOwner?: boolean;
+        }
   ) {
     const order = await ordersRepository.findById(orderId);
     if (!order) throw AppError.notFound('Order not found');
@@ -463,6 +487,12 @@ export const ordersService = {
     if (isOperator) {
       if (!resolvedActor.organizationId || order.organization_id !== resolvedActor.organizationId) {
         throw AppError.forbidden('Order is outside your organization');
+      }
+      if (resolvedActor.isOrganizationOwner || resolvedActor.branchIds?.length !== 1) {
+        throw AppError.forbidden('Order operations require one assigned branch');
+      }
+      if ((await ordersRepository.findBranchIdForOrder(orderId)) !== resolvedActor.branchIds[0]) {
+        throw AppError.forbidden('Order is outside your assigned branch');
       }
     } else if (!order.customer_user_id || order.customer_user_id !== resolvedActor.userId) {
       throw AppError.forbidden('You do not own this order');

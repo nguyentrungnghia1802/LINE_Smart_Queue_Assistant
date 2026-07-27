@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg';
 
-import { ORG_ID, PRODUCTS } from './_ids';
+import { BRANCHES, ORG_ID, PRODUCTS } from './_ids';
 
 const products = [
   [
@@ -47,10 +47,10 @@ export async function seed(client: PoolClient): Promise<void> {
     await client.query(
       `
         INSERT INTO products (
-          id, organization_id, name, description, image_url, product_type, price,
+          id, organization_id, branch_id, name, description, image_url, product_type, price,
           service_time_minutes, max_wait_minutes, requires_prepayment, stock_quantity, is_active
         )
-        VALUES ($1, $2, $3, $4, $5, $6::product_type, $7, $8, $9, $10, $11, TRUE)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::product_type, $8, $9, $10, $11, $12, TRUE)
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
           description = EXCLUDED.description,
@@ -67,6 +67,7 @@ export async function seed(client: PoolClient): Promise<void> {
       [
         id,
         ORG_ID,
+        BRANCHES.TOKYO_MAIN,
         name,
         description,
         `https://placehold.co/512x320?text=${encodeURIComponent(name)}`,

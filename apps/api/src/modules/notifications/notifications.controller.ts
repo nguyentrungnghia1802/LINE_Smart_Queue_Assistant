@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
+import { requireOrganizationOwner } from '../branches/branch-scope';
 
 import { notificationOperationsService } from './notification-operations.service';
 import { notificationsService } from './notifications.service';
@@ -17,6 +18,7 @@ export const listNotifications = asyncHandler(async (req: Request, res: Response
 });
 
 export const listNotificationOperations = asyncHandler(async (req: Request, res: Response) => {
+  if (req.user?.role === 'manager') requireOrganizationOwner(req.user);
   const page = Number(req.query.page ?? 1);
   const limit = Number(req.query.limit ?? 20);
   const data = await notificationOperationsService.list({
@@ -30,6 +32,7 @@ export const listNotificationOperations = asyncHandler(async (req: Request, res:
 
 export const retryNotification = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new Error('Authenticated user context is missing');
+  if (req.user.role === 'manager') requireOrganizationOwner(req.user);
   const data = await notificationOperationsService.retry({
     id: req.params.id,
     organizationId: req.user?.role === 'admin' ? undefined : req.user?.organizationId,
@@ -41,6 +44,7 @@ export const retryNotification = asyncHandler(async (req: Request, res: Response
 
 export const cancelNotification = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new Error('Authenticated user context is missing');
+  if (req.user.role === 'manager') requireOrganizationOwner(req.user);
   const data = await notificationOperationsService.cancel({
     id: req.params.id,
     organizationId: req.user?.role === 'admin' ? undefined : req.user?.organizationId,

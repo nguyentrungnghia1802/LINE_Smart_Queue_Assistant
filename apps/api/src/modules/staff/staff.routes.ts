@@ -19,17 +19,17 @@ import {
   noShowEntry,
   serveEntry,
 } from './staff.controller';
-import { EntryIdParamSchema, QueueIdParamSchema } from './staff.validator';
+import { EntryIdParamSchema, MyQueueQuerySchema, QueueIdParamSchema } from './staff.validator';
 
 export const staffRouter = Router();
 
-// All staff routes require authentication + STAFF, MANAGER, or ADMIN role
-staffRouter.use(requireAuth, requireRole(UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN));
+// Queue operations are limited to staff and non-owner managers of one branch.
+staffRouter.use(requireAuth, requireRole(UserRole.STAFF, UserRole.MANAGER));
 
 // ── My-Queue endpoint ──────────────────────────────────────────────────────────
 
 // GET /api/v1/staff/my-queue — bounded queue preview for staff's organization
-staffRouter.get('/my-queue', getMyQueue);
+staffRouter.get('/my-queue', validate(MyQueueQuerySchema, 'query'), getMyQueue);
 
 // ── Queue-level actions ───────────────────────────────────────────────────────
 

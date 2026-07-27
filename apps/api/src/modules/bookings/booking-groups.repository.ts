@@ -10,6 +10,7 @@ export interface BookingGroupSummary {
   updated_at: Date;
   orders: Array<{
     id: string;
+    branch_id: string;
     order_number: string;
     status: string;
     payment_status: string;
@@ -31,13 +32,16 @@ export interface BookingGroupSummary {
   }>;
 }
 
-const GROUP_SELECT = `
+function groupSelect(orderBranchParameter?: string): string {
+  const branchPredicate = orderBranchParameter ? `AND o.branch_id = ${orderBranchParameter}` : '';
+  return `
   SELECT bg.id, bg.organization_id, org.name AS organization_name, bg.customer_user_id,
          bg.status, bg.created_at, bg.updated_at,
          COALESCE((
            SELECT jsonb_agg(
              jsonb_build_object(
                'id', o.id,
+               'branch_id', o.branch_id,
                'order_number', o.order_number,
                'status', o.status,
                'payment_status', o.payment_status,
@@ -64,17 +68,19 @@ const GROUP_SELECT = `
            FROM orders o
            LEFT JOIN queue_entries qe ON qe.order_id = o.id
            WHERE o.booking_group_id = bg.id
+             ${branchPredicate}
          ), '[]'::jsonb) AS orders
   FROM booking_groups bg
   JOIN organizations org ON org.id = bg.organization_id
 `;
+}
 
 export const bookingGroupsRepository = {
   async listForCustomer(userId: string, page: number, limit: number) {
     const offset = (page - 1) * limit;
     const [groups, count] = await Promise.all([
       pool.query<BookingGroupSummary>(
-        `${GROUP_SELECT}
+        `${groupSelect()}
          WHERE bg.customer_user_id = $1
          ORDER BY bg.updated_at DESC
          LIMIT $2 OFFSET $3`,
@@ -88,11 +94,21 @@ export const bookingGroupsRepository = {
     return { items: groups.rows, total: Number(count.rows[0]?.total ?? 0) };
   },
 
-  async findById(id: string): Promise<BookingGroupSummary | null> {
+  async findById(id: string, branchId?: string): Promise<BookingGroupSummary | null> {
     const result = await pool.query<BookingGroupSummary>(
-      `${GROUP_SELECT}
-       WHERE bg.id = $1`,
-      [id]
+      `${groupSelect(branchId ? '$2' : undefined)}
+       WHERE bg.id = $1
+         ${
+           branchId
+             ? `AND EXISTS (
+                  SELECT 1
+                  FROM orders scoped_order
+                  WHERE scoped_order.booking_group_id = bg.id
+                    AND scoped_order.branch_id = $2
+                )`
+             : ''
+         }`,
+      branchId ? [id, branchId] : [id]
     );
     return result.rows[0] ?? null;
   },

@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { QrCode, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
@@ -182,16 +183,18 @@ export function StaffQueuePage() {
           </div>
           <div className="flex gap-2">
             <Link
-              to={`/manager/queues/${queueId}/display`}
+              to="/manager/qr"
               className="inline-flex items-center gap-1.5 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors"
             >
-              📺 QR
+              <QrCode className="h-4 w-4" />
+              QR
             </Link>
             <button
               onClick={() => setShowWalkIn(true)}
               className="inline-flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
             >
-              ➕ Walk-in
+              <UserPlus className="h-4 w-4" />
+              {t('dashboard.walkInAdd')}
             </button>
           </div>
         </div>

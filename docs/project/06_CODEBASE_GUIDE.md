@@ -13,7 +13,8 @@
 |-- db/
 |   |-- migrations/node-pg-migrate/
 |   |-- schema/              Destructive local reset snapshot
-|   \-- seeds/               Deterministic demo data
+|   |-- seeds/               Idempotent administrator-only baseline
+|   \-- fixtures/e2e/        Isolated browser-test tenant and operational data
 |-- docker/                  API/web Dockerfiles and nginx config
 |-- scripts/                 Root migration/reset runners
 |-- docs/                    Canonical documentation and historical archive
@@ -63,7 +64,7 @@ apps/web/src/
 |-- pages/
 |   |-- admin/               Platform administration
 |   |-- marketing/           Public product site and business onboarding
-|   |-- manager/             Tenant management
+|   |-- manager/             Owner analytics/branches and branch operations
 |   |-- staff/               Operational workspace
 |   |-- customer/, public/   QR customer flow
 |   \-- liff/                LINE LIFF customer flow
@@ -84,6 +85,13 @@ Pages orchestrate data and interactions. Reusable visual patterns belong in comp
 LIFF child pages should consume `LiffRuntimeContext` from `LiffLayout` instead of calling `useLiff()` directly. The layout initializes LIFF once and shares profile/auth status with booking, ticket, and home routes.
 
 `/liff/home` is the customer entry point for LINE Rich Menu. It should keep ticket resolution and booking navigation in the LIFF flow and must not hard-code queue entry IDs.
+
+Manager pages use one global `manager` role with two explicit capabilities. An organization owner
+has `isOrganizationOwner=true` and only owner navigation. A compatibility branch membership may
+exist, but branch-operation authorization helpers always reject organization owners.
+A branch manager has `isOrganizationOwner=false`, exactly one active branch assignment, and only
+branch catalog/queue/staff/QR/settings navigation. Backend authorization remains authoritative even
+when the frontend hides routes.
 
 ## 4. Shared packages
 
@@ -156,6 +164,9 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 - `apps/api/src/app.ts`: middleware ordering affects signatures, auth, limits, and errors.
 - `apps/api/src/routes/v1.routes.ts` and `apps/web/src/router.tsx`: route ordering/coverage.
 - `apps/api/src/modules/orders/orders.service.ts`: coupled payment/stock/order/ticket transaction.
-- `apps/api/src/modules/notifications/**`: LINE notification templates, delivery semantics, and current process-local deduplication.
+- `apps/api/src/modules/branches/branch-scope.ts`: owner, branch-manager, and branch-operator scope
+  guards used by every branch-owned endpoint.
+- `apps/api/src/modules/notifications/**`: LINE notification templates and durable PostgreSQL
+  outbox/delivery semantics.
 - `apps/api/src/modules/line/rich-menu.*` and `apps/api/src/scripts/sync-line-rich-menu.ts`: external LINE Rich Menu configuration; never log channel access tokens.
 - `docs/archive/**`: historical; do not update as current truth.

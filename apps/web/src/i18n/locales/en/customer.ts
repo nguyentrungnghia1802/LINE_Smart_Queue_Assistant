@@ -58,6 +58,8 @@ export const customer = {
     receptionPage: 'Reception page',
     online: 'Online reception open',
     queueClosed: 'No queue is currently accepting bookings.',
+    queueStep: 'Step 1',
+    selectQueue: 'Select a service queue',
     productsTitle: 'Products / Services',
     productsHint: 'Select the items you need.',
     lineAuthFailed: 'Could not complete LINE authentication. Please reopen from LINE.',

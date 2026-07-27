@@ -4,9 +4,10 @@ import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { logger } from '../../utils/logger';
 import { sendSuccess } from '../../utils/response';
+import { requireBranchOperator } from '../branches/branch-scope';
 
 import { staffService } from './staff.service';
-import { EntryIdParam, QueueIdParam } from './staff.validator';
+import { EntryIdParam, MyQueueQuery, QueueIdParam } from './staff.validator';
 
 // ── Logging helper ────────────────────────────────────────────────────────────
 
@@ -19,12 +20,11 @@ function reqLog(req: Request) {
 /** Staff queue overview — waiting list, called entry, serving entry. */
 export const getQueueOverview = asyncHandler(async (req: Request, res: Response) => {
   const { queueId } = req.params as unknown as QueueIdParam;
-  const overview = await staffService.getQueueOverview(
-    queueId,
-    req.user?.organizationId,
-    req.user?.branchIds,
-    req.user?.isOrganizationOwner
-  );
+  if (!req.user) throw AppError.unauthorized();
+  const scope = requireBranchOperator(req.user);
+  const overview = await staffService.getQueueOverview(queueId, scope.organizationId, [
+    scope.branchId,
+  ]);
 
   reqLog(req).debug({ queueId, waitingCount: overview.waitingCount }, 'staff.overview');
 
@@ -37,13 +37,10 @@ export const getQueueOverview = asyncHandler(async (req: Request, res: Response)
 export const callNext = asyncHandler(async (req: Request, res: Response) => {
   const { queueId } = req.params as unknown as QueueIdParam;
   if (!req.user) throw AppError.unauthorized();
-  const entry = await staffService.callNext(
-    queueId,
-    req.user.id,
-    req.user.organizationId,
-    req.user.branchIds,
-    req.user.isOrganizationOwner
-  );
+  const scope = requireBranchOperator(req.user);
+  const entry = await staffService.callNext(queueId, scope.actorId, scope.organizationId, [
+    scope.branchId,
+  ]);
 
   reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_code }, 'staff.callNext');
 
@@ -56,13 +53,10 @@ export const callNext = asyncHandler(async (req: Request, res: Response) => {
 export const serveEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
   if (!req.user) throw AppError.unauthorized();
-  const entry = await staffService.serve(
-    entryId,
-    req.user.id,
-    req.user.organizationId,
-    req.user.branchIds,
-    req.user.isOrganizationOwner
-  );
+  const scope = requireBranchOperator(req.user);
+  const entry = await staffService.serve(entryId, scope.actorId, scope.organizationId, [
+    scope.branchId,
+  ]);
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.serve');
 
@@ -75,13 +69,10 @@ export const serveEntry = asyncHandler(async (req: Request, res: Response) => {
 export const completeEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
   if (!req.user) throw AppError.unauthorized();
-  const entry = await staffService.complete(
-    entryId,
-    req.user.id,
-    req.user.organizationId,
-    req.user.branchIds,
-    req.user.isOrganizationOwner
-  );
+  const scope = requireBranchOperator(req.user);
+  const entry = await staffService.complete(entryId, scope.actorId, scope.organizationId, [
+    scope.branchId,
+  ]);
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.complete');
 
@@ -94,13 +85,10 @@ export const completeEntry = asyncHandler(async (req: Request, res: Response) =>
 export const deferEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
   if (!req.user) throw AppError.unauthorized();
-  const entry = await staffService.deferCalled(
-    entryId,
-    req.user.id,
-    req.user.organizationId,
-    req.user.branchIds,
-    req.user.isOrganizationOwner
-  );
+  const scope = requireBranchOperator(req.user);
+  const entry = await staffService.deferCalled(entryId, scope.actorId, scope.organizationId, [
+    scope.branchId,
+  ]);
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.defer');
 
@@ -113,13 +101,10 @@ export const deferEntry = asyncHandler(async (req: Request, res: Response) => {
 export const noShowEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
   if (!req.user) throw AppError.unauthorized();
-  const entry = await staffService.markNoShow(
-    entryId,
-    req.user.id,
-    req.user.organizationId,
-    req.user.branchIds,
-    req.user.isOrganizationOwner
-  );
+  const scope = requireBranchOperator(req.user);
+  const entry = await staffService.markNoShow(entryId, scope.actorId, scope.organizationId, [
+    scope.branchId,
+  ]);
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.noShow');
 
@@ -132,13 +117,10 @@ export const noShowEntry = asyncHandler(async (req: Request, res: Response) => {
 export const cancelEntry = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
   if (!req.user) throw AppError.unauthorized();
-  const entry = await staffService.cancelEntry(
-    entryId,
-    req.user.id,
-    req.user.organizationId,
-    req.user.branchIds,
-    req.user.isOrganizationOwner
-  );
+  const scope = requireBranchOperator(req.user);
+  const entry = await staffService.cancelEntry(entryId, scope.actorId, scope.organizationId, [
+    scope.branchId,
+  ]);
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'staff.cancel');
 
@@ -149,23 +131,18 @@ export const cancelEntry = asyncHandler(async (req: Request, res: Response) => {
 
 /** Staff queue overview enriched with orders — one request for the full dashboard. */
 export const getMyQueue = asyncHandler(async (req: Request, res: Response) => {
-  const orgId = req.user?.organizationId;
-  if (!orgId) {
-    res
-      .status(400)
-      .json({ success: false, error: { code: 'NO_ORG', message: 'User has no organization' } });
-    return;
-  }
+  if (!req.user) throw AppError.unauthorized();
+  const scope = requireBranchOperator(req.user);
 
   const overview = await staffService.getMyQueueOverview(
-    orgId,
-    req.user?.branchIds ?? [],
-    req.user?.isOrganizationOwner ?? false
+    scope.organizationId,
+    [scope.branchId],
+    (req.query as MyQueueQuery).queueId
   );
 
   reqLog(req).debug(
     {
-      orgId,
+      orgId: scope.organizationId,
       waitingCount: overview?.waitingCount ?? 0,
       totalActiveCount: overview?.totalActiveCount ?? 0,
     },
@@ -177,7 +154,8 @@ export const getMyQueue = asyncHandler(async (req: Request, res: Response) => {
     overview ?? {
       queueId: null,
       queueName: null,
-      orgId,
+      availableQueues: [],
+      orgId: scope.organizationId,
       waitingEntriesWithOrders: [],
       calledEntryWithOrder: null,
       servingEntryWithOrder: null,

@@ -49,7 +49,7 @@ test('staff transitions a ticket and LINE delivery stays on the durable mock out
   expect(receipt.ok()).toBeTruthy();
 
   const managerLogin = await page.request.post(apiUrl('/api/v1/auth/login'), {
-    data: { email: 'manager@gmail.com', password: '123456' },
+    data: { email: 'manager2@gmail.com', password: '123456' },
   });
   expect(managerLogin.ok()).toBeTruthy();
   const managerBody = (await managerLogin.json()) as { data: { token: string } };
@@ -109,13 +109,13 @@ test('a public business application is provisioned only after admin approval', a
   await expect(page.getByText('組織と管理者アカウントを作成しました。')).toBeVisible();
 });
 
-test('manager can inspect QR and organization settings', async ({ page }) => {
+test('branch manager can inspect the branch QR and branch settings', async ({ page }) => {
   await login(page, 'manager@gmail.com');
   await page.goto('/manager/qr');
   await expect(page.getByRole('heading', { name: 'QRコード管理', exact: true })).toBeVisible();
   await expect(page.locator('svg').first()).toBeVisible();
 
   await page.goto('/manager/settings');
-  await expect(page.getByText('組織情報')).toBeVisible();
-  await expect(page.getByRole('button', { name: '組織を保存' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '支店設定' })).toBeVisible();
+  await expect(page.getByText('営業時間')).toBeVisible();
 });

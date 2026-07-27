@@ -6,6 +6,7 @@ import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { logger } from '../../utils/logger';
 import { sendCreated, sendSuccess } from '../../utils/response';
+import { requireBranchOperator } from '../branches/branch-scope';
 import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
 import { queueService } from './queue.service';
@@ -140,11 +141,14 @@ export const getQueueStatus = asyncHandler(async (req: Request, res: Response) =
  */
 export const callNextTicket = asyncHandler(async (req: Request, res: Response) => {
   const { queueId } = req.params as unknown as QueueIdParam;
+  if (!req.user) throw AppError.unauthorized();
+  const scope = requireBranchOperator(req.user);
   const entry = await queueService.callNextTicket(
     queueId,
     undefined,
     undefined,
-    req.user?.organizationId
+    scope.organizationId,
+    scope.branchId
   );
 
   reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_code }, 'queue.callNext');
@@ -157,10 +161,13 @@ export const callNextTicket = asyncHandler(async (req: Request, res: Response) =
 /** Mark a called ticket as serving (customer reached the counter). */
 export const serveTicket = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
+  if (!req.user) throw AppError.unauthorized();
+  const scope = requireBranchOperator(req.user);
   const entry = await queueService.serveTicket({
     entryId,
-    actorUserId: req.user?.id,
-    actorOrganizationId: req.user?.organizationId,
+    actorUserId: scope.actorId,
+    actorOrganizationId: scope.organizationId,
+    actorBranchId: scope.branchId,
   });
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'queue.serve');
@@ -173,10 +180,13 @@ export const serveTicket = asyncHandler(async (req: Request, res: Response) => {
 /** Mark a serving ticket as completed and archive to history. */
 export const completeTicket = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
+  if (!req.user) throw AppError.unauthorized();
+  const scope = requireBranchOperator(req.user);
   const entry = await queueService.completeTicket({
     entryId,
-    actorUserId: req.user?.id,
-    actorOrganizationId: req.user?.organizationId,
+    actorUserId: scope.actorId,
+    actorOrganizationId: scope.organizationId,
+    actorBranchId: scope.branchId,
   });
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'queue.complete');

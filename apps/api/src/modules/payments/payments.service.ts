@@ -7,6 +7,8 @@ import { paymentTransactionsRepository } from '../../db/repositories/payment-tra
 import { productsRepository } from '../../db/repositories/products.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
+import type { BranchManagerScope } from '../branches/branch-scope';
+import { branchesRepository } from '../branches/branches.repository';
 
 import { getPaymentProvider } from './payment-provider.registry';
 import {
@@ -119,12 +121,30 @@ export const paymentsService = {
   async createIntent(dto: CreatePaymentIntentDto) {
     const org = await organizationsRepository.findBySlug(dto.orgSlug);
     if (!org) throw AppError.notFound('Organization');
-    const openQueues = await queuesRepository.findOpenByOrg(org.id);
-    if (openQueues.length === 0) {
+    const queue = await queuesRepository.findById(dto.queueId);
+    if (
+      !queue ||
+      queue.organization_id !== org.id ||
+      queue.branch_id !== dto.branchId ||
+      queue.status !== 'open'
+    ) {
       throw new AppError('No queue is currently accepting bookings', 409, 'QUEUE_NOT_ACCEPTING');
+    }
+    if (!(await branchesRepository.isOpenNow(dto.branchId))) {
+      throw new AppError('Branch is outside business hours', 409, 'BRANCH_CLOSED');
     }
 
     const rows = await loadIntentProducts(org.id, dto.items);
+    const queueProductIds = new Set(
+      (await productsRepository.findByQueue(dto.queueId)).map((product) => product.id)
+    );
+    if (
+      rows.some(
+        (row) => row.product.branch_id !== dto.branchId || !queueProductIds.has(row.product.id)
+      )
+    ) {
+      throw AppError.badRequest('One or more products are unavailable in the selected queue');
+    }
     const coveredProductIds = resolveCoveredProductIds(dto.scope, rows);
     if (coveredProductIds.length === 0) {
       throw AppError.badRequest('No payable items were selected');
@@ -140,6 +160,8 @@ export const paymentsService = {
     const effectiveProviderId = provider.provider;
     const metadata: PaymentIntentMetadata = {
       orgSlug: org.slug,
+      branchId: dto.branchId,
+      queueId: dto.queueId,
       scope: dto.scope,
       coveredProductIds,
       cartSignature: dto.cartSignature,
@@ -393,12 +415,31 @@ export const paymentsService = {
     }
   },
 
-  async reconcile(transactionId: string) {
+  async reconcile(transactionId: string, scope?: BranchManagerScope) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       const transaction = await paymentTransactionsRepository.findById(transactionId, client);
       if (!transaction) throw AppError.notFound('Payment transaction');
+      if (scope) {
+        const metadata = metadataFromTransaction(transaction);
+        const orderScope = transaction.order_id
+          ? await client.query<{ branch_id: string }>(
+              `SELECT branch_id
+               FROM orders
+               WHERE id = $1
+                 AND organization_id = $2`,
+              [transaction.order_id, transaction.organization_id]
+            )
+          : null;
+        const transactionBranchId = orderScope?.rows[0]?.branch_id ?? metadata.branchId;
+        if (
+          transaction.organization_id !== scope.organizationId ||
+          transactionBranchId !== scope.branchId
+        ) {
+          throw AppError.forbidden('Payment transaction is outside your assigned branch');
+        }
+      }
       await this.reconcileTransactionInClient(transaction, client);
       await client.query('COMMIT');
       return this.toPublicTransaction(transaction);

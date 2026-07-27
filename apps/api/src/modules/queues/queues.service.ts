@@ -3,6 +3,7 @@ import type { Queue, SupportedLocale } from '@line-queue/shared';
 import { type QueueRow, queuesRepository } from '../../db/repositories/queues.repository';
 import { AppError } from '../../utils/AppError';
 import { metricsService } from '../../utils/metrics';
+import type { BranchManagerScope } from '../branches/branch-scope';
 
 import { CreateQueueDto, UpdateQueueDto, UpdateQueueStatusDto } from './queues.validator';
 
@@ -10,6 +11,7 @@ function toQueue(row: QueueRow): Queue {
   return {
     id: row.id,
     organizationId: row.organization_id,
+    branchId: row.branch_id,
     name: row.name,
     description: row.description ?? undefined,
     status: row.status as Queue['status'],
@@ -23,72 +25,74 @@ function toQueue(row: QueueRow): Queue {
 }
 
 export const queuesService = {
-  async listQueues(orgId: string, locale: SupportedLocale = 'ja') {
-    const queues = await queuesRepository.findActiveByOrg(orgId, locale);
+  async listQueues(orgId: string, branchId: string, locale: SupportedLocale = 'ja') {
+    const queues = await queuesRepository.findActiveByBranches(orgId, [branchId], locale);
     return queues.map(toQueue);
   },
 
-  async getQueue(id: string, orgId: string) {
+  async getQueue(id: string, scope: BranchManagerScope) {
     const queue = await queuesRepository.findById(id);
     if (!queue) throw AppError.notFound(`Queue ${id} not found`);
-    if (queue.organization_id !== orgId)
-      throw AppError.forbidden('Queue is outside your organization');
+    if (queue.organization_id !== scope.organizationId || queue.branch_id !== scope.branchId)
+      throw AppError.forbidden('Queue is outside your assigned branch');
     return toQueue(queue);
   },
 
-  async createQueue(orgId: string, dto: CreateQueueDto) {
-    const existing = await queuesRepository.findActiveByBranches(orgId, [dto.branchId]);
-    if (existing.length > 0) {
-      throw AppError.conflict('This branch already has an active queue');
-    }
+  async createQueue(scope: BranchManagerScope, dto: CreateQueueDto) {
     const queue = await queuesRepository.create({
-      organizationId: orgId,
-      branchId: dto.branchId,
+      organizationId: scope.organizationId,
+      branchId: scope.branchId,
       name: dto.name,
       description: dto.description,
       status: dto.status,
       prefix: dto.prefix,
       maxCapacity: dto.maxCapacity,
-      avgServiceSeconds: dto.avgServiceMs ? Math.floor(dto.avgServiceMs / 1000) : undefined,
+      avgServiceSeconds: dto.avgServiceTimeMinutes ? dto.avgServiceTimeMinutes * 60 : undefined,
     });
     metricsService.increment('queue_created_total');
     return toQueue(queue);
   },
 
-  async updateQueue(id: string, orgId: string, dto: UpdateQueueDto) {
+  async updateQueue(id: string, scope: BranchManagerScope, dto: UpdateQueueDto) {
     const existing = await queuesRepository.findById(id);
     if (!existing) throw AppError.notFound(`Queue ${id} not found`);
-    if (existing.organization_id !== orgId)
-      throw AppError.forbidden('Queue is outside your organization');
+    if (existing.organization_id !== scope.organizationId || existing.branch_id !== scope.branchId)
+      throw AppError.forbidden('Queue is outside your assigned branch');
 
     const updated = await queuesRepository.update(id, {
       name: dto.name,
       description: dto.description,
       status: dto.status,
       maxCapacity: dto.maxCapacity,
-      avgServiceMs: dto.avgServiceMs,
+      avgServiceSeconds: dto.avgServiceTimeMinutes ? dto.avgServiceTimeMinutes * 60 : undefined,
     });
     if (!updated) throw AppError.notFound(`Queue ${id} not found`);
     return toQueue(updated);
   },
 
-  async updateQueueStatus(id: string, orgId: string, dto: UpdateQueueStatusDto) {
+  async updateQueueStatus(id: string, scope: BranchManagerScope, dto: UpdateQueueStatusDto) {
     const existing = await queuesRepository.findById(id);
     if (!existing) throw AppError.notFound(`Queue ${id} not found`);
-    if (existing.organization_id !== orgId)
-      throw AppError.forbidden('Queue is outside your organization');
+    if (existing.organization_id !== scope.organizationId || existing.branch_id !== scope.branchId)
+      throw AppError.forbidden('Queue is outside your assigned branch');
 
     const updated = await queuesRepository.update(id, { status: dto.status });
     if (!updated) throw AppError.notFound(`Queue ${id} not found`);
     return toQueue(updated);
   },
 
-  async deleteQueue(id: string, orgId: string) {
+  async deleteQueue(id: string, scope: BranchManagerScope) {
     const existing = await queuesRepository.findById(id);
     if (!existing) throw AppError.notFound(`Queue ${id} not found`);
-    if (existing.organization_id !== orgId)
-      throw AppError.forbidden('Queue is outside your organization');
+    if (existing.organization_id !== scope.organizationId || existing.branch_id !== scope.branchId)
+      throw AppError.forbidden('Queue is outside your assigned branch');
 
+    const activeQueues = await queuesRepository.findActiveByBranches(scope.organizationId, [
+      scope.branchId,
+    ]);
+    if (activeQueues.length <= 1) {
+      throw AppError.conflict('A branch must keep at least one active queue');
+    }
     await queuesRepository.softDelete(id);
   },
 };

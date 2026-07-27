@@ -92,7 +92,7 @@ queueEntryRouter.post(
 queueEntryRouter.post(
   '/:entryId/serve',
   requireAuth,
-  requireRole(UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.STAFF, UserRole.MANAGER),
   authenticatedActionRateLimiter,
   validate(EntryIdParamSchema, 'params'),
   serveTicket
@@ -102,7 +102,7 @@ queueEntryRouter.post(
 queueEntryRouter.post(
   '/:entryId/complete',
   requireAuth,
-  requireRole(UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.STAFF, UserRole.MANAGER),
   authenticatedActionRateLimiter,
   validate(EntryIdParamSchema, 'params'),
   completeTicket
@@ -120,7 +120,7 @@ queueEntryRouter.get(
 queueEntryRouter.post(
   '/:queueId/call-next',
   requireAuth,
-  requireRole(UserRole.STAFF, UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.STAFF, UserRole.MANAGER),
   authenticatedActionRateLimiter,
   validate(QueueIdParamSchema, 'params'),
   callNextTicket

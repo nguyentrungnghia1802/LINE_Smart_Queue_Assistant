@@ -6,6 +6,7 @@ describe('measured forecasting heuristic', () => {
   it('scales staffing from measured demand and service duration', () => {
     const result = buildStaffingRecommendation({
       organization_id: 'org-1',
+      branch_id: 'branch-1',
       day_of_week: 1,
       hour_of_day: 10,
       arrival_count: 80,
@@ -24,6 +25,7 @@ describe('measured forecasting heuristic', () => {
   it('uses a conservative baseline when no history exists', () => {
     const result = buildStaffingRecommendation({
       organization_id: 'org-1',
+      branch_id: 'branch-1',
       day_of_week: 0,
       hour_of_day: 8,
       arrival_count: 0,

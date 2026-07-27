@@ -16,11 +16,11 @@ export const queuesApi = {
   getById: (id: string) => get<Queue>(`${BASE}/${id}`),
 
   create: (data: {
-    orgId: string;
     name: string;
     description?: string;
     prefix?: string;
     maxCapacity?: number;
+    avgServiceTimeMinutes?: number;
   }) => post<Queue>(BASE, data),
 
   update: (
