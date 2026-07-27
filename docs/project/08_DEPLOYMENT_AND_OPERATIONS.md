@@ -154,6 +154,12 @@ contain a demo organization token in a shared production image. Manager QR links
 per organization as `/liff/qr/:publicQrToken`; a generic LIFF Home without organization context
 asks the customer to scan the intended store QR instead of selecting a tenant implicitly.
 
+Production ingress currently has two proxy hops before the API: the host nginx terminates HTTPS
+and forwards to the web nginx container, then the web nginx container proxies `/api/*` to
+`api:4000`. The API intentionally uses Express `trust proxy = 2` for this topology so `req.ip`
+matches the forwarded client IP used by rate limiters. If ingress topology changes, update this
+value and smoke test login/rate limiting before rollout.
+
 The current local media adapter writes to `/app/var/media`, backed by the persistent `media_data` volume. nginx proxies `/media/*` to the API so generated media URLs stay on the public web origin. This volume is a Compose durability baseline, not a substitute for production object storage, backup, scanning, and CDN policy.
 
 For a real production environment, use managed PostgreSQL/object storage, TLS ingress, restricted network/security groups, centralized secrets/logs, and a deployment orchestrator. Compose is a packaging baseline, not high-availability infrastructure.

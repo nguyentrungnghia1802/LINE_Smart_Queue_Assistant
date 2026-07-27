@@ -4,6 +4,7 @@ import { apiClient } from './apiClient';
 
 export interface BookingGroupOrder {
   id: string;
+  branch_id?: string;
   order_number: string;
   status: string;
   payment_status: string;
@@ -18,9 +19,15 @@ export interface BookingGroupOrder {
   items: Array<{
     id: string;
     product_name: string;
+    product_image_url?: string | null;
+    product_price?: string;
+    service_time_minutes?: number;
     quantity: number;
     subtotal: string;
     payment_status: string;
+    prepaid_amount?: string;
+    refunded_amount?: string;
+    requires_prepayment_snapshot?: boolean;
   }>;
 }
 

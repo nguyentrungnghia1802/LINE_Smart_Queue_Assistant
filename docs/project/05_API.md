@@ -106,18 +106,18 @@ All paths require `admin`.
 
 ### Branches and owner management
 
-| Method | Path                                          | Access         | Purpose                                                            |
-| ------ | --------------------------------------------- | -------------- | ------------------------------------------------------------------ |
-| GET    | `/api/v1/branches`                            | Owner manager  | List branches, managers, staff counts, and active queues           |
-| POST   | `/api/v1/branches`                            | Owner manager  | Create branch, calendar, default closed queue, and manager invites |
-| GET    | `/api/v1/branches/analytics`                  | Owner manager  | Revenue trend, total/best/worst branch, and branch performance     |
-| GET    | `/api/v1/branches/audit`                      | Owner manager  | Personnel and branch audit history                                 |
-| POST   | `/api/v1/branches/:branchId/managers`         | Owner manager  | Invite another manager into the branch                             |
-| DELETE | `/api/v1/branches/:branchId/managers/:userId` | Owner manager  | Remove a non-owner manager while retaining at least one manager    |
-| GET    | `/api/v1/branches/me`                         | Branch manager | Read only the assigned branch and its active queues                |
-| PATCH  | `/api/v1/branches/me`                         | Branch manager | Update assigned branch contact/address fields with audit           |
-| GET    | `/api/v1/branches/me/business-calendar`       | Branch manager | Read weekly hours and exception dates                              |
-| PUT    | `/api/v1/branches/me/business-calendar`       | Branch manager | Replace validated branch calendar with audit                       |
+| Method | Path                                          | Access         | Purpose                                                                                |
+| ------ | --------------------------------------------- | -------------- | -------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/branches`                            | Owner manager  | List branches, managers, staff counts, and active queues                               |
+| POST   | `/api/v1/branches`                            | Owner manager  | Create branch within the subscribed plan, calendar, default queue, and manager invites |
+| GET    | `/api/v1/branches/analytics`                  | Owner manager  | Revenue trend, total/best/worst branch, and branch performance                         |
+| GET    | `/api/v1/branches/audit`                      | Owner manager  | Personnel and branch audit history                                                     |
+| POST   | `/api/v1/branches/:branchId/managers`         | Owner manager  | Invite another manager into the branch                                                 |
+| DELETE | `/api/v1/branches/:branchId/managers/:userId` | Owner manager  | Remove a non-owner manager while retaining at least one manager                        |
+| GET    | `/api/v1/branches/me`                         | Branch manager | Read only the assigned branch and its active queues                                    |
+| PATCH  | `/api/v1/branches/me`                         | Branch manager | Update assigned branch contact/address fields with audit                               |
+| GET    | `/api/v1/branches/me/business-calendar`       | Branch manager | Read weekly hours and exception dates                                                  |
+| PUT    | `/api/v1/branches/me/business-calendar`       | Branch manager | Replace validated branch calendar with audit                                           |
 
 ### Products/services
 
@@ -193,7 +193,11 @@ routes. Every queue, entry, order, and product lookup is constrained by organiza
 | POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                                                                        |
 | POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                                                                               |
 
-Staff transition endpoints validate UUID path parameters and do not require a request body. Completion atomically transitions the ticket to `served`, completes the linked order and inventory lifecycle where applicable, enqueues the LINE notification, and automatically calls one next waiting ticket only when no ticket is already called. Defer atomically returns a called ticket to the current waiting tail, records queue history, and calls the next eligible customer.
+Staff transition endpoints validate UUID path parameters and do not require a request body.
+Completion snapshots the responsible staff identity on the order, transitions the ticket to
+`served`, completes inventory where applicable, and enqueues LINE delivery. Booking into an idle
+queue, completion, cancellation, no-show, and defer all use the same queue-locked auto-call rule:
+call the earliest waiter only when no ticket is already called or serving.
 
 ### Orders and payment
 
@@ -243,6 +247,12 @@ discard that stale paid-checkout reference and start a new payment attempt; they
 current cart for recovery but must not resubmit the consumed transaction.
 
 `POST /orders` requires a `customer` JWT with an active verified LINE link. The controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified linked `line_user_id` on the new queue entry. Missing auth returns `401 LINE_AUTH_REQUIRED`, a business role returns `403 CUSTOMER_ACCOUNT_REQUIRED`, and a customer without an active LINE link returns `403 LINE_ACCOUNT_REQUIRED`, before order, stock, queue, or payment work starts.
+
+For a verified LINE customer, `bookingGroupId` is not browser authority. The server reuses an
+active booking group only for the same organization, branch, and LINE identity under a transaction
+advisory lock. Every reservation remains a separate order/ticket; terminal historical orders are
+excluded from the Staff active-group view. Orders directly persist branch/queue scope plus
+organization, branch, queue, and fulfillment snapshots for receipt rendering.
 
 In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has completed and the authenticated LINE-derived JWT is present. The request body must still never include `lineUserId`.
 
@@ -307,6 +317,11 @@ The upload request currently carries a browser-compressed data URL for compatibi
 | GET    | `/api/v1/users/:id`                  | Authenticated        | User detail subject to service authorization |
 | POST   | `/api/v1/users`                      | Admin                | Create user                                  |
 | DELETE | `/api/v1/users/:id`                  | Admin                | Deactivate user                              |
+
+`POST /users/staff` requires the staff profile and a non-empty `employeeCode`; it does not accept a
+branch selector. The API derives the target branch from the authenticated non-owner manager's
+single active branch membership. Normalized email uniqueness is platform-wide, so an existing
+email cannot be invited again under another role.
 
 ### LINE and notifications
 

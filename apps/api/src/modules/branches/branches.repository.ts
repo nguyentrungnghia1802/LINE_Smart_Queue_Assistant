@@ -63,6 +63,24 @@ export interface OrganizationAuditRow {
 }
 
 export class BranchesRepository extends BaseRepository {
+  async countActive(organizationId: string, client?: PoolClient): Promise<number> {
+    const rows = client
+      ? await this.queryTx<{ count: string }>(
+          client,
+          `SELECT COUNT(*)::text AS count
+           FROM organization_branches
+           WHERE organization_id = $1 AND is_active = TRUE`,
+          [organizationId]
+        )
+      : await this.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+           FROM organization_branches
+           WHERE organization_id = $1 AND is_active = TRUE`,
+          [organizationId]
+        );
+    return Number(rows[0]?.count ?? 0);
+  }
+
   async list(organizationId: string): Promise<BranchSummaryRow[]> {
     return this.query<BranchSummaryRow>(
       `SELECT b.*,

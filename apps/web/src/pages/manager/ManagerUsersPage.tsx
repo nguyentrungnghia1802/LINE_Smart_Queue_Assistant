@@ -17,11 +17,6 @@ interface UserRow {
   job_title: string | null;
   employee_code: string | null;
 }
-interface Branch {
-  id: string;
-  name: string;
-}
-
 export function ManagerUsersPage() {
   const { t } = useTranslation(['manager', 'common']);
   const { user } = useAuthStore();
@@ -37,7 +32,6 @@ export function ManagerUsersPage() {
     currentAddress: '',
     jobTitle: '',
     employeeCode: '',
-    branchId: '',
   };
   const [form, setForm] = useState(emptyForm);
   const [addError, setAddError] = useState('');
@@ -47,16 +41,10 @@ export function ManagerUsersPage() {
     queryFn: () => get<UserRow[]>('/api/v1/users?role=staff'),
     enabled: !!orgId && !user?.isOrganizationOwner,
   });
-  const { data: branch } = useQuery<Branch>({
-    queryKey: ['branch-manager-scope', user?.branchIds?.[0]],
-    queryFn: () => get<Branch>('/api/v1/branches/me'),
-    enabled: !!orgId && !user?.isOrganizationOwner,
-  });
-
   const staffUsers = useMemo(() => users.filter((u) => u.role === 'staff'), [users]);
 
   const createMutation = useMutation({
-    mutationFn: () => post('/api/v1/users/staff', { ...form, branchId: branch?.id }),
+    mutationFn: () => post('/api/v1/users/staff', form),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['users-staff'] });
       setShowAdd(false);
@@ -75,7 +63,7 @@ export function ManagerUsersPage() {
         phone: form.phone,
         currentAddress: form.currentAddress,
         jobTitle: form.jobTitle,
-        employeeCode: form.employeeCode || null,
+        employeeCode: form.employeeCode,
       };
       return patch(`/api/v1/users/staff/${editingUserId}`, profile);
     },
@@ -147,7 +135,6 @@ export function ManagerUsersPage() {
                         currentAddress: staffUser.address_line1 ?? '',
                         jobTitle: staffUser.job_title ?? '',
                         employeeCode: staffUser.employee_code ?? '',
-                        branchId: branch?.id ?? '',
                       });
                       setAddError('');
                     }}
@@ -203,7 +190,6 @@ export function ManagerUsersPage() {
                             currentAddress: u.address_line1 ?? '',
                             jobTitle: u.job_title ?? '',
                             employeeCode: u.employee_code ?? '',
-                            branchId: branch?.id ?? '',
                           });
                           setAddError('');
                         }}
@@ -265,7 +251,7 @@ export function ManagerUsersPage() {
                 placeholder: t('users.jobTitlePlaceholder'),
               },
               {
-                label: t('users.employeeCode'),
+                label: t('users.employeeCodeRequired'),
                 key: 'employeeCode',
                 type: 'text',
                 placeholder: 'ST-001',
@@ -282,13 +268,6 @@ export function ManagerUsersPage() {
                 />
               </div>
             ))}
-            {!editingUserId && (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                <p className="text-xs text-gray-500">{t('users.branchRequired')}</p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">{branch?.name ?? '-'}</p>
-              </div>
-            )}
-
             {addError && <p className="text-xs text-red-500">{addError}</p>}
 
             <div className="flex gap-2 pt-1">
@@ -317,7 +296,7 @@ export function ManagerUsersPage() {
                   !form.phone ||
                   !form.currentAddress ||
                   !form.jobTitle ||
-                  (!editingUserId && !branch?.id)
+                  !form.employeeCode
                 }
                 className="flex-1 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
               >

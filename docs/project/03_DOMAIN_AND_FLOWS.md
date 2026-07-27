@@ -196,12 +196,14 @@ transaction, so the same verified payment cannot create two bookings under concu
 
 ## 6. Repeat/additional booking flow
 
-1. Browser creates a stable local device key and a booking-group UUID.
-2. First reservation creates an independent order/ticket and optionally the server booking group.
-3. A later reservation starts with a clean cart/payment attempt and creates another independent
-   order/ticket using the same group ID.
+1. Browser may keep a local device key for draft recovery, but it is not grouping authority.
+2. First reservation creates an independent order/ticket and a server booking group.
+3. A later reservation starts with a clean cart/payment attempt. For a verified LINE customer, the
+   server reuses the active group only when the organization and branch match; otherwise it creates
+   a new group.
 4. The authenticated customer history API resolves the group by internal user identity, supports pagination across devices, and returns each order/ticket independently.
-5. Tenant staff may inspect a related group from the staff workspace; customer ownership and staff organization scope are enforced server-side.
+5. Tenant staff sees active orders in the resolved group as one working card. Served, cancelled,
+   and no-show history is excluded from that operational card.
 6. Cancellation, queue state, item/payment records, and receipts remain per order.
 
 A paid transaction can be attached to only one order. Legacy browser state that references an
@@ -218,9 +220,9 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
    (falling back to the first active branch queue), returns at most the next eight active entries,
    exposes separate total-active and waiting counts, and includes order details, booking
    name/telephone, and the linked LINE display name when available.
-3. Completion atomically transitions the current service to `served` and calls the next eligible
-   waiting entry when no other ticket is already `called`; the Staff UI therefore has no manual
-   call-next control.
+3. Booking into an idle queue and transitions that free its active slot atomically call the next
+   eligible waiting entry when no ticket is already `called` or `serving`; the Staff UI therefore
+   has no manual call-next control.
 4. The queue transition and LINE outbox row, including resolved locale, are written in the same transaction; a worker sends the localized message after commit.
 5. Staff starts service, completes, marks no-show, cancels, or moves a called late arrival behind
    everyone currently waiting through guarded transitions. Defer preserves the ticket code and calls
@@ -228,7 +230,8 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
 6. Staff can collect an outstanding balance. The API creates an audited manual payment transaction
    for unpaid items, reconciles item payment states, and marks the order paid only when no unpaid
    item remains.
-7. Receipt printing is available after the applicable payment success state.
+7. Receipt printing uses immutable organization/branch/queue and fulfilling-staff snapshots. It
+   shows gross total, collected prepayment, and remaining balance without charging prepaid items twice.
 8. Related booking groups are historical associations, but the Staff working context filters them
    to tickets in `waiting`, `called`, or `serving`.
 
@@ -274,7 +277,11 @@ links such as `https://liff.line.me/{LINE_LOGIN_LIFF_ID}/tickets/:entryId` for t
 endpoint. When the LIFF ID is not configured, the backend falls back to `WEB_ORIGIN` plus
 `/liff/tickets/:entryId`.
 
-Ticket lifecycle notifications currently cover booking-created, ETA warning, called, serving, completed, cancelled, and no-show events. Each Flex Message shows the system name, ticket code, current status, people ahead, ETA, next action guidance, and a button that opens the LIFF ticket detail.
+Ticket lifecycle notifications currently cover booking-created, ETA warning, called, serving,
+completed, cancelled, and no-show events. ETA warnings are enqueued at exactly five and three
+people ahead with distinct durable event keys. Each Flex Message shows the system name, ticket
+code, current status, people ahead, ETA, next action guidance, and a button that opens the LIFF
+ticket detail.
 
 ## 9. LINE Rich Menu navigation flow
 
@@ -337,6 +344,8 @@ The PostgreSQL-locked forecasting job aggregates the previous eight weeks by org
 - The owner manager activates the tenant by opening the single-use email link and choosing a password. Owner managers cannot remove themselves.
 - An owner manager may create branches and invite one or more branch managers. Every branch retains
   at least one assigned manager and is created with one default closed queue.
+- Branch creation is serialized against the organization and enforces the subscription plan. The
+  Standard plan permits at most three active branches.
 - The owner manager uses only organization-level branch, manager, audit, and aggregate-performance
   views. The owner flag remains an organization membership property, not a new global role.
 - Each branch manager has exactly one active branch assignment and may create multiple named queues.
@@ -346,4 +355,8 @@ The PostgreSQL-locked forecasting job aggregates the previous eight weeks by org
 - Branch managers maintain weekly hours/exception dates and invite staff to their assigned branch.
   Invitees set their own password; staff removal is soft deactivation and records the acting
   manager in `audit_logs`.
+- Staff invitation bodies do not choose a branch. The server derives the manager's assigned branch,
+  and every staff invitation requires an employee code.
+- A normalized email address belongs to one platform account only; a second role cannot be created
+  by reusing that email.
 - Customers continue to authenticate through LINE. Admin, owner manager, manager, and staff use the shared business login screen.

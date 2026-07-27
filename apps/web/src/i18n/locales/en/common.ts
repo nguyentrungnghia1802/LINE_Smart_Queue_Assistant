@@ -95,6 +95,7 @@ export const common = {
     UNAUTHORIZED: 'Please log in again.',
     FORBIDDEN: 'You do not have permission to perform this action.',
     CUSTOMER_ACCOUNT_REQUIRED: 'A customer account is required to start reception.',
+    BRANCH_PLAN_LIMIT_REACHED: 'Your current service plan does not allow any more branches.',
     QUEUE_NOT_ACCEPTING: 'No queue is currently accepting bookings.',
     PAYMENT_ALREADY_USED:
       'The previous payment has already been used. Please complete payment again.',

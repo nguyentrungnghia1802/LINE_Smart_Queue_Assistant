@@ -587,22 +587,35 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TABLE orders (
   id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id        UUID NOT NULL REFERENCES organizations(id) ON DELETE RESTRICT,
+  branch_id              UUID NOT NULL,
+  queue_id               UUID NOT NULL,
   booking_group_id       UUID REFERENCES booking_groups(id) ON DELETE SET NULL,
   customer_user_id       UUID REFERENCES users(id) ON DELETE SET NULL,
   customer_line_user_id  TEXT,
   order_number           TEXT NOT NULL,
   customer_name          TEXT,
   customer_phone         TEXT,
+  organization_name_snapshot TEXT NOT NULL,
+  branch_name_snapshot   TEXT NOT NULL,
+  queue_name_snapshot    TEXT NOT NULL,
   status                 order_status NOT NULL DEFAULT 'pending',
   subtotal               NUMERIC(12,2) NOT NULL DEFAULT 0,
   payment_status         payment_status NOT NULL DEFAULT 'unpaid',
   payment_code           TEXT,
   notes                  TEXT,
+  fulfilled_by_user_id   UUID REFERENCES users(id) ON DELETE SET NULL,
+  fulfilled_by_name      TEXT,
+  fulfilled_by_employee_code TEXT,
+  fulfilled_at           TIMESTAMPTZ,
   created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   CONSTRAINT orders_order_number_org_unique UNIQUE (organization_id, order_number),
-  CONSTRAINT orders_subtotal_non_negative CHECK (subtotal >= 0)
+  CONSTRAINT orders_subtotal_non_negative CHECK (subtotal >= 0),
+  FOREIGN KEY (branch_id, organization_id)
+    REFERENCES organization_branches(id, organization_id) ON DELETE RESTRICT,
+  FOREIGN KEY (queue_id, organization_id, branch_id)
+    REFERENCES queues(id, organization_id, branch_id) ON DELETE RESTRICT
 );
 
 COMMENT ON COLUMN orders.customer_user_id IS 'Links order to internal user when authenticated or LINE-linked.';
@@ -612,6 +625,11 @@ COMMENT ON COLUMN orders.customer_phone IS 'Customer contact phone for demo/busi
 CREATE TRIGGER trg_orders_updated_at
 BEFORE UPDATE ON orders
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE INDEX idx_orders_branch_created ON orders(branch_id, created_at DESC);
+CREATE INDEX idx_orders_queue_created ON orders(queue_id, created_at DESC);
+CREATE INDEX idx_orders_fulfilled_by
+  ON orders(fulfilled_by_user_id, fulfilled_at DESC)
+  WHERE fulfilled_by_user_id IS NOT NULL;
 
 CREATE TABLE payment_transactions (
   id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),

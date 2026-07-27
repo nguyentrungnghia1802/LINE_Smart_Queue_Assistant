@@ -10,7 +10,7 @@ import {
   queueEntriesRepository,
   QueueEntryRow,
 } from '../../db/repositories/queue-entries.repository';
-import { QueueRow, queuesRepository } from '../../db/repositories/queues.repository';
+import { queuesRepository } from '../../db/repositories/queues.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
@@ -29,6 +29,7 @@ import {
   TicketPositionResult,
 } from './queue.types';
 import { JoinQueueDto } from './queue.validator';
+import { tryAutoCallNextWaiting } from './queue-auto-call.service';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -40,43 +41,6 @@ import { JoinQueueDto } from './queue.validator';
 function formatTicketCode(prefix: string, ticketNumber: number): string {
   const width = prefix ? 3 : 4;
   return `${prefix}${String(ticketNumber).padStart(width, '0')}`;
-}
-
-async function tryCallNextWaitingInClient(
-  queue: QueueRow,
-  client: PoolClient
-): Promise<QueueEntryRow | null> {
-  const alreadyCalled = await queueEntriesRepository.findByQueueAndStatus(
-    queue.id,
-    'called',
-    client
-  );
-  if (alreadyCalled) return null;
-
-  const [next, nextUp] = await queueEntriesRepository.listWaiting(queue.id, client);
-  if (!next) return null;
-
-  const called = await queueEntriesRepository.markCalled(next.id, client);
-  await queueNotificationService.notifyTicketCalled(
-    { ...called, estimated_wait_seconds: 0 },
-    {
-      organizationId: queue.organization_id,
-      aheadCount: 0,
-      estimatedWaitSeconds: 0,
-    },
-    notificationOutboxRepository,
-    client
-  );
-  if (nextUp) {
-    await queueNotificationService.notifyEtaWarning(
-      nextUp,
-      1,
-      { organizationId: queue.organization_id },
-      notificationOutboxRepository,
-      client
-    );
-  }
-  return called;
 }
 
 /**
@@ -259,7 +223,12 @@ export const queueService = {
         notificationOutboxRepository,
         client
       );
-      return { entry, aheadCount, estimatedWaitSeconds };
+      const autoCalled = await tryAutoCallNextWaiting(lockedQueue, client);
+      return {
+        entry: autoCalled?.id === entry.id ? autoCalled : entry,
+        aheadCount: autoCalled?.id === entry.id ? 0 : aheadCount,
+        estimatedWaitSeconds: autoCalled?.id === entry.id ? 0 : estimatedWaitSeconds,
+      };
     });
 
     return {
@@ -369,6 +338,8 @@ export const queueService = {
     if (!queue) throw AppError.notFound('Queue');
 
     await withTransaction(async (client) => {
+      const lockedQueue = await queuesRepository.lockById(queue.id, client);
+      if (!lockedQueue) throw AppError.notFound('Queue');
       const cancelled = await queueEntriesRepository.markCancelled(entryId, client);
       if (cancelled.order_id) {
         await paymentsService.refundOrderOnCancellationInClient({
@@ -395,6 +366,7 @@ export const queueService = {
         notificationOutboxRepository,
         client
       );
+      await tryAutoCallNextWaiting(lockedQueue, client);
     });
     metricsService.increment('queue_cancelled_total');
   },
@@ -502,7 +474,7 @@ export const queueService = {
       if (existingCalled) {
         throw AppError.conflict('A ticket is already called in this queue');
       }
-      const called = await tryCallNextWaitingInClient(lockedQueue, client);
+      const called = await tryAutoCallNextWaiting(lockedQueue, client);
       if (!called) throw AppError.conflict('No waiting entries in this queue');
       return called;
     });
@@ -570,10 +542,20 @@ export const queueService = {
       const updated = await queueEntriesRepository.markServed(entryId, client);
       if (updated.order_id) {
         await inventoryService.consumeOrder(updated.order_id, client, params.actorUserId);
-        await client.query(
-          `UPDATE orders SET status = 'completed' WHERE id = $1 AND status IN ('pending','processing')`,
-          [updated.order_id]
-        );
+        if (params.actorUserId) {
+          await ordersRepository.completeWithFulfillment(
+            updated.order_id,
+            params.actorUserId,
+            client
+          );
+        } else {
+          await client.query(
+            `UPDATE orders
+             SET status = 'completed', fulfilled_at = NOW()
+             WHERE id = $1 AND status IN ('pending','processing')`,
+            [updated.order_id]
+          );
+        }
       }
       await queueNotificationService.notifyTicketCompleted(
         updated,
@@ -589,7 +571,7 @@ export const queueService = {
         client,
         params.actorUserId
       );
-      await tryCallNextWaitingInClient(lockedQueue, client);
+      await tryAutoCallNextWaiting(lockedQueue, client);
       return updated;
     });
     metricsService.increment('queue_served_total');
@@ -630,7 +612,7 @@ export const queueService = {
         params.actorUserId
       );
       if (waitingBeforeDefer.length > 0) {
-        await tryCallNextWaitingInClient(lockedQueue, client);
+        await tryAutoCallNextWaiting(lockedQueue, client);
       }
       return deferred;
     });
@@ -658,6 +640,8 @@ export const queueService = {
     }
 
     return withTransaction(async (client) => {
+      const lockedQueue = await queuesRepository.lockById(queue.id, client);
+      if (!lockedQueue) throw AppError.notFound('Queue');
       const noShow = await queueEntriesRepository.markNoShow(entryId, client);
       if (noShow.order_id) {
         await inventoryService.releaseOrder(
@@ -685,6 +669,7 @@ export const queueService = {
         client,
         params.actorUserId
       );
+      await tryAutoCallNextWaiting(lockedQueue, client);
       return noShow;
     });
   },

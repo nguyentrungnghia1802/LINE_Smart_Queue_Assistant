@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import type { SupportedLocale } from '@line-queue/shared';
-import { API_BASE_PATH } from '@line-queue/shared';
+import { API_BASE_PATH, getSubscriptionPlanBranchLimit } from '@line-queue/shared';
 
 import { BrandLogo } from '../../components/BrandLogo';
 import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
@@ -85,6 +85,7 @@ export function BusinessRegistrationPage() {
     const monthly = PLAN_PRICES[form.planCode];
     return form.billingCycle === 'annual' ? monthly * 10 : monthly;
   }, [form.billingCycle, form.planCode]);
+  const maxLocations = getSubscriptionPlanBranchLimit(form.planCode);
   const currency = useMemo(
     () =>
       new Intl.NumberFormat(i18n.resolvedLanguage ?? 'ja', {
@@ -402,7 +403,7 @@ export function BusinessRegistrationPage() {
                     name="locationCount"
                     type="number"
                     min="1"
-                    max="10000"
+                    max={String(maxLocations ?? 10000)}
                     value={form.locationCount}
                     onChange={(value) => update('locationCount', value)}
                     required
@@ -441,7 +442,17 @@ export function BusinessRegistrationPage() {
                         name="planCode"
                         value={plan}
                         checked={form.planCode === plan}
-                        onChange={() => update('planCode', plan)}
+                        onChange={() => {
+                          const limit = getSubscriptionPlanBranchLimit(plan);
+                          setForm((current) => ({
+                            ...current,
+                            planCode: plan,
+                            locationCount:
+                              limit !== null && Number(current.locationCount) > limit
+                                ? String(limit)
+                                : current.locationCount,
+                          }));
+                        }}
                       />
                       <span className="font-bold">{t(`pricing.${plan}.name`)}</span>
                       <span className="mt-2 block text-lg font-bold">

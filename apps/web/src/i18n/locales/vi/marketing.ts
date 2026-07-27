@@ -63,7 +63,7 @@ export const marketing = {
       description: 'Dành cho doanh nghiệp tăng trưởng cần phân tích.',
       badge: 'Đề xuất',
       features: [
-        'Tối đa 5 địa điểm',
+        'Tối đa 3 địa điểm',
         'Đầy đủ tính năng tiếp nhận',
         'Phân tích và ETA',
         'Hỗ trợ ưu tiên',

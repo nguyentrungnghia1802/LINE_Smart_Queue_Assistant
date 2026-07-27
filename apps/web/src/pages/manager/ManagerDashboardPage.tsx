@@ -98,21 +98,22 @@ export function ManagerDashboardPage() {
   const { t, i18n } = useTranslation(['manager', 'common', 'staff']);
   const { user } = useAuthStore();
   const orgId = user?.organizationId;
+  const branchId = user?.branchIds?.[0];
   const isOwner = user?.isOrganizationOwner === true;
 
   const { data, isLoading } = useQuery<StatsData>({
-    queryKey: ['orders-stats', orgId],
+    queryKey: ['orders-stats', orgId, branchId],
     queryFn: () => get<StatsData>('/api/v1/orders/stats'),
     enabled: !!orgId && !isOwner,
     refetchInterval: 30_000,
   });
   const forecasts = useQuery<WaitForecast[]>({
-    queryKey: ['wait-forecasts', orgId],
+    queryKey: ['wait-forecasts', orgId, branchId],
     queryFn: () => get<WaitForecast[]>('/api/v1/forecasts/wait'),
     enabled: !!orgId && !isOwner,
   });
   const staffing = useQuery<StaffingRecommendation[]>({
-    queryKey: ['staffing-recommendations', orgId],
+    queryKey: ['staffing-recommendations', orgId, branchId],
     queryFn: () => get<StaffingRecommendation[]>('/api/v1/forecasts/staffing'),
     enabled: !!orgId && !isOwner,
   });

@@ -2,6 +2,12 @@ import { randomBytes } from 'node:crypto';
 
 import type { PoolClient } from 'pg';
 
+import {
+  ERROR_CODES,
+  getSubscriptionPlanBranchLimit,
+  type SubscriptionPlanCode,
+} from '@line-queue/shared';
+
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
@@ -127,8 +133,9 @@ export const branchesService = {
         const organizationResult = await client.query<{
           name: string;
           default_locale: 'ja' | 'vi' | 'en';
+          settings: Record<string, unknown>;
         }>(
-          `SELECT name, default_locale
+          `SELECT name, default_locale, settings
            FROM organizations
            WHERE id = $1 AND is_active = TRUE
            FOR UPDATE`,
@@ -136,6 +143,22 @@ export const branchesService = {
         );
         const organization = organizationResult.rows[0];
         if (!organization) throw AppError.notFound('Organization');
+        const configuredPlan = organization.settings?.subscriptionPlan;
+        const plan: SubscriptionPlanCode =
+          configuredPlan === 'starter' ||
+          configuredPlan === 'standard' ||
+          configuredPlan === 'scale'
+            ? configuredPlan
+            : 'starter';
+        const maxBranches = getSubscriptionPlanBranchLimit(plan);
+        const activeBranchCount = await branchesRepository.countActive(organizationId, client);
+        if (maxBranches !== null && activeBranchCount >= maxBranches) {
+          throw new AppError(
+            `The ${plan} plan supports at most ${maxBranches} branches`,
+            409,
+            ERROR_CODES.BRANCH_PLAN_LIMIT_REACHED
+          );
+        }
         const branch = await branchesRepository.create(
           {
             organizationId,

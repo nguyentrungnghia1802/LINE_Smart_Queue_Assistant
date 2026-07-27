@@ -222,11 +222,13 @@ export function ManagerProductFormPage() {
           t('products.image'),
           <div className="space-y-2">
             {form.imageUrl && (
-              <img
-                src={form.imageUrl}
-                alt={t('products.preview')}
-                className="h-32 w-full rounded-lg object-cover"
-              />
+              <div className="aspect-square w-full max-w-72 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                <img
+                  src={form.imageUrl}
+                  alt={t('products.preview')}
+                  className="h-full w-full object-cover"
+                />
+              </div>
             )}
             <input
               type="file"

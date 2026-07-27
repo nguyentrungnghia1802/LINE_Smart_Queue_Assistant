@@ -114,6 +114,71 @@ describe('StaffDashboardPage', () => {
     expect(patch).not.toHaveBeenCalled();
   });
 
+  it('subtracts prepaid item amounts from the amount still due', async () => {
+    vi.mocked(get).mockResolvedValue({
+      queueId: 'queue-1',
+      queueName: '受付カウンターA',
+      waitingCount: 1,
+      totalActiveCount: 1,
+      waitingEntriesWithOrders: [
+        {
+          id: 'entry-1',
+          ticket_code: 'A001',
+          status: 'waiting',
+          order: {
+            id: 'order-1',
+            booking_group_id: null,
+            order_number: 'ORD-0001',
+            customer_name: '山田 太郎',
+            customer_phone: '09000000000',
+            customer_line_display_name: 'LINE 山田',
+            status: 'pending',
+            subtotal: '5000',
+            payment_status: 'partially_paid',
+            ticket_code: 'A001',
+            queue_entry_status: 'waiting',
+            created_at: new Date().toISOString(),
+            items: [
+              {
+                id: 'item-prepaid',
+                product_name: '予約サービス',
+                product_price: '1500',
+                service_time_minutes: 30,
+                quantity: 1,
+                subtotal: '1500',
+                payment_status: 'paid',
+                prepaid_amount: '1500',
+                refunded_amount: '0',
+                requires_prepayment_snapshot: true,
+              },
+              {
+                id: 'item-unpaid',
+                product_name: '追加商品',
+                product_price: '3500',
+                service_time_minutes: 10,
+                quantity: 1,
+                subtotal: '3500',
+                payment_status: 'unpaid',
+                prepaid_amount: '0',
+                refunded_amount: '0',
+                requires_prepayment_snapshot: false,
+              },
+            ],
+          },
+        },
+      ],
+      calledEntryWithOrder: null,
+      servingEntryWithOrder: null,
+    });
+
+    renderPage();
+
+    expect(await screen.findAllByText('事前支払い済み')).not.toHaveLength(0);
+    expect(screen.getAllByText(/1,500/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('お支払い').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/3,500/).length).toBeGreaterThan(0);
+  });
+
   it('completes a serving ticket without sending a request body', async () => {
     vi.mocked(get).mockResolvedValue({
       queueId: 'queue-1',
@@ -139,6 +204,55 @@ describe('StaffDashboardPage', () => {
         '/api/v1/staff/entries/22222222-2222-4222-8222-222222222222/complete'
       )
     );
+  });
+
+  it('keeps the completed receipt available after the ticket leaves the queue', async () => {
+    const completedOrder = {
+      id: 'order-1',
+      booking_group_id: null,
+      order_number: 'ORD-0001',
+      customer_name: '山田 太郎',
+      customer_phone: '09000000000',
+      customer_line_display_name: 'LINE 山田',
+      organization_name_snapshot: 'スマート受付株式会社',
+      branch_name_snapshot: '東京店',
+      queue_name_snapshot: '受付カウンターA',
+      fulfilled_by_name: '担当スタッフ',
+      fulfilled_by_employee_code: 'ST-001',
+      fulfilled_at: new Date().toISOString(),
+      status: 'completed',
+      subtotal: '3000',
+      payment_status: 'paid',
+      ticket_code: 'A004',
+      queue_entry_status: 'served',
+      created_at: new Date().toISOString(),
+      items: [],
+    };
+    const queueOverview = {
+      queueId: 'queue-1',
+      queueName: '受付カウンターA',
+      waitingCount: 0,
+      totalActiveCount: 1,
+      waitingEntriesWithOrders: [],
+      calledEntryWithOrder: null,
+      servingEntryWithOrder: {
+        id: '22222222-2222-4222-8222-222222222222',
+        ticket_code: 'A004',
+        status: 'serving',
+        order: { ...completedOrder, status: 'processing', fulfilled_at: null },
+      },
+    };
+    vi.mocked(get).mockImplementation(async (url) =>
+      String(url).endsWith('/receipt') ? completedOrder : queueOverview
+    );
+    vi.mocked(post).mockResolvedValue({ entry: { id: 'entry-1', status: 'served' } });
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: '完了' }));
+
+    expect(await screen.findByText('完了した受付の領収書を印刷できます。')).toBeInTheDocument();
+    expect(get).toHaveBeenCalledWith('/api/v1/orders/order-1/receipt');
+    expect(screen.getByRole('button', { name: '領収書を印刷' })).toBeInTheDocument();
   });
 
   it('shows only the first eight active queue entries', async () => {

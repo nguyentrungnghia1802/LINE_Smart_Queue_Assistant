@@ -512,7 +512,10 @@ export function CustomerJoinPage({
     setError('');
     setSubmitting(true);
     try {
-      const result = await post<{ order: { id: string }; queueEntry: { id: string } }>(
+      const result = await post<{
+        order: { id: string; booking_group_id?: string | null };
+        queueEntry: { id: string };
+      }>(
         '/api/v1/orders',
         {
           orgSlug: data?.org.slug,
@@ -540,7 +543,12 @@ export function CustomerJoinPage({
       );
       const nextGroup = appendBookingRecord(
         draftKey,
-        { orgSlug: data?.org.slug ?? '', token, localDeviceKey, groupId: bookingGroupId },
+        {
+          orgSlug: data?.org.slug ?? '',
+          token,
+          localDeviceKey,
+          groupId: result.order.booking_group_id ?? bookingGroupId,
+        },
         {
           orderId: result.order.id,
           queueEntryId: result.queueEntry.id,

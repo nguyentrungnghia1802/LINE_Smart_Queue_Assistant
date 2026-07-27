@@ -62,7 +62,7 @@ export const marketing = {
       name: 'Standard',
       description: '運営分析まで必要な成長店舗に。',
       badge: 'おすすめ',
-      features: ['5拠点まで', '全受付機能', '分析・ETA予測', '優先サポート'],
+      features: ['3拠点まで', '全受付機能', '分析・ETA予測', '優先サポート'],
     },
     scale: {
       name: 'Scale',

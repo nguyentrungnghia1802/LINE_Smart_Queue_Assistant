@@ -20,6 +20,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 14. `000014_organization_applications.js`
 15. `000015_account_lifecycle_and_branches.js`
 16. `000016_branch_scoped_multi_queue.js`
+17. `000017_order_fulfillment_and_scope.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -57,7 +58,7 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 | `organization_applications`   | Public business details, plan/demo payment, and admin review                 | Status/payment checks; pending-email uniqueness; reviewer/organization FKs  |
 | `organization_business_hours` | Weekly local opening schedule                                                | Unique tenant/weekday; closed/open time consistency                         |
 | `organization_exception_days` | Holidays and exceptional opening/closure dates                               | Unique tenant/date; closed/open time consistency                            |
-| `users`                       | Platform identity, role, password/profile, preferred locale                  | Unique optional email; nullable `preferred_locale`; active flag             |
+| `users`                       | Platform identity, role, password/profile, preferred locale                  | Globally unique normalized optional email; nullable locale; active flag     |
 | `organization_members`        | Tenant manager/staff authorization                                           | Unique organization/user pair; cascading tenant/user delete                 |
 | `organization_branches`       | Physical branch, stable QR, address, timezone, and owner-created lifecycle   | Unique branch QR and organization/code; soft active flag                    |
 | `branch_memberships`          | Manager/staff branch assignment                                              | Branch/member FK; one active branch for a manager                           |
@@ -71,19 +72,19 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 
 ### Catalog, queue, and orders
 
-| Table                               | Key purpose                            | Important constraints                                                           |
-| ----------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------- |
-| `products`                          | Branch product/service snapshot source | Organization/branch FK; nonnegative price/stock; service stock must be `NULL`   |
-| `queues`                            | Named branch queue and daily counter   | Organization/branch FK; unique active branch/name; capacity/time checks         |
-| `queue_products`                    | Queue-specific branch catalog          | Composite queue/product scope FKs; unique mapping and active display order      |
-| `booking_groups`                    | Group separate repeat bookings         | Tenant/customer/device keys; active/completed/cancelled check                   |
-| `orders`                            | Commercial reservation header          | Tenant/order number, optional queue entry/customer/group, totals/status         |
-| `order_items`                       | Price/name/duration/payment snapshots  | Positive quantity, nonnegative subtotal/prepaid amount                          |
-| `payment_transactions`              | Provider intent/state/reconciliation   | Tenant/order, amount/currency, provider intent/external-ID indexes              |
-| `payment_webhook_events`            | Idempotent provider callback log       | Unique provider/event ID; replay-safe status                                    |
-| `inventory_reservations`            | Finite stock allocation                | Positive quantity; reserved/consumed/released/expired check                     |
-| `payment_reconciliation_operations` | Audited payment decisions              | Unique idempotency key; tenant, transaction, order, actor and amount references |
-| `queue_entries`                     | Ticket lifecycle and ETA fields        | Unique queue/ticket number and code; active-user/LINE indexes                   |
+| Table                               | Key purpose                               | Important constraints                                                                     |
+| ----------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `products`                          | Branch product/service snapshot source    | Organization/branch FK; nonnegative price/stock; service stock must be `NULL`             |
+| `queues`                            | Named branch queue and daily counter      | Organization/branch FK; unique active branch/name; capacity/time checks                   |
+| `queue_products`                    | Queue-specific branch catalog             | Composite queue/product scope FKs; unique mapping and active display order                |
+| `booking_groups`                    | Group separate repeat bookings            | Tenant/customer/device keys; active/completed/cancelled check                             |
+| `orders`                            | Commercial reservation and receipt header | Direct branch/queue scope, group, totals/status, immutable business/fulfillment snapshots |
+| `order_items`                       | Price/name/duration/payment snapshots     | Positive quantity, nonnegative subtotal/prepaid amount                                    |
+| `payment_transactions`              | Provider intent/state/reconciliation      | Tenant/order, amount/currency, provider intent/external-ID indexes                        |
+| `payment_webhook_events`            | Idempotent provider callback log          | Unique provider/event ID; replay-safe status                                              |
+| `inventory_reservations`            | Finite stock allocation                   | Positive quantity; reserved/consumed/released/expired check                               |
+| `payment_reconciliation_operations` | Audited payment decisions                 | Unique idempotency key; tenant, transaction, order, actor and amount references           |
+| `queue_entries`                     | Ticket lifecycle and ETA fields           | Unique queue/ticket number and code; active-user/LINE indexes                             |
 
 ### Location, analysis, messaging, and audit
 
@@ -121,6 +122,8 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 
 - `organizations.slug` and `public_qr_token` are globally unique.
 - Only one pending organization application can exist per normalized work email.
+- One normalized email address can identify only one platform user and therefore cannot carry
+  multiple platform roles.
 - Application approval requires `payment_status = 'paid'`; reviewed state requires reviewer/time,
   and approval creates a single-use owner activation action instead of accepting an applicant password.
 - Product stock cannot be negative; services cannot carry finite stock.
@@ -129,6 +132,8 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 - A non-owner manager can have only one active branch membership. The organization owner may retain
   a compatibility membership created during activation, but that row never grants branch-operation
   authorization.
+- Staff invitations derive the target branch from the authenticated branch manager and require a
+  non-empty employee code; request-body branch identifiers are not accepted as authority.
 - Queue ticket number/code uniqueness is scoped to queue as defined by migrations.
 - Active queue-entry lookup indexes support customer/LINE and queue/status ordering.
 - Payment transaction lookup is indexed by provider external ID and provider intent ID.
@@ -166,7 +171,10 @@ An insufficient-stock update affects zero rows, raises a conflict, and rolls bac
   idempotent reconciliation operations, updates transaction/item/order refund summaries, releases
   inventory, cancels the order/ticket, and enqueues the LINE cancellation notification in one transaction.
 - Service completion locks the queue before serving completion and automatic call-next selection.
-  Defer also locks the queue while re-ranking current waiters and returning the called ticket to the tail.
+  Booking into an idle queue, cancellation, no-show, and defer use the same queue-locked auto-call
+  boundary. It never calls a second customer while another ticket is called or serving.
+- Completion snapshots the responsible staff user, display name, employee code, and completion time
+  on the order. Order creation snapshots organization, branch, and queue names for durable receipts.
 
 Queue capacity, call-next, daily ticket numbering, and organization order numbering use transaction locks or atomic counters. Production load testing remains required.
 
@@ -228,7 +236,7 @@ the administrator; it is blocked in production and requires
 - Forecast calibration still needs production history and measured accuracy review before any ML claim.
 - Advanced notification operations UI, manual replay/cancel controls, and long-term notification retention policy are not implemented.
 
-## 12. Account lifecycle and branch scope (migrations 000015-000016)
+## 12. Account lifecycle, branch scope, and receipts (migrations 000015-000017)
 
 - `organizations.activation_status` separates pending activation, active, and suspended tenants.
 - `users.account_status` and invitation/profile fields model invited, active, and disabled business accounts.
@@ -238,6 +246,10 @@ the administrator; it is blocked in production and requires
 - `branch_business_hours` and `branch_exception_days` control branch-local booking availability.
 - `queues.branch_id` is required; a branch can have multiple active queues with unique active names.
 - `products.branch_id` and `queue_products` enforce queue-specific catalogs inside one branch.
+- `orders.branch_id` and `orders.queue_id` preserve direct operational scope, while organization,
+  branch, queue, and fulfilling-staff snapshots preserve receipt meaning after later profile changes.
+- Active reservations made by the same verified LINE user in one branch reuse the current active
+  booking group. Completed/cancelled history remains separate and is excluded from Staff work cards.
 - `account_action_tokens` stores only SHA-256 token hashes and supports single-use activation/reset links.
 - `email_outbox` provides durable, retryable delivery. Its action token is encrypted at rest and cleared after successful delivery.
 - Baseline seeding creates only the admin account. Browser-test data requires the explicit E2E fixture command.

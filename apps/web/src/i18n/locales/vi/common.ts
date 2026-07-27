@@ -95,6 +95,7 @@ export const common = {
     UNAUTHORIZED: 'Bạn cần đăng nhập lại.',
     FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
     CUSTOMER_ACCOUNT_REQUIRED: 'Cần tài khoản khách hàng để bắt đầu tiếp nhận.',
+    BRANCH_PLAN_LIMIT_REACHED: 'Gói dịch vụ hiện tại không cho phép tạo thêm chi nhánh.',
     QUEUE_NOT_ACCEPTING: 'Hiện không có hàng đợi đang tiếp nhận.',
     PAYMENT_ALREADY_USED:
       'Thông tin thanh toán trước đã được sử dụng. Vui lòng thực hiện thanh toán lại.',
