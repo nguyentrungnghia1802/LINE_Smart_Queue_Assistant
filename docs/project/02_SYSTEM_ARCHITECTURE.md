@@ -82,7 +82,10 @@ Routes and controllers must not contain domain policy. Repositories must not kno
   `/manager/settings`
 - Platform admin: `/admin/*`
 - Public product/onboarding: `/`, `/business/register`
-- Legacy/general authenticated workspace: `/app/*`
+
+Legacy `/customer`, `/app/*`, `/join/:queueId`, and `/ticket/:entryId` pages are not separate
+application surfaces. They only redirect old bookmarks to `/liff/*` or the current role dashboard;
+customer functionality remains LINE/LIFF-only.
 
 Frontend responsibilities are split into route pages, reusable components/layouts, API services, LIFF adapters, hooks, Zustand auth state, and browser checkout helpers. TanStack Query owns server-state fetching/caching. Browser storage currently preserves checkout drafts and local booking-group history; it is not authoritative business storage.
 
@@ -139,6 +142,8 @@ same-browser concurrent-refresh grace period, and treats later replay as comprom
 10. Rich Menu entry points open safe `/liff/*` routes. `/liff/home?mode=ticket` resolves the current active ticket for the authenticated LINE user instead of depending on a fixed entry ID.
 11. A branch QR resolves its branch token, active queues, queue-specific products, current waiting
     count, ETA, and branch-open state. The customer selects a queue before payment or order creation.
+    The UI distinguishes no configured queues, a paused/closed queue, and a branch outside business
+    hours; only the last two are temporary availability states.
 12. Product mutations require the organization-owner capability. Branch managers can read the
     organization catalog only to maintain product assignments for queues in their branch.
 
@@ -162,6 +167,9 @@ copy only this trusted claim into new queue entries; public request bodies canno
 - Branch hours are evaluated in `organization_branches.timezone`; a matching exception date
   overrides weekly hours. Payment intent and order creation independently revalidate the selected
   branch, queue, and queue-product assignments.
+- The web build uses only the required official LIFF modules. A reviewed Vite transform replaces
+  LINE's eval-based sub-window iframe bootstrap with an equivalent targeted form POST, and the
+  post-build CSP check fails if `eval(` or `new Function` returns to a production JavaScript bundle.
 
 ## 8. Background jobs
 

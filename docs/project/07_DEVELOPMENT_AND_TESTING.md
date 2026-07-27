@@ -219,7 +219,10 @@ Critical regression scenarios:
 - LINE Flex Message payload, text fallback, deeplink URL, and no-rollback behavior for queue/order notifications.
 - LIFF Home authentication, active-ticket/no-ticket states, Rich Menu route resolution, and Rich Menu sync idempotency/mock behavior.
 - Organization registration transaction and duplicate email/slug.
-- Mobile staff rail/detail layout and public QR/ticket pages.
+- Mobile staff rail/detail layout, Staff/Manager QR parity, LIFF booking availability states, and
+  the body-portal QR camera dialog.
+- Production web bundles contain no `eval(` or `new Function`; `npm run build -w apps/web` performs
+  this CSP check after Vite emits the bundle.
 
 Playwright uses API/web ports `4100`/`5174`, a unique mock LINE user for each run,
 the demo payment provider, and the mock LINE messaging adapter. Prepare a migrated,

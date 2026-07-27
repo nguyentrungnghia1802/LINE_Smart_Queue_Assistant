@@ -41,7 +41,9 @@ If code and canonical documentation disagree, verify behavior in code/tests, rep
 - Visible application UI and customer messages use translation keys for `ja`, `vi`, and `en`; Japanese is the default and final fallback.
 - Code identifiers, comments, logs, commit messages, and technical documentation use English.
 - Platform `admin` is global. `manager` and `staff` authorization must be constrained by active `organization_members` membership.
-- Public booking may be anonymous. LINE notifications require a linked LINE account and a queue entry with `line_user_id`.
+- Public branch URLs are discovery redirects into LIFF. Booking requires a verified LINE customer
+  session; LINE notifications additionally require an active linked account and a queue entry with
+  `line_user_id`.
 - Products with `stock_quantity = NULL` are unlimited. Finite stock must be checked and changed atomically.
 - Products with `requires_prepayment = TRUE` must be covered by a successful payment before order creation.
 - Never trust payment amount, product price, role, organization ID, or payment status supplied by the browser without server-side verification.

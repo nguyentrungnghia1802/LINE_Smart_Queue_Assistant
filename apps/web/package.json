@@ -6,7 +6,7 @@
   "description": "React + Vite frontend for LINE Smart Queue Assistant",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/check-csp-bundle.mjs",
     "preview": "vite preview",
     "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",

@@ -92,10 +92,14 @@ function makeOrgResponse({
   productName = 'カット',
   requiresPrepayment = false,
   isAcceptingBookings = true,
+  branchOpen = isAcceptingBookings,
+  queueStatus = isAcceptingBookings ? 'open' : 'closed',
 }: {
   productName?: string;
   requiresPrepayment?: boolean;
   isAcceptingBookings?: boolean;
+  branchOpen?: boolean;
+  queueStatus?: 'open' | 'paused' | 'closed';
 } = {}) {
   const product = {
     id: 'product-1',
@@ -113,8 +117,10 @@ function makeOrgResponse({
     name: '受付',
     description: null,
     prefix: 'A',
-    status: isAcceptingBookings ? 'open' : 'closed',
+    status: queueStatus,
     isAcceptingBookings,
+    isQueueOpen: queueStatus === 'open',
+    isBranchOpen: branchOpen,
     waitingCount: 0,
     avgWaitMinutes: 5,
     products: [product],
@@ -139,7 +145,7 @@ function makeOrgResponse({
       city: '千代田区',
       addressLine1: '千代田1-1',
       addressLine2: null,
-      isOpen: isAcceptingBookings,
+      isOpen: branchOpen,
     },
     queues: [queue],
     queue,
@@ -347,7 +353,7 @@ describe('LiffCustomerJoinPage', () => {
     expect(post).not.toHaveBeenCalled();
   });
 
-  it('blocks payment and booking when no queue is accepting customers', async () => {
+  it('blocks payment and booking when the selected queue is paused', async () => {
     vi.mocked(get).mockResolvedValue(
       makeOrgResponse({
         productName: '前払いカット',
@@ -358,13 +364,46 @@ describe('LiffCustomerJoinPage', () => {
     const user = userEvent.setup();
     renderLiffBooking();
 
-    expect(await screen.findAllByText(i18n.t('customer:booking.queueClosed'))).not.toHaveLength(0);
+    expect(await screen.findAllByText(i18n.t('customer:booking.queuePaused'))).not.toHaveLength(0);
     await user.click(screen.getByRole('button', { name: '前払いカット を追加' }));
 
     expect(
-      screen.getByRole('button', { name: i18n.t('customer:booking.queueClosed') })
+      screen.getByRole('button', { name: i18n.t('customer:booking.queuePaused') })
     ).toBeDisabled();
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it('explains that an open queue is unavailable because the branch is outside business hours', async () => {
+    vi.mocked(get).mockResolvedValue(
+      makeOrgResponse({
+        isAcceptingBookings: false,
+        branchOpen: false,
+        queueStatus: 'open',
+      })
+    );
+
+    renderLiffBooking();
+
+    expect(await screen.findAllByText(i18n.t('customer:booking.branchClosed'))).not.toHaveLength(0);
+    expect(
+      screen.getByRole('button', { name: i18n.t('customer:booking.branchClosed') })
+    ).toBeDisabled();
+  });
+
+  it('shows a setup state instead of reporting a runtime error when no queue exists', async () => {
+    const response = makeOrgResponse();
+    vi.mocked(get).mockResolvedValue({
+      ...response,
+      queues: [],
+      queue: null,
+      products: [],
+    });
+
+    renderLiffBooking();
+
+    expect(
+      await screen.findAllByText(i18n.t('customer:booking.noQueuesConfigured'))
+    ).not.toHaveLength(0);
   });
 
   it('shows the shared product logo in the customer booking navigation', async () => {

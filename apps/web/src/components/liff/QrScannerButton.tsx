@@ -1,6 +1,7 @@
 import { BrowserQRCodeReader, type IScannerControls } from '@zxing/browser';
 import { Camera, ScanLine, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -47,6 +48,15 @@ export function QrScannerButton() {
     };
   }, [navigate, open, t]);
 
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
   function close() {
     controlsRef.current?.stop();
     setOpen(false);
@@ -70,45 +80,47 @@ export function QrScannerButton() {
         <span className="text-[11px] leading-3">{t('scanner.scan', { ns: 'customer' })}</span>
       </button>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-[70] flex flex-col bg-gray-950"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="qr-scanner-title"
-        >
-          <header className="flex items-center justify-between px-4 py-4 text-white">
-            <div>
-              <p className="text-xs font-bold uppercase text-line-green">QR</p>
-              <h2 id="qr-scanner-title" className="mt-1 text-lg font-bold">
-                {t('scanner.title', { ns: 'customer' })}
-              </h2>
+      {open &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex h-dvh flex-col bg-gray-950"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="qr-scanner-title"
+          >
+            <header className="flex items-center justify-between px-4 py-4 text-white">
+              <div>
+                <p className="text-xs font-bold uppercase text-line-green">QR</p>
+                <h2 id="qr-scanner-title" className="mt-1 text-lg font-bold">
+                  {t('scanner.title', { ns: 'customer' })}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={close}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10"
+                aria-label={t('actions.close', { ns: 'common' })}
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </header>
+            <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+              <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
+              <div className="pointer-events-none absolute h-64 w-64 rounded-lg border-2 border-line-green shadow-[0_0_0_9999px_rgba(3,7,18,0.45)]" />
             </div>
-            <button
-              type="button"
-              onClick={close}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10"
-              aria-label={t('actions.close', { ns: 'common' })}
-            >
-              <X className="h-5 w-5" aria-hidden="true" />
-            </button>
-          </header>
-          <div className="relative flex flex-1 items-center justify-center overflow-hidden">
-            <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
-            <div className="pointer-events-none absolute h-64 w-64 rounded-lg border-2 border-line-green shadow-[0_0_0_9999px_rgba(3,7,18,0.45)]" />
-          </div>
-          <footer className="safe-bottom bg-gray-950 px-5 py-5 text-center text-sm text-gray-300">
-            {error ? (
-              <p className="text-red-300">{error}</p>
-            ) : (
-              <p className="inline-flex items-center gap-2">
-                <Camera className="h-4 w-4" aria-hidden="true" />
-                {t('scanner.hint', { ns: 'customer' })}
-              </p>
-            )}
-          </footer>
-        </div>
-      )}
+            <footer className="safe-bottom bg-gray-950 px-5 py-5 text-center text-sm text-gray-300">
+              {error ? (
+                <p className="text-red-300">{error}</p>
+              ) : (
+                <p className="inline-flex items-center gap-2">
+                  <Camera className="h-4 w-4" aria-hidden="true" />
+                  {t('scanner.hint', { ns: 'customer' })}
+                </p>
+              )}
+            </footer>
+          </div>,
+          document.body
+        )}
     </>
   );
 }

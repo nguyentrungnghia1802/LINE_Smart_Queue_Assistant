@@ -117,10 +117,25 @@ function dashboardPathForRole(role: UserRole | undefined): string {
     case UserRole.STAFF:
       return '/staff';
     case UserRole.CUSTOMER:
-      return '/customer';
+      return '/liff/home';
     default:
       return '/';
   }
+}
+
+function queueAvailabilityKey(
+  queue: QueueInfo | null | undefined,
+  queueCount: number
+):
+  | 'booking.noQueuesConfigured'
+  | 'booking.branchClosed'
+  | 'booking.queuePaused'
+  | 'booking.queueClosed' {
+  if (queueCount === 0) return 'booking.noQueuesConfigured';
+  if (!queue) return 'booking.queueClosed';
+  if (!queue.isQueueOpen) return 'booking.queuePaused';
+  if (!queue.isBranchOpen) return 'booking.branchClosed';
+  return 'booking.queueClosed';
 }
 
 export function LiffCustomerJoinPage() {
@@ -218,6 +233,9 @@ export function CustomerJoinPage({
     [data?.queues, selectedQueueId]
   );
   const products = useMemo(() => selectedQueue?.products ?? [], [selectedQueue]);
+  const availabilityMessage = t(queueAvailabilityKey(selectedQueue, data?.queues.length ?? 0), {
+    ns: 'customer',
+  });
 
   useEffect(() => {
     if (
@@ -413,7 +431,7 @@ export function CustomerJoinPage({
   function startPayment() {
     if (!data || checkoutItems.length === 0 || !currentCartSignature) return;
     if (!selectedQueue?.isAcceptingBookings) {
-      setError(t('booking.queueClosed', { ns: 'customer' }));
+      setError(availabilityMessage);
       return;
     }
     if (!isLineAuthenticated) {
@@ -487,7 +505,7 @@ export function CustomerJoinPage({
 
   async function submitBooking(paidCheckoutOverride?: PaidCheckout) {
     if (!selectedQueue?.isAcceptingBookings) {
-      setError(t('booking.queueClosed', { ns: 'customer' }));
+      setError(availabilityMessage);
       return;
     }
     if (cartItems.length === 0) {
@@ -810,12 +828,19 @@ export function CustomerJoinPage({
                       count: queueOption.avgWaitMinutes,
                     })}
                   </span>
+                  {!queueOption.isAcceptingBookings && (
+                    <span className="mt-2 block text-xs font-semibold text-amber-700">
+                      {t(queueAvailabilityKey(queueOption, data.queues.length), {
+                        ns: 'customer',
+                      })}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
             {data.queues.length === 0 && (
               <p className="text-sm text-amber-700">
-                {t('booking.queueClosed', { ns: 'customer' })}
+                {t('booking.noQueuesConfigured', { ns: 'customer' })}
               </p>
             )}
           </section>
@@ -846,7 +871,7 @@ export function CustomerJoinPage({
             </section>
           ) : selectedQueue ? (
             <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
-              {t('booking.queueClosed', { ns: 'customer' })}
+              {availabilityMessage}
             </section>
           ) : null}
 
@@ -1032,7 +1057,7 @@ export function CustomerJoinPage({
             {submitting
               ? t('booking.booking', { ns: 'customer' })
               : !selectedQueue?.isAcceptingBookings
-                ? t('booking.queueClosed', { ns: 'customer' })
+                ? availabilityMessage
                 : needsPrepayment && !canBook
                   ? t('booking.payAndBook', { ns: 'customer' })
                   : t('booking.book', { ns: 'customer' })}

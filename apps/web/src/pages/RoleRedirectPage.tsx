@@ -24,7 +24,7 @@ export function RoleRedirectPage() {
   }
 
   if (user.role === UserRole.CUSTOMER) {
-    return <Navigate to="/customer" replace />;
+    return <Navigate to="/liff/home" replace />;
   }
 
   return <Navigate to="/login" replace />;
