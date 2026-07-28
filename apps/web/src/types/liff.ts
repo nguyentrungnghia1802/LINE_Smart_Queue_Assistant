@@ -42,4 +42,6 @@ export interface LiffContext {
   logout: () => void;
   refreshFriendship: () => Promise<boolean>;
   requestFriendship: () => Promise<boolean>;
+  /** Opens the native LIFF 2D-code reader when the runtime supports it. */
+  scanQrCode: () => Promise<string | null>;
 }

@@ -113,7 +113,7 @@ export function LiffLayout() {
               )}
             </NavLink>
           ))}
-          <QrScannerButton />
+          <QrScannerButton scanQrCode={liff.scanQrCode} />
           {NAV_ITEMS.slice(2).map(({ to, labelKey, icon: Icon }) => (
             <NavLink
               key={to}

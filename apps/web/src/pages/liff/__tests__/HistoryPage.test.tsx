@@ -46,6 +46,8 @@ describe('HistoryPage', () => {
             {
               id: 'order-1',
               order_number: 'A100',
+              branch_name_snapshot: '東京店',
+              queue_name_snapshot: '受付A',
               status: 'pending',
               payment_status: 'paid',
               subtotal: '1200',
@@ -74,8 +76,8 @@ describe('HistoryPage', () => {
     renderHistory();
 
     expect(await screen.findByText('東京店')).toBeInTheDocument();
-    expect(screen.getByText('ランチセット × 1')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: '受付番号 A019 を開く' }));
+    expect(screen.queryByText('ランチセット × 1')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '注文 A100 の詳細を見る' }));
     expect(screen.getByTestId('location')).toHaveTextContent('/liff/tickets/entry-1');
   });
 

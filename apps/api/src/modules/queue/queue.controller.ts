@@ -217,9 +217,9 @@ export const getMyPenalties = asyncHandler(async (req: Request, res: Response): 
 
 // ── GET /api/v1/queue/entry/:entryId ─────────────────────────────────────────
 
-/** Public ticket status by entry ID — no auth required. Used by guest tracking page. */
+/** Customer-owned ticket status used by authenticated LIFF deep links. */
 export const getTicketStatus = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
-  const result = await queueService.getTicketStatus(entryId);
+  const result = await queueService.getTicketStatus(entryId, req.user?.id, req.user?.lineUserId);
   sendSuccess(res, result);
 });

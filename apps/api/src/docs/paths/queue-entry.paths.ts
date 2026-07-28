@@ -6,6 +6,7 @@
  *   POST   /join
  *   GET    /current
  *   GET    /me
+ *   GET    /entry/{entryId}
  *   POST   /{entryId}/cancel
  *   POST   /{entryId}/skip
  *   GET    /{queueId}/status
@@ -105,6 +106,31 @@ export const queueEntryPaths = {
         200: ticketResponseEnvelope,
         401: { $ref: '#/components/responses/Unauthorized' },
         404: { $ref: '#/components/responses/NotFound' },
+      },
+    },
+  },
+
+  '/api/v1/queue/entry/{entryId}': {
+    get: {
+      tags: ['queue-entry'],
+      summary: "Get the authenticated customer's owned ticket and linked order",
+      operationId: 'getTicketStatus',
+      security: bearerSecurity,
+      parameters: [
+        {
+          name: 'entryId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', format: 'uuid' },
+          description: 'Customer-owned queue entry ID',
+        },
+      ],
+      responses: {
+        200: ticketResponseEnvelope,
+        401: { $ref: '#/components/responses/Unauthorized' },
+        403: { $ref: '#/components/responses/Forbidden' },
+        404: { $ref: '#/components/responses/NotFound' },
+        422: { $ref: '#/components/responses/ValidationError' },
       },
     },
   },

@@ -7,13 +7,18 @@ import { useNavigate } from 'react-router-dom';
 
 import { bookingPathFromQr } from './qrBookingPath';
 
-export function QrScannerButton() {
+interface QrScannerButtonProps {
+  scanQrCode?: () => Promise<string | null>;
+}
+
+export function QrScannerButton({ scanQrCode }: Readonly<QrScannerButtonProps>) {
   const { t } = useTranslation(['customer', 'common']);
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
+  const [isLaunchingNative, setIsLaunchingNative] = useState(false);
 
   useEffect(() => {
     if (!open || !videoRef.current) return;
@@ -74,21 +79,52 @@ export function QrScannerButton() {
     setError('');
   }
 
+  function openBrowserScanner(message = '') {
+    setError(message);
+    setOpen(true);
+  }
+
+  async function launchScanner() {
+    setError('');
+    if (!scanQrCode) {
+      openBrowserScanner();
+      return;
+    }
+
+    setIsLaunchingNative(true);
+    try {
+      const value = await scanQrCode();
+      if (!value) return;
+      const target = bookingPathFromQr(value);
+      if (!target) {
+        openBrowserScanner(t('scanner.invalidCode', { ns: 'customer' }));
+        return;
+      }
+      navigate(target);
+    } catch {
+      openBrowserScanner();
+    } finally {
+      setIsLaunchingNative(false);
+    }
+  }
+
   return (
     <>
       <button
         type="button"
-        onClick={() => {
-          setError('');
-          setOpen(true);
-        }}
+        onClick={() => void launchScanner()}
+        disabled={isLaunchingNative}
         className="relative -mt-6 flex min-h-16 min-w-0 flex-1 flex-col items-center justify-end gap-1 pb-2 text-xs font-bold text-line-green lg:hidden"
         aria-label={t('scanner.open', { ns: 'customer' })}
       >
         <span className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-line-green text-white shadow-lg">
           <ScanLine className="h-6 w-6" aria-hidden="true" />
         </span>
-        <span className="text-[11px] leading-3">{t('scanner.scan', { ns: 'customer' })}</span>
+        <span className="text-[11px] leading-3">
+          {isLaunchingNative
+            ? t('scanner.opening', { ns: 'customer' })
+            : t('scanner.scan', { ns: 'customer' })}
+        </span>
       </button>
 
       {open &&

@@ -106,6 +106,7 @@ export const customer = {
   scanner: {
     open: 'QRスキャナーを開く',
     scan: 'スキャン',
+    opening: '起動中',
     title: '店舗QRコードを読み取る',
     hint: 'Smart Queueの受付QRコードをカメラに向けてください。',
     invalidCode: 'Smart Queueの受付QRコードではありません。',
@@ -140,6 +141,15 @@ export const customer = {
     calledTitle: '受付番号 {{ticket}} の順番です',
     currentServing: '現在対応中（目安）',
   },
+  orderDetails: {
+    orderNumber: '注文番号',
+    store: '店舗',
+    queue: '受付キュー',
+    orderedAt: '注文日時',
+    paid: 'お支払い済み',
+    total: '合計',
+    amountDue: 'お支払い残額',
+  },
   history: {
     title: '予約履歴',
     empty: '予約履歴はまだありません',
@@ -148,6 +158,7 @@ export const customer = {
     statusHint: '注文と受付番号は、それぞれ個別の状態で表示されます。',
     orderNumber: '注文番号',
     openTicket: '受付番号 {{ticket}} を開く',
+    viewDetails: '注文 {{number}} の詳細を見る',
     pageLabel: '履歴ページ',
     previous: '前へ',
     next: '次へ',

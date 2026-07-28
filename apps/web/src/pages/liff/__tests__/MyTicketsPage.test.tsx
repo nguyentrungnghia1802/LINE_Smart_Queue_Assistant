@@ -1,0 +1,110 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { LiffRuntimeProvider } from '../../../contexts/LiffRuntimeContext';
+import { get } from '../../../services/apiClient';
+import type { LiffContext } from '../../../types/liff';
+import { MyTicketsPage } from '../MyTicketsPage';
+
+vi.mock('../../../services/apiClient', () => ({
+  get: vi.fn(),
+}));
+
+const liffContext: LiffContext = {
+  initStatus: 'ready',
+  authStatus: 'authenticated',
+  friendshipStatus: 'friend',
+  isInitialized: true,
+  isLoggedIn: true,
+  isInClient: true,
+  profile: { userId: 'U123', displayName: 'Taro' },
+  accessToken: 'access-token',
+  idToken: 'id-token',
+  error: null,
+  authError: null,
+  login: vi.fn(),
+  logout: vi.fn(),
+  refreshFriendship: vi.fn().mockResolvedValue(true),
+  requestFriendship: vi.fn().mockResolvedValue(true),
+  scanQrCode: vi.fn().mockResolvedValue(null),
+};
+
+describe('MyTicketsPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(get).mockResolvedValue([
+      {
+        entry: {
+          id: 'entry-1',
+          queue_id: 'queue-1',
+          user_id: 'user-1',
+          order_id: 'order-1',
+          line_user_id: 'U123',
+          ticket_number: 19,
+          ticket_code: 'A019',
+          status: 'waiting',
+          priority: 0,
+          position_snapshot: null,
+          estimated_wait_seconds: 600,
+          called_at: null,
+          serving_started_at: null,
+          served_at: null,
+          skipped_at: null,
+          cancelled_at: null,
+          no_show_at: null,
+          created_at: '2026-07-29T01:00:00.000Z',
+          updated_at: '2026-07-29T01:00:00.000Z',
+        },
+        order: {
+          id: 'order-1',
+          order_number: 'A012',
+          customer_name: '山田太郎',
+          customer_phone: '0901234567',
+          subtotal: '8000',
+          payment_status: 'paid',
+          status: 'processing',
+          organization_name_snapshot: 'Smart Queue',
+          branch_name_snapshot: '東京店',
+          queue_name_snapshot: '美容受付',
+          created_at: '2026-07-29T01:00:00.000Z',
+          items: [
+            {
+              id: 'item-1',
+              product_name: '健康相談',
+              product_price: '8000',
+              quantity: 1,
+              subtotal: '8000',
+              prepaid_amount: '8000',
+              refunded_amount: '0',
+            },
+          ],
+        },
+        aheadCount: 2,
+        estimatedWaitSeconds: 600,
+      },
+    ]);
+  });
+
+  it('shows the same persisted order number and order details as the active ticket', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <LiffRuntimeProvider value={liffContext}>
+            <MyTicketsPage />
+          </LiffRuntimeProvider>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText('A012')).toBeInTheDocument();
+    expect(screen.getByText('健康相談')).toBeInTheDocument();
+    expect(screen.getByText('東京店')).toBeInTheDocument();
+    expect(screen.getByText('美容受付')).toBeInTheDocument();
+  });
+});

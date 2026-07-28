@@ -37,11 +37,11 @@ export function useQueueStatus(queueId: string) {
 }
 
 /** Live status for one ticket by entry ID. Used by LIFF notification deep links. */
-export function useTicketStatus(entryId: string) {
+export function useTicketStatus(entryId: string, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: queueEntryKeys.detail(entryId),
     queryFn: () => queueEntryApi.getEntry(entryId),
-    enabled: Boolean(entryId),
+    enabled: Boolean(entryId) && (options.enabled ?? true),
     refetchInterval: 15_000,
   });
 }

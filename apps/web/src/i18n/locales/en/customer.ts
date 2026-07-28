@@ -107,6 +107,7 @@ export const customer = {
   scanner: {
     open: 'Open QR scanner',
     scan: 'Scan',
+    opening: 'Opening',
     title: 'Scan a store QR code',
     hint: 'Point the camera at a Smart Queue reception QR code.',
     invalidCode: 'This QR code is not a Smart Queue reception link.',
@@ -141,6 +142,15 @@ export const customer = {
     calledTitle: "It is ticket {{ticket}}'s turn",
     currentServing: 'Now serving (estimated)',
   },
+  orderDetails: {
+    orderNumber: 'Order number',
+    store: 'Branch',
+    queue: 'Service queue',
+    orderedAt: 'Ordered at',
+    paid: 'Paid',
+    total: 'Total',
+    amountDue: 'Amount due',
+  },
   history: {
     title: 'Booking history',
     empty: 'No booking history yet',
@@ -149,6 +159,7 @@ export const customer = {
     statusHint: 'Orders and tickets display their statuses separately.',
     orderNumber: 'Order number',
     openTicket: 'Open ticket {{ticket}}',
+    viewDetails: 'View order {{number}} details',
     pageLabel: 'History pages',
     previous: 'Previous',
     next: 'Next',

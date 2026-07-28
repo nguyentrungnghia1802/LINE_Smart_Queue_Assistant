@@ -266,16 +266,20 @@ fields remain compatibility data while branch QR/calendar are authoritative for 
 needs one coherent working view without mixing completed history, and receipts must retain the
 business/operator meaning even after branch or user profiles change.
 
-**Decision:** Keep every reservation as an independent order and ticket. The server, not the
-browser, reuses a booking group only for the same verified LINE identity and branch while the group
-contains active queue work. Staff presents those active orders together and excludes terminal
-history. Orders directly store branch/queue scope, immutable organization/branch/queue labels, and
-the staff identity captured at completion. Gross total, collected prepayment, refunds, and remaining
-balance remain separate receipt values.
+**Decision:** The first reservation creates an order and ticket. A later reservation from the same
+verified LINE identity in the same queue extends that order while its ticket remains active; the
+server locks the active order, appends item/payment snapshots, and preserves its persisted
+`order_number` and `ticket_code`. Different queues remain independent orders/tickets under the
+active booking group, and terminal history is never merged back into current work. Orders directly
+store branch/queue scope, immutable organization/branch/queue labels, and the staff identity captured
+at completion. Gross total, collected prepayment, refunds, and remaining balance remain separate
+receipt values.
 
-**Consequences:** Concurrent repeat booking uses a PostgreSQL advisory lock to avoid split groups.
-Historical commercial rows remain independently auditable. Snapshot columns intentionally duplicate
-display data so later profile edits do not rewrite old receipts.
+**Consequences:** Concurrent repeat booking uses PostgreSQL advisory and row locks to avoid split
+groups or duplicate active orders. `orders.order_number` is the durable commercial/receipt
+identifier, while `queue_entries.ticket_code` identifies queue position. Historical commercial rows
+remain independently auditable. Snapshot columns intentionally duplicate display data so later
+profile edits do not rewrite old receipts.
 
 ## ADR-020: Subscription branch limits and queue milestone notifications
 

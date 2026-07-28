@@ -71,6 +71,8 @@ export function useLiff(): LiffContext {
     return refreshFriendship();
   }, [refreshFriendship]);
 
+  const scanQrCode = useCallback(() => liffAdapter.scanCode(), []);
+
   useEffect(() => {
     // In real mode a LIFF ID is mandatory; fail fast with a clear message.
     if (!isLiffMockMode && !LIFF_ID) {
@@ -193,5 +195,6 @@ export function useLiff(): LiffContext {
     logout,
     refreshFriendship,
     requestFriendship,
+    scanQrCode,
   };
 }
