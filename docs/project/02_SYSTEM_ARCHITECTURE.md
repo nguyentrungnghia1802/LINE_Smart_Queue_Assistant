@@ -137,7 +137,10 @@ same-browser concurrent-refresh grace period, and treats later replay as comprom
 6. `currentUserMiddleware` accepts the JWT LINE claim only when both its session family is active
    and the matching `line_accounts` row still belongs to that user with `is_linked = TRUE`.
 7. LIFF booking, demo payment return, order creation, and ticket display run in the same `/liff/*` flow. Order and direct queue creation in LIFF are blocked until the system JWT has been issued from the LINE ID token.
-8. After authentication, the client synchronizes the Official Account friendship state without overriding a later explicit notification opt-out.
+8. After authentication, the client reads and synchronizes the Official Account friendship state
+   without overriding a later explicit notification opt-out. When the linked account is not a
+   friend, the LIFF shell displays a localized non-blocking action that calls
+   `liff.requestFriendship()`, then rechecks `liff.getFriendship()` and synchronizes the result.
 9. Queue entries that store that verified linked LINE user ID can be targeted through Messaging API push.
 10. Rich Menu entry points open safe `/liff/*` routes. `/liff/home?mode=ticket` resolves the current active ticket for the authenticated LINE user instead of depending on a fixed entry ID.
 11. A branch QR resolves its branch token, active queues, queue-specific products, current waiting
@@ -166,7 +169,9 @@ copy only this trusted claim into new queue entries; public request bodies canno
 - Payment originates as a server-created intent. Browser return is a UX signal; demo completion and future PSP callbacks are verified server-side before an order can consume the transaction.
 - Branch hours are evaluated in `organization_branches.timezone`; a matching exception date
   overrides weekly hours. Payment intent and order creation independently revalidate the selected
-  branch, queue, and queue-product assignments.
+  branch, queue, and queue-product assignments. Branch-manager controls render explicit `00:00`
+  through `23:59` values instead of browser-locale AM/PM controls and identify `Asia/Tokyo` as the
+  Japan Standard Time boundary.
 - The web build uses only the required official LIFF modules. A reviewed Vite transform replaces
   LINE's eval-based sub-window iframe bootstrap with an equivalent targeted form POST, and the
   post-build CSP check fails if `eval(` or `new Function` returns to a production JavaScript bundle.

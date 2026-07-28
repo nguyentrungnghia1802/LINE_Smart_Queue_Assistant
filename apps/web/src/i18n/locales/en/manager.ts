@@ -170,6 +170,10 @@ export const manager = {
     branchTitle: 'Branch settings',
     defaultLocale: 'Organization default language',
     businessHours: 'Business hours',
+    businessHoursTimezone:
+      'Times use the 24-hour clock in Japan Standard Time ({{timezone}}, UTC+9).',
+    hour: 'Hour',
+    minute: 'Minute',
     exceptionDays: 'Exception days',
     section: 'Settings',
     description: 'Manage store details, payments, and notifications.',

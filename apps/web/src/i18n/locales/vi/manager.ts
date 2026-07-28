@@ -170,6 +170,10 @@ export const manager = {
     branchTitle: 'Cài đặt chi nhánh',
     defaultLocale: 'Ngôn ngữ mặc định của tổ chức',
     businessHours: 'Giờ hoạt động',
+    businessHoursTimezone:
+      'Thời gian sử dụng định dạng 24 giờ theo Giờ chuẩn Nhật Bản ({{timezone}}, UTC+9).',
+    hour: 'Giờ',
+    minute: 'Phút',
     exceptionDays: 'Ngày mở hoặc nghỉ đặc biệt',
     section: 'Cài đặt',
     description: 'Quản lý thông tin cửa hàng, thanh toán và thông báo.',

@@ -33,6 +33,8 @@ export interface LiffAdapter {
 
   /** Whether the user has added the linked LINE Official Account as a friend. */
   getFriendship(): Promise<boolean>;
+  /** Opens LINE's native prompt to add or unblock the linked Official Account. */
+  requestFriendship(): Promise<void>;
 
   /**
    * Get the current LIFF access token.
