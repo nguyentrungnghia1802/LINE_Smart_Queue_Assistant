@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
+import { CheckCircle2, Printer } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -251,7 +252,7 @@ export function StaffDashboardPage() {
         `/api/v1/staff/my-queue${selectedQueueId ? `?queueId=${selectedQueueId}` : ''}`
       ),
     enabled: !!orgId,
-    refetchInterval: 10_000,
+    refetchInterval: lastCompletedReceipt ? false : 10_000,
   });
 
   // Build combined list: serving → called → waiting
@@ -316,7 +317,6 @@ export function StaffDashboardPage() {
     },
     onSuccess: ({ order, ticketCode }) => {
       if (order) setLastCompletedReceipt({ order, ticketCode });
-      void invalidateQueue();
     },
   });
   const deferMutation = useMutation({
@@ -354,6 +354,49 @@ export function StaffDashboardPage() {
 
   return (
     <div className="flex h-[calc(100dvh-8.25rem)] min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-bg)] lg:h-[calc(100dvh-4rem)] md:flex-row">
+      {lastCompletedReceipt && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-950/65 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="completed-receipt-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-white/80 bg-white p-6 text-center shadow-2xl sm:p-7">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+              <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
+            </span>
+            <h2 id="completed-receipt-title" className="mt-4 text-xl font-bold text-gray-950">
+              {t('dashboard.receiptReady')}
+            </h2>
+            <p className="mt-2 text-sm text-gray-500">
+              {t('dashboard.order', {
+                number: lastCompletedReceipt.order.order_number,
+              })}
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                printReceipt(lastCompletedReceipt.order, lastCompletedReceipt.ticketCode)
+              }
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-800 transition hover:bg-gray-50"
+            >
+              <Printer className="h-4 w-4" aria-hidden="true" />
+              {t('dashboard.printReceipt')}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLastCompletedReceipt(null);
+                setSelectedEntryId(null);
+                void invalidateQueue();
+              }}
+              className="mt-3 w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-brand-700"
+            >
+              {t('dashboard.finishAndContinue')}
+            </button>
+          </div>
+        </div>
+      )}
       {/* Queue selector: horizontal on phones, left rail on larger screens */}
       <aside className="flex w-full shrink-0 flex-col border-b border-gray-200 bg-white md:w-72 md:border-b-0 md:border-r xl:w-80">
         {/* Queue header */}
@@ -450,27 +493,6 @@ export function StaffDashboardPage() {
 
       {/* Main: selected entry detail */}
       <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6">
-        {lastCompletedReceipt && (
-          <div className="mb-4 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-bold text-emerald-950">{t('dashboard.receiptReady')}</p>
-              <p className="mt-0.5 text-sm text-emerald-800">
-                {t('dashboard.order', {
-                  number: lastCompletedReceipt.order.order_number,
-                })}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                printReceipt(lastCompletedReceipt.order, lastCompletedReceipt.ticketCode)
-              }
-              className="rounded-lg bg-gray-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-gray-800"
-            >
-              {t('dashboard.printReceipt')}
-            </button>
-          </div>
-        )}
         {!selected ? (
           <div className="flex items-center justify-center h-full text-gray-400">
             {t('dashboard.selectTicket')}

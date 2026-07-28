@@ -257,11 +257,13 @@ current cart for recovery but must not resubmit the consumed transaction.
 
 `POST /orders` requires a `customer` JWT with an active verified LINE link. The controller passes only trusted actor identity from `req.user`; the order service stores both `user_id` and verified linked `line_user_id` on the new queue entry. Missing auth returns `401 LINE_AUTH_REQUIRED`, a business role returns `403 CUSTOMER_ACCOUNT_REQUIRED`, and a customer without an active LINE link returns `403 LINE_ACCOUNT_REQUIRED`, before order, stock, queue, or payment work starts.
 
-For a verified LINE customer, `bookingGroupId` is not browser authority. The server reuses an
-active booking group only for the same organization, branch, and LINE identity under a transaction
-advisory lock. Every reservation remains a separate order/ticket; terminal historical orders are
-excluded from the Staff active-group view. Orders directly persist branch/queue scope plus
-organization, branch, queue, and fulfillment snapshots for receipt rendering.
+For a verified LINE customer, `bookingGroupId` is not browser authority. Under queue and advisory
+locks, the server reuses the current active order and queue entry only when organization, branch,
+queue, and verified LINE identity match and the ticket is `waiting`, `called`, or `serving`.
+Additional items, payment linkage, totals, item payment state, and finite-stock reservations are
+updated atomically without consuming another ticket number or capacity slot. A different queue or
+terminal prior ticket creates a separate order/ticket. Orders directly persist branch/queue scope
+plus organization, branch, queue, and fulfillment snapshots for receipt rendering.
 
 In LIFF Phase 2, the frontend blocks order creation until `/auth/line` has completed and the authenticated LINE-derived JWT is present. The request body must still never include `lineUserId`.
 

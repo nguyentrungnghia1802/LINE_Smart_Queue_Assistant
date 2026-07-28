@@ -1,19 +1,36 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { i18n } from '../../../i18n';
 import { bookingPathFromQr } from '../qrBookingPath';
 import { QrScannerButton } from '../QrScannerButton';
 
+const scannerMock = vi.hoisted(() => ({
+  callback: null as null | ((result: { getText(): string } | undefined) => void),
+  constraints: null as MediaStreamConstraints | null,
+  stop: vi.fn(),
+}));
+
 vi.mock('@zxing/browser', () => ({
   BrowserQRCodeReader: class {
-    decodeFromVideoDevice() {
-      return Promise.resolve({ stop: vi.fn() });
+    decodeFromConstraints(
+      constraints: MediaStreamConstraints,
+      _video: HTMLVideoElement,
+      callback: (result: { getText(): string } | undefined) => void
+    ) {
+      scannerMock.constraints = constraints;
+      scannerMock.callback = callback;
+      return Promise.resolve({ stop: scannerMock.stop });
     }
   },
 }));
+
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="location">{location.pathname}</span>;
+}
 
 describe('bookingPathFromQr', () => {
   it.each([
@@ -50,5 +67,32 @@ describe('QrScannerButton', () => {
     expect(dialog.parentElement).toBe(document.body);
     expect(dialog).toHaveClass('fixed', 'inset-0', 'h-dvh');
     expect(document.body.style.overflow).toBe('hidden');
+  });
+
+  it('uses the rear camera and opens the booking route after decoding a valid QR', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/liff/home']}>
+        <Routes>
+          <Route path="/liff/home" element={<QrScannerButton />} />
+          <Route path="/liff/qr/:token" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByRole('button', { name: i18n.t('customer:scanner.open') }));
+    await waitFor(() => expect(scannerMock.callback).not.toBeNull());
+
+    expect(scannerMock.constraints).toMatchObject({
+      video: { facingMode: { ideal: 'environment' } },
+    });
+    act(() => {
+      scannerMock.callback?.({
+        getText: () => 'https://queue.example.com/qr/store-token-2026',
+      });
+    });
+
+    expect(await screen.findByTestId('location')).toHaveTextContent('/liff/qr/store-token-2026');
+    expect(scannerMock.stop).toHaveBeenCalled();
   });
 });

@@ -10,6 +10,7 @@ export const staff = {
     refundConfirm: 'Ghi nhận hoàn tiền toàn bộ?',
     printReceipt: 'In hóa đơn',
     receiptReady: 'Hóa đơn của lượt vừa hoàn tất đã sẵn sàng.',
+    finishAndContinue: 'Hoàn thành và chuyển tiếp',
     queueFallback: 'Hàng đợi',
     queueSelector: 'Chọn hàng đợi phục vụ',
     waitingShort: 'Chờ',

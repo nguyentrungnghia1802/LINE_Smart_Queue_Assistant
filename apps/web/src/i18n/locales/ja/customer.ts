@@ -61,7 +61,6 @@ export const customer = {
     noQueuesConfigured: 'この店舗には受付キューがまだ設定されていません。',
     branchClosed: '現在は営業時間外です。営業時間内にもう一度お試しください。',
     queuePaused: 'この受付キューは現在停止中です。別のキューを選択してください。',
-    queueStep: 'ステップ 1',
     selectQueue: '受付キューを選択',
     productsTitle: '商品 / サービス',
     productsHint: '必要な項目を選択してください。',
