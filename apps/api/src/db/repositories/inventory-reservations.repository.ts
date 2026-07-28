@@ -44,11 +44,21 @@ export const inventoryReservationsRepository = {
     );
     if (!stock.rows[0]) throw AppError.conflict('Insufficient finite stock');
 
-    const reservation = await client.query<InventoryReservationRow>(
+    const reservation = await client.query<InventoryReservationRow & { inserted: boolean }>(
       `INSERT INTO inventory_reservations
          (organization_id, order_id, product_id, quantity, status, expires_at)
        VALUES ($1,$2,$3,$4,'reserved',$5)
-       RETURNING *`,
+       ON CONFLICT (order_id, product_id) WHERE order_id IS NOT NULL
+       DO UPDATE SET
+         quantity = inventory_reservations.quantity + EXCLUDED.quantity,
+         expires_at = CASE
+           WHEN inventory_reservations.expires_at IS NULL THEN EXCLUDED.expires_at
+           WHEN EXCLUDED.expires_at IS NULL THEN inventory_reservations.expires_at
+           ELSE GREATEST(inventory_reservations.expires_at, EXCLUDED.expires_at)
+         END,
+         updated_at = NOW()
+       WHERE inventory_reservations.status = 'reserved'
+       RETURNING inventory_reservations.*, (xmax = 0) AS inserted`,
       [
         params.organizationId,
         params.orderId,
@@ -58,7 +68,16 @@ export const inventoryReservationsRepository = {
       ]
     );
     const row = reservation.rows[0];
-    await this.recordEvent(row, null, 'reserved', 'order_created', params.actorId, client);
+    if (!row) throw AppError.conflict('Inventory reservation is no longer active');
+    await this.recordEvent(
+      row,
+      row.inserted ? null : 'reserved',
+      'reserved',
+      row.inserted ? 'order_created' : 'order_extended',
+      params.actorId,
+      client,
+      params.quantity
+    );
     return row;
   },
 
@@ -152,7 +171,8 @@ export const inventoryReservationsRepository = {
     toStatus: InventoryReservationStatus,
     reason: string,
     actorId: string | undefined,
-    client: PoolClient
+    client: PoolClient,
+    eventQuantity = reservation.quantity
   ): Promise<void> {
     await client.query(
       `INSERT INTO inventory_reservation_events
@@ -166,7 +186,7 @@ export const inventoryReservationsRepository = {
         reservation.product_id,
         fromStatus,
         toStatus,
-        reservation.quantity,
+        eventQuantity,
         reason,
         actorId ?? null,
       ]

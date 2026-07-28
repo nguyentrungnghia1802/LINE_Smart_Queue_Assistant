@@ -201,7 +201,16 @@ export const ordersService = {
       if (!lockedQueue || lockedQueue.status !== 'open') {
         throw new AppError('Queue is not accepting entries', 409, 'QUEUE_NOT_ACCEPTING');
       }
-      if (lockedQueue.max_capacity !== null) {
+      const activeOrderContext = actor?.lineUserId
+        ? await ordersRepository.findActiveOrderForLineUserInQueue(
+            org.id,
+            dto.branchId,
+            queue.id,
+            actor.lineUserId,
+            client
+          )
+        : null;
+      if (!activeOrderContext && lockedQueue.max_capacity !== null) {
         const activeCount = await queuesRepository.countWaiting(queue.id, client);
         if (activeCount >= lockedQueue.max_capacity) {
           throw AppError.conflict('Queue is at full capacity');
@@ -225,83 +234,84 @@ export const ordersService = {
         }
       }
 
-      const { ticketNumber, businessDate } = await queuesRepository.incrementAndGetCounter(
-        queue.id,
-        client
-      );
-      const ticketCode = `${queue.prefix ?? ''}${String(ticketNumber).padStart(3, '0')}`;
+      let entry = activeOrderContext?.entry;
+      let order = activeOrderContext?.order;
 
-      const activeBookingGroupId = actor?.lineUserId
-        ? await ordersRepository.findActiveBookingGroupForLineUser(
-            org.id,
-            dto.branchId,
-            actor.lineUserId,
-            client
-          )
-        : null;
-      const bookingGroupId =
-        activeBookingGroupId ??
-        (actor?.lineUserId ? randomUUID() : (dto.bookingGroupId ?? randomUUID()));
-      const bookingGroupAccepted = await ordersRepository.ensureBookingGroup(
-        {
-          id: bookingGroupId,
-          organizationId: org.id,
-          customerUserId: actorUserId,
-          customerLineUserId: actor?.lineUserId,
-          localDeviceKey: dto.localDeviceKey,
-        },
-        client
-      );
-      if (!bookingGroupAccepted) {
-        throw AppError.conflict('Booking group belongs to another organization');
+      if (!entry || !order) {
+        const { ticketNumber, businessDate } = await queuesRepository.incrementAndGetCounter(
+          queue.id,
+          client
+        );
+        const ticketCode = `${queue.prefix ?? ''}${String(ticketNumber).padStart(3, '0')}`;
+        const activeBookingGroupId = actor?.lineUserId
+          ? await ordersRepository.findActiveBookingGroupForLineUser(
+              org.id,
+              dto.branchId,
+              actor.lineUserId,
+              client
+            )
+          : null;
+        const bookingGroupId =
+          activeBookingGroupId ??
+          (actor?.lineUserId ? randomUUID() : (dto.bookingGroupId ?? randomUUID()));
+        const bookingGroupAccepted = await ordersRepository.ensureBookingGroup(
+          {
+            id: bookingGroupId,
+            organizationId: org.id,
+            customerUserId: actorUserId,
+            customerLineUserId: actor?.lineUserId,
+            localDeviceKey: dto.localDeviceKey,
+          },
+          client
+        );
+        if (!bookingGroupAccepted) {
+          throw AppError.conflict('Booking group belongs to another organization');
+        }
+
+        entry = await queueEntriesRepository.create(
+          {
+            queueId: queue.id,
+            ticketNumber,
+            ticketCode,
+            businessDate,
+            userId: actorUserId,
+            lineUserId: actor?.lineUserId,
+          },
+          client
+        );
+
+        const nextOrderNumber = await ordersRepository.nextOrderNumber(org.id, client);
+        const orderNum = formatOrderNumber(queue.prefix ?? 'O', nextOrderNumber);
+        order = await ordersRepository.create(
+          {
+            organizationId: org.id,
+            branchId: dto.branchId,
+            queueId: queue.id,
+            orderNumber: orderNum,
+            customerName: dto.customerName,
+            customerUserId: actorUserId,
+            customerLineUserId: actor?.lineUserId,
+            customerPhone: dto.customerPhone,
+            subtotal,
+            bookingGroupId,
+            paymentStatus: orderPaymentStatus,
+            paymentCode:
+              paymentTransaction?.external_transaction_id ??
+              paymentTransaction?.payment_intent_id ??
+              undefined,
+            notes: dto.notes,
+          },
+          client
+        );
+        entry = await queueEntriesRepository.linkOrder(entry.id, order.id, client);
       }
-
-      // Create queue entry (link to user if authenticated)
-      const entry = await queueEntriesRepository.create(
-        {
-          queueId: queue.id,
-          ticketNumber,
-          ticketCode,
-          businessDate,
-          userId: actorUserId,
-          lineUserId: actor?.lineUserId,
-        },
-        client
-      );
-
-      const nextOrderNumber = await ordersRepository.nextOrderNumber(org.id, client);
-      const orderNum = formatOrderNumber(queue.prefix ?? 'O', nextOrderNumber);
-
-      // Create order (within transaction) — include customer linkage fields
-      const order = await ordersRepository.create(
-        {
-          organizationId: org.id,
-          branchId: dto.branchId,
-          queueId: queue.id,
-          orderNumber: orderNum,
-          customerName: dto.customerName,
-          customerUserId: actorUserId,
-          customerLineUserId: actor?.lineUserId,
-          customerPhone: dto.customerPhone,
-          subtotal,
-          bookingGroupId,
-          paymentStatus: orderPaymentStatus,
-          paymentCode:
-            paymentTransaction?.external_transaction_id ??
-            paymentTransaction?.payment_intent_id ??
-            undefined,
-          notes: dto.notes,
-        },
-        client
-      );
 
       const paymentTransactionId = paymentTransaction?.id ?? null;
       if (paymentTransactionId) {
         await paymentTransactionsRepository.attachToOrder(paymentTransactionId, order.id, client);
       }
 
-      const linkedEntry = await queueEntriesRepository.linkOrder(entry.id, order.id, client);
-      const linkedOrder = { ...order, queue_entry_id: linkedEntry.id };
+      const linkedEntry = entry;
 
       if (dto.customerLocation) {
         if (!actorUserId || !actor?.lineUserId) {
@@ -348,8 +358,8 @@ export const ordersService = {
               dueAt: new Date(),
               rawPayload: {
                 queueId: queue.id,
-                ticketNumber,
-                ticketCode,
+                ticketNumber: linkedEntry.ticket_number,
+                ticketCode: linkedEntry.ticket_code,
                 notifyAheadPositions: queue.notify_ahead_positions,
                 avgServiceSeconds: queue.avg_service_seconds,
               },
@@ -393,20 +403,36 @@ export const ordersService = {
         }
       }
 
-      const aheadCount = await getWaitingPositionInTransaction(client, linkedEntry);
-      await queueNotificationService.notifyBookingCreated(
-        linkedEntry,
+      const linkedOrder = await ordersRepository.refreshActiveOrder(
         {
-          organizationId: org.id,
-          aheadCount,
-          estimatedWaitSeconds: etaService.calculate({
-            aheadCount,
-            avgServiceSeconds: queue.avg_service_seconds,
-          }).estimatedWaitSeconds,
+          orderId: order.id,
+          customerName: dto.customerName,
+          customerPhone: dto.customerPhone,
+          paymentCode:
+            paymentTransaction?.external_transaction_id ??
+            paymentTransaction?.payment_intent_id ??
+            undefined,
+          notes: activeOrderContext ? dto.notes : undefined,
         },
-        notificationOutboxRepository,
         client
       );
+
+      const aheadCount = await getWaitingPositionInTransaction(client, linkedEntry);
+      if (!activeOrderContext) {
+        await queueNotificationService.notifyBookingCreated(
+          linkedEntry,
+          {
+            organizationId: org.id,
+            aheadCount,
+            estimatedWaitSeconds: etaService.calculate({
+              aheadCount,
+              avgServiceSeconds: queue.avg_service_seconds,
+            }).estimatedWaitSeconds,
+          },
+          notificationOutboxRepository,
+          client
+        );
+      }
       const autoCalled = await tryAutoCallNextWaiting(lockedQueue, client);
       const finalEntry = autoCalled?.id === linkedEntry.id ? autoCalled : linkedEntry;
 

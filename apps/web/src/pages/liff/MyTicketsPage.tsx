@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -23,6 +24,7 @@ export function MyTicketsPage() {
   const navigate = useNavigate();
   const { authStatus } = useLiffRuntime();
   const canLoadLineTickets = authStatus === 'authenticated';
+  const [dismissedCalledTicketIds, setDismissedCalledTicketIds] = useState<string[]>([]);
   const {
     data: tickets,
     isLoading,
@@ -75,7 +77,11 @@ export function MyTicketsPage() {
     );
   }
 
-  const calledTickets = tickets.filter((t) => (t.entry.status as unknown as string) === 'called');
+  const calledTickets = tickets.filter(
+    (ticket) =>
+      (ticket.entry.status as unknown as string) === 'called' &&
+      !dismissedCalledTicketIds.includes(ticket.entry.id)
+  );
 
   return (
     <div className="max-w-md mx-auto space-y-4">
@@ -84,7 +90,11 @@ export function MyTicketsPage() {
         <CalledBanner
           key={t.entry.id}
           ticketDisplay={t.entry.ticket_code}
-          onDismiss={() => navigate(`/liff/tickets/${t.entry.id}`)}
+          onDismiss={() =>
+            setDismissedCalledTicketIds((current) =>
+              current.includes(t.entry.id) ? current : [...current, t.entry.id]
+            )
+          }
         />
       ))}
 

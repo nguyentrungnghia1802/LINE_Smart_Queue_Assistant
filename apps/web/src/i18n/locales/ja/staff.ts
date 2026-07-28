@@ -10,6 +10,7 @@ export const staff = {
     refundConfirm: '全額返金として記録しますか？',
     printReceipt: '領収書を印刷',
     receiptReady: '完了した受付の領収書を印刷できます。',
+    finishAndContinue: '完了して次へ',
     queueFallback: 'キュー',
     queueSelector: '受付キューを選択',
     waitingShort: '待ち',

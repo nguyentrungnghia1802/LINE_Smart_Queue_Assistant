@@ -79,7 +79,7 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 | `products`                          | Organization product/service catalog      | Organization FK; unique `SPn`/`DVn` code; nonnegative price/stock; service stock is `NULL` |
 | `queues`                            | Named branch queue and daily counter      | Organization/branch FK; unique active branch/name; capacity/time checks                    |
 | `queue_products`                    | Queue-specific branch catalog assignment  | Queue branch scope plus organization product FK; unique mapping and active display order   |
-| `booking_groups`                    | Group separate repeat bookings            | Tenant/customer/device keys; active/completed/cancelled check                              |
+| `booking_groups`                    | Associate current and historical bookings | Tenant/customer/device keys; active/completed/cancelled check                              |
 | `orders`                            | Commercial reservation and receipt header | Direct branch/queue scope, group, totals/status, immutable business/fulfillment snapshots  |
 | `order_items`                       | Price/name/duration/payment snapshots     | Positive quantity, nonnegative subtotal/prepaid amount                                     |
 | `payment_transactions`              | Provider intent/state/reconciliation      | Tenant/order, amount/currency, provider intent/external-ID indexes                         |
@@ -151,14 +151,15 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 
 One explicit PostgreSQL transaction creates/updates:
 
-1. queue counter;
-2. optional booking group;
-3. queue entry;
+1. queue row and verified LINE customer/queue lock;
+2. queue counter, optional booking group, queue entry, and order only when no matching active booking exists;
+3. existing active order/ticket reuse for a same-customer same-queue extension;
 4. order and queue-entry link;
 5. optional verified payment transaction link;
 6. optional location and pending alert;
 7. order items;
-8. finite stock decrement and reservation.
+8. finite stock decrement and reservation; an extension atomically increments the existing
+   `(order_id, product_id)` reservation.
 
 An insufficient-stock update affects zero rows, raises a conflict, and rolls back all writes.
 
@@ -263,8 +264,9 @@ the administrator; it is blocked in production and requires
   information, and settlement instructions. Provider credentials remain outside this JSON field.
 - `orders.branch_id` and `orders.queue_id` preserve direct operational scope, while organization,
   branch, queue, and fulfilling-staff snapshots preserve receipt meaning after later profile changes.
-- Active reservations made by the same verified LINE user in one branch reuse the current active
-  booking group. Completed/cancelled history remains separate and is excluded from Staff work cards.
+- Active reservations made by the same verified LINE user in one queue reuse the current active
+  order and queue entry. Cross-queue or terminal bookings remain separate, may share historical
+  booking-group context, and are excluded from active Staff/customer summaries.
 - `account_action_tokens` stores only SHA-256 token hashes and supports single-use activation/reset links.
 - `email_outbox` provides durable, retryable delivery. Its action token is encrypted at rest and cleared after successful delivery.
 - Baseline seeding creates only the admin account. Browser-test data requires the explicit E2E fixture command.

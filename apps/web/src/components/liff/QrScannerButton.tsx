@@ -20,17 +20,28 @@ export function QrScannerButton() {
     let active = true;
     const reader = new BrowserQRCodeReader();
     void reader
-      .decodeFromVideoDevice(undefined, videoRef.current, (result) => {
-        if (!active || !result) return;
-        const target = bookingPathFromQr(result.getText());
-        if (!target) {
-          setError(t('scanner.invalidCode', { ns: 'customer' }));
-          return;
+      .decodeFromConstraints(
+        {
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        },
+        videoRef.current,
+        (result) => {
+          if (!active || !result) return;
+          const target = bookingPathFromQr(result.getText());
+          if (!target) {
+            setError(t('scanner.invalidCode', { ns: 'customer' }));
+            return;
+          }
+          controlsRef.current?.stop();
+          setOpen(false);
+          navigate(target);
         }
-        controlsRef.current?.stop();
-        setOpen(false);
-        navigate(target);
-      })
+      )
       .then((controls) => {
         if (!active) {
           controls.stop();
@@ -105,7 +116,13 @@ export function QrScannerButton() {
               </button>
             </header>
             <div className="relative flex flex-1 items-center justify-center overflow-hidden">
-              <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
+              <video
+                ref={videoRef}
+                className="h-full w-full object-cover"
+                autoPlay
+                muted
+                playsInline
+              />
               <div className="pointer-events-none absolute h-64 w-64 rounded-lg border-2 border-line-green shadow-[0_0_0_9999px_rgba(3,7,18,0.45)]" />
             </div>
             <footer className="safe-bottom bg-gray-950 px-5 py-5 text-center text-sm text-gray-300">

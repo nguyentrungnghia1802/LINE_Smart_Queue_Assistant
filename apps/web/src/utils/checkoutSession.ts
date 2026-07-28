@@ -172,12 +172,43 @@ export function appendBookingRecord(
     records: [],
     updatedAt: new Date().toISOString(),
   };
+  const previousRecord = group.records.find(
+    (current) => current.queueEntryId === record.queueEntryId
+  );
+  const mergedItems = previousRecord
+    ? Array.from(
+        [...previousRecord.items, ...record.items].reduce((items, item) => {
+          const current = items.get(item.productId);
+          items.set(
+            item.productId,
+            current
+              ? {
+                  ...item,
+                  quantity: current.quantity + item.quantity,
+                  subtotal: current.subtotal + item.subtotal,
+                }
+              : item
+          );
+          return items;
+        }, new Map<string, CheckoutItem>())
+      ).map(([, item]) => item)
+    : record.items;
+  const nextRecord = previousRecord
+    ? {
+        ...record,
+        createdAt: previousRecord.createdAt,
+        items: mergedItems,
+      }
+    : record;
   const next = {
     ...group,
     orgSlug: init.orgSlug,
     token: init.token,
     localDeviceKey: init.localDeviceKey,
-    records: [record, ...group.records].slice(0, 20),
+    records: [
+      nextRecord,
+      ...group.records.filter((current) => current.queueEntryId !== record.queueEntryId),
+    ].slice(0, 20),
     updatedAt: new Date().toISOString(),
   };
   localStorage.setItem(`${BOOKING_GROUP_PREFIX}${key}`, JSON.stringify(next));

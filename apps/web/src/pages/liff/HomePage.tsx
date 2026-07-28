@@ -23,6 +23,7 @@ export function HomePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [homeNotice, setHomeNotice] = useState('');
+  const [dismissedCalledTicketIds, setDismissedCalledTicketIds] = useState<string[]>([]);
   const { profile, isLoggedIn, isInitialized, login, authStatus } = useLiffRuntime();
   const canLoadLineTickets = authStatus === 'authenticated';
   const {
@@ -35,7 +36,11 @@ export function HomePage() {
   });
 
   const calledTickets =
-    tickets?.filter((t) => (t.entry.status as unknown as string) === 'called') ?? [];
+    tickets?.filter(
+      (ticket) =>
+        (ticket.entry.status as unknown as string) === 'called' &&
+        !dismissedCalledTicketIds.includes(ticket.entry.id)
+    ) ?? [];
   const activeCount = tickets?.length ?? 0;
   const primaryTicket = useMemo(() => tickets?.[0] ?? null, [tickets]);
   const defaultBookingPath = sanitizeLiffPath(import.meta.env.VITE_LIFF_DEFAULT_BOOKING_PATH);
@@ -97,7 +102,11 @@ export function HomePage() {
         <CalledBanner
           key={t.entry.id}
           ticketDisplay={t.entry.ticket_code}
-          onDismiss={() => navigate(`/liff/tickets/${t.entry.id}`)}
+          onDismiss={() =>
+            setDismissedCalledTicketIds((current) =>
+              current.includes(t.entry.id) ? current : [...current, t.entry.id]
+            )
+          }
         />
       ))}
 

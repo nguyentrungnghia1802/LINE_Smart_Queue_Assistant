@@ -2,6 +2,8 @@
 
 import { pool } from '../client';
 
+import type { QueueEntryRow } from './queue-entries.repository';
+
 export interface OrderRow {
   id: string;
   organization_id: string;
@@ -112,6 +114,11 @@ export interface PaymentTransactionRow {
 
 export interface OrderWithItems extends OrderRow {
   items: OrderItemRow[];
+}
+
+export interface ActiveOrderInQueue {
+  order: OrderRow;
+  entry: QueueEntryRow;
 }
 
 export const ordersRepository = {
@@ -359,6 +366,91 @@ export const ordersRepository = {
     return rows[0]?.booking_group_id ?? null;
   },
 
+  async findActiveOrderForLineUserInQueue(
+    organizationId: string,
+    branchId: string,
+    queueId: string,
+    lineUserId: string,
+    client: PoolClient
+  ): Promise<ActiveOrderInQueue | null> {
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
+      `active-order:${organizationId}:${branchId}:${queueId}:${lineUserId}`,
+    ]);
+    const { rows } = await client.query<{
+      order_record: OrderRow;
+      queue_entry: QueueEntryRow;
+    }>(
+      `SELECT to_jsonb(o) AS order_record,
+              to_jsonb(qe) AS queue_entry
+       FROM orders o
+       JOIN queue_entries qe ON qe.order_id = o.id
+       WHERE o.organization_id = $1
+         AND o.branch_id = $2
+         AND o.queue_id = $3
+         AND o.customer_line_user_id = $4
+         AND o.status IN ('pending','processing')
+         AND qe.status IN ('waiting','called','serving')
+       ORDER BY o.created_at DESC
+       LIMIT 1
+       FOR UPDATE OF o, qe`,
+      [organizationId, branchId, queueId, lineUserId]
+    );
+    const row = rows[0];
+    return row ? { order: row.order_record, entry: row.queue_entry } : null;
+  },
+
+  async refreshActiveOrder(
+    data: {
+      orderId: string;
+      customerName: string;
+      customerPhone: string;
+      paymentCode?: string;
+      notes?: string;
+    },
+    client: PoolClient
+  ): Promise<OrderRow> {
+    const { rows } = await client.query<OrderRow>(
+      `UPDATE orders order_record
+       SET customer_name = $2,
+           customer_phone = $3,
+           subtotal = (
+             SELECT COALESCE(SUM(item.subtotal), 0)
+             FROM order_items item
+             WHERE item.order_id = order_record.id
+           ),
+           payment_status = CASE
+             WHEN EXISTS (
+               SELECT 1
+               FROM order_items item
+               WHERE item.order_id = order_record.id
+                 AND item.payment_status <> 'paid'::payment_status
+             ) THEN 'unpaid'::payment_status
+             ELSE 'paid'::payment_status
+           END,
+           payment_code = COALESCE($4, payment_code),
+           notes = CASE
+             WHEN NULLIF(BTRIM($5), '') IS NULL THEN notes
+             WHEN notes IS NULL OR BTRIM(notes) = '' THEN $5
+             ELSE notes || E'\n' || $5
+           END,
+           updated_at = NOW()
+       WHERE order_record.id = $1
+         AND order_record.status IN ('pending','processing')
+       RETURNING order_record.*, (
+         SELECT qe.id FROM queue_entries qe WHERE qe.order_id = order_record.id
+       ) AS queue_entry_id`,
+      [
+        data.orderId,
+        data.customerName,
+        data.customerPhone,
+        data.paymentCode ?? null,
+        data.notes ?? null,
+      ]
+    );
+    if (!rows[0]) throw new Error('Active order could not be refreshed');
+    return rows[0];
+  },
+
   async completeWithFulfillment(
     orderId: string,
     actorUserId: string,
@@ -573,6 +665,14 @@ export const ordersRepository = {
            threshold_meters, due_at, raw_payload, event_key
          )
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (event_key) DO UPDATE
+       SET customer_location_id = EXCLUDED.customer_location_id,
+           distance_to_org_meters = EXCLUDED.distance_to_org_meters,
+           threshold_meters = EXCLUDED.threshold_meters,
+           due_at = EXCLUDED.due_at,
+           raw_payload = EXCLUDED.raw_payload,
+           status = 'pending',
+           updated_at = NOW()
        RETURNING *`,
       [
         data.organizationId,

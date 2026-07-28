@@ -61,4 +61,31 @@ describe('inventoryReservationsRepository', () => {
       )
     ).rejects.toMatchObject({ statusCode: 409 });
   });
+
+  it('adds quantity to an existing active reservation when an order is extended', async () => {
+    const extended = { ...reservation('reserved'), quantity: 3, inserted: false };
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ id: extended.product_id }] })
+      .mockResolvedValueOnce({ rows: [extended] })
+      .mockResolvedValueOnce({ rows: [] });
+    const client = { query } as unknown as PoolClient;
+
+    await inventoryReservationsRepository.reserve(
+      {
+        organizationId: extended.organization_id,
+        orderId: extended.order_id,
+        productId: extended.product_id,
+        quantity: 1,
+      },
+      client
+    );
+
+    expect(String(query.mock.calls[1][0])).toContain(
+      'quantity = inventory_reservations.quantity + EXCLUDED.quantity'
+    );
+    expect(query.mock.calls[2][1]).toEqual(
+      expect.arrayContaining(['reserved', 'reserved', 1, 'order_extended'])
+    );
+  });
 });

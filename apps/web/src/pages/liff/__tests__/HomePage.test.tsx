@@ -134,6 +134,18 @@ describe('HomePage', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/liff/tickets/entry-123');
   });
 
+  it('dismisses the called notification without opening the ticket', async () => {
+    const calledTicket = makeTicket();
+    calledTicket.entry.status = 'called' as TicketStatus;
+    renderHome({ tickets: [calledTicket] });
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '閉じる' }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('A019')).toBeInTheDocument();
+  });
+
   it('shows a Japanese empty state when there is no active ticket', async () => {
     renderHome();
 

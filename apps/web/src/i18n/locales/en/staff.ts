@@ -10,6 +10,7 @@ export const staff = {
     refundConfirm: 'Record a full refund?',
     printReceipt: 'Print receipt',
     receiptReady: 'The completed receipt is ready.',
+    finishAndContinue: 'Finish and continue',
     queueFallback: 'Queue',
     queueSelector: 'Select service queue',
     waitingShort: 'Waiting',
