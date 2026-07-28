@@ -4,7 +4,13 @@ import { i18n } from '../i18n';
 import { post } from '../services/apiClient';
 import { isLiffMockMode, liffAdapter } from '../services/liff';
 import { useAuthStore } from '../store/authStore';
-import type { LiffAuthStatus, LiffContext, LiffInitStatus, LiffProfile } from '../types/liff';
+import type {
+  LiffAuthStatus,
+  LiffContext,
+  LiffFriendshipStatus,
+  LiffInitStatus,
+  LiffProfile,
+} from '../types/liff';
 
 /**
  * LIFF ID resolved from env.
@@ -32,6 +38,7 @@ const LIFF_ID = import.meta.env.VITE_LIFF_ID ?? '';
 export function useLiff(): LiffContext {
   const [initStatus, setInitStatus] = useState<LiffInitStatus>('idle');
   const [authStatus, setAuthStatus] = useState<LiffAuthStatus>('idle');
+  const [friendshipStatus, setFriendshipStatus] = useState<LiffFriendshipStatus>('unknown');
   const [profile, setProfile] = useState<LiffProfile | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isInClient, setIsInClient] = useState(false);
@@ -41,6 +48,28 @@ export function useLiff(): LiffContext {
   const [authError, setAuthError] = useState<Error | null>(null);
 
   const { loginWithLine } = useAuthStore();
+
+  const refreshFriendship = useCallback(async (): Promise<boolean> => {
+    setFriendshipStatus('checking');
+    try {
+      const friendFlag = await liffAdapter.getFriendship();
+      setFriendshipStatus(friendFlag ? 'friend' : 'not_friend');
+      try {
+        await post('/api/v1/line/friendship', { friendFlag });
+      } catch (syncError) {
+        console.warn('Could not synchronize LINE friendship state', syncError);
+      }
+      return friendFlag;
+    } catch (friendshipError) {
+      setFriendshipStatus('error');
+      throw friendshipError;
+    }
+  }, []);
+
+  const requestFriendship = useCallback(async (): Promise<boolean> => {
+    await liffAdapter.requestFriendship();
+    return refreshFriendship();
+  }, [refreshFriendship]);
 
   useEffect(() => {
     // In real mode a LIFF ID is mandatory; fail fast with a clear message.
@@ -93,10 +122,9 @@ export function useLiff(): LiffContext {
               try {
                 await loginWithLine(oidcToken);
                 try {
-                  const friendFlag = await liffAdapter.getFriendship();
-                  await post('/api/v1/line/friendship', { friendFlag });
+                  await refreshFriendship();
                 } catch (friendshipError) {
-                  console.warn('Could not synchronize LINE friendship state', friendshipError);
+                  console.warn('Could not read LINE friendship state', friendshipError);
                 }
                 if (!cancelled) {
                   setAuthStatus('authenticated');
@@ -145,12 +173,14 @@ export function useLiff(): LiffContext {
     setAccessToken(null);
     setIdToken(null);
     setAuthStatus('guest');
+    setFriendshipStatus('unknown');
     setAuthError(null);
   }, []);
 
   return {
     initStatus,
     authStatus,
+    friendshipStatus,
     isInitialized: initStatus === 'ready',
     isLoggedIn,
     isInClient,
@@ -161,5 +191,7 @@ export function useLiff(): LiffContext {
     authError,
     login,
     logout,
+    refreshFriendship,
+    requestFriendship,
   };
 }

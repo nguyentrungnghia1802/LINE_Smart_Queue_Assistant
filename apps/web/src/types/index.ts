@@ -1,4 +1,10 @@
-export type { LiffAuthStatus, LiffContext, LiffInitStatus, LiffProfile } from './liff';
+export type {
+  LiffAuthStatus,
+  LiffContext,
+  LiffFriendshipStatus,
+  LiffInitStatus,
+  LiffProfile,
+} from './liff';
 export type {
   JoinQueueInput,
   JoinQueueResult,

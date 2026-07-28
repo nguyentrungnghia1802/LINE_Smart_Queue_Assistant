@@ -9,6 +9,7 @@
 
 export type LiffInitStatus = 'idle' | 'loading' | 'ready' | 'error';
 export type LiffAuthStatus = 'idle' | 'authenticating' | 'authenticated' | 'guest' | 'error';
+export type LiffFriendshipStatus = 'unknown' | 'checking' | 'friend' | 'not_friend' | 'error';
 
 export interface LiffProfile {
   userId: string;
@@ -20,6 +21,7 @@ export interface LiffProfile {
 export interface LiffContext {
   initStatus: LiffInitStatus;
   authStatus: LiffAuthStatus;
+  friendshipStatus: LiffFriendshipStatus;
   isInitialized: boolean;
   isLoggedIn: boolean;
   /** true when running inside the LINE in-app browser */
@@ -38,4 +40,6 @@ export interface LiffContext {
   authError: Error | null;
   login: () => void;
   logout: () => void;
+  refreshFriendship: () => Promise<boolean>;
+  requestFriendship: () => Promise<boolean>;
 }

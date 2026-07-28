@@ -30,6 +30,8 @@ interface ImportMetaEnv {
   readonly VITE_LIFF_MOCK_USER_ID: string;
   /** Fake display name shown in the UI */
   readonly VITE_LIFF_MOCK_DISPLAY_NAME: string;
+  /** "false" simulates a customer who has not added the linked Official Account. */
+  readonly VITE_LIFF_MOCK_FRIEND: string;
   /** URL of the fake avatar image */
   readonly VITE_LIFF_MOCK_PICTURE_URL: string;
   /** Artificial init delay in ms (simulates real SDK latency, default: 400) */

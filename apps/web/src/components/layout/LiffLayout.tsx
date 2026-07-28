@@ -6,6 +6,7 @@ import { LiffRuntimeProvider } from '../../contexts/LiffRuntimeContext';
 import { useLiff } from '../../hooks/useLiff';
 import { BrandLogo } from '../BrandLogo';
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
+import { LineFriendshipPrompt } from '../liff/LineFriendshipPrompt';
 import { QrScannerButton } from '../liff/QrScannerButton';
 import { ErrorState } from '../ui/ErrorState';
 import { Spinner } from '../ui/Spinner';
@@ -77,6 +78,7 @@ export function LiffLayout() {
 
         {/* ── Page content (scrollable) ── */}
         <main className="flex-1 overflow-y-auto px-3 py-4 pb-24 sm:px-5 sm:py-6 lg:px-8">
+          <LineFriendshipPrompt />
           <Outlet />
         </main>
 

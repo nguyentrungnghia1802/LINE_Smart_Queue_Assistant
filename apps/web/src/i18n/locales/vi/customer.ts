@@ -113,6 +113,15 @@ export const customer = {
     invalidCode: 'Đây không phải liên kết QR tiếp nhận của Smart Queue.',
     cameraUnavailable: 'Không thể dùng camera. Hãy kiểm tra quyền trình duyệt và thử lại.',
   },
+  friendship: {
+    title: 'Nhận thông báo lượt qua LINE',
+    description:
+      'Thêm tài khoản chính thức Smart Queue làm bạn để nhận tin nhắn khi sắp đến lượt hoặc khi được gọi.',
+    add: 'Thêm bạn LINE',
+    checking: 'Đang kiểm tra...',
+    incomplete: 'Bạn chưa hoàn tất thêm bạn. Vui lòng thử lại.',
+    error: 'Không thể mở màn hình thêm bạn. Hãy mở trang này toàn màn hình trong LINE rồi thử lại.',
+  },
   ticket: {
     notFound: 'Không tìm thấy lượt',
     loadFailed: 'Không thể tải trạng thái lượt.',
