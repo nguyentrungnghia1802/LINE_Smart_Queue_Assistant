@@ -68,6 +68,10 @@ export class MockLiffAdapter implements LiffAdapter {
     this._friend = true;
   }
 
+  async scanCode(): Promise<string | null> {
+    throw new Error('LIFF QR scanning is unavailable in mock mode');
+  }
+
   getAccessToken(): string | null {
     return this._loggedIn ? MOCK_TOKEN : null;
   }

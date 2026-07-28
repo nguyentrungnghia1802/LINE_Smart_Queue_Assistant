@@ -238,6 +238,9 @@ transaction, so the same verified payment cannot create two bookings under concu
    remain useful for cross-queue and historical navigation.
 6. The customer booking summary is intersected with server-reported active tickets, so completed,
    cancelled, served, and no-show local records are not presented as current bookings.
+7. `orders.order_number` is the durable commercial order/receipt identifier shown consistently on
+   the Staff queue, Staff receipt, customer current-ticket details, and customer history. It is
+   distinct from the queue-position `queue_entries.ticket_code`.
 
 A paid transaction can be attached to only one order. Legacy browser state that references an
 already attached transaction is discarded, the cart remains available for a new checkout, and the
@@ -269,6 +272,10 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
    workspace; it refreshes and moves to the next ticket only after Staff confirms.
 8. Related booking groups are historical associations, but the Staff working context filters them
    to tickets in `waiting`, `called`, or `serving`.
+
+The customer current-ticket response includes the linked order and item snapshots in the same
+authenticated request. History uses compact order rows without line items; selecting a row opens
+the customer-owned ticket detail and its full order summary.
 
 Customer and operator cancellation refund every remaining collected amount before the cancellation
 transaction commits. Each transaction uses a deterministic reconciliation key, so retries cannot

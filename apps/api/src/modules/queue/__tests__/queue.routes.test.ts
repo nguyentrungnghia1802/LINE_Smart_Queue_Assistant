@@ -171,6 +171,21 @@ describe('GET /api/v1/queue/me', () => {
   });
 });
 
+describe('GET /api/v1/queue/entry/:entryId', () => {
+  it('returns 401 when caller is unauthenticated', async () => {
+    const res = await request(app).get(`/api/v1/queue/entry/${VALID_UUID}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 404 for an authenticated owner when the ticket does not exist', async () => {
+    const res = await request(app)
+      .get(`/api/v1/queue/entry/${VALID_UUID}`)
+      .set('Authorization', `Bearer ${authToken()}`);
+    expect(res.status).toBe(404);
+    expectNotFound(res.body as Record<string, unknown>);
+  });
+});
+
 // ── POST /api/v1/queue/:entryId/cancel ───────────────────────────────────────
 
 describe('POST /api/v1/queue/:entryId/cancel', () => {

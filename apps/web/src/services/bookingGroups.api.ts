@@ -6,6 +6,8 @@ export interface BookingGroupOrder {
   id: string;
   branch_id?: string;
   order_number: string;
+  branch_name_snapshot: string;
+  queue_name_snapshot: string;
   status: string;
   payment_status: string;
   subtotal: string;

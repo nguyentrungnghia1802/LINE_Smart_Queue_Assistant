@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import { CustomerOrderDetails } from '../../components/ticket/CustomerOrderDetails';
 import { CalledBanner } from '../../components/ui/CalledBanner';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
@@ -22,6 +23,7 @@ export function TicketStatusPage() {
   const { t } = useTranslation(['customer', 'common']);
   const { entryId = '' } = useParams<{ entryId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { authStatus } = useLiffRuntime();
 
   const {
@@ -35,11 +37,25 @@ export function TicketStatusPage() {
     isLoading: isTicketStatusLoading,
     isError: isTicketStatusError,
     refetch: refetchTicketStatus,
-  } = useTicketStatus(entryId);
+  } = useTicketStatus(entryId, { enabled: authStatus === 'authenticated' });
 
   const ticketData = tickets?.find((t) => t.entry.id === entryId) ?? ticketStatus;
   const isLoading = !ticketData && (isMyTicketsLoading || isTicketStatusLoading);
   const isError = !ticketData && isMyTicketsError && isTicketStatusError;
+
+  if (authStatus !== 'authenticated') {
+    return (
+      <EmptyState
+        icon="🎫"
+        title={
+          authStatus === 'error'
+            ? t('home.authRequired', { ns: 'customer' })
+            : t('home.authenticating', { ns: 'customer' })
+        }
+        message={t('home.authHint', { ns: 'customer' })}
+      />
+    );
+  }
 
   // ── Loading skeleton ─────────────────────────────────────────────────────
   if (isLoading) {
@@ -98,7 +114,7 @@ export function TicketStatusPage() {
     isWaiting && aheadCount >= 0 ? Math.max(entry.ticket_number - aheadCount - 1, 1) : null;
 
   return (
-    <div className="max-w-md mx-auto space-y-4">
+    <div className="mx-auto max-w-2xl space-y-4">
       {/* Called banner */}
       {isCalled && <CalledBanner ticketDisplay={entry.ticket_code} />}
 
@@ -163,10 +179,18 @@ export function TicketStatusPage() {
         </div>
       )}
 
+      {ticketData.order && <CustomerOrderDetails order={ticketData.order} />}
+
       {/* ── Back link ────────────────────────────────────────────────────── */}
       <button
         type="button"
-        onClick={() => navigate('/liff/tickets')}
+        onClick={() =>
+          navigate(
+            (location.state as { from?: string } | null)?.from === '/liff/history'
+              ? '/liff/history'
+              : '/liff/tickets'
+          )
+        }
         className="w-full text-sm text-gray-400 hover:text-gray-600 text-center py-3 transition-colors"
       >
         ← {t('ticket.back', { ns: 'customer' })}

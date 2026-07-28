@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { CustomerOrderDetails } from '../../components/ticket/CustomerOrderDetails';
 import { TicketCard } from '../../components/ticket/TicketCard';
 import { CalledBanner } from '../../components/ui/CalledBanner';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -84,7 +85,7 @@ export function MyTicketsPage() {
   );
 
   return (
-    <div className="max-w-md mx-auto space-y-4">
+    <div className="mx-auto max-w-2xl space-y-4">
       {/* Urgent banners for called tickets */}
       {calledTickets.map((t) => (
         <CalledBanner
@@ -104,11 +105,13 @@ export function MyTicketsPage() {
       </h1>
 
       {tickets.map((ticket) => (
-        <TicketCard
-          key={ticket.entry.id}
-          ticket={ticket}
-          onClick={() => navigate(`/liff/tickets/${ticket.entry.id}`)}
-        />
+        <article key={ticket.entry.id} className="space-y-3">
+          <TicketCard
+            ticket={ticket}
+            onClick={() => navigate(`/liff/tickets/${ticket.entry.id}`)}
+          />
+          {ticket.order && <CustomerOrderDetails order={ticket.order} />}
+        </article>
       ))}
     </div>
   );

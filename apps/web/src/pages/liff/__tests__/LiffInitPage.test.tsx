@@ -34,6 +34,7 @@ function makeLiffContext(): LiffContext {
     logout: vi.fn(),
     refreshFriendship: vi.fn().mockResolvedValue(true),
     requestFriendship: vi.fn().mockResolvedValue(true),
+    scanQrCode: vi.fn().mockResolvedValue(null),
   };
 }
 

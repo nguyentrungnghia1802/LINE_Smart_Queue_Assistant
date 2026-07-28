@@ -59,29 +59,45 @@ export interface JoinQueueResult {
 /** One item in GET /api/v1/queue/me */
 export interface TicketPositionResult {
   entry: QueueEntryDisplay;
+  order: CustomerTicketOrder | null;
   aheadCount: number;
   estimatedWaitSeconds: number;
 }
 
 export interface TicketStatusOrderItem {
   id: string;
+  product_id?: string;
   product_name: string;
+  product_image_url?: string | null;
   product_price: string;
+  service_time_minutes?: number;
   quantity: number;
   subtotal: string;
+  payment_status?: string;
+  prepaid_amount?: string;
+  refunded_amount?: string;
+}
+
+export interface CustomerTicketOrder {
+  id: string;
+  order_number: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  subtotal: string;
+  payment_status: string;
+  status: string;
+  organization_name_snapshot: string;
+  branch_name_snapshot: string;
+  queue_name_snapshot: string;
+  fulfilled_by_name?: string | null;
+  fulfilled_at?: string | null;
+  created_at: string;
+  items: TicketStatusOrderItem[];
 }
 
 export interface TicketStatusResult {
   entry: QueueEntryDisplay;
-  order: {
-    id: string;
-    order_number: string;
-    customer_name: string | null;
-    subtotal: string;
-    payment_status: string;
-    status: string;
-    items: TicketStatusOrderItem[];
-  } | null;
+  order: CustomerTicketOrder | null;
   aheadCount: number;
   estimatedWaitSeconds: number;
   queueName: string;

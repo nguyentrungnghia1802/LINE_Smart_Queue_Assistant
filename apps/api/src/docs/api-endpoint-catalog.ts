@@ -196,7 +196,6 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
   endpoint('get', '/api/v1/queue/me', 'queue-entry'),
   endpoint('get', '/api/v1/queue/me/penalties', 'queue-entry'),
   endpoint('get', '/api/v1/queue/entry/{entryId}', 'queue-entry', {
-    auth: false,
     validator: 'EntryIdParamSchema',
   }),
   endpoint('post', '/api/v1/queue/{entryId}/cancel', 'queue-entry', {

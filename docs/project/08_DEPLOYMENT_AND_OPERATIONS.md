@@ -164,6 +164,11 @@ valid but optional on the consent screen, so customers may skip it. The LIFF she
 `liff.getFriendship()` and offers the native `liff.requestFriendship()` Add/Unblock flow when needed;
 the application cannot silently add an Official Account without customer consent.
 
+Enable **Scan QR** on the LIFF app in the LINE Login channel. LIFF Home calls
+`liff.scanCodeV2()` first; LINE requires the `Full` view size for the in-app scanner on supported
+mobile devices. The browser-camera scanner remains a local/external fallback, but it does not
+replace the Console setting required by the native LINE reader.
+
 The production web build also runs a CSP bundle gate. The project uses a minimal LIFF adapter and a
 reviewed CSP-safe replacement for the SDK sub-window iframe bootstrap; do not work around a failed
 gate by adding `unsafe-eval` to host nginx. Review the LIFF SDK change and update the compatibility

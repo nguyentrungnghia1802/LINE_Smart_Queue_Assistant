@@ -1,4 +1,5 @@
-﻿import {
+﻿import { ordersRepository } from '../../../db/repositories/orders.repository';
+import {
   queueEntriesRepository,
   QueueEntryRow,
 } from '../../../db/repositories/queue-entries.repository';
@@ -45,6 +46,7 @@ jest.mock('../../../db/repositories/orders.repository', () => ({
   calculateWorkloadForEntries: jest.fn().mockResolvedValue(0),
   ordersRepository: {
     findByQueueEntry: jest.fn().mockResolvedValue(null),
+    findByQueueEntries: jest.fn().mockResolvedValue(new Map()),
   },
 }));
 
@@ -85,6 +87,9 @@ const mockFindAllActiveForActor =
   queueEntriesRepository.findAllActiveForActor as jest.MockedFunction<
     typeof queueEntriesRepository.findAllActiveForActor
   >;
+const mockFindOrdersByQueueEntries = ordersRepository.findByQueueEntries as jest.MockedFunction<
+  typeof ordersRepository.findByQueueEntries
+>;
 const mockGetEntryIdsAhead = queueEntriesRepository.getEntryIdsAhead as jest.MockedFunction<
   typeof queueEntriesRepository.getEntryIdsAhead
 >;
@@ -332,17 +337,21 @@ describe('queueService.getMyTickets', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetEntryIdsAhead.mockResolvedValue([]);
+    mockFindOrdersByQueueEntries.mockResolvedValue(new Map());
   });
 
   it('returns an annotated array of active tickets', async () => {
+    const order = { id: 'order-1', order_number: 'A012', items: [] };
     mockFindAllActiveForActor.mockResolvedValue([waitingEntry]);
     mockGetWaitingPosition.mockResolvedValue(2);
     mockFindQueueById.mockResolvedValue(openQueue);
+    mockFindOrdersByQueueEntries.mockResolvedValue(new Map([[waitingEntry.id, order as never]]));
 
     const results = await queueService.getMyTickets({ userId: USER_ID });
 
     expect(results).toHaveLength(1);
     expect(results[0].entry).toBe(waitingEntry);
+    expect(results[0].order).toMatchObject({ order_number: 'A012' });
     expect(results[0].aheadCount).toBe(2);
     expect(results[0].estimatedWaitSeconds).toBe(2 * openQueue.avg_service_seconds);
   });
@@ -353,6 +362,20 @@ describe('queueService.getMyTickets', () => {
     const results = await queueService.getMyTickets({ userId: USER_ID });
 
     expect(results).toEqual([]);
+  });
+});
+
+describe('queueService.getTicketStatus', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('rejects a customer who does not own the requested ticket', async () => {
+    mockFindEntryById.mockResolvedValue(waitingEntry);
+
+    await expect(
+      queueService.getTicketStatus(waitingEntry.id, 'different-user', 'different-line-user')
+    ).rejects.toMatchObject({ statusCode: 403 });
   });
 });
 

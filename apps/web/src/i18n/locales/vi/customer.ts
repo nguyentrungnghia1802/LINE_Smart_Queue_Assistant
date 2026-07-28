@@ -107,6 +107,7 @@ export const customer = {
   scanner: {
     open: 'Mở trình quét QR',
     scan: 'Quét QR',
+    opening: 'Đang mở',
     title: 'Quét mã QR của cửa hàng',
     hint: 'Đưa camera hướng vào mã QR tiếp nhận của Smart Queue.',
     invalidCode: 'Đây không phải liên kết QR tiếp nhận của Smart Queue.',
@@ -140,6 +141,15 @@ export const customer = {
     calledTitle: 'Đã đến lượt {{ticket}}',
     currentServing: 'Đang phục vụ (ước tính)',
   },
+  orderDetails: {
+    orderNumber: 'Mã đơn hàng',
+    store: 'Chi nhánh',
+    queue: 'Hàng đợi',
+    orderedAt: 'Thời điểm đặt hàng',
+    paid: 'Đã thanh toán',
+    total: 'Tổng cộng',
+    amountDue: 'Số tiền còn lại',
+  },
   history: {
     title: 'Lịch sử đặt chỗ',
     empty: 'Chưa có lịch sử đặt chỗ',
@@ -148,6 +158,7 @@ export const customer = {
     statusHint: 'Đơn hàng và mã lượt được hiển thị với trạng thái riêng.',
     orderNumber: 'Mã đơn',
     openTicket: 'Mở mã lượt {{ticket}}',
+    viewDetails: 'Xem chi tiết đơn {{number}}',
     pageLabel: 'Trang lịch sử',
     previous: 'Trước',
     next: 'Tiếp',

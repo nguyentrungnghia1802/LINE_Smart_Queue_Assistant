@@ -276,7 +276,10 @@ export const queueService = {
 
     // Step 2: batch workload calculation — single DB round-trip for all entries
     const allIdsAhead = enriched.flatMap((e) => e.entryIdsAhead);
-    const workloadMap = await batchWorkloadForEntries(allIdsAhead);
+    const [workloadMap, ordersByEntry] = await Promise.all([
+      batchWorkloadForEntries(allIdsAhead),
+      ordersRepository.findByQueueEntries(entries.map((entry) => entry.id)),
+    ]);
 
     // Step 3: compute ETA using pre-fetched workload data
     return enriched.map(({ entry, aheadCount, queue, entryIdsAhead }) => {
@@ -286,6 +289,7 @@ export const queueService = {
       );
       return {
         entry,
+        order: ordersByEntry.get(entry.id) ?? null,
         aheadCount,
         estimatedWaitSeconds: queue
           ? etaService.calculate({
@@ -724,8 +728,12 @@ export const queueService = {
     });
   },
 
-  /** Public ticket status — no auth required. Used by the guest ticket-tracking page. */
-  async getTicketStatus(entryId: string): Promise<{
+  /** Customer-owned ticket status used by authenticated LIFF deep links. */
+  async getTicketStatus(
+    entryId: string,
+    actorUserId?: string,
+    actorLineUserId?: string
+  ): Promise<{
     entry: QueueEntryRow;
     order: OrderWithItems | null;
     aheadCount: number;
@@ -734,6 +742,7 @@ export const queueService = {
   }> {
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
+    assertOwnership(entry, actorUserId, actorLineUserId);
 
     const queue = await queuesRepository.findById(entry.queue_id);
     if (!queue) throw AppError.notFound('Queue');

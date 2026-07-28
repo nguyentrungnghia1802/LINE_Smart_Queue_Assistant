@@ -66,6 +66,7 @@ function makeLiffContext(authStatus: LiffContext['authStatus'] = 'authenticated'
     logout: vi.fn(),
     refreshFriendship: vi.fn().mockResolvedValue(true),
     requestFriendship: vi.fn().mockResolvedValue(true),
+    scanQrCode: vi.fn().mockResolvedValue(null),
   };
 }
 

@@ -12,6 +12,8 @@ export interface BookingGroupSummary {
     id: string;
     branch_id: string;
     order_number: string;
+    branch_name_snapshot: string;
+    queue_name_snapshot: string;
     status: string;
     payment_status: string;
     subtotal: string;
@@ -49,6 +51,8 @@ function groupSelect(orderBranchParameter?: string): string {
                'id', o.id,
                'branch_id', o.branch_id,
                'order_number', o.order_number,
+               'branch_name_snapshot', o.branch_name_snapshot,
+               'queue_name_snapshot', o.queue_name_snapshot,
                'status', o.status,
                'payment_status', o.payment_status,
                'subtotal', o.subtotal,

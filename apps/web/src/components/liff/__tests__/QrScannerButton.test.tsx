@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { i18n } from '../../../i18n';
 import { bookingPathFromQr } from '../qrBookingPath';
@@ -53,6 +53,31 @@ describe('bookingPathFromQr', () => {
 });
 
 describe('QrScannerButton', () => {
+  beforeEach(() => {
+    scannerMock.callback = null;
+    scannerMock.constraints = null;
+    scannerMock.stop.mockClear();
+  });
+
+  it('uses the LIFF native scanner before the browser camera fallback', async () => {
+    const user = userEvent.setup();
+    const scanQrCode = vi.fn().mockResolvedValue('https://queue.example.com/qr/store-token-2026');
+    render(
+      <MemoryRouter initialEntries={['/liff/home']}>
+        <Routes>
+          <Route path="/liff/home" element={<QrScannerButton scanQrCode={scanQrCode} />} />
+          <Route path="/liff/qr/:token" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByRole('button', { name: i18n.t('customer:scanner.open') }));
+
+    expect(scanQrCode).toHaveBeenCalledTimes(1);
+    expect(await screen.findByTestId('location')).toHaveTextContent('/liff/qr/store-token-2026');
+    expect(scannerMock.callback).toBeNull();
+  });
+
   it('renders the camera dialog in a body portal so fixed positioning is not clipped', async () => {
     const user = userEvent.setup();
     render(
