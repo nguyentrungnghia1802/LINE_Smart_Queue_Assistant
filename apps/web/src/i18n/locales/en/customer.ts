@@ -61,7 +61,6 @@ export const customer = {
     noQueuesConfigured: 'This branch has not configured a reception queue yet.',
     branchClosed: 'This branch is currently outside business hours. Please return when it is open.',
     queuePaused: 'This queue is paused. Please select another queue.',
-    queueStep: 'Step 1',
     selectQueue: 'Select a service queue',
     productsTitle: 'Products / Services',
     productsHint: 'Select the items you need.',

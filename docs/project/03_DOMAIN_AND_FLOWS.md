@@ -38,7 +38,7 @@ Organization
 | QueueProduct                            | Active product availability and display order for one branch queue                |
 | Queue                                   | Named branch service line, ticket counter, capacity, timing, and policy settings  |
 | QueueEntry                              | Customer ticket and queue state machine                                           |
-| BookingGroup                            | Association of separate repeat bookings from one identity/device                  |
+| BookingGroup                            | Historical association across bookings from one identity/device                   |
 | Order                                   | Reservation commercial header, customer contact, total, status, payment summary   |
 | OrderItem                               | Immutable commercial/service snapshot and per-item payment state                  |
 | PaymentTransaction                      | Provider attempt/status/payload/audit record                                      |
@@ -191,7 +191,10 @@ ID-token-to-system-JWT flow without a second customer auth model.
 2. UI checks visible stock and calculates a display subtotal.
 3. Customer may optionally choose checkout for all items or place the reservation unpaid.
 4. `POST /orders` reloads organization, an open queue, products, prices, ownership, and stock.
-5. In one transaction the API increments the ticket counter, creates optional booking group, queue entry with any verified LINE recipient, order, items, stock reservations, and location/alert if supplied.
+5. In one transaction the API locks the queue and verified customer/queue key. It either creates
+   the first booking group, queue entry, and order, or reuses the customer's existing active
+   order/ticket in that queue; it then writes items, stock reservations, payment linkage, and any
+   supplied location/alert.
 6. On success the UI stores a local booking record and navigates to `/liff/tickets/:entryId`.
 7. Any transaction error rolls back all database writes.
 
@@ -225,14 +228,16 @@ transaction, so the same verified payment cannot create two bookings under concu
 ## 6. Repeat/additional booking flow
 
 1. Browser may keep a local device key for draft recovery, but it is not grouping authority.
-2. First reservation creates an independent order/ticket and a server booking group.
-3. A later reservation starts with a clean cart/payment attempt. For a verified LINE customer, the
-   server reuses the active group only when the organization and branch match; otherwise it creates
-   a new group.
-4. The authenticated customer history API resolves the group by internal user identity, supports pagination across devices, and returns each order/ticket independently.
-5. Tenant staff sees active orders in the resolved group as one working card. Served, cancelled,
-   and no-show history is excluded from that operational card.
-6. Cancellation, queue state, item/payment records, and receipts remain per order.
+2. The first reservation creates an order/ticket and a server booking group.
+3. A later reservation starts with a clean cart/payment attempt. When the verified LINE identity,
+   organization, branch, and queue match an order whose ticket is `waiting`, `called`, or
+   `serving`, the API locks and extends that order instead of issuing another ticket.
+4. The extension appends item snapshots, attaches only the new verified payment transaction,
+   increments finite-stock reservations, and recalculates the whole order total/payment state.
+5. A different queue or a terminal prior ticket creates a separate order/ticket. Booking groups
+   remain useful for cross-queue and historical navigation.
+6. The customer booking summary is intersected with server-reported active tickets, so completed,
+   cancelled, served, and no-show local records are not presented as current bookings.
 
 A paid transaction can be attached to only one order. Legacy browser state that references an
 already attached transaction is discarded, the cart remains available for a new checkout, and the
@@ -259,7 +264,9 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
    for unpaid items, reconciles item payment states, and marks the order paid only when no unpaid
    item remains.
 7. Receipt printing uses immutable organization/branch/queue and fulfilling-staff snapshots. It
-   shows gross total, collected prepayment, and remaining balance without charging prepaid items twice.
+   shows gross total, collected prepayment, and remaining balance without charging prepaid items
+   twice. After completion, the Staff UI holds a centered receipt-ready modal over the current
+   workspace; it refreshes and moves to the next ticket only after Staff confirms.
 8. Related booking groups are historical associations, but the Staff working context filters them
    to tickets in `waiting`, `called`, or `serving`.
 

@@ -62,7 +62,6 @@ export const customer = {
     noQueuesConfigured: 'Chi nhánh này chưa thiết lập hàng đợi tiếp nhận.',
     branchClosed: 'Chi nhánh hiện ngoài giờ hoạt động. Vui lòng quay lại trong giờ mở cửa.',
     queuePaused: 'Hàng đợi này đang tạm dừng. Vui lòng chọn hàng đợi khác.',
-    queueStep: 'Bước 1',
     selectQueue: 'Chọn hàng đợi phục vụ',
     productsTitle: 'Sản phẩm / Dịch vụ',
     productsHint: 'Chọn các mục bạn cần.',

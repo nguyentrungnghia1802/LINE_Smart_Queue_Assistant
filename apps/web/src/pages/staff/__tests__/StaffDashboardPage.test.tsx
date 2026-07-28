@@ -206,7 +206,7 @@ describe('StaffDashboardPage', () => {
     );
   });
 
-  it('keeps the completed receipt available after the ticket leaves the queue', async () => {
+  it('keeps the completed receipt in a modal until staff confirms moving on', async () => {
     const completedOrder = {
       id: 'order-1',
       booking_group_id: null,
@@ -252,7 +252,12 @@ describe('StaffDashboardPage', () => {
 
     expect(await screen.findByText('完了した受付の領収書を印刷できます。')).toBeInTheDocument();
     expect(get).toHaveBeenCalledWith('/api/v1/orders/order-1/receipt');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '領収書を印刷' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '完了して次へ' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('shows only the first eight active queue entries', async () => {

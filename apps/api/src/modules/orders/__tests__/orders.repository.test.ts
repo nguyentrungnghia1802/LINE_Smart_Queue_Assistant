@@ -68,6 +68,61 @@ describe('ordersRepository.findByQueueEntry', () => {
     ]);
   });
 
+  it('locks and returns one active order for the same LINE user and queue', async () => {
+    const active = {
+      order_record: { id: 'order-active' },
+      queue_entry: { id: 'entry-active', status: 'waiting' },
+    };
+    const client = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [active] }),
+    } as never;
+
+    await expect(
+      ordersRepository.findActiveOrderForLineUserInQueue(
+        'org-1',
+        'branch-1',
+        'queue-1',
+        'U001',
+        client
+      )
+    ).resolves.toEqual({
+      order: active.order_record,
+      entry: active.queue_entry,
+    });
+
+    const query = (client as { query: jest.Mock }).query;
+    expect(String(query.mock.calls[0]?.[0])).toContain('pg_advisory_xact_lock');
+    const sql = String(query.mock.calls[1]?.[0]);
+    expect(sql).toContain('o.queue_id = $3');
+    expect(sql).toContain("o.status IN ('pending','processing')");
+    expect(sql).toContain("qe.status IN ('waiting','called','serving')");
+    expect(sql).toContain('FOR UPDATE OF o, qe');
+  });
+
+  it('recalculates the active order total and payment state from all order items', async () => {
+    const client = {
+      query: jest.fn().mockResolvedValue({ rows: [{ id: 'order-1', subtotal: '4500' }] }),
+    } as never;
+
+    await ordersRepository.refreshActiveOrder(
+      {
+        orderId: 'order-1',
+        customerName: '山田太郎',
+        customerPhone: '0901234567',
+        paymentCode: 'payment-2',
+      },
+      client
+    );
+
+    const sql = String((client as { query: jest.Mock }).query.mock.calls[0]?.[0]);
+    expect(sql).toContain('COALESCE(SUM(item.subtotal), 0)');
+    expect(sql).toContain("item.payment_status <> 'paid'::payment_status");
+    expect(sql).toContain('customer_name = $2');
+  });
+
   it('stores the staff snapshot when completing an order', async () => {
     const client = {
       query: jest.fn().mockResolvedValue({ rows: [{ id: 'order-1', status: 'completed' }] }),

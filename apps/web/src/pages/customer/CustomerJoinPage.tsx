@@ -10,6 +10,7 @@ import { BrandLogo } from '../../components/BrandLogo';
 import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
 import { StandalonePageTopBar } from '../../components/layout/StandalonePageTopBar';
 import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
+import { useMyTickets } from '../../hooks/useQueueEntry';
 import { formatDateTime } from '../../i18n/format';
 import { ApiClientError, get, post, put } from '../../services/apiClient';
 import { getCustomerLineEntryUrl } from '../../services/liff/entryUrl';
@@ -228,6 +229,14 @@ export function CustomerJoinPage({
     enabled: !!(orgSlug || token),
     staleTime: 30_000,
   });
+  const { data: activeTickets } = useMyTickets({
+    enabled: isLineAuthenticated && isAuthenticated && user?.role === UserRole.CUSTOMER,
+  });
+  const activeBookingRecords = useMemo(() => {
+    if (!bookingGroup || !activeTickets) return [];
+    const activeEntryIds = new Set(activeTickets.map((ticket) => ticket.entry.id));
+    return bookingGroup.records.filter((record) => activeEntryIds.has(record.queueEntryId));
+  }, [activeTickets, bookingGroup]);
   const selectedQueue = useMemo(
     () => data?.queues.find((queue) => queue.id === selectedQueueId) ?? null,
     [data?.queues, selectedQueueId]
@@ -539,7 +548,7 @@ export function CustomerJoinPage({
     setSubmitting(true);
     try {
       const result = await post<{
-        order: { id: string; booking_group_id?: string | null };
+        order: { id: string; booking_group_id?: string | null; subtotal?: string };
         queueEntry: { id: string };
       }>(
         '/api/v1/orders',
@@ -581,7 +590,7 @@ export function CustomerJoinPage({
           ticketPath: `${isLiffMode ? '/liff' : ''}/ticket${isLiffMode ? 's' : ''}/${result.queueEntry.id}`,
           createdAt: new Date().toISOString(),
           items: checkoutItems,
-          subtotal,
+          subtotal: Number(result.order.subtotal ?? subtotal),
           paymentScope: paidCheckout?.scope,
           paymentCode: paidCheckout?.code,
         }
@@ -795,10 +804,7 @@ export function CustomerJoinPage({
         <div className="space-y-6">
           <section className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
             <div className="mb-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
-                {t('booking.queueStep', { ns: 'customer' })}
-              </p>
-              <h2 className="mt-1 text-lg font-bold text-gray-950">
+              <h2 className="text-lg font-bold text-gray-950">
                 {t('booking.selectQueue', { ns: 'customer' })}
               </h2>
             </div>
@@ -931,7 +937,7 @@ export function CustomerJoinPage({
             </section>
           )}
 
-          {bookingGroup && bookingGroup.records.length > 0 && (
+          {activeBookingRecords.length > 0 && (
             <section className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -943,11 +949,11 @@ export function CustomerJoinPage({
                   </p>
                 </div>
                 <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-emerald-700">
-                  {t('units.items', { ns: 'common', count: bookingGroup.records.length })}
+                  {t('units.items', { ns: 'common', count: activeBookingRecords.length })}
                 </span>
               </div>
               <div className="mt-3 space-y-2">
-                {bookingGroup.records.slice(0, 3).map((record) => (
+                {activeBookingRecords.slice(0, 3).map((record) => (
                   <button
                     key={record.queueEntryId}
                     type="button"

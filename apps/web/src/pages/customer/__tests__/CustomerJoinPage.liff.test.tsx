@@ -204,6 +204,54 @@ describe('LiffCustomerJoinPage', () => {
     expect(await screen.findByTestId('location')).toHaveTextContent('/liff/tickets/entry-123');
   });
 
+  it('shows only locally remembered bookings that are still active on the server', async () => {
+    useAuthStore.setState({
+      user: { id: 'customer-1', role: UserRole.CUSTOMER },
+      token: 'customer-token',
+      isAuthenticated: true,
+    });
+    localStorage.setItem(
+      `${BOOKING_GROUP_PREFIX}liff:qr:demo-token`,
+      JSON.stringify({
+        id: 'group-1',
+        orgSlug: 'test-store',
+        localDeviceKey: 'device-1',
+        updatedAt: new Date().toISOString(),
+        records: [
+          {
+            orderId: 'order-active',
+            queueEntryId: 'entry-active',
+            ticketPath: '/liff/tickets/entry-active',
+            createdAt: '2026-07-28T01:00:00.000Z',
+            items: [],
+            subtotal: 1000,
+          },
+          {
+            orderId: 'order-completed',
+            queueEntryId: 'entry-completed',
+            ticketPath: '/liff/tickets/entry-completed',
+            createdAt: '2026-07-27T01:00:00.000Z',
+            items: [],
+            subtotal: 2000,
+          },
+        ],
+      })
+    );
+    vi.mocked(get).mockImplementation((url: string) => {
+      if (url === '/api/v1/queue/me') {
+        return Promise.resolve([{ entry: { id: 'entry-active' } }]);
+      }
+      return Promise.resolve(makeOrgResponse());
+    });
+
+    renderLiffBooking();
+
+    expect(await screen.findByText(i18n.t('customer:booking.booked'))).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /1,000/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /2,000/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('ステップ 1')).not.toBeInTheDocument();
+  });
+
   it('shows only the catalog assigned to the selected branch queue', async () => {
     const response = makeOrgResponse();
     vi.mocked(get).mockResolvedValue({
