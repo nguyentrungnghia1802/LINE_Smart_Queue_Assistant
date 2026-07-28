@@ -33,6 +33,7 @@ For ordinary UI/backend work without LINE credentials:
 ```dotenv
 VITE_LIFF_MOCK=true
 VITE_LIFF_MOCK_LOGGED_IN=true
+VITE_LIFF_MOCK_FRIEND=true
 VITE_LIFF_ENDPOINT_PATH=/liff
 VITE_PAYMENT_MODE=demo
 ```
@@ -41,6 +42,8 @@ Native Vite development defaults to the mock LIFF adapter unless `VITE_LIFF_MOCK
 explicitly. The API defaults ID-token verification to `mock` outside production. The development
 Compose file pins matching mock token/user values on both sides, so local customer authentication
 still exercises ID token -> backend -> system JWT without contacting LINE.
+Set `VITE_LIFF_MOCK_FRIEND=false` to exercise the Add Friend prompt locally; the mock request
+transitions to the followed state without contacting LINE.
 
 For local Rich Menu navigation demos, set `VITE_LIFF_DEFAULT_BOOKING_PATH` to a safe LIFF booking path such as `/liff/qr/demo-queue-lab-2026`.
 
@@ -243,7 +246,10 @@ rejected when `NODE_ENV=production`. Browser E2E never contacts LINE or a PSP.
 2. Put secrets only in local `.env`; use the Messaging channel access token/secret and Login channel ID/LIFF ID correctly.
 3. Run `npm run line:verify` and confirm the expected Official Account name/basic ID without exposing the token.
 4. Expose the local API through HTTPS for LINE webhook testing and set `/api/v1/line/webhook` as the webhook URL.
-5. Add/follow the LINE Official Account as required for push eligibility.
+5. Configure the LIFF app size as `Full`, link the intended Official Account, and keep the Add
+   Friend option enabled. Open the LIFF app without following the account, confirm the localized
+   prompt appears, complete its Add/Unblock action, and verify it disappears after the friendship
+   state is synchronized.
 6. With the LINE Console endpoint set to `https://<web-origin>/liff`, open
    `https://liff.line.me/{LIFF_ID}/qr/{publicQrToken}` and verify `/api/v1/auth/line` links a real
    `line_user_id` without producing `/liff/liff/...`.

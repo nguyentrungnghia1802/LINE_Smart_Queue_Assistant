@@ -112,6 +112,16 @@ export const customer = {
     invalidCode: 'Smart Queueの受付QRコードではありません。',
     cameraUnavailable: 'カメラを使用できません。ブラウザの権限を確認して再試行してください。',
   },
+  friendship: {
+    title: '順番通知をLINEで受け取る',
+    description:
+      'Smart Queue公式アカウントを友だち追加すると、順番が近づいた時や呼び出し時にLINEメッセージを受け取れます。',
+    add: '友だち追加',
+    checking: '確認中...',
+    incomplete: '友だち追加が完了していません。もう一度お試しください。',
+    error:
+      '友だち追加画面を開けませんでした。LINEの全画面表示でこのページを開き、もう一度お試しください。',
+  },
   ticket: {
     notFound: '受付番号が見つかりません',
     loadFailed: '受付状況を読み込めませんでした。',

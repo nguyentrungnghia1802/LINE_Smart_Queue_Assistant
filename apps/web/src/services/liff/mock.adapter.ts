@@ -10,6 +10,7 @@
  *   VITE_LIFF_MOCK_USER_ID           → fake userId   (default: 'mock-user-001')
  *   VITE_LIFF_MOCK_DISPLAY_NAME      → fake name     (default: 'Dev User')
  *   VITE_LIFF_MOCK_PICTURE_URL       → fake avatar   (default: blank placeholder)
+ *   VITE_LIFF_MOCK_FRIEND=false      → simulate an Official Account not yet added
  *   VITE_LIFF_MOCK_INIT_DELAY_MS     → artificial init delay in ms (default: 400)
  */
 
@@ -30,11 +31,13 @@ const INIT_DELAY = Number(import.meta.env.VITE_LIFF_MOCK_INIT_DELAY_MS ?? 400);
 
 export class MockLiffAdapter implements LiffAdapter {
   private _loggedIn: boolean;
+  private _friend: boolean;
 
   constructor() {
     // Default to logged-in so devs see a realistic app state immediately.
     // Set VITE_LIFF_MOCK_LOGGED_IN=false to test the signed-out flow.
     this._loggedIn = import.meta.env.VITE_LIFF_MOCK_LOGGED_IN !== 'false';
+    this._friend = import.meta.env.VITE_LIFF_MOCK_FRIEND !== 'false';
   }
 
   async init(_liffId: string): Promise<void> {
@@ -58,7 +61,11 @@ export class MockLiffAdapter implements LiffAdapter {
   }
 
   async getFriendship(): Promise<boolean> {
-    return Promise.resolve(true);
+    return Promise.resolve(this._friend);
+  }
+
+  async requestFriendship(): Promise<void> {
+    this._friend = true;
   }
 
   getAccessToken(): string | null {

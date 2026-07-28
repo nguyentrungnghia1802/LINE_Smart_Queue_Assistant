@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Time24HourField } from '../../components/manager/Time24HourField';
 import { get, patch, put } from '../../services/apiClient';
 
 interface BranchInfo {
@@ -16,6 +17,7 @@ interface BranchInfo {
   address_line2: string | null;
   latitude: string | null;
   longitude: string | null;
+  timezone: string;
   payment_settings: {
     merchantName?: string;
     settlementMethod?: 'bank_transfer' | 'card' | 'paypay' | 'cash';
@@ -303,11 +305,16 @@ export function BranchManagerSettingsPage() {
 
         <section className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
           <h2 className="font-bold text-gray-950">{t('settings.businessHours')}</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            {t('settings.businessHoursTimezone', {
+              timezone: branch.data?.timezone ?? 'Asia/Tokyo',
+            })}
+          </p>
           <div className="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-200">
             {calendar?.weeklyHours.map((day, index) => (
               <div
                 key={day.weekday}
-                className="grid gap-3 p-3 sm:grid-cols-[80px_120px_1fr_1fr] sm:items-center"
+                className="grid gap-3 p-3 sm:grid-cols-[80px_110px_minmax(0,1fr)_minmax(0,1fr)] sm:items-center"
               >
                 <strong className="text-sm text-gray-900">{weekdays[day.weekday]}</strong>
                 <label className="flex items-center gap-2 text-sm text-gray-600">
@@ -336,19 +343,21 @@ export function BranchManagerSettingsPage() {
                   />
                   {t('settings.closed')}
                 </label>
-                <input
-                  type="time"
+                <Time24HourField
                   disabled={day.isClosed}
-                  value={day.opensAt ?? ''}
-                  onChange={(event) => updateHour(index, 'opensAt', event.target.value)}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
+                  label={t('settings.openTimeLabel', { day: weekdays[day.weekday] })}
+                  hourLabel={t('settings.hour')}
+                  minuteLabel={t('settings.minute')}
+                  value={day.opensAt}
+                  onChange={(value) => updateHour(index, 'opensAt', value)}
                 />
-                <input
-                  type="time"
+                <Time24HourField
                   disabled={day.isClosed}
-                  value={day.closesAt ?? ''}
-                  onChange={(event) => updateHour(index, 'closesAt', event.target.value)}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
+                  label={t('settings.closeTimeLabel', { day: weekdays[day.weekday] })}
+                  hourLabel={t('settings.hour')}
+                  minuteLabel={t('settings.minute')}
+                  value={day.closesAt}
+                  onChange={(value) => updateHour(index, 'closesAt', value)}
                 />
               </div>
             ))}

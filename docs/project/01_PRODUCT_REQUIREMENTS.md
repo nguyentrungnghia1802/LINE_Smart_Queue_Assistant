@@ -139,6 +139,7 @@ role and does not use branch-operation endpoints.
 | FR-LINE-010 | LINE Rich Menu opens LIFF Home, booking start, current ticket resolution, and usage guidance  | Implemented in code; LINE Console/E2E sync pending                      |
 | FR-LINE-011 | Rich Menu synchronization is explicit, idempotent, mockable, and never runs on API startup    | Implemented                                                             |
 | FR-LINE-012 | The standard approaching-turn notification is durably enqueued at exactly five people ahead   | Implemented                                                             |
+| FR-LINE-013 | LIFF detects a missing Official Account friendship and offers an in-app Add/Unblock action    | Implemented; real-device acceptance pending                             |
 
 ### Location, prediction, and analytics
 
@@ -155,49 +156,50 @@ role and does not use branch-operation endpoints.
 
 ## 4. Business rules
 
-| Rule            | Definition                                                                                                                                             |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| BR-TENANT-001   | Every tenant-owned read/write must be restricted to the actor's organization.                                                                          |
-| BR-TENANT-002   | A branch manager or staff command must be restricted to its single active branch assignment; request-body tenant IDs are never authority.              |
-| BR-ORG-001      | `slug` and generated `public_qr_token` are globally unique. QR token is not user-entered.                                                              |
-| BR-ORG-002      | Application approval and initial manager membership succeed or fail in one transaction.                                                                |
-| BR-ORG-003      | Public applicants do not choose tenant slug or QR token; both are generated only after approval.                                                       |
-| BR-ORG-004      | Application location count and active branch count cannot exceed the subscribed plan; Starter is limited to one branch and Standard to three branches. |
-| BR-USER-001     | The applicant supplies a valid work email; the system never invents the manager email address.                                                         |
-| BR-USER-002     | Approval issues a single-use owner activation action; the invited owner chooses a password only on the activation endpoint.                            |
-| BR-USER-003     | One normalized email identifies only one platform account and cannot be assigned multiple roles.                                                       |
-| BR-QUEUE-001    | Only an open/active queue accepts new tickets.                                                                                                         |
-| BR-QUEUE-002    | A queue entry follows only allowed state transitions; terminal entries cannot return to waiting.                                                       |
-| BR-QUEUE-003    | Calling next selects the earliest eligible waiting ticket and must not call two tickets through one race.                                              |
-| BR-QUEUE-004    | Notification failure must never roll back an already committed queue transition.                                                                       |
-| BR-QUEUE-005    | Auto-call selects at most one next waiting ticket and does not call another while a ticket is called or serving.                                       |
-| BR-QUEUE-006    | Deferring a called ticket preserves its ticket code and moves it back three waiting slots; the third absence cancels and refunds it.                   |
-| BR-QUEUE-007    | A branch may have zero active queues during setup, and active queue names are unique within that branch.                                               |
-| BR-QUEUE-008    | Products selected for an order/payment must be active and assigned to the selected queue and branch.                                                   |
-| BR-QUEUE-009    | Branch weekly hours and exception dates gate customer payment and booking independently of queue status.                                               |
-| BR-ORDER-001    | Server prices and product ownership are authoritative; browser totals are advisory only.                                                               |
-| BR-ORDER-002    | Order, queue entry, items, payment transaction, stock change, and reservation are atomic.                                                              |
-| BR-ORDER-003    | Each new reservation is a separate order/ticket, even when it shares a booking group.                                                                  |
-| BR-ORDER-004    | The server groups active orders only by verified LINE identity and branch; terminal historical orders are excluded from active Staff work.             |
-| BR-ORDER-005    | Receipt scope and fulfillment identity are stored as immutable order snapshots.                                                                        |
-| BR-STOCK-001    | `stock_quantity IS NULL` is unlimited; finite stock cannot become negative.                                                                            |
-| BR-STOCK-002    | A finite item is unavailable when requested quantity exceeds stock.                                                                                    |
-| BR-PAY-001      | Every selected `requires_prepayment` product ID must be in the paid coverage set before booking.                                                       |
-| BR-PAY-002      | Order is `paid` only when all selected items are covered; required-only payment leaves the order `unpaid`.                                             |
-| BR-PAY-003      | Payment success comes from verified provider callback or server-side provider verification, never a browser flag.                                      |
-| BR-PAY-004      | Customer or operator cancellation refunds every collected transaction idempotently before the cancellation transaction commits.                        |
-| BR-CUSTOMER-001 | Customer name and a valid Japanese telephone number are required for order creation.                                                                   |
-| BR-LINE-001     | A LINE push requires a verified/linkable recipient LINE user ID and a configured Messaging API token.                                                  |
-| BR-LINE-002     | Login and Messaging API are separate LINE channels/capabilities and must be configured consistently.                                                   |
-| BR-LINE-003     | Public request bodies must not assert a LINE user ID; derive the recipient from a verified LINE account.                                               |
-| BR-LINE-004     | LIFF booking must wait for the LINE-derived system JWT before creating order/queue records.                                                            |
-| BR-LINE-005     | Rich Menu areas must open LIFF routes that can resolve the current customer context, not fixed ticket IDs.                                             |
-| BR-AUTH-001     | Public QR and slug routes are discovery/redirect entries; payment intent and booking require a verified LINE customer JWT.                             |
-| BR-AUTH-002     | A blocked business session remains active; opening customer LIFF is an explicit action that establishes a separate customer session.                   |
-| BR-AUTH-003     | Email/password login cannot issue a customer session; local customer testing uses the mock ID-token exchange.                                          |
-| BR-AUTH-004     | Admin, manager, and staff activity refreshes the server session; 15 idle minutes ends it even when a browser still has UI state.                       |
-| BR-AUTH-005     | Customer refresh sessions have a 30-day absolute limit and never bypass fresh LINE-link verification performed by authenticated requests.              |
-| BR-PRIVACY-001  | Location is optional, consent-based, purpose-limited, and must have a retention/deletion policy.                                                       |
+| Rule            | Definition                                                                                                                                               |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BR-TENANT-001   | Every tenant-owned read/write must be restricted to the actor's organization.                                                                            |
+| BR-TENANT-002   | A branch manager or staff command must be restricted to its single active branch assignment; request-body tenant IDs are never authority.                |
+| BR-ORG-001      | `slug` and generated `public_qr_token` are globally unique. QR token is not user-entered.                                                                |
+| BR-ORG-002      | Application approval and initial manager membership succeed or fail in one transaction.                                                                  |
+| BR-ORG-003      | Public applicants do not choose tenant slug or QR token; both are generated only after approval.                                                         |
+| BR-ORG-004      | Application location count and active branch count cannot exceed the subscribed plan; Starter is limited to one branch and Standard to three branches.   |
+| BR-USER-001     | The applicant supplies a valid work email; the system never invents the manager email address.                                                           |
+| BR-USER-002     | Approval issues a single-use owner activation action; the invited owner chooses a password only on the activation endpoint.                              |
+| BR-USER-003     | One normalized email identifies only one platform account and cannot be assigned multiple roles.                                                         |
+| BR-QUEUE-001    | Only an open/active queue accepts new tickets.                                                                                                           |
+| BR-QUEUE-002    | A queue entry follows only allowed state transitions; terminal entries cannot return to waiting.                                                         |
+| BR-QUEUE-003    | Calling next selects the earliest eligible waiting ticket and must not call two tickets through one race.                                                |
+| BR-QUEUE-004    | Notification failure must never roll back an already committed queue transition.                                                                         |
+| BR-QUEUE-005    | Auto-call selects at most one next waiting ticket and does not call another while a ticket is called or serving.                                         |
+| BR-QUEUE-006    | Deferring a called ticket preserves its ticket code and moves it back three waiting slots; the third absence cancels and refunds it.                     |
+| BR-QUEUE-007    | A branch may have zero active queues during setup, and active queue names are unique within that branch.                                                 |
+| BR-QUEUE-008    | Products selected for an order/payment must be active and assigned to the selected queue and branch.                                                     |
+| BR-QUEUE-009    | Branch weekly hours and exception dates gate customer payment and booking independently of queue status.                                                 |
+| BR-ORDER-001    | Server prices and product ownership are authoritative; browser totals are advisory only.                                                                 |
+| BR-ORDER-002    | Order, queue entry, items, payment transaction, stock change, and reservation are atomic.                                                                |
+| BR-ORDER-003    | Each new reservation is a separate order/ticket, even when it shares a booking group.                                                                    |
+| BR-ORDER-004    | The server groups active orders only by verified LINE identity and branch; terminal historical orders are excluded from active Staff work.               |
+| BR-ORDER-005    | Receipt scope and fulfillment identity are stored as immutable order snapshots.                                                                          |
+| BR-STOCK-001    | `stock_quantity IS NULL` is unlimited; finite stock cannot become negative.                                                                              |
+| BR-STOCK-002    | A finite item is unavailable when requested quantity exceeds stock.                                                                                      |
+| BR-PAY-001      | Every selected `requires_prepayment` product ID must be in the paid coverage set before booking.                                                         |
+| BR-PAY-002      | Order is `paid` only when all selected items are covered; required-only payment leaves the order `unpaid`.                                               |
+| BR-PAY-003      | Payment success comes from verified provider callback or server-side provider verification, never a browser flag.                                        |
+| BR-PAY-004      | Customer or operator cancellation refunds every collected transaction idempotently before the cancellation transaction commits.                          |
+| BR-CUSTOMER-001 | Customer name and a valid Japanese telephone number are required for order creation.                                                                     |
+| BR-LINE-001     | A LINE push requires a verified/linkable recipient LINE user ID and a configured Messaging API token.                                                    |
+| BR-LINE-002     | Login and Messaging API are separate LINE channels/capabilities and must be configured consistently.                                                     |
+| BR-LINE-003     | Public request bodies must not assert a LINE user ID; derive the recipient from a verified LINE account.                                                 |
+| BR-LINE-004     | LIFF booking must wait for the LINE-derived system JWT before creating order/queue records.                                                              |
+| BR-LINE-005     | Rich Menu areas must open LIFF routes that can resolve the current customer context, not fixed ticket IDs.                                               |
+| BR-LINE-006     | The application may prompt for Official Account friendship but must not claim or simulate consent; booking remains available when the customer declines. |
+| BR-AUTH-001     | Public QR and slug routes are discovery/redirect entries; payment intent and booking require a verified LINE customer JWT.                               |
+| BR-AUTH-002     | A blocked business session remains active; opening customer LIFF is an explicit action that establishes a separate customer session.                     |
+| BR-AUTH-003     | Email/password login cannot issue a customer session; local customer testing uses the mock ID-token exchange.                                            |
+| BR-AUTH-004     | Admin, manager, and staff activity refreshes the server session; 15 idle minutes ends it even when a browser still has UI state.                         |
+| BR-AUTH-005     | Customer refresh sessions have a 30-day absolute limit and never bypass fresh LINE-link verification performed by authenticated requests.                |
+| BR-PRIVACY-001  | Location is optional, consent-based, purpose-limited, and must have a retention/deletion policy.                                                         |
 
 ## 5. Core acceptance criteria
 

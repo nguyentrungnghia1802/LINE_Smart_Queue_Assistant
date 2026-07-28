@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-07-27.
+Last verified against the repository on 2026-07-28.
 
 ## 1. Problem
 
@@ -76,11 +76,14 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - LIFF Home at `/liff/home` as the common customer entry point from Rich Menu, including active-ticket resolution, ticket opening, booking start, and localized empty states.
 - Central Rich Menu definition for `ホーム`, `予約する`, `現在の受付`, and `利用案内`, plus an explicit idempotent `npm run line:rich-menu:sync` command with mock mode.
 - LINE webhook signature verification and basic follow, unfollow, and message command handling.
+- LIFF friendship detection and an in-app Add/Unblock Official Account prompt for customers who
+  are not yet eligible to receive LINE push messages.
 - Scheduled ETA refresh, approaching-turn scan, called-message retry scan, durable notification delivery, and daily counter reset.
 - Rate limits, request IDs, structured logging, basic Prometheus text metrics, health/readiness endpoints, and audit logs.
 - Playwright browser coverage for LIFF mock authentication, required-item demo payment, booking/ticket redirect, staff transitions, durable mock notification delivery, receipt access, public application/admin approval, manager QR/settings, complete role navigation, and desktop/mobile overflow checks.
 - Database structures for booking groups, location snapshots/alerts, forecast history, and staffing recommendations.
-- Japan-oriented organization addresses, `Asia/Tokyo` defaults, normalized weekly hours, and exception-day configuration.
+- Japan-oriented organization addresses, `Asia/Tokyo` defaults, normalized weekly hours,
+  locale-independent 24-hour manager controls, and exception-day configuration.
 
 ## 6. Incomplete features
 

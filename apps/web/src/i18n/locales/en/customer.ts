@@ -113,6 +113,16 @@ export const customer = {
     invalidCode: 'This QR code is not a Smart Queue reception link.',
     cameraUnavailable: 'Could not access the camera. Check browser permissions and try again.',
   },
+  friendship: {
+    title: 'Receive turn notifications in LINE',
+    description:
+      'Add the Smart Queue Official Account as a friend to receive messages when your turn is near or you are called.',
+    add: 'Add LINE friend',
+    checking: 'Checking...',
+    incomplete: 'The Official Account was not added. Please try again.',
+    error:
+      'Could not open the Add Friend screen. Open this page full-screen in LINE and try again.',
+  },
   ticket: {
     notFound: 'Ticket not found',
     loadFailed: 'Could not load ticket status.',

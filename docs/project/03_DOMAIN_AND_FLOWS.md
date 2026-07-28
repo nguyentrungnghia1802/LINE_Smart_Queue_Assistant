@@ -147,7 +147,11 @@ reservation transitions.
 
 1. The manager's primary copy/print QR action uses a permanent LIFF link such as `https://liff.line.me/{LIFF_ID}/qr/:token`. With a `/liff` endpoint, the appended path is `/qr/:token`, not `/liff/qr/:token`, which prevents `/liff/liff/...` after LIFF restores navigation. LIFF automatically starts LINE Login when the customer is not signed in.
 2. LIFF initializes, automatically starts LINE Login in real mode when needed, obtains an ID token, calls `/auth/line`, and stores the system JWT. If the LINE channel has the optional `email` scope and the customer consents, the backend stores the server-verified email without overwriting or duplicating an existing platform email.
-3. The client synchronizes the Official Account friendship state, then fetches public organization, queue, and active product data after the route context is known.
+3. The client synchronizes the Official Account friendship state, then fetches public organization,
+   queue, and active product data after the route context is known. A customer who skipped the
+   consent-screen Add Friend option receives a localized, non-blocking Add/Unblock prompt inside
+   LIFF. The prompt uses LINE's native friendship subwindow, rechecks the result, and synchronizes
+   the backend preference state.
 4. Customer selects products/services, optionally completes demo checkout for required prepayment, and creates the booking within the same LIFF flow.
 5. The backend uses server-verified identity, not browser profile data or public request body fields, to attach the LINE recipient.
 6. On success, LIFF navigates to `/liff/tickets/:entryId` and shows ticket code, status, people ahead, and ETA.

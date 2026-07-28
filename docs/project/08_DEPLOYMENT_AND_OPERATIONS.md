@@ -158,6 +158,12 @@ Developers Console, set the LIFF endpoint to the deployed HTTPS base path such a
 secrets such as `JWT_SECRET`, database credentials, LINE channel secret/access token, and provider
 webhook keys are runtime API secrets only.
 
+Configure the LIFF app view size as `Full`, link the Messaging API Official Account to the LINE
+Login channel, include the `profile` scope, and keep the Add Friend option on. `On (normal)` remains
+valid but optional on the consent screen, so customers may skip it. The LIFF shell therefore checks
+`liff.getFriendship()` and offers the native `liff.requestFriendship()` Add/Unblock flow when needed;
+the application cannot silently add an Official Account without customer consent.
+
 The production web build also runs a CSP bundle gate. The project uses a minimal LIFF adapter and a
 reviewed CSP-safe replacement for the SDK sub-window iframe bootstrap; do not work around a failed
 gate by adding `unsafe-eval` to host nginx. Review the LIFF SDK change and update the compatibility

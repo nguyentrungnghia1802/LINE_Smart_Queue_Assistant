@@ -2,7 +2,7 @@
 
 Status: pending. Do not mark this checklist passed from mock tests or desktop browser tests.
 
-Last reviewed: 2026-07-27.
+Last reviewed: 2026-07-28.
 
 ## Test record
 
@@ -12,6 +12,7 @@ Record the environment, release commit, tester, timestamp, device model, OS vers
 
 - [ ] The LINE Login channel and Messaging API channel belong to the intended provider and environment.
 - [ ] The LIFF endpoint is the deployed HTTPS `/liff` base path, for example `https://<web-origin>/liff`, and the frontend `VITE_LIFF_ID` matches it.
+- [ ] The LIFF app uses the `Full` view size, includes the `profile` scope, links the intended Official Account, and has the Add Friend option enabled.
 - [ ] Backend `LINE_LOGIN_CHANNEL_ID` is the LINE Login channel ID used for ID-token verification.
 - [ ] `LINE_MESSAGING_CHANNEL_SECRET` and `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN` come from the intended Messaging API channel.
 - [ ] Backend `LINE_LOGIN_LIFF_ID`, frontend `VITE_LIFF_ID`, and `WEB_ORIGIN` generate valid ticket deeplinks.
@@ -23,6 +24,7 @@ Record the environment, release commit, tester, timestamp, device model, OS vers
 ## Customer flow
 
 - [ ] Opening LIFF authenticates with LINE, exchanges the ID token server-side, and creates a system session without trusting a browser-supplied LINE user ID.
+- [ ] A customer who is not following the linked Official Account sees the localized Add Friend guidance; the native Add/Unblock action opens, friendship is rechecked, and the guidance disappears after success.
 - [ ] LIFF Home shows the Japanese empty state when no active ticket exists.
 - [ ] Rich Menu `ホーム`, `予約する`, `現在の受付`, and `利用案内` open the intended LIFF routes.
 - [ ] Scanning a branch QR opens the branch booking flow, requires a verified LINE customer session, and blocks staff/manager/admin sessions from creating customer bookings.

@@ -21,6 +21,7 @@ function makeLiffContext(): LiffContext {
   return {
     initStatus: 'ready',
     authStatus: 'authenticated',
+    friendshipStatus: 'friend',
     isInitialized: true,
     isLoggedIn: true,
     isInClient: true,
@@ -31,6 +32,8 @@ function makeLiffContext(): LiffContext {
     authError: null,
     login: vi.fn(),
     logout: vi.fn(),
+    refreshFriendship: vi.fn().mockResolvedValue(true),
+    requestFriendship: vi.fn().mockResolvedValue(true),
   };
 }
 
