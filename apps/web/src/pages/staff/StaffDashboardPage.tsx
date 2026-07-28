@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { CheckCircle2, Printer } from 'lucide-react';
+import { CheckCircle2, Printer, ReceiptText } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -475,6 +475,10 @@ export function StaffDashboardPage() {
                   <div>
                     <p className="mt-0.5 truncate text-xs text-gray-500 md:text-sm">
                       {ord.customer_name ?? t('dashboard.guest', { ns: 'staff' })}
+                    </p>
+                    <p className="mt-1 flex items-center gap-1 truncate font-mono text-[10px] font-semibold text-gray-500 md:text-xs">
+                      <ReceiptText className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      {ord.order_number}
                     </p>
                     <p className="mt-0.5 hidden text-sm font-medium text-gray-700 md:block">
                       {formatCurrency(ord.subtotal)}

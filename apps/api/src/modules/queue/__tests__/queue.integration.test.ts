@@ -48,6 +48,7 @@ jest.mock('../../../db/repositories/orders.repository', () => ({
   calculateWorkloadForEntries: jest.fn().mockResolvedValue(0),
   ordersRepository: {
     findByQueueEntry: jest.fn().mockResolvedValue(null),
+    findByQueueEntries: jest.fn().mockResolvedValue(new Map()),
     findById: jest.fn().mockResolvedValue(null),
   },
 }));

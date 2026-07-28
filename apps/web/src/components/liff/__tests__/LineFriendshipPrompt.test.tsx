@@ -23,6 +23,7 @@ function liffContext(overrides: Partial<LiffContext> = {}): LiffContext {
     logout: vi.fn(),
     refreshFriendship: vi.fn().mockResolvedValue(false),
     requestFriendship: vi.fn().mockResolvedValue(false),
+    scanQrCode: vi.fn().mockResolvedValue(null),
     ...overrides,
   };
 }

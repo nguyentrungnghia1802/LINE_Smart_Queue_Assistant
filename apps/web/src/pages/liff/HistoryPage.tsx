@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
+import { ChevronRight, Clock3, Store } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
-import { formatCurrency, formatDateTime } from '../../i18n/format';
+import { formatDateTime } from '../../i18n/format';
 import { bookingGroupsApi } from '../../services/bookingGroups.api';
 
 const ORDER_STATUS: Record<string, string> = {
@@ -61,6 +62,10 @@ export function HistoryPage() {
     );
   }
 
+  const historyOrders = history.data.items.flatMap((group) =>
+    group.orders.map((order) => ({ group, order }))
+  );
+
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div>
@@ -70,80 +75,82 @@ export function HistoryPage() {
         <p className="mt-1 text-sm text-gray-500">{t('history.statusHint', { ns: 'customer' })}</p>
       </div>
 
-      {history.data.items.map((group) => (
-        <section
-          key={group.id}
-          className="overflow-hidden rounded-lg border border-gray-200 bg-white"
-        >
-          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-            <div>
-              <h2 className="font-semibold text-gray-900">{group.organization_name}</h2>
-              <p className="text-xs text-gray-500">
-                {formatDateTime(group.created_at, i18n.resolvedLanguage ?? 'ja')}
-              </p>
-            </div>
-            <span className="text-xs font-medium text-gray-500">
-              {t('units.items', { ns: 'common', count: group.orders.length })}
-            </span>
-          </div>
-
-          <div className="divide-y divide-gray-100">
-            {group.orders.map((order) => (
-              <article key={order.id} className="p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs text-gray-500">
-                      {t('history.orderNumber', { ns: 'customer' })}
-                    </p>
-                    <p className="font-mono font-bold text-gray-900">{order.order_number}</p>
-                  </div>
-                  <div className="text-right text-xs">
-                    <p className="font-semibold text-gray-700">
-                      {ORDER_STATUS[order.status]
-                        ? t(ORDER_STATUS[order.status], { ns: 'common' })
-                        : order.status}
-                    </p>
-                    <p className="text-gray-500">
-                      {PAYMENT_STATUS[order.payment_status]
-                        ? t(PAYMENT_STATUS[order.payment_status], { ns: 'common' })
-                        : order.payment_status}
-                    </p>
-                  </div>
-                </div>
-                <ul className="mt-3 space-y-1 text-sm text-gray-600">
-                  {order.items.map((item) => (
-                    <li key={item.id} className="flex justify-between gap-3">
-                      <span>
-                        {item.product_name} × {item.quantity}
-                      </span>
-                      <span>
-                        {formatCurrency(Number(item.subtotal), i18n.resolvedLanguage ?? 'ja')}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
-                  <strong className="text-sm text-gray-900">
-                    {formatCurrency(Number(order.subtotal), i18n.resolvedLanguage ?? 'ja')}
-                  </strong>
+      <div className="space-y-2">
+        {historyOrders.map(({ group, order }, index) => {
+          const content = (
+            <>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-sm font-bold text-gray-600">
+                {index + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="font-mono text-sm font-bold text-gray-950">
+                    {order.order_number}
+                  </span>
                   {order.ticket && (
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/liff/tickets/${order.ticket?.id}`)}
-                      className="rounded-md bg-line-green px-3 py-2 text-xs font-bold text-white"
-                    >
-                      {t('history.openTicket', {
-                        ns: 'customer',
-                        ticket: order.ticket.ticket_code,
-                      })}
-                    </button>
+                    <span className="text-xs font-medium text-gray-500">
+                      {t('labels.ticketCode', { ns: 'common' })} {order.ticket.ticket_code}
+                    </span>
                   )}
                 </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ))}
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+                  <span className="inline-flex min-w-0 items-center gap-1">
+                    <Store className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span className="truncate">
+                      {order.branch_name_snapshot || group.organization_name}
+                    </span>
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+                    {formatDateTime(order.created_at, i18n.resolvedLanguage ?? 'ja')}
+                  </span>
+                </div>
+              </div>
+              <div className="shrink-0 text-right text-xs">
+                <p className="font-semibold text-gray-700">
+                  {ORDER_STATUS[order.status]
+                    ? t(ORDER_STATUS[order.status], { ns: 'common' })
+                    : order.status}
+                </p>
+                <p className="mt-0.5 text-gray-500">
+                  {PAYMENT_STATUS[order.payment_status]
+                    ? t(PAYMENT_STATUS[order.payment_status], { ns: 'common' })
+                    : order.payment_status}
+                </p>
+              </div>
+              {order.ticket && (
+                <ChevronRight className="h-5 w-5 shrink-0 text-gray-300" aria-hidden="true" />
+              )}
+            </>
+          );
+
+          return order.ticket ? (
+            <button
+              key={order.id}
+              type="button"
+              onClick={() =>
+                navigate(`/liff/tickets/${order.ticket?.id}`, {
+                  state: { from: '/liff/history' },
+                })
+              }
+              className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3 text-left shadow-sm transition hover:border-line-green/40 hover:bg-gray-50"
+              aria-label={t('history.viewDetails', {
+                ns: 'customer',
+                number: order.order_number,
+              })}
+            >
+              {content}
+            </button>
+          ) : (
+            <article
+              key={order.id}
+              className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3"
+            >
+              {content}
+            </article>
+          );
+        })}
+      </div>
 
       {history.data.meta.totalPages > 1 && (
         <nav

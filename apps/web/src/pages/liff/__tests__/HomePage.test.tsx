@@ -42,6 +42,7 @@ function makeLiffContext(authStatus: LiffAuthStatus = 'authenticated'): LiffCont
     logout: vi.fn(),
     refreshFriendship: vi.fn().mockResolvedValue(true),
     requestFriendship: vi.fn().mockResolvedValue(true),
+    scanQrCode: vi.fn().mockResolvedValue(null),
   };
 }
 
@@ -68,6 +69,7 @@ function makeTicket(id = 'entry-123'): TicketPositionResult {
       created_at: '2026-01-01T00:00:00.000Z',
       updated_at: '2026-01-01T00:00:00.000Z',
     },
+    order: null,
     aheadCount: 2,
     estimatedWaitSeconds: 900,
   };

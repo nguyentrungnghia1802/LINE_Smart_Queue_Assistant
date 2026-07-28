@@ -62,9 +62,10 @@ queueEntryRouter.get('/me', requireAuth, publicReadRateLimiter, getMyTicket);
 // GET /api/v1/queue/me/penalties  — active penalties for the authenticated caller
 queueEntryRouter.get('/me/penalties', requireAuth, publicReadRateLimiter, getMyPenalties);
 
-// GET /api/v1/queue/entry/:entryId  (public — no auth required, for guest tracking)
+// GET /api/v1/queue/entry/:entryId  (authenticated customer-owned ticket)
 queueEntryRouter.get(
   '/entry/:entryId',
+  requireAuth,
   publicReadRateLimiter,
   validate(EntryIdParamSchema, 'params'),
   getTicketStatus

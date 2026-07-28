@@ -279,6 +279,58 @@ export const ordersRepository = {
     return { ...r, items: r.items_json as unknown as OrderItemRow[] };
   },
 
+  /**
+   * Fetch active-ticket orders in one query for the customer ticket list.
+   * The map key is the queue entry ID so callers cannot accidentally match an
+   * organization order to the wrong ticket.
+   */
+  async findByQueueEntries(queueEntryIds: string[]): Promise<Map<string, OrderWithItems>> {
+    if (queueEntryIds.length === 0) return new Map();
+
+    const { rows } = await pool.query<OrderRow & { items_json: string }>(
+      `SELECT o.*,
+         qe.id AS queue_entry_id,
+         COALESCE(
+           json_agg(
+             json_build_object(
+               'id', oi.id,
+               'order_id', oi.order_id,
+               'product_id', oi.product_id,
+               'product_name', oi.product_name,
+               'product_image_url', p.image_url,
+               'product_price', oi.product_price,
+               'service_time_minutes', oi.service_time_minutes,
+               'quantity', oi.quantity,
+               'subtotal', oi.subtotal,
+               'payment_status', oi.payment_status,
+               'prepaid_amount', oi.prepaid_amount,
+               'refunded_amount', oi.refunded_amount,
+               'payment_transaction_id', oi.payment_transaction_id,
+               'requires_prepayment_snapshot', oi.requires_prepayment_snapshot,
+               'created_at', oi.created_at
+             ) ORDER BY oi.created_at
+           ) FILTER (WHERE oi.id IS NOT NULL),
+           '[]'
+         ) AS items_json
+       FROM orders o
+       JOIN queue_entries qe ON qe.order_id = o.id
+       LEFT JOIN order_items oi ON oi.order_id = o.id
+       LEFT JOIN products p ON p.id = oi.product_id
+       WHERE qe.id = ANY($1::uuid[])
+       GROUP BY o.id, qe.id`,
+      [queueEntryIds]
+    );
+
+    return new Map(
+      rows
+        .filter((row) => row.queue_entry_id)
+        .map((row) => [
+          row.queue_entry_id as string,
+          { ...row, items: row.items_json as unknown as OrderItemRow[] },
+        ])
+    );
+  },
+
   async create(
     data: {
       organizationId: string;

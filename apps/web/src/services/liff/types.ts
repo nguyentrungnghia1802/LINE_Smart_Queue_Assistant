@@ -36,6 +36,9 @@ export interface LiffAdapter {
   /** Opens LINE's native prompt to add or unblock the linked Official Account. */
   requestFriendship(): Promise<void>;
 
+  /** Opens LINE's LIFF 2D-code reader and returns the scanned value. */
+  scanCode(): Promise<string | null>;
+
   /**
    * Get the current LIFF access token.
    * Returns `null` when not logged in.

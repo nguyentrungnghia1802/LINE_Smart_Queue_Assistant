@@ -1,3 +1,4 @@
+import { OrderWithItems } from '../../db/repositories/orders.repository';
 import { QueueEntryRow } from '../../db/repositories/queue-entries.repository';
 import { QueueRow } from '../../db/repositories/queues.repository';
 
@@ -21,6 +22,7 @@ export interface JoinQueueResult {
 /** Position snapshot for a single active ticket. */
 export interface TicketPositionResult {
   entry: QueueEntryRow;
+  order: OrderWithItems | null;
   aheadCount: number;
   estimatedWaitSeconds: number;
 }

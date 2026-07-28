@@ -168,9 +168,9 @@ does not accept `orgId` or `branchId` in queue write bodies.
 | ------ | ---------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | POST   | `/api/v1/queue/join`               | Public guest or authenticated customer, strict limit, idempotent | Join a queue directly; optional LINE recipient comes only from verified JWT identity |
 | GET    | `/api/v1/queue/current?queueId=`   | Public                                                           | Current queue snapshot                                                               |
-| GET    | `/api/v1/queue/me`                 | Authenticated                                                    | Current caller ticket                                                                |
+| GET    | `/api/v1/queue/me`                 | Authenticated customer                                           | Current caller active tickets with linked persisted order/item summaries             |
 | GET    | `/api/v1/queue/me/penalties`       | Authenticated                                                    | Active caller penalties                                                              |
-| GET    | `/api/v1/queue/entry/:entryId`     | Public                                                           | Guest/public ticket status                                                           |
+| GET    | `/api/v1/queue/entry/:entryId`     | Authenticated ticket owner                                       | Customer-owned ticket status with full linked order summary                          |
 | POST   | `/api/v1/queue/:entryId/cancel`    | Authenticated owner/operator                                     | Cancel eligible ticket                                                               |
 | POST   | `/api/v1/queue/:entryId/skip`      | Authenticated                                                    | Apply skip policy                                                                    |
 | POST   | `/api/v1/queue/:entryId/serve`     | Assigned staff/branch manager                                    | Start service                                                                        |
@@ -304,7 +304,7 @@ production rollout.
 | GET    | `/api/v1/forecasts/wait`                 | Branch manager                              | Latest assigned-branch queue forecasts                             |
 | GET    | `/api/v1/forecasts/staffing`             | Branch manager                              | Latest assigned-branch staffing baseline                           |
 
-Booking-group requests never accept a customer or LINE user ID as authority. Customer scope comes from the verified system JWT; staff/branch-manager scope requires exactly one active branch assignment and filters the returned orders to that branch. Organization owners and platform admins use aggregate administration surfaces rather than this customer-detail endpoint. Payment, cancellation, receipt, and ticket status remain independent for every order in the response.
+Booking-group requests never accept a customer or LINE user ID as authority. Customer scope comes from the verified system JWT; staff/branch-manager scope requires exactly one active branch assignment and filters the returned orders to that branch. Organization owners and platform admins use aggregate administration surfaces rather than this customer-detail endpoint. History order rows include immutable branch/queue snapshots, and full item details are opened through the authenticated customer-owned ticket endpoint.
 
 ### Media
 

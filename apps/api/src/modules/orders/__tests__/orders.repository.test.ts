@@ -43,6 +43,33 @@ describe('ordersRepository.findByQueueEntry', () => {
     expect(result?.customer_line_display_name).toBe('LINE 山田');
   });
 
+  it('returns stable database order numbers keyed by queue entry in one query', async () => {
+    mockQuery.mockResolvedValue({
+      rows: [
+        {
+          id: 'order-1',
+          queue_entry_id: 'entry-1',
+          order_number: 'A012',
+          items_json: [{ id: 'item-1' }],
+        },
+      ],
+      rowCount: 1,
+      command: 'SELECT',
+      oid: 0,
+      fields: [],
+    });
+
+    const result = await ordersRepository.findByQueueEntries(['entry-1']);
+
+    const sql = String(mockQuery.mock.calls[0]?.[0]);
+    expect(sql).toContain('WHERE qe.id = ANY($1::uuid[])');
+    expect(result.get('entry-1')).toMatchObject({
+      id: 'order-1',
+      order_number: 'A012',
+      items: [{ id: 'item-1' }],
+    });
+  });
+
   it('finds only an active booking group for the same LINE user and branch', async () => {
     const client = {
       query: jest

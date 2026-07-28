@@ -16,6 +16,7 @@ import IsLoggedInModule from '@line/liff/is-logged-in';
 import LoginModule from '@line/liff/login';
 import LogoutModule from '@line/liff/logout';
 import RequestFriendshipModule from '@line/liff/request-friendship';
+import ScanCodeV2Module from '@line/liff/scan-code-v2';
 
 import type { LiffAdapter, LiffProfile } from './types';
 
@@ -28,6 +29,7 @@ liff.use(new IsLoggedInModule());
 liff.use(new LoginModule());
 liff.use(new LogoutModule());
 liff.use(new RequestFriendshipModule());
+liff.use(new ScanCodeV2Module());
 
 export class RealLiffAdapter implements LiffAdapter {
   async init(liffId: string): Promise<void> {
@@ -59,6 +61,11 @@ export class RealLiffAdapter implements LiffAdapter {
 
   async requestFriendship(): Promise<void> {
     await liff.requestFriendship();
+  }
+
+  async scanCode(): Promise<string | null> {
+    const result = await liff.scanCodeV2();
+    return result.value;
   }
 
   getAccessToken(): string | null {

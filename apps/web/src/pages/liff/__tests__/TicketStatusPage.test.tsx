@@ -37,6 +37,7 @@ function makeLiffContext(): LiffContext {
     logout: vi.fn(),
     refreshFriendship: vi.fn().mockResolvedValue(true),
     requestFriendship: vi.fn().mockResolvedValue(true),
+    scanQrCode: vi.fn().mockResolvedValue(null),
   };
 }
 
@@ -67,7 +68,30 @@ describe('TicketStatusPage', () => {
             created_at: '2026-01-01T00:00:00.000Z',
             updated_at: '2026-01-01T00:00:00.000Z',
           },
-          order: null,
+          order: {
+            id: 'order-1',
+            order_number: 'A012',
+            customer_name: '山田太郎',
+            customer_phone: '0901234567',
+            subtotal: '8000',
+            payment_status: 'paid',
+            status: 'processing',
+            organization_name_snapshot: 'Smart Queue',
+            branch_name_snapshot: '東京店',
+            queue_name_snapshot: '美容受付',
+            created_at: '2026-01-01T00:00:00.000Z',
+            items: [
+              {
+                id: 'item-1',
+                product_name: '健康相談',
+                product_price: '8000',
+                quantity: 1,
+                subtotal: '8000',
+                prepaid_amount: '8000',
+                refunded_amount: '0',
+              },
+            ],
+          },
           aheadCount: 2,
           estimatedWaitSeconds: 900,
           queueName: '受付',
@@ -93,5 +117,7 @@ describe('TicketStatusPage', () => {
     expect(await screen.findByText('A019')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('約15分')).toBeInTheDocument();
+    expect(screen.getByText('A012')).toBeInTheDocument();
+    expect(screen.getByText('健康相談')).toBeInTheDocument();
   });
 });
