@@ -67,7 +67,7 @@ export function HistoryPage() {
   );
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className="mx-auto max-w-3xl space-y-5">
       <div>
         <h1 className="text-xl font-bold text-gray-950">
           {t('history.title', { ns: 'customer' })}
@@ -75,7 +75,7 @@ export function HistoryPage() {
         <p className="mt-1 text-sm text-gray-500">{t('history.statusHint', { ns: 'customer' })}</p>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {historyOrders.map(({ group, order }, index) => {
           const content = (
             <>
@@ -133,7 +133,7 @@ export function HistoryPage() {
                   state: { from: '/liff/history' },
                 })
               }
-              className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3 text-left shadow-sm transition hover:border-line-green/40 hover:bg-gray-50"
+              className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-line-green/40 hover:shadow-md"
               aria-label={t('history.viewDetails', {
                 ns: 'customer',
                 number: order.order_number,

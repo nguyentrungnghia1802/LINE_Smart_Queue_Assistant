@@ -36,7 +36,7 @@ export const jaLineNotificationCopy: LineNotificationCopy = {
       headline: '順番になりました',
       status: '呼び出し中',
       guidance: 'カウンターまでお越しください。',
-      accentColor: '#06C755',
+      accentColor: '#E11D48',
     },
     serving: {
       headline: '対応を開始しました',
@@ -60,7 +60,7 @@ export const jaLineNotificationCopy: LineNotificationCopy = {
       headline: '不在として処理されました',
       status: '不在',
       guidance: 'お手数ですが、必要な場合はスタッフへお声がけください。',
-      accentColor: '#EA580C',
+      accentColor: '#7C3AED',
     },
     deferred: {
       headline: '順番を後ろへ移動しました',

@@ -85,7 +85,7 @@ export function MyTicketsPage() {
   );
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className="mx-auto max-w-3xl space-y-5">
       {/* Urgent banners for called tickets */}
       {calledTickets.map((t) => (
         <CalledBanner
@@ -99,7 +99,7 @@ export function MyTicketsPage() {
         />
       ))}
 
-      <h1 className="text-lg font-semibold text-gray-900">
+      <h1 className="text-2xl font-bold text-gray-950">
         {t('common:nav.tickets')}{' '}
         <span className="text-sm font-normal text-gray-400">({tickets.length})</span>
       </h1>

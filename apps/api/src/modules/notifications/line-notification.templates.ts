@@ -100,19 +100,19 @@ export function buildTicketNotification(
     altText: `${copy.systemName}: ${copy.labels.ticket} ${input.ticketCode} - ${event.status}`,
     contents: {
       type: 'bubble',
-      size: 'mega',
+      size: 'kilo',
       header: {
         type: 'box',
         layout: 'vertical',
         backgroundColor: event.accentColor,
-        paddingAll: '16px',
+        paddingAll: '12px',
         contents: [
           { type: 'text', text: copy.systemName, color: '#FFFFFF', size: 'xs', weight: 'bold' },
           {
             type: 'text',
             text: event.headline,
             color: '#FFFFFF',
-            size: 'lg',
+            size: 'md',
             weight: 'bold',
             margin: 'md',
           },
@@ -121,15 +121,16 @@ export function buildTicketNotification(
       body: {
         type: 'box',
         layout: 'vertical',
-        spacing: 'md',
+        spacing: 'sm',
+        paddingAll: '14px',
         contents: [
           { type: 'text', text: copy.labels.ticket, color: '#6B7280', size: 'xs', weight: 'bold' },
-          { type: 'text', text: input.ticketCode, color: '#111827', size: '4xl', weight: 'bold' },
+          { type: 'text', text: input.ticketCode, color: '#111827', size: '3xl', weight: 'bold' },
           {
             type: 'box',
             layout: 'vertical',
             spacing: 'sm',
-            margin: 'lg',
+            margin: 'md',
             contents: [
               buildFieldRow(copy.labels.status, event.status),
               buildFieldRow(copy.labels.ahead, aheadLabel),
@@ -142,7 +143,7 @@ export function buildTicketNotification(
             color: '#374151',
             size: 'sm',
             wrap: true,
-            margin: 'lg',
+            margin: 'md',
           },
         ],
       },
@@ -150,6 +151,7 @@ export function buildTicketNotification(
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
+        paddingAll: '12px',
         contents: [
           {
             type: 'button',

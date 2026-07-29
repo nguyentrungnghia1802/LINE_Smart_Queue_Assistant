@@ -70,7 +70,7 @@ export function PreferencesPage() {
   };
 
   return (
-    <div className="mx-auto max-w-md space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-xl font-bold text-gray-950">
           {t('preferences.pageTitle', { ns: 'customer' })}
@@ -82,7 +82,7 @@ export function PreferencesPage() {
       {notice && (
         <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">{notice}</p>
       )}
-      <section className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white px-4">
+      <section className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white px-5 shadow-sm">
         <Toggle
           label={t('preferences.line', { ns: 'customer' })}
           checked={data.notification_enabled}
@@ -104,7 +104,7 @@ export function PreferencesPage() {
           onChange={(v) => change('lifecycle_enabled', v)}
         />
       </section>
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
         <h2 className="font-semibold text-gray-900">
           {t('preferences.location', { ns: 'customer' })}
         </h2>

@@ -89,11 +89,12 @@ export const marketing = {
   },
   footer: {
     description: 'Nền tảng hàng đợi kết nối vận hành và trải nghiệm khách hàng qua LINE.',
+    contact: 'Liên hệ',
     product: 'Sản phẩm',
     company: 'Doanh nghiệp',
     legal: 'Điều khoản và quyền riêng tư',
     copyright: '© 2026 Smart Queue Assistant',
-    supportEmail: 'Email hỗ trợ hệ thống',
+    supportEmail: 'LINE Smart Queue Assistant',
     supportPhone: '+84 948512463',
     headquarters: 'Trụ sở: Phúc Thọ, Hà Nội, Việt Nam',
   },
