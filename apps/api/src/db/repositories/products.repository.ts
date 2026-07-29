@@ -19,6 +19,7 @@ export interface ProductRow {
   max_wait_minutes: number | null;
   requires_prepayment: boolean;
   stock_quantity: number | null;
+  low_stock_threshold?: number;
   product_type: 'product' | 'service';
   is_active: boolean;
   created_at: Date;
@@ -33,6 +34,7 @@ export const productsRepository = {
 
     const { rows } = await pool.query<ProductRow>(
       `SELECT p.*,
+              NULL::INT AS stock_quantity,
               COALESCE(requested.name, tenant_default.name, japanese.name, p.name) AS name,
               COALESCE(requested.description, tenant_default.description, japanese.description, p.description) AS description
        FROM products p
@@ -50,6 +52,8 @@ export const productsRepository = {
   async findByBranch(branchId: string, locale: SupportedLocale = 'ja'): Promise<ProductRow[]> {
     const { rows } = await pool.query<ProductRow>(
       `SELECT p.*,
+              inventory.stock_quantity AS stock_quantity,
+              inventory.low_stock_threshold,
               COALESCE(requested.name, tenant_default.name, japanese.name, p.name) AS name,
               COALESCE(requested.description, tenant_default.description, japanese.description, p.description) AS description,
               COALESCE(
@@ -66,9 +70,38 @@ export const productsRepository = {
          ON qp.product_id = p.id
         AND qp.branch_id = $1
         AND qp.is_active = TRUE
+       LEFT JOIN branch_product_inventories inventory
+         ON inventory.branch_id = qp.branch_id
+        AND inventory.product_id = p.id
        WHERE p.is_active = TRUE
-       GROUP BY p.id, requested.name, requested.description, tenant_default.name,
+       GROUP BY p.id, inventory.stock_quantity, inventory.low_stock_threshold,
+                requested.name, requested.description, tenant_default.name,
                 tenant_default.description, japanese.name, japanese.description
+       ORDER BY p.created_at`,
+      [branchId, locale]
+    );
+    return rows;
+  },
+
+  async findCatalogByBranch(
+    branchId: string,
+    locale: SupportedLocale = 'ja'
+  ): Promise<ProductRow[]> {
+    const { rows } = await pool.query<ProductRow>(
+      `SELECT p.*,
+              inventory.stock_quantity AS stock_quantity,
+              COALESCE(inventory.low_stock_threshold, 10) AS low_stock_threshold,
+              COALESCE(requested.name, tenant_default.name, japanese.name, p.name) AS name,
+              COALESCE(requested.description, tenant_default.description, japanese.description, p.description) AS description
+       FROM organization_branches branch
+       JOIN products p ON p.organization_id = branch.organization_id AND p.is_active = TRUE
+       JOIN organizations o ON o.id = p.organization_id
+       LEFT JOIN branch_product_inventories inventory
+         ON inventory.branch_id = branch.id AND inventory.product_id = p.id
+       LEFT JOIN product_translations requested ON requested.product_id = p.id AND requested.locale = $2
+       LEFT JOIN product_translations tenant_default ON tenant_default.product_id = p.id AND tenant_default.locale = o.default_locale
+       LEFT JOIN product_translations japanese ON japanese.product_id = p.id AND japanese.locale = 'ja'
+       WHERE branch.id = $1
        ORDER BY p.created_at`,
       [branchId, locale]
     );
@@ -78,10 +111,15 @@ export const productsRepository = {
   async findByQueue(queueId: string, locale: SupportedLocale = 'ja'): Promise<ProductRow[]> {
     const { rows } = await pool.query<ProductRow>(
       `SELECT p.*,
+              inventory.stock_quantity AS stock_quantity,
+              inventory.low_stock_threshold,
               COALESCE(requested.name, tenant_default.name, japanese.name, p.name) AS name,
               COALESCE(requested.description, tenant_default.description, japanese.description, p.description) AS description
        FROM queue_products qp
        JOIN products p ON p.id = qp.product_id
+       LEFT JOIN branch_product_inventories inventory
+         ON inventory.branch_id = qp.branch_id
+        AND inventory.product_id = p.id
        JOIN organizations o ON o.id = p.organization_id
        LEFT JOIN product_translations requested ON requested.product_id = p.id AND requested.locale = $2
        LEFT JOIN product_translations tenant_default ON tenant_default.product_id = p.id AND tenant_default.locale = o.default_locale
@@ -102,6 +140,7 @@ export const productsRepository = {
 
     const { rows } = await pool.query<ProductRow>(
       `SELECT p.*,
+              NULL::INT AS stock_quantity,
               COALESCE(requested.name, tenant_default.name, japanese.name, p.name) AS name,
               COALESCE(requested.description, tenant_default.description, japanese.description, p.description) AS description
        FROM products p
@@ -144,7 +183,6 @@ export const productsRepository = {
       serviceTimeMinutes: number;
       maxWaitMinutes?: number;
       requiresPrepayment: boolean;
-      stockQuantity?: number;
       productType?: 'product' | 'service';
     },
     client?: PoolClient
@@ -156,16 +194,16 @@ export const productsRepository = {
           max_wait_minutes, requires_prepayment, stock_quantity, product_type)
        VALUES (
          $1,
-         CASE WHEN $10 = 'service' THEN 'DV' ELSE 'SP' END || (
+         CASE WHEN $9 = 'service' THEN 'DV' ELSE 'SP' END || (
            SELECT COALESCE(
              MAX(SUBSTRING(product_code FROM 3)::INT),
              0
            ) + 1
            FROM products
            WHERE organization_id = $1
-             AND product_type = $10
+             AND product_type = $9
          )::TEXT,
-         $2,$3,$4,$5,$6,$7,$8,$9,$10
+         $2,$3,$4,$5,$6,$7,$8,NULL,$9
        )
        RETURNING *`,
       [
@@ -177,7 +215,6 @@ export const productsRepository = {
         data.serviceTimeMinutes,
         data.maxWaitMinutes ?? null,
         data.requiresPrepayment,
-        data.stockQuantity ?? null,
         data.productType ?? 'service',
       ]
     );
@@ -227,7 +264,6 @@ export const productsRepository = {
       serviceTimeMinutes: number;
       maxWaitMinutes: number | null;
       requiresPrepayment: boolean;
-      stockQuantity: number | null;
       productType: 'product' | 'service';
       isActive: boolean;
     }>,
@@ -245,7 +281,6 @@ export const productsRepository = {
       serviceTimeMinutes: 'service_time_minutes',
       maxWaitMinutes: 'max_wait_minutes',
       requiresPrepayment: 'requires_prepayment',
-      stockQuantity: 'stock_quantity',
       productType: 'product_type',
       isActive: 'is_active',
     };
@@ -336,6 +371,35 @@ export const productsRepository = {
          updated_at = NOW()`,
       [queueId, uniqueProductIds, organizationId, branchId]
     );
+    await client.query(
+      `INSERT INTO branch_product_inventories
+         (branch_id, product_id, organization_id, stock_quantity)
+       SELECT $1, p.id, $2, NULL
+       FROM products p
+       WHERE p.id = ANY($3::uuid[])
+       ON CONFLICT (branch_id, product_id) DO NOTHING`,
+      [branchId, organizationId, uniqueProductIds]
+    );
+  },
+
+  async updateBranchStock(
+    branchId: string,
+    productId: string,
+    organizationId: string,
+    stockQuantity: number | null,
+    lowStockThreshold: number
+  ): Promise<ProductRow | null> {
+    await pool.query(
+      `INSERT INTO branch_product_inventories
+         (branch_id, product_id, organization_id, stock_quantity, low_stock_threshold)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (branch_id, product_id) DO UPDATE SET
+         stock_quantity = EXCLUDED.stock_quantity,
+         low_stock_threshold = EXCLUDED.low_stock_threshold`,
+      [branchId, productId, organizationId, stockQuantity, lowStockThreshold]
+    );
+    const products = await this.findCatalogByBranch(branchId);
+    return products.find((product) => product.id === productId) ?? null;
   },
 
   async softDelete(id: string): Promise<void> {

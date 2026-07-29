@@ -118,6 +118,7 @@ All paths require `admin`.
 | POST   | `/api/v1/branches`                            | Owner manager  | Create branch within the plan with map coordinates, calendar, and manager invites; no queue |
 | GET    | `/api/v1/branches/analytics`                  | Owner manager  | Revenue trend, total/best/worst branch, and branch performance                              |
 | GET    | `/api/v1/branches/audit`                      | Owner manager  | Personnel and branch audit history                                                          |
+| POST   | `/api/v1/branches/geocode`                    | Manager        | Resolve a typed branch address to safe Google place candidates                              |
 | POST   | `/api/v1/branches/:branchId/managers`         | Owner manager  | Invite another manager into the branch                                                      |
 | DELETE | `/api/v1/branches/:branchId/managers/:userId` | Owner manager  | Remove a non-owner manager while retaining at least one manager                             |
 | GET    | `/api/v1/branches/me`                         | Branch manager | Read only the assigned branch and its active queues                                         |
@@ -127,13 +128,14 @@ All paths require `admin`.
 
 ### Products/services
 
-| Method | Path                   | Access             | Purpose                                                       |
-| ------ | ---------------------- | ------------------ | ------------------------------------------------------------- |
-| GET    | `/api/v1/products`     | Public/scoped      | Queue catalog, owner catalog, or assigned-branch read catalog |
-| GET    | `/api/v1/products/:id` | Public/scoped      | Product detail with tenant and queue-assignment checks        |
-| POST   | `/api/v1/products`     | Organization owner | Create an organization catalog product/service                |
-| PATCH  | `/api/v1/products/:id` | Organization owner | Update an organization catalog product/service                |
-| DELETE | `/api/v1/products/:id` | Organization owner | Soft-deactivate an organization catalog product               |
+| Method | Path                                | Access             | Purpose                                                       |
+| ------ | ----------------------------------- | ------------------ | ------------------------------------------------------------- |
+| GET    | `/api/v1/products`                  | Public/scoped      | Queue catalog, owner catalog, or assigned-branch read catalog |
+| GET    | `/api/v1/products/:id`              | Public/scoped      | Product detail with tenant and queue-assignment checks        |
+| POST   | `/api/v1/products`                  | Organization owner | Create an organization catalog product/service                |
+| PATCH  | `/api/v1/products/:id`              | Organization owner | Update an organization catalog product/service                |
+| PATCH  | `/api/v1/products/:id/branch-stock` | Branch manager     | Update only assigned-branch stock and low-stock threshold     |
+| DELETE | `/api/v1/products/:id`              | Organization owner | Soft-deactivate an organization catalog product               |
 
 Product `imageUrl` accepts either an HTTP/HTTPS object-storage URL or a same-origin path returned by the media upload API (`/media/...` or `/mock-media/...`). Arbitrary relative paths and data URLs remain invalid. Validation responses use `VALIDATION_ERROR` with `details.fieldErrors`; manager product forms show the error code and affected field without exposing server internals.
 
@@ -143,10 +145,11 @@ Product writes accept no browser-authoritative organization, branch, or queue ID
 the organization from the owner JWT and generates an organization-unique `DVn` or `SPn` code under
 a PostgreSQL advisory lock. Queue create/update owns the selected `productIds` mapping and verifies
 every product belongs to the manager's organization before creating the branch-scoped assignment.
-Product validation rejects finite stock for `service` records and rejects
-`requiresPrepayment=true` when the price is zero. Payment and order item arrays reject duplicate
-product IDs. These rules keep Manager configuration compatible with checkout, inventory, and
-database constraints.
+Organization-owner product writes do not accept stock. Branch managers maintain nullable
+`stockQuantity` and `lowStockThreshold` through the dedicated branch-stock endpoint; the server
+derives their single assigned branch and never accepts it from the request body. Payment and order
+item arrays reject duplicate product IDs. These rules keep catalog pricing separate from
+branch-specific inventory and keep checkout, inventory, and database constraints aligned.
 
 ### Queue configuration
 
@@ -210,15 +213,16 @@ call the earliest waiter only when no ticket is already called or serving.
 
 ### Orders and payment
 
-| Method | Path                         | Access                                                      | Purpose                                              |
-| ------ | ---------------------------- | ----------------------------------------------------------- | ---------------------------------------------------- |
-| POST   | `/api/v1/orders`             | Public guest or authenticated customer, limited, idempotent | Atomic booking/order/payment/stock/location creation |
-| POST   | `/api/v1/orders/:id/cancel`  | Authenticated owner/operator                                | Cancel eligible order and linked ticket              |
-| GET    | `/api/v1/orders`             | Assigned staff/branch manager                               | List assigned-branch orders                          |
-| GET    | `/api/v1/orders/stats`       | Branch manager                                              | Assigned-branch order statistics                     |
-| GET    | `/api/v1/orders/:id`         | Assigned staff/branch manager                               | Assigned-branch order detail                         |
-| PATCH  | `/api/v1/orders/:id/status`  | Assigned staff/branch manager                               | Set processing/completed/cancelled                   |
-| PATCH  | `/api/v1/orders/:id/payment` | Assigned staff/branch manager, idempotent                   | Collect outstanding balance or record refund         |
+| Method | Path                            | Access                                                      | Purpose                                                |
+| ------ | ------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------ |
+| POST   | `/api/v1/orders`                | Public guest or authenticated customer, limited, idempotent | Atomic booking/order/payment/stock/location creation   |
+| POST   | `/api/v1/orders/:id/cancel`     | Authenticated owner/operator                                | Cancel eligible order and linked ticket                |
+| GET    | `/api/v1/orders`                | Assigned staff/branch manager                               | List assigned-branch orders                            |
+| GET    | `/api/v1/orders/stats`          | Branch manager                                              | Assigned-branch order statistics                       |
+| GET    | `/api/v1/orders/:id`            | Assigned staff/branch manager                               | Assigned-branch order detail                           |
+| PATCH  | `/api/v1/orders/:id/status`     | Assigned staff/branch manager                               | Set processing/completed/cancelled                     |
+| PATCH  | `/api/v1/orders/:id/payment`    | Assigned staff/branch manager, idempotent                   | Collect outstanding balance or record refund           |
+| POST   | `/api/v1/orders/:id/payment-qr` | Assigned staff/branch manager                               | Create a payOS counter checkout for the unpaid balance |
 
 Order payment summary is derived from item coverage. A verified `required_items` transaction marks
 the order paid when those items are the entire cart. For a mixed cart, Staff payment confirmation
@@ -281,9 +285,10 @@ Payment intent creation accepts `orgSlug`, `branchId`, `queueId`, selected `item
 `provider`, `method`, `currency`, optional `returnUrl`, and optional `cartSignature`. The API
 reloads the branch calendar, selected queue, queue-product mappings, and products before computing
 amount/coverage. Demo mode returns a `demoToken`; the browser must send it to
-`/payments/demo/complete`, and the server verifies it before marking the transaction paid. Future
-PSPs must update the same transaction state machine through signed webhooks or server-side
-verification.
+`/payments/demo/complete`, and the server verifies it before marking the transaction paid. The
+`payos` adapter creates a VND checkout link and QR payload using backend-only merchant credentials.
+Its signed webhook is authoritative and updates the same transaction, item, and order state
+machine. Browser return URLs are constrained to the trusted web origin and remain a UX signal only.
 
 Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatus: paid | refunded`, optional refund `amount` and `reason`, and an `Idempotency-Key` header. Every accepted operation writes an audited reconciliation row. For a legacy paid order without a transaction, the refund path first backfills a server-side manual transaction with covered order products and records a separate reconciliation operation. Branch-manager reconciliation verifies both organization and branch from the linked order or server-created intent metadata. `GET /api/v1/orders/:id/receipt` is assigned-staff/branch-manager only and returns receipt source data only for a completed, fully paid order.
 
@@ -344,6 +349,7 @@ email cannot be invited again under another role.
 | GET/PUT | `/api/v1/line/preferences`                    | Authenticated linked customer     | Read/update LINE notification consent and event preferences       |
 | GET/PUT | `/api/v1/line/location-consent`               | Authenticated customer            | Read/update location snapshot consent                             |
 | DELETE  | `/api/v1/line/location-data`                  | Authenticated customer            | Revoke consent and anonymize stored snapshots                     |
+| POST    | `/api/v1/line/location-snapshot`              | Verified LINE customer            | Save a consented snapshot only while an active ticket exists      |
 | GET     | `/api/v1/notifications/operations`            | Manager/admin                     | Tenant-scoped delivery operations list with masked LINE recipient |
 | POST    | `/api/v1/notifications/operations/:id/retry`  | Manager/admin                     | Audited explicit retry for failed/cancelled delivery              |
 | POST    | `/api/v1/notifications/operations/:id/cancel` | Manager/admin                     | Audited cancellation for unsent delivery                          |

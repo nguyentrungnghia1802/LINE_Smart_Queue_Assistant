@@ -5,6 +5,7 @@ import { UserRole } from '@line-queue/shared';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
+import { paymentsService } from '../payments/payments.service';
 
 import { ordersService } from './orders.service';
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
@@ -96,6 +97,16 @@ export const patchOrderPayment = asyncHandler(async (req: Request, res: Response
     req.header('Idempotency-Key') ?? `manual-payment:${req.params.id}:${Date.now()}`
   );
   sendSuccess(res, order);
+});
+
+export const createOrderPaymentQr = asyncHandler(async (req: Request, res: Response) => {
+  const { organizationId, branchId } = requireOperationalScope(req);
+  const payment = await paymentsService.createCounterPayment({
+    orderId: req.params.id,
+    organizationId,
+    branchId,
+  });
+  sendSuccess(res, payment);
 });
 
 /** Public cancel — customer cancels their own order by orderId. */

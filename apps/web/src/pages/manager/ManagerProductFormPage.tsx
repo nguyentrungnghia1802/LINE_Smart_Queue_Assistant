@@ -17,7 +17,6 @@ interface ProductRow {
   service_time_minutes: number;
   max_wait_minutes: number | null;
   requires_prepayment: boolean;
-  stock_quantity: number | null;
   product_type: 'product' | 'service';
   is_active: boolean;
 }
@@ -30,7 +29,6 @@ interface FormState {
   serviceTimeMinutes: string;
   maxWaitMinutes: string;
   requiresPrepayment: boolean;
-  stockQuantity: string;
   productType: 'product' | 'service';
   isActive: boolean;
 }
@@ -43,7 +41,6 @@ const empty: FormState = {
   serviceTimeMinutes: '30',
   maxWaitMinutes: '',
   requiresPrepayment: false,
-  stockQuantity: '',
   productType: 'service',
   isActive: true,
 };
@@ -92,7 +89,6 @@ export function ManagerProductFormPage() {
         serviceTimeMinutes: String(existing.service_time_minutes),
         maxWaitMinutes: existing.max_wait_minutes ? String(existing.max_wait_minutes) : '',
         requiresPrepayment: existing.requires_prepayment,
-        stockQuantity: existing.stock_quantity !== null ? String(existing.stock_quantity) : '',
         productType: existing.product_type ?? 'service',
         isActive: existing.is_active,
       });
@@ -136,7 +132,6 @@ export function ManagerProductFormPage() {
       serviceTimeMinutes: parseInt(form.serviceTimeMinutes),
       maxWaitMinutes: form.maxWaitMinutes ? parseInt(form.maxWaitMinutes) : undefined,
       requiresPrepayment: form.requiresPrepayment,
-      stockQuantity: form.stockQuantity ? parseInt(form.stockQuantity) : undefined,
       productType: form.productType,
     };
     if (isEdit) dto.isActive = form.isActive;
@@ -181,14 +176,10 @@ export function ManagerProductFormPage() {
             className={inputCls}
             value={form.productType}
             onChange={(e) =>
-              setForm((f) => {
-                const productType = e.target.value as 'product' | 'service';
-                return {
-                  ...f,
-                  productType,
-                  stockQuantity: productType === 'service' ? '' : f.stockQuantity,
-                };
-              })
+              setForm((f) => ({
+                ...f,
+                productType: e.target.value as 'product' | 'service',
+              }))
             }
           >
             <option value="service">{t('labels.service', { ns: 'common' })}</option>
@@ -264,18 +255,6 @@ export function ManagerProductFormPage() {
             onChange={(e) => setForm((f) => ({ ...f, maxWaitMinutes: e.target.value }))}
           />
         )}
-        {form.productType === 'product' &&
-          field(
-            t('products.stockOptional'),
-            <input
-              className={inputCls}
-              type="number"
-              min={0}
-              value={form.stockQuantity}
-              placeholder="100"
-              onChange={(e) => setForm((f) => ({ ...f, stockQuantity: e.target.value }))}
-            />
-          )}
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input
             type="checkbox"
@@ -343,7 +322,6 @@ function productFieldLabel(t: (key: string) => string, field: string): string {
     price: t('products.priceYenRequired'),
     serviceTimeMinutes: t('products.serviceTimeRequired'),
     maxWaitMinutes: t('products.maxWait'),
-    stockQuantity: t('products.stockOptional'),
   };
 
   return labels[field] ?? field;

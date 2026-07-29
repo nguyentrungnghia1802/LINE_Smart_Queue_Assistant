@@ -22,7 +22,8 @@ Backend-only secrets:
 - `LINE_MESSAGING_CHANNEL_SECRET`
 - `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`
 - `LINE_RICH_MENU_IMAGE_PATH` or an equivalent deployment-mounted Rich Menu PNG/JPEG asset path
-- future PSP API/webhook keys and current demo payment webhook secret
+- payOS merchant keys, future PSP secrets, and the current demo payment webhook secret
+- `GOOGLE_ROUTES_API_KEY` for server-side branch geocoding and walking-route estimates
 
 Role-aware session settings are non-secret runtime values:
 
@@ -88,6 +89,24 @@ preserves that prefix. Setting `VITE_API_URL=/api` would incorrectly produce
 must be treated as public configuration, not as a secret.
 
 Rotate any credential that has appeared in Git history, logs, screenshots, tickets, or examples.
+
+### payOS and Google Maps
+
+To enable real VND checkout, set `PAYMENT_MODE=external`, configure
+`PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, and `PAYOS_CHECKSUM_KEY`, and configure the payOS webhook as
+`https://<web-origin>/api/v1/payments/webhooks/payos`. Branch payment settings must use provider
+`payos` and currency `VND`. These values are backend secrets and must never be exposed through
+`VITE_*`. A browser return does not mark a transaction paid; verify a real sandbox/merchant payment
+and webhook before enabling the workflow for customers. Provider-side automatic refund execution
+is still pending.
+
+To enable map search and travel warnings, set `LOCATION_TRAVEL_PROVIDER=google_routes`, provide a
+restricted backend `GOOGLE_ROUTES_API_KEY`, and enable the Google Geocoding API and Routes API for
+the project. Restrict the key to the API server and required APIs. The worker requests walking
+alternatives, uses the longest returned duration, adds
+`LOCATION_TRAVEL_BUFFER_MINUTES` (default 8), and enqueues a LINE warning only when that total
+exceeds the current ETA. Location capture remains consent-based and stops when the customer has no
+active ticket. Monitor provider quota/cost and complete privacy/legal acceptance before production.
 
 ### LINE webhook verification troubleshooting
 
@@ -312,7 +331,9 @@ Stop fulfillment/refund automation for affected transactions, compare provider d
 
 ### Negative/incorrect stock
 
-Disable affected product, inspect order and inventory-reservation history, reconcile atomically, and investigate cancellation/retry/concurrency path. Do not manually edit only `products.stock_quantity` without an audit trail.
+Disable affected product, inspect order and inventory-reservation history, reconcile atomically,
+and investigate the cancellation/retry/concurrency path. Do not manually edit only
+`branch_product_inventories.stock_quantity` without an audit trail.
 
 ## 10. CI/CD
 

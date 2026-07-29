@@ -188,6 +188,12 @@ export function LoginPage() {
               {loading ? t('login.submitting', { ns: 'auth' }) : t('login.submit', { ns: 'auth' })}
             </button>
           </form>
+          <p className="mt-8 border-t border-gray-100 pt-6 text-center text-sm text-gray-500">
+            {t('login.businessSignupPrompt', { ns: 'auth' })}{' '}
+            <Link to="/business/register" className="font-bold text-brand-700 hover:underline">
+              {t('login.businessSignupLink', { ns: 'auth' })}
+            </Link>
+          </p>
         </div>
       </div>
     </div>

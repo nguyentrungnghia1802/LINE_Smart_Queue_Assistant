@@ -7,6 +7,7 @@ import type { BusinessCalendarDto } from '../orgs/orgs.validator';
 
 import { branchesService } from './branches.service';
 import type {
+  BranchGeocodeDto,
   CreateBranchDto,
   InviteBranchManagerDto,
   UpdateMyBranchDto,
@@ -81,4 +82,8 @@ export const updateMyBranchBusinessCalendar = asyncHandler(async (req: Request, 
 
 export const getOrganizationBranchAnalytics = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, await branchesService.analytics(actor(req)));
+});
+
+export const geocodeBranchAddress = asyncHandler(async (req: Request, res: Response) => {
+  sendSuccess(res, await branchesService.geocode(actor(req), req.body as BranchGeocodeDto));
 });

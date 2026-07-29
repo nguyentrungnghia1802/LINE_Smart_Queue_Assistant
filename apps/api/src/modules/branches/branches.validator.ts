@@ -39,6 +39,8 @@ export const CreateBranchSchema = z
     addressLine2: z.string().trim().max(200).nullable().optional(),
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
+    googlePlaceId: z.string().trim().max(255).nullable().optional(),
+    formattedMapAddress: z.string().trim().max(500).nullable().optional(),
     managers: z.array(ManagerInvitationSchema).min(1).max(10),
   })
   .and(CoordinatesSchema);
@@ -61,9 +63,13 @@ export const UpdateMyBranchSchema = z
     addressLine2: z.string().trim().max(200).nullable().optional(),
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
+    googlePlaceId: z.string().trim().max(255).nullable().optional(),
+    formattedMapAddress: z.string().trim().max(500).nullable().optional(),
     paymentSettings: z
       .object({
         merchantName: z.string().trim().max(160).optional(),
+        collectionProvider: z.enum(['payos', 'future_japan', 'manual']).optional(),
+        currencyCode: z.enum(['JPY', 'VND']).optional(),
         settlementMethod: z.enum(['bank_transfer', 'card', 'paypay', 'cash']).optional(),
         bankName: z.string().trim().max(120).optional(),
         bankBranchName: z.string().trim().max(120).optional(),
@@ -100,6 +106,11 @@ export const AuditLogQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(100),
 });
 
+export const BranchGeocodeSchema = z.object({
+  query: z.string().trim().min(3).max(500),
+});
+
 export type CreateBranchDto = z.infer<typeof CreateBranchSchema>;
 export type InviteBranchManagerDto = z.infer<typeof InviteBranchManagerSchema>;
 export type UpdateMyBranchDto = z.infer<typeof UpdateMyBranchSchema>;
+export type BranchGeocodeDto = z.infer<typeof BranchGeocodeSchema>;

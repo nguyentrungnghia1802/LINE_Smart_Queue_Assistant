@@ -1,5 +1,5 @@
 export type PaymentGatewayMode = 'demo' | 'external';
-export type PaymentProvider = 'demo' | 'stripe' | 'komoju' | 'paypay';
+export type PaymentProvider = 'demo' | 'payos' | 'stripe' | 'komoju' | 'paypay';
 
 export interface PaymentGatewayMethod {
   id: string;
@@ -9,13 +9,17 @@ export interface PaymentGatewayMethod {
   externalMethod?: string;
 }
 
-const EXTERNAL_REDIRECT_BASE_URL = import.meta.env.VITE_PAYMENT_REDIRECT_BASE_URL as
-  | string
-  | undefined;
 const ENABLE_EXTERNAL_PAYMENT =
   (import.meta.env.VITE_PAYMENT_MODE as string | undefined)?.toLowerCase() === 'external';
 
 export const PAYMENT_METHODS: PaymentGatewayMethod[] = [
+  {
+    id: 'vietqr',
+    labelKey: 'payment.methods.vietqr.label',
+    descriptionKey: 'payment.methods.vietqr.description',
+    provider: 'payos',
+    externalMethod: 'vietqr',
+  },
   {
     id: 'credit_card',
     labelKey: 'payment.methods.creditCard.label',
@@ -54,5 +58,5 @@ export const PAYMENT_METHODS: PaymentGatewayMethod[] = [
 ];
 
 export function isExternalPaymentConfigured() {
-  return ENABLE_EXTERNAL_PAYMENT && Boolean(EXTERNAL_REDIRECT_BASE_URL);
+  return ENABLE_EXTERNAL_PAYMENT;
 }

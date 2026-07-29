@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { CheckCircle2, Printer, ReceiptText } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Printer, QrCode, ReceiptText, X } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -72,6 +73,15 @@ interface MyQueueOverview {
   waitingEntriesWithOrders: QueueEntry[];
   calledEntryWithOrder: QueueEntry | null;
   servingEntryWithOrder: QueueEntry | null;
+}
+
+interface CounterPayment {
+  transactionId: string;
+  status: string;
+  amount: number;
+  currency: string;
+  checkoutUrl: string | null;
+  qrCode: string;
 }
 
 const MAX_VISIBLE_QUEUE_ENTRIES = 8;
@@ -243,6 +253,7 @@ export function StaffDashboardPage() {
     order: Order;
     ticketCode: string;
   } | null>(null);
+  const [counterPayment, setCounterPayment] = useState<CounterPayment | null>(null);
 
   // Unified queue + orders endpoint
   const { data: queueData, isLoading: queueLoading } = useQuery<MyQueueOverview>({
@@ -344,6 +355,11 @@ export function StaffDashboardPage() {
       ),
     onSuccess: invalidateQueue,
   });
+  const paymentQrMutation = useMutation({
+    mutationFn: (orderId: string) =>
+      post<CounterPayment>(`/api/v1/orders/${orderId}/payment-qr`, {}),
+    onSuccess: setCounterPayment,
+  });
   const receiptMutation = useMutation({
     mutationFn: (id: string) => get<Order>(`/api/v1/orders/${id}/receipt`),
     onSuccess: (order) => printReceipt(order, selectedEntry?.ticket_code ?? ''),
@@ -394,6 +410,52 @@ export function StaffDashboardPage() {
             >
               {t('dashboard.finishAndContinue')}
             </button>
+          </div>
+        </div>
+      )}
+      {counterPayment && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-950/65 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="counter-payment-title"
+        >
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setCounterPayment(null)}
+              className="absolute right-3 top-3 rounded-full p-2 text-gray-500 hover:bg-gray-100"
+              aria-label={t('actions.close', { ns: 'common' })}
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2 id="counter-payment-title" className="text-xl font-bold text-gray-950">
+              {t('dashboard.paymentQrTitle')}
+            </h2>
+            <p className="mt-2 text-3xl font-bold text-gray-950">
+              {formatLocalizedCurrency(
+                counterPayment.amount,
+                i18n.resolvedLanguage ?? 'ja',
+                counterPayment.currency
+              )}
+            </p>
+            {counterPayment.qrCode && (
+              <div className="mx-auto mt-5 w-fit rounded-xl border border-gray-200 bg-white p-3">
+                <QRCodeSVG value={counterPayment.qrCode} size={240} level="M" />
+              </div>
+            )}
+            <p className="mt-4 text-sm text-gray-500">{t('dashboard.paymentQrHint')}</p>
+            {counterPayment.checkoutUrl && (
+              <a
+                href={counterPayment.checkoutUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gray-950 px-4 py-2 text-sm font-bold text-white"
+              >
+                <ExternalLink className="h-4 w-4" />
+                {t('dashboard.openPaymentPage')}
+              </a>
+            )}
           </div>
         </div>
       )}
@@ -799,6 +861,17 @@ export function StaffDashboardPage() {
                         </p>
                         {['pending', 'processing'].includes(order.status) && (
                           <div className="mt-4 grid gap-2">
+                            {groupedPaymentSummary.amountDue > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => paymentQrMutation.mutate(order.id)}
+                                disabled={paymentQrMutation.isPending}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+                              >
+                                <QrCode className="h-4 w-4" />
+                                {t('dashboard.showPaymentQr')}
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() =>
@@ -818,6 +891,11 @@ export function StaffDashboardPage() {
                                 ? t('states.paid', { ns: 'common' })
                                 : t('dashboard.markPaid', { ns: 'staff' })}
                             </button>
+                            {paymentQrMutation.error && (
+                              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                                {paymentQrMutation.error.message}
+                              </p>
+                            )}
                           </div>
                         )}
                         {order.payment_status === 'paid' && order.status === 'completed' && (

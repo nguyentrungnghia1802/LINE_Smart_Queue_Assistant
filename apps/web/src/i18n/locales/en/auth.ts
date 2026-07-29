@@ -20,6 +20,8 @@ export const auth = {
     onlineReception: 'Online reception',
     notificationIntegration: 'Notification integration',
     paymentDemo: 'Demo payment',
+    businessSignupPrompt: 'Want to register a service for your business?',
+    businessSignupLink: 'Start a business application',
   },
   register: {
     title: 'Create account',

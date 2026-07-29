@@ -6,6 +6,7 @@ export const marketing = {
     businessSignup: '法人申し込み',
     login: 'ログイン',
     dashboard: 'ダッシュボード',
+    menu: 'ナビゲーションを開く',
   },
   hero: {
     eyebrow: 'LINEで始める、次世代の受付体験',
@@ -81,6 +82,9 @@ export const marketing = {
     company: '運営情報',
     legal: '利用規約・プライバシー',
     copyright: '© 2026 Smart Queue Assistant',
+    supportEmail: 'サポートメール',
+    supportPhone: '+84 948512463',
+    headquarters: '本社：ベトナム・ハノイ市・フックトー',
   },
   registration: {
     eyebrow: '法人向けサービス申し込み',

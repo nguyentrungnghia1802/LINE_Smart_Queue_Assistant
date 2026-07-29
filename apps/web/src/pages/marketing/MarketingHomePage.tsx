@@ -5,12 +5,18 @@ import {
   Check,
   Clock3,
   HeartPulse,
+  Mail,
+  MapPin,
+  Menu,
   MessageCircle,
+  Phone,
   Scissors,
   ShoppingBag,
   Store,
   Utensils,
+  X,
 } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
@@ -23,6 +29,7 @@ const PLAN_PRICES = { starter: 9_800, standard: 29_800, scale: 59_800 } as const
 export function MarketingHomePage() {
   const { t, i18n } = useTranslation(['marketing', 'common']);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const [navigationOpen, setNavigationOpen] = useState(false);
   const currency = new Intl.NumberFormat(i18n.resolvedLanguage ?? 'ja', {
     style: 'currency',
     currency: 'JPY',
@@ -38,7 +45,7 @@ export function MarketingHomePage() {
             <span className="truncate text-sm font-bold sm:text-base">Smart Queue Assistant</span>
           </Link>
           <nav
-            className="ml-auto hidden items-center gap-6 lg:flex"
+            className="ml-4 hidden items-center gap-6 lg:flex"
             aria-label={t('accessibility.mainNavigation', { ns: 'common' })}
           >
             <a className="text-sm font-semibold text-gray-600 hover:text-gray-950" href="#product">
@@ -54,7 +61,7 @@ export function MarketingHomePage() {
               {t('nav.pricing')}
             </a>
           </nav>
-          <div className="ml-auto flex items-center gap-2 lg:ml-4">
+          <div className="ml-auto flex items-center gap-2">
             <LanguageSwitcher compact />
             <Link
               to={isAuthenticated ? '/dashboard' : '/login'}
@@ -69,8 +76,47 @@ export function MarketingHomePage() {
               <span className="hidden md:inline">{t('nav.businessSignup')}</span>
               <ArrowRight className="h-4 w-4 md:hidden" aria-hidden="true" />
             </Link>
+            <button
+              type="button"
+              onClick={() => setNavigationOpen((open) => !open)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 text-gray-700 lg:hidden"
+              aria-label={t('nav.menu')}
+              aria-expanded={navigationOpen}
+            >
+              {navigationOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
+        {navigationOpen && (
+          <nav
+            className="border-t border-gray-200 bg-white px-4 py-3 lg:hidden"
+            aria-label={t('accessibility.mainNavigation', { ns: 'common' })}
+          >
+            <div className="mx-auto grid max-w-7xl gap-1">
+              {[
+                ['#product', t('nav.product')],
+                ['#solutions', t('nav.solutions')],
+                ['#pricing', t('nav.pricing')],
+              ].map(([href, label]) => (
+                <a
+                  key={href}
+                  href={href}
+                  onClick={() => setNavigationOpen(false)}
+                  className="rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+                >
+                  {label}
+                </a>
+              ))}
+              <Link
+                to={isAuthenticated ? '/dashboard' : '/login'}
+                onClick={() => setNavigationOpen(false)}
+                className="rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 sm:hidden"
+              >
+                {isAuthenticated ? t('nav.dashboard') : t('nav.login')}
+              </Link>
+            </div>
+          </nav>
+        )}
       </header>
 
       <main>
@@ -250,6 +296,26 @@ export function MarketingHomePage() {
             <Link to="/business/register">{t('nav.businessSignup')}</Link>
             <Link to="/login">{t('nav.login')}</Link>
           </div>
+          <address className="not-italic text-sm leading-6 text-gray-600 md:col-span-2">
+            <a
+              href="mailto:trungnghia180205@gmail.com"
+              className="flex items-center gap-2 hover:text-brand-700"
+            >
+              <Mail className="h-4 w-4" />
+              {t('footer.supportEmail')}
+            </a>
+            <a
+              href="tel:+84948512463"
+              className="mt-2 flex items-center gap-2 hover:text-brand-700"
+            >
+              <Phone className="h-4 w-4" />
+              {t('footer.supportPhone')}
+            </a>
+            <p className="mt-2 flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              {t('footer.headquarters')}
+            </p>
+          </address>
           <p className="text-xs text-gray-500 md:col-span-2">{t('footer.copyright')}</p>
         </div>
       </footer>

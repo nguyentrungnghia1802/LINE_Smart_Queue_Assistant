@@ -12,7 +12,7 @@ import {
 } from '../branches/branch-scope';
 
 import { productsService } from './products.service';
-import { CreateProductDto, UpdateProductDto } from './products.validator';
+import { CreateProductDto, UpdateBranchStockDto, UpdateProductDto } from './products.validator';
 
 export const listProducts = asyncHandler(async (req: Request, res: Response) => {
   const orgId = req.query.orgId as string | undefined;
@@ -24,10 +24,9 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
 
   let products: ProductRow[];
   if (req.user?.role === 'manager') {
-    const organizationId = req.user.isOrganizationOwner
-      ? requireOrganizationOwner(req.user)
-      : requireBranchManager(req.user).organizationId;
-    products = await productsService.getByOrg(organizationId, locale);
+    products = req.user.isOrganizationOwner
+      ? await productsService.getByOrg(requireOrganizationOwner(req.user), locale)
+      : await productsService.getCatalogByBranch(requireBranchManager(req.user).branchId, locale);
   } else if (req.user?.role === 'staff') {
     products = await productsService.getByBranch(requireBranchOperator(req.user).branchId, locale);
   } else if (orgSlug) {
@@ -41,9 +40,17 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const getProduct = asyncHandler(async (req: Request, res: Response) => {
-  const product = await productsService.getById(req.params.id);
+  let product = await productsService.getById(req.params.id);
   if (req.user?.role === 'manager' && product.organization_id !== req.user.organizationId) {
     throw AppError.forbidden('Product is outside your organization');
+  }
+  if (req.user?.role === 'manager' && !req.user.isOrganizationOwner) {
+    const scope = requireBranchManager(req.user);
+    const branchProduct = (await productsService.getCatalogByBranch(scope.branchId)).find(
+      (candidate) => candidate.id === product.id
+    );
+    if (!branchProduct) throw AppError.notFound('Product not found');
+    product = branchProduct;
   }
   if (req.user?.role === 'staff') {
     const scope = requireBranchOperator(req.user);
@@ -106,4 +113,21 @@ export const deleteProduct = asyncHandler(async (req: Request, res: Response) =>
     userAgent: req.get('user-agent'),
   });
   sendSuccess(res, null);
+});
+
+export const updateBranchStock = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw AppError.unauthorized();
+  const scope = requireBranchManager(req.user);
+  const product = await productsService.updateBranchStock(
+    req.params.id,
+    scope.organizationId,
+    scope.branchId,
+    req.body as UpdateBranchStockDto,
+    {
+      actorUserId: req.user.id,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    }
+  );
+  sendSuccess(res, product);
 });

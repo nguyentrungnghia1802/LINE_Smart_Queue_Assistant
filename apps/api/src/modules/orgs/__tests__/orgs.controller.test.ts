@@ -92,6 +92,8 @@ const branchRow = {
   address_line2: null,
   latitude: null,
   longitude: null,
+  google_place_id: null,
+  formatted_map_address: null,
   timezone: 'Asia/Tokyo',
   public_qr_token: BRANCH_TOKEN,
   payment_settings: {},

@@ -33,17 +33,17 @@ Last reviewed: 2026-07-27. This file records current priorities and accepted arc
 
 ## 2. Technical debt and risks
 
-| ID     | Issue                                                          | Impact                                 | Planned control                                 |
-| ------ | -------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------- |
-| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places | Incorrect assumptions/contracts        | Align shared types and add serialization tests  |
-| TD-002 | Notification operations have API but no dashboard              | Support workflow remains technical     | Owner/admin operations dashboard                |
-| TD-003 | Inventory lifecycle needs production load validation           | Rare race behavior may be undiscovered | Staged concurrent integration/load tests        |
-| TD-004 | Real PSP settlement/refund execution is absent                 | Demo-only external payment operations  | Provider adapter and settlement runbook         |
-| TD-007 | Forecast heuristic lacks production calibration                | Confidence may not reflect real error  | Measure prediction error before model upgrades  |
-| TD-008 | Location uses a mock travel-time provider                      | Real travel estimates are unavailable  | Approved provider adapter and legal review      |
-| TD-009 | Some OpenAPI operations use generic request/response schemas   | Generated clients have weaker typing   | Incrementally model detailed component schemas  |
-| TD-011 | Metrics reset per process and `/metrics` is public in app      | Weak operations/security               | Scrape/protect endpoint and expand metrics      |
-| TD-012 | Native Japanese/legal copy review is pending                   | Customer wording may be unsuitable     | Native review before external production launch |
+| ID     | Issue                                                           | Impact                                 | Planned control                                  |
+| ------ | --------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------ |
+| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places  | Incorrect assumptions/contracts        | Align shared types and add serialization tests   |
+| TD-002 | Notification operations have API but no dashboard               | Support workflow remains technical     | Owner/admin operations dashboard                 |
+| TD-003 | Inventory lifecycle needs production load validation            | Rare race behavior may be undiscovered | Staged concurrent integration/load tests         |
+| TD-004 | payOS collection exists but settlement/refund E2E is incomplete | Production refund/operations risk      | Merchant E2E, refund adapter, settlement runbook |
+| TD-007 | Forecast heuristic lacks production calibration                 | Confidence may not reflect real error  | Measure prediction error before model upgrades   |
+| TD-008 | Google travel adapter needs production privacy/quota acceptance | Cost, consent, and estimate risk       | Legal review, restricted key, staged calibration |
+| TD-009 | Some OpenAPI operations use generic request/response schemas    | Generated clients have weaker typing   | Incrementally model detailed component schemas   |
+| TD-011 | Metrics reset per process and `/metrics` is public in app       | Weak operations/security               | Scrape/protect endpoint and expand metrics       |
+| TD-012 | Native Japanese/legal copy review is pending                    | Customer wording may be unsuitable     | Native review before external production launch  |
 
 ## 3. Decision record format
 
@@ -348,3 +348,25 @@ verification. Logout and credential/account lifecycle changes revoke sessions.
 **Consequences:** API requests can perform one transparent refresh and retry. Deployment of the
 session migration invalidates legacy JWTs once, requiring reauthentication. PostgreSQL becomes the
 revocation source of truth and an hourly advisory-locked cleanup removes old revoked/expired rows.
+
+## ADR-024: Branch inventory, payOS counter collection, and active-ticket travel alerts
+
+**Status:** accepted (2026-07-30)
+
+**Context:** Organization owners define shared products and prices, but physical stock differs by
+branch. Vietnamese branches need a production-oriented QR collection path, and customer location
+must be collected only for an active queue purpose.
+
+**Decision:** Store finite or unlimited stock in `branch_product_inventories`, reserve it against
+the selected branch, and let branch managers edit only stock and the low-stock threshold. Keep
+payment state behind `ExternalPaymentProvider`; the payOS adapter creates VND checkout/QR data and
+accepts signed webhook state, while demo remains available for development. Collect consented
+location snapshots only while a verified LINE customer has an active ticket. The Google Routes
+adapter requests walking alternatives, selects the longest returned duration, adds an eight-minute
+buffer, and sends a durable LINE warning only when travel time exceeds queue ETA.
+
+**Consequences:** Catalog pricing and stock ownership no longer conflict across branches. payOS and
+Google integrations require restricted backend credentials, provider configuration, cost/privacy
+review, and real-environment acceptance before production claims. Browser payment returns and map
+coordinates remain non-authoritative; the API verifies payment callbacks, tenant/branch scope, and
+active-ticket consent.

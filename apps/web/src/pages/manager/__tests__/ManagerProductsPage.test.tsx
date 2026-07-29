@@ -45,6 +45,7 @@ describe('ManagerProductsPage', () => {
         id: 'manager-id',
         role: UserRole.MANAGER,
         organizationId: 'org-id',
+        isOrganizationOwner: true,
       },
       token: 'token',
       isAuthenticated: true,

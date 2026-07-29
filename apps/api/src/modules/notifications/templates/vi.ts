@@ -72,7 +72,8 @@ export const viLineNotificationCopy: LineNotificationCopy = {
     location_warning: {
       headline: 'Vui lòng kiểm tra khoảng cách tới cửa hàng',
       status: 'Nhắc quay lại',
-      guidance: 'Sắp đến lượt của bạn. Vui lòng quay lại cửa hàng sớm.',
+      guidance:
+        'Thời gian từ vị trí hiện tại đến cửa hàng đang lớn hơn thời gian chờ dự kiến. Vui lòng quay lại ngay để kịp lượt.',
       accentColor: '#0F766E',
     },
   },

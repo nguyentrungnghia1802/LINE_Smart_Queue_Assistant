@@ -6,9 +6,13 @@ import { validate } from '../../middlewares/validate.middleware';
 import {
   deleteLocationData,
   getLocationConsent,
+  saveRealtimeLocation,
   updateLocationConsent,
 } from '../location/location.controller';
-import { UpdateLocationConsentSchema } from '../location/location.validator';
+import {
+  CustomerLocationSnapshotSchema,
+  UpdateLocationConsentSchema,
+} from '../location/location.validator';
 import {
   getNotificationPreferences,
   syncLineFriendship,
@@ -39,6 +43,12 @@ lineRouter.put(
   updateLocationConsent
 );
 lineRouter.delete('/location-data', requireAuth, deleteLocationData);
+lineRouter.post(
+  '/location-snapshot',
+  requireAuth,
+  validate(CustomerLocationSnapshotSchema),
+  saveRealtimeLocation
+);
 
 /**
  * POST /api/v1/line/webhook

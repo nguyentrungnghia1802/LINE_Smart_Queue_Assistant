@@ -152,7 +152,7 @@ export function ManagerUsersPage() {
           <table className="hidden w-full text-sm sm:table">
             <thead>
               <tr className="bg-gray-50 text-left text-gray-500 border-b border-gray-200">
-                <th className="w-14 px-4 py-3 text-center font-medium">
+                <th className="w-16 whitespace-nowrap px-4 py-3 text-center font-medium">
                   {t('labels.number', { ns: 'common' })}
                 </th>
                 <th className="px-4 py-3 font-medium">{t('labels.name', { ns: 'common' })}</th>

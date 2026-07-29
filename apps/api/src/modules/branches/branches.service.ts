@@ -8,6 +8,7 @@ import {
   type SubscriptionPlanCode,
 } from '@line-queue/shared';
 
+import { config } from '../../config';
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
@@ -110,6 +111,50 @@ async function inviteManagerInClient(
 }
 
 export const branchesService = {
+  async geocode(actor: AuthUser, dto: { query: string }) {
+    if (!actor.organizationId) throw AppError.forbidden('Organization membership is required');
+    if (!config.location.googleRoutesApiKey) {
+      throw new AppError(
+        'GOOGLE_ROUTES_API_KEY is required for address lookup',
+        503,
+        'MAP_PROVIDER_NOT_CONFIGURED'
+      );
+    }
+    const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
+    url.searchParams.set('address', dto.query);
+    url.searchParams.set('key', config.location.googleRoutesApiKey);
+    url.searchParams.set('language', actor.preferredLocale ?? actor.organizationLocale ?? 'ja');
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) {
+      throw new AppError(
+        `Google Geocoding returned HTTP ${response.status}`,
+        502,
+        'MAP_PROVIDER_ERROR'
+      );
+    }
+    const payload = (await response.json()) as {
+      status?: string;
+      error_message?: string;
+      results?: Array<{
+        formatted_address: string;
+        place_id: string;
+        geometry: { location: { lat: number; lng: number } };
+      }>;
+    };
+    if (payload.status !== 'OK' && payload.status !== 'ZERO_RESULTS') {
+      throw new AppError(
+        payload.error_message ?? `Google Geocoding returned ${payload.status ?? 'UNKNOWN'}`,
+        502,
+        'MAP_PROVIDER_ERROR'
+      );
+    }
+    return (payload.results ?? []).slice(0, 5).map((result) => ({
+      formattedAddress: result.formatted_address,
+      placeId: result.place_id,
+      latitude: result.geometry.location.lat,
+      longitude: result.geometry.location.lng,
+    }));
+  },
   async list(actor: AuthUser) {
     return branchesRepository.list(requireOrganizationOwner(actor));
   },
@@ -165,6 +210,8 @@ export const branchesService = {
             addressLine2: dto.addressLine2,
             latitude: dto.latitude,
             longitude: dto.longitude,
+            googlePlaceId: dto.googlePlaceId,
+            formattedMapAddress: dto.formattedMapAddress,
             createdBy: actor.id,
           },
           client

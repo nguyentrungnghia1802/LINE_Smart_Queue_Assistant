@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 
 import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher';
-import { ApiClientError, post } from '../services/apiClient';
+import { formatCurrency } from '../i18n/format';
+import { ApiClientError, get, post } from '../services/apiClient';
 import {
   clearCheckoutSession,
-  formatJPY,
   loadCheckoutSession,
   paymentKeyFor,
+  saveCheckoutSession,
   savePaidCheckout,
 } from '../utils/checkoutSession';
 import {
@@ -40,7 +41,7 @@ interface PaymentStatusResponse {
 }
 
 export function PaymentDemoPage() {
-  const { t } = useTranslation(['customer', 'common']);
+  const { t, i18n } = useTranslation(['customer', 'common']);
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
   const session = useMemo(() => loadCheckoutSession(sessionId), [sessionId]);
@@ -52,9 +53,65 @@ export function PaymentDemoPage() {
   const [error, setError] = useState('');
   const externalPaymentReady = isExternalPaymentConfigured();
 
+  useEffect(() => {
+    if (!session?.pendingTransactionId) return;
+    let cancelled = false;
+    setProcessing(true);
+    void get<PaymentStatusResponse>(`/api/v1/payments/${session.pendingTransactionId}/return`)
+      .then((confirmed) => {
+        if (cancelled) return;
+        if (confirmed.status !== 'paid') {
+          setError(t('payment.pending', { ns: 'customer' }));
+          return;
+        }
+        const confirmedScope = session.pendingPaymentScope ?? session.scope;
+        const paymentKey = session.paymentKeyBase
+          ? paymentKeyFor(session.paymentKeyBase, confirmedScope)
+          : session.paymentKey;
+        savePaidCheckout(paymentKey, {
+          paid: true,
+          transactionId: confirmed.id,
+          method: session.pendingMethod ?? session.preferredMethod ?? 'external',
+          code: confirmed.id,
+          amount: confirmed.amount,
+          scope: confirmedScope,
+          coveredProductIds: confirmed.coveredProductIds,
+          cartSignature: session.cartSignature,
+          paidAt: new Date().toISOString(),
+          autoBookAfterPayment: session.autoBookAfterPayment,
+        });
+        clearCheckoutSession(session.id);
+        navigate(session.returnPath, { replace: true });
+      })
+      .catch((returnError) => {
+        if (!cancelled) {
+          setError(
+            returnError instanceof Error
+              ? returnError.message
+              : t('payment.failed', { ns: 'customer' })
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setProcessing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, session, t]);
+
   if (!session) return <Navigate to="/" replace />;
 
-  const selectedMethod = PAYMENT_METHODS.find((item) => item.id === method) ?? PAYMENT_METHODS[0];
+  const currency = session.currency ?? 'JPY';
+  const locale = i18n.resolvedLanguage ?? 'ja';
+  const availableMethods = PAYMENT_METHODS.filter((item) => {
+    if (!externalPaymentReady) {
+      return currency === 'VND' ? item.provider === 'payos' : item.provider !== 'payos';
+    }
+    return currency === 'VND' && item.provider === 'payos';
+  });
+  const selectedMethod =
+    availableMethods.find((item) => item.id === method) ?? availableMethods[0] ?? null;
   const requiredProductIds =
     session.requiredProductIds ??
     (session.scope === 'required_items'
@@ -67,6 +124,10 @@ export function PaymentDemoPage() {
 
   async function completePayment() {
     if (!session) return;
+    if (!selectedMethod) {
+      setError(t('payment.providerUnavailable', { ns: 'customer' }));
+      return;
+    }
     setProcessing(true);
     setError('');
     try {
@@ -83,7 +144,7 @@ export function PaymentDemoPage() {
           scope: paymentScope,
           provider: externalPaymentReady ? selectedMethod.provider : 'demo',
           method: selectedMethod.externalMethod ?? selectedMethod.id,
-          currency: 'JPY',
+          currency,
           returnUrl: window.location.href,
           cartSignature: session.cartSignature,
         },
@@ -95,6 +156,12 @@ export function PaymentDemoPage() {
       );
 
       if (intent.checkoutUrl) {
+        saveCheckoutSession({
+          ...session,
+          pendingTransactionId: intent.transactionId,
+          pendingPaymentScope: paymentScope,
+          pendingMethod: method,
+        });
         window.location.assign(intent.checkoutUrl);
         return;
       }
@@ -217,11 +284,11 @@ export function PaymentDemoPage() {
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-gray-900">{item.name}</p>
                   <p className="mt-1 text-sm text-gray-500">
-                    {formatJPY(item.unitPrice)} x {item.quantity}
+                    {formatCurrency(item.unitPrice, locale, currency)} x {item.quantity}
                   </p>
                 </div>
                 <p className="self-center text-sm font-bold text-gray-950">
-                  {formatJPY(item.subtotal)}
+                  {formatCurrency(item.subtotal, locale, currency)}
                 </p>
               </div>
             ))}
@@ -234,7 +301,9 @@ export function PaymentDemoPage() {
                   ? t('payment.total', { ns: 'customer' })
                   : t('payment.requiredTotal', { ns: 'customer' })}
               </span>
-              <span className="text-2xl font-bold">{formatJPY(payableSubtotal)}</span>
+              <span className="text-2xl font-bold">
+                {formatCurrency(payableSubtotal, locale, currency)}
+              </span>
             </div>
           </div>
         </section>
@@ -244,7 +313,7 @@ export function PaymentDemoPage() {
             {t('payment.method', { ns: 'customer' })}
           </h2>
           <div className="mt-4 space-y-2">
-            {PAYMENT_METHODS.map((item) => (
+            {availableMethods.map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -259,17 +328,26 @@ export function PaymentDemoPage() {
                 <span className="mt-0.5 block text-xs text-gray-500">{t(item.descriptionKey)}</span>
               </button>
             ))}
+            {!selectedMethod && (
+              <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {t('payment.providerUnavailable', { ns: 'customer' })}
+              </p>
+            )}
           </div>
 
-          <PaymentFields method={selectedMethod.id} />
+          {selectedMethod && <PaymentFields method={selectedMethod.id} />}
 
           <button
             type="button"
             onClick={completePayment}
-            disabled={processing}
+            disabled={processing || !selectedMethod}
             className="mt-5 w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-60"
           >
-            {processing ? t('payment.processing', { ns: 'customer' }) : t(selectedMethod.labelKey)}
+            {processing
+              ? t('payment.processing', { ns: 'customer' })
+              : selectedMethod
+                ? t(selectedMethod.labelKey)
+                : t('payment.providerUnavailable', { ns: 'customer' })}
           </button>
           {error && (
             <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>

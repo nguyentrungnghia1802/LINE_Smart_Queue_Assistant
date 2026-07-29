@@ -118,20 +118,16 @@ export const ordersService = {
     if (!(await branchesRepository.isOpenNow(dto.branchId))) {
       throw new AppError('Branch is outside business hours', 409, 'BRANCH_CLOSED');
     }
-    const availableProducts = new Set(
-      (await productsRepository.findByQueue(queue.id)).map((product) => product.id)
-    );
+    const queueProducts = await productsRepository.findByQueue(queue.id);
+    const availableProducts = new Map(queueProducts.map((product) => [product.id, product]));
 
     // Validate + fetch all products
     const productRows = await Promise.all(
       dto.items.map(async (item) => {
-        const p = await productsRepository.findById(item.productId);
+        const p = availableProducts.get(item.productId);
         if (!p) throw AppError.notFound(`Product ${item.productId} not found`);
         if (p.organization_id !== org.id)
           throw AppError.badRequest('Product does not belong to this organization');
-        if (!availableProducts.has(p.id)) {
-          throw AppError.badRequest('Product is not available in the selected queue');
-        }
         if (!p.is_active) throw AppError.badRequest(`Product "${p.name}" is not available`);
         const price = Number.parseFloat(p.price);
         return { product: p, quantity: item.quantity, price };
@@ -393,6 +389,7 @@ export const ordersService = {
           await inventoryService.reserveFiniteProduct(
             {
               organizationId: org.id,
+              branchId: dto.branchId,
               orderId: order.id,
               productId: product.id,
               quantity,

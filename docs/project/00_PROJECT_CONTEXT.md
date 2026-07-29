@@ -87,9 +87,13 @@ The project is a working local/demo modular monolith, not yet a production-compl
 
 ## 6. Incomplete features
 
-- Real PSP integration: signed provider requests, hosted checkout, provider-specific callback verification, refund execution, and encrypted merchant secrets.
+- payOS VND collection has signed requests, hosted/QR checkout, and callback verification.
+  Merchant credential acceptance, settlement operations, and provider-side refund execution remain
+  incomplete; Japan PSP selection also remains open.
 - LINE operator APIs and customer preferences are implemented; production Rich Menu asset/E2E verification, an operator dashboard, and multi-organization channel configuration remain pending.
-- Location alert execution uses a deterministic mock travel-time provider. Legal review of consent/retention copy and any real provider integration remain pending.
+- Location alerts support deterministic mock travel time and a Google Routes walking adapter.
+  Restricted provider credentials, quota monitoring, privacy/legal review, and physical-device E2E
+  remain deployment gates.
 - Forecasting uses a measured heuristic baseline rather than an ML model; production calibration and longer-term accuracy evaluation remain pending.
 - Inventory lifecycle is implemented; production load testing and operator reconciliation UI remain pending.
 - Payment reconciliation keeps transaction, order, and item summaries aligned with audited manual operations, replay-safe webhook transitions, partial/full refund amounts, and guarded receipt access. Real PSP refund execution remains pending.
