@@ -37,7 +37,7 @@ export const enLineNotificationCopy: LineNotificationCopy = {
       headline: 'It is your turn',
       status: 'Called',
       guidance: 'Please come to the counter.',
-      accentColor: '#06C755',
+      accentColor: '#E11D48',
     },
     serving: {
       headline: 'Service has started',
@@ -61,7 +61,7 @@ export const enLineNotificationCopy: LineNotificationCopy = {
       headline: 'Marked as no-show',
       status: 'No-show',
       guidance: 'Please speak with staff if you still need assistance.',
-      accentColor: '#EA580C',
+      accentColor: '#7C3AED',
     },
     deferred: {
       headline: 'Your place was moved back',

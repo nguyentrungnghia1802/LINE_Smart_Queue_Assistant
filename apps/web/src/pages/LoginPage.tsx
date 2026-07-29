@@ -189,8 +189,11 @@ export function LoginPage() {
             </button>
           </form>
           <p className="mt-8 border-t border-gray-100 pt-6 text-center text-sm text-gray-500">
-            {t('login.businessSignupPrompt', { ns: 'auth' })}{' '}
-            <Link to="/business/register" className="font-bold text-brand-700 hover:underline">
+            <span className="block">{t('login.businessSignupPrompt', { ns: 'auth' })}</span>
+            <Link
+              to="/business/register"
+              className="mt-2 inline-block font-bold text-brand-700 hover:underline"
+            >
               {t('login.businessSignupLink', { ns: 'auth' })}
             </Link>
           </p>

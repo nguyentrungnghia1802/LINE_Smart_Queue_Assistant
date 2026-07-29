@@ -78,11 +78,12 @@ export const marketing = {
   },
   footer: {
     description: 'LINEを中心に、受付と顧客体験をつなぐスマートキュープラットフォーム。',
+    contact: 'お問い合わせ',
     product: '製品',
     company: '運営情報',
     legal: '利用規約・プライバシー',
     copyright: '© 2026 Smart Queue Assistant',
-    supportEmail: 'サポートメール',
+    supportEmail: 'LINE Smart Queue Assistant',
     supportPhone: '+84 948512463',
     headquarters: '本社：ベトナム・ハノイ市・フックトー',
   },

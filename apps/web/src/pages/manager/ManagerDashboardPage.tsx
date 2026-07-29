@@ -81,6 +81,50 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   );
 }
 
+export function RevenueBarChart({
+  points,
+  formatMoney,
+  labelEvery = 1,
+}: Readonly<{
+  points: Array<{ label: string; value: number }>;
+  formatMoney: (value: number) => string;
+  labelEvery?: number;
+}>) {
+  const normalized = points.map((point) => ({
+    ...point,
+    value: Number.isFinite(point.value) ? Math.max(0, point.value) : 0,
+  }));
+  const maxRevenue = Math.max(...normalized.map((point) => point.value), 1);
+
+  return (
+    <div className="mt-5 overflow-x-auto pb-1">
+      <div className="flex h-48 min-w-[36rem] items-stretch gap-1.5 sm:min-w-0 sm:gap-2" role="img">
+        {normalized.map((point, index) => {
+          const height = point.value > 0 ? Math.max(6, (point.value / maxRevenue) * 100) : 2;
+          const showLabel = index % labelEvery === 0 || index === normalized.length - 1;
+          return (
+            <div key={point.label} className="flex min-w-0 flex-1 flex-col">
+              <div className="flex min-h-0 flex-1 items-end">
+                <div
+                  className={`w-full rounded-t transition-[height] duration-500 ${
+                    point.value > 0 ? 'bg-brand-500' : 'bg-gray-200'
+                  }`}
+                  style={{ height: `${height}%` }}
+                  title={`${point.label}: ${formatMoney(point.value)}`}
+                  aria-label={`${point.label}: ${formatMoney(point.value)}`}
+                />
+              </div>
+              <span className="mt-2 h-4 truncate text-center text-[10px] text-gray-400">
+                {showLabel ? point.label : ''}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function ManagerDashboardPage() {
   const { t, i18n } = useTranslation(['manager', 'common', 'staff']);
   const { user } = useAuthStore();
@@ -133,7 +177,6 @@ export function ManagerDashboardPage() {
   const formatMinutes = (seconds: number) =>
     t('units.minutes', { ns: 'common', count: Math.ceil(seconds / 60) });
 
-  const maxRevenue = Math.max(...data.monthlyRevenue.map((d) => d.revenue), 1);
   const cancellationRate = Math.round(data.cancellationRate * 100);
   const waitForecast = forecasts.data?.[0];
   const recommendedSlot = staffing.data?.reduce<StaffingRecommendation | undefined>(
@@ -241,20 +284,13 @@ export function ManagerDashboardPage() {
         {data.monthlyRevenue.length === 0 ? (
           <p className="text-sm text-gray-400">{t('states.empty', { ns: 'common' })}</p>
         ) : (
-          <div className="flex items-end gap-2 h-32">
-            {data.monthlyRevenue.map((d) => (
-              <div key={d.month} className="flex flex-col items-center gap-1 flex-1">
-                <div
-                  className="w-full bg-brand-500 rounded-t"
-                  style={{ height: `${Math.round((d.revenue / maxRevenue) * 100)}%`, minHeight: 4 }}
-                  title={formatMoney(d.revenue)}
-                />
-                <span className="text-[10px] text-gray-400 truncate w-full text-center">
-                  {d.month.slice(5)}
-                </span>
-              </div>
-            ))}
-          </div>
+          <RevenueBarChart
+            points={data.monthlyRevenue.map((point) => ({
+              label: point.month.slice(5),
+              value: Number(point.revenue),
+            }))}
+            formatMoney={formatMoney}
+          />
         )}
       </div>
 
@@ -300,7 +336,6 @@ function OwnerManagerDashboard({
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   const formatMoney = (value: number | string) => formatLocalizedCurrency(Number(value), locale);
-  const maxRevenue = Math.max(...data.revenueSeries.map((point) => Number(point.revenue)), 1);
 
   return (
     <div className="space-y-6">
@@ -336,25 +371,14 @@ function OwnerManagerDashboard({
 
       <section className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
         <h2 className="font-bold text-gray-950">{t('ownerDashboard.revenueChart')}</h2>
-        <div className="mt-5 flex h-40 items-end gap-1.5 sm:gap-2">
-          {data.revenueSeries.map((point) => (
-            <div
-              key={point.revenue_date}
-              className="flex min-w-0 flex-1 flex-col items-center gap-1"
-            >
-              <div
-                className="w-full rounded-t bg-brand-500"
-                style={{
-                  height: `${Math.max(3, (Number(point.revenue) / maxRevenue) * 100)}%`,
-                }}
-                title={formatMoney(point.revenue)}
-              />
-              <span className="hidden text-[10px] text-gray-400 sm:block">
-                {point.revenue_date.slice(5)}
-              </span>
-            </div>
-          ))}
-        </div>
+        <RevenueBarChart
+          points={data.revenueSeries.map((point) => ({
+            label: point.revenue_date.slice(5),
+            value: Number(point.revenue),
+          }))}
+          formatMoney={(value) => formatMoney(value)}
+          labelEvery={5}
+        />
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[var(--shadow-soft)]">

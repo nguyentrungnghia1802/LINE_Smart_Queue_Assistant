@@ -1,3 +1,4 @@
+import { CalendarPlus, ChevronRight, History, TicketCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -89,7 +90,7 @@ export function HomePage() {
   ]);
 
   return (
-    <div className="max-w-md mx-auto space-y-5">
+    <div className="mx-auto max-w-3xl space-y-6">
       <ProfileSection
         profile={profile}
         isLoggedIn={isLoggedIn}
@@ -170,15 +171,15 @@ function ProfileSection({
   if (isLoggedIn && profile) {
     const initial = profile.displayName.charAt(0).toUpperCase();
     return (
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         {profile.pictureUrl ? (
           <img
             src={profile.pictureUrl}
             alt={profile.displayName}
-            className="h-12 w-12 rounded-full object-cover border-2 border-line-green"
+            className="h-12 w-12 rounded-full border-2 border-line-green object-cover"
           />
         ) : (
-          <div className="h-12 w-12 rounded-full bg-line-green flex items-center justify-center text-white font-bold text-lg">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-line-green text-lg font-bold text-white">
             {initial}
           </div>
         )}
@@ -191,7 +192,7 @@ function ProfileSection({
   }
 
   return (
-    <div className="bg-line-green/10 rounded-(--radius-card) p-4 flex items-center justify-between">
+    <div className="flex items-center justify-between gap-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
       <div>
         <p className="text-sm font-medium text-gray-800">
           {t('home.lineLogin', { ns: 'customer' })}
@@ -201,7 +202,7 @@ function ProfileSection({
       <button
         type="button"
         onClick={onLogin}
-        className="bg-line-green text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
+        className="rounded-lg bg-line-green px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
       >
         {t('actions.login', { ns: 'common' })}
       </button>
@@ -267,7 +268,7 @@ function ActiveTicketsSection({
         <button
           type="button"
           onClick={() => onOpenTicket(primaryTicket.entry.id)}
-          className="w-full bg-white rounded-(--radius-card) border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-5 text-left"
+          className="w-full rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition hover:border-line-green/40 hover:shadow-md"
         >
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -284,9 +285,7 @@ function ActiveTicketsSection({
                   : t('units.people', { ns: 'common', count: primaryTicket.aheadCount })}
               </p>
             </div>
-            <span className="text-line-green text-2xl" aria-hidden="true">
-              ›
-            </span>
+            <ChevronRight className="h-6 w-6 text-line-green" aria-hidden="true" />
           </div>
         </button>
       );
@@ -296,16 +295,14 @@ function ActiveTicketsSection({
       <button
         type="button"
         onClick={onViewAll}
-        className="w-full bg-white rounded-(--radius-card) border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-5 text-left"
+        className="w-full rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition hover:border-line-green/40 hover:shadow-md"
       >
         <div className="flex items-center justify-between">
           <div>
             <p className="text-3xl font-extrabold text-gray-900 leading-none">{activeCount}</p>
             <p className="text-sm text-gray-500 mt-1">{label}</p>
           </div>
-          <span className="text-gray-400 text-2xl" aria-hidden="true">
-            ›
-          </span>
+          <ChevronRight className="h-6 w-6 text-gray-400" aria-hidden="true" />
         </div>
       </button>
     );
@@ -332,28 +329,31 @@ function QuickActions({
 }>) {
   const { t } = useTranslation('customer');
   return (
-    <section aria-label={t('home.quickActions')} className="grid grid-cols-2 gap-3">
+    <section aria-label={t('home.quickActions')} className="grid gap-3 sm:grid-cols-3">
       <button
         type="button"
         onClick={onStartBooking}
-        className="rounded-(--radius-card) bg-line-green px-4 py-4 text-left text-white shadow-sm transition hover:opacity-90"
+        className="rounded-lg bg-line-green px-4 py-4 text-left text-white shadow-sm transition hover:bg-emerald-600"
       >
+        <CalendarPlus className="mb-4 h-6 w-6" aria-hidden="true" />
         <span className="block text-sm font-bold">{t('home.startBooking')}</span>
         <span className="mt-1 block text-xs text-white/80">{t('home.newBooking')}</span>
       </button>
       <button
         type="button"
         onClick={onViewTickets}
-        className="rounded-(--radius-card) border border-gray-200 bg-white px-4 py-4 text-left text-gray-900 shadow-sm transition hover:bg-gray-50"
+        className="rounded-lg border border-gray-200 bg-white px-4 py-4 text-left text-gray-900 shadow-sm transition hover:border-line-green/40"
       >
+        <TicketCheck className="mb-4 h-6 w-6 text-line-green" aria-hidden="true" />
         <span className="block text-sm font-bold">{t('home.currentTicket')}</span>
         <span className="mt-1 block text-xs text-gray-500">{t('home.checkTicket')}</span>
       </button>
       <button
         type="button"
         onClick={onViewHistory}
-        className="col-span-2 rounded-(--radius-card) border border-gray-200 bg-white px-4 py-3 text-left text-gray-900 shadow-sm transition hover:bg-gray-50"
+        className="rounded-lg border border-gray-200 bg-white px-4 py-4 text-left text-gray-900 shadow-sm transition hover:border-line-green/40"
       >
+        <History className="mb-4 h-6 w-6 text-blue-600" aria-hidden="true" />
         <span className="block text-sm font-bold">{t('home.bookingHistory')}</span>
         <span className="mt-1 block text-xs text-gray-500">{t('home.checkHistory')}</span>
       </button>
@@ -368,7 +368,7 @@ function HowItWorksSection() {
       <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
         {t('home.guide')}
       </h2>
-      <div className="bg-white rounded-(--radius-card) border border-gray-200 p-4 space-y-3">
+      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 sm:grid-cols-2">
         {STEP_NUMBERS.map((step, i) => (
           <div key={step} className="flex items-start gap-3">
             <span

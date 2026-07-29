@@ -370,3 +370,20 @@ Google integrations require restricted backend credentials, provider configurati
 review, and real-environment acceptance before production claims. Browser payment returns and map
 coordinates remain non-authoritative; the API verifies payment callbacks, tenant/branch scope, and
 active-ticket consent.
+
+## ADR-025: Do not add an unused generative-AI credential
+
+**Status:** accepted (2026-07-30)
+
+**Context:** The product describes ETA and staffing guidance as AI-assisted, but the implemented
+forecasting path is a deterministic measured heuristic over PostgreSQL history. The repository has
+no OpenAI or Gemini adapter or runtime call.
+
+**Decision:** Do not add an OpenAI or Gemini API key to the configuration contract merely to rename
+the provider. Keep forecast inputs, outputs, and explanations deterministic. A future
+generative-AI feature must start with an explicit backend provider interface, data/privacy review,
+usage limits, failure fallback, and tests; provider secrets must remain server-side.
+
+**Consequences:** Current deployments need no model-provider account and cannot accidentally spend
+against an unused AI API. Gemini can still be adopted later without exposing its key through
+`VITE_*` or coupling queue correctness to an external model.

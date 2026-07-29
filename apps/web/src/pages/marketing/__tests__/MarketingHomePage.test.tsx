@@ -20,5 +20,9 @@ describe('MarketingHomePage', () => {
       '/business/register'
     );
     expect(screen.getByText('LINEファースト')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'LINE Smart Queue Assistant' })).toHaveAttribute(
+      'href',
+      'mailto:trungnghia180205@gmail.com'
+    );
   });
 });

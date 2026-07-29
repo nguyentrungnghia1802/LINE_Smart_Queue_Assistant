@@ -94,11 +94,12 @@ export const marketing = {
   },
   footer: {
     description: 'A LINE-centered queue platform connecting operations with customer experience.',
+    contact: 'Contact',
     product: 'Product',
     company: 'Company',
     legal: 'Terms and privacy',
     copyright: '© 2026 Smart Queue Assistant',
-    supportEmail: 'Support email',
+    supportEmail: 'LINE Smart Queue Assistant',
     supportPhone: '+84 948512463',
     headquarters: 'Headquarters: Phuc Tho, Ha Noi, Viet Nam',
   },
