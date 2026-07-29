@@ -42,10 +42,9 @@ test('manager keeps every primary destination available at the active viewport',
   });
   await expect(activeNavigation).toHaveCount(1);
 
-  for (const label of ['ダッシュボード', 'キュー', 'スタッフ', 'QR表示', '設定']) {
+  for (const label of ['ダッシュボード', '商品', 'キュー', 'スタッフ', 'QR表示', '設定']) {
     await expect(activeNavigation.getByRole('link', { name: label, exact: true })).toBeVisible();
   }
-  await expect(activeNavigation.getByRole('link', { name: '商品', exact: true })).toHaveCount(0);
 
   const widths = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,

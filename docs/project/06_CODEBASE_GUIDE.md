@@ -96,9 +96,10 @@ LIFF child pages should consume `LiffRuntimeContext` from `LiffLayout` instead o
 Manager pages use one global `manager` role with two explicit capabilities. An organization owner
 has `isOrganizationOwner=true` and only owner navigation. A compatibility branch membership may
 exist, but branch-operation authorization helpers always reject organization owners.
-A branch manager has `isOrganizationOwner=false`, exactly one active branch assignment, and only
-queue/staff/QR/branch-settings navigation. The organization owner owns catalog CRUD; branch managers
-read that catalog only while assigning products to their queues. Backend authorization remains
+A branch manager has `isOrganizationOwner=false`, exactly one active branch assignment, and
+branch inventory/queue/staff/QR/branch-settings navigation. The organization owner owns catalog
+definition and pricing CRUD; branch managers maintain stock for their assigned branch and read the
+catalog while assigning products to their queues. Backend authorization remains
 authoritative even when the frontend hides routes.
 
 ## 4. Shared packages

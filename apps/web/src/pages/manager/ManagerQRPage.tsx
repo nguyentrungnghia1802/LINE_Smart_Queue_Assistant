@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { get } from '../../services/apiClient';
 import { buildLiffEntryUrl } from '../../services/liff/entryUrl';
+import { formatAddress } from '../../utils/address';
 
 interface BranchInfo {
   id: string;
@@ -24,7 +25,7 @@ export function ManagerQRPage({
   endpoint = '/api/v1/branches/me',
   queryKey = 'manager-my-branch',
 }: Readonly<{ endpoint?: string; queryKey?: string }>) {
-  const { t } = useTranslation(['manager', 'common']);
+  const { t, i18n } = useTranslation(['manager', 'common']);
   const printRef = useRef<HTMLDivElement>(null);
 
   const { data: branchData, isLoading } = useQuery<BranchInfo>({
@@ -42,7 +43,16 @@ export function ManagerQRPage({
   const liffUrl = buildLiffEntryUrl(LIFF_ID, liffTarget);
   const primaryCustomerUrl = liffUrl ?? publicJoinUrl;
   const branchAddress = branchData
-    ? `〒${branchData.postal_code} ${branchData.prefecture}${branchData.city}${branchData.address_line1}${branchData.address_line2 ?? ''}`
+    ? formatAddress(
+        {
+          postalCode: branchData.postal_code,
+          prefecture: branchData.prefecture,
+          city: branchData.city,
+          addressLine1: branchData.address_line1,
+          addressLine2: branchData.address_line2,
+        },
+        i18n.resolvedLanguage
+      )
     : '';
 
   function handleCopy() {

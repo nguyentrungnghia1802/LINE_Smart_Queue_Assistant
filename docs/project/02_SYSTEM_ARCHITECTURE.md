@@ -31,7 +31,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | Media adapter     | Local/mock plus object-compatible interface | Validates and compresses image ingress; isolates persistence transport                 |
 | `postgres`        | PostgreSQL 16                               | Tenant, identity, queue, order, inventory, payment, notification, audit, forecast data |
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
-| Payment provider  | Demo adapter or future PSP                  | Hosted/payment redirect and authoritative webhook                                      |
+| Payment provider  | Demo adapter or payOS                       | Hosted/payment redirect, QR payload, and authoritative webhook                         |
 
 Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and `/media/*` to the internal `api:4000` service without stripping either prefix, so browser code and locally persisted media use the same public origin. The Vite development server proxies these same prefixes to the local API, keeping persisted image URLs working at `localhost:5173`. Production API requests use an empty `VITE_API_URL` because service paths already include `/api/v1`.
 
@@ -147,8 +147,8 @@ same-browser concurrent-refresh grace period, and treats later replay as comprom
     count, ETA, and branch-open state. The customer selects a queue before payment or order creation.
     The UI distinguishes no configured queues, a paused/closed queue, and a branch outside business
     hours; only the last two are temporary availability states.
-12. Product mutations require the organization-owner capability. Branch managers can read the
-    organization catalog only to maintain product assignments for queues in their branch.
+12. Product definitions and prices require the organization-owner capability. Branch managers can
+    read that catalog, maintain stock for their assigned branch, and select queue assignments.
 
 LINE Login does not send messages. Messaging API does not authenticate the web session. A complete setup needs both capabilities under the intended provider and a consistent LINE user relationship.
 
@@ -166,7 +166,9 @@ copy only this trusted claim into new queue entries; public request bodies canno
 - Frontend resources are split by locale/domain. Locale resolution is user preference, organization default, browser/LIFF, then Japanese; API errors are translated by stable code.
 - LINE copy is split into `ja`, `vi`, and `en` backend templates. The outbox stores the resolved customer locale at enqueue time.
 - Rich Menu management is separate from runtime startup. `rich-menu.definition.ts` owns the Japanese menu actions and LIFF routes, `rich-menu.adapter.ts` owns LINE transport, `rich-menu.sync.service.ts` owns idempotent create/reuse/replace behavior, and `npm run line:rich-menu:sync` performs the explicit synchronization. Uploading Rich Menu images uses LINE's data API host, while create/list/default/delete use the Messaging API host.
-- Payment originates as a server-created intent. Browser return is a UX signal; demo completion and future PSP callbacks are verified server-side before an order can consume the transaction.
+- Payment originates as a server-created intent. Browser return is a UX signal; demo completion,
+  payOS callbacks, and future PSP callbacks are verified server-side before an order can consume
+  the transaction.
 - Branch hours are evaluated in `organization_branches.timezone`; a matching exception date
   overrides weekly hours. Payment intent and order creation independently revalidate the selected
   branch, queue, and queue-product assignments. Branch-manager controls render explicit `00:00`
@@ -193,7 +195,13 @@ Notification delivery uses PostgreSQL row locking with `FOR UPDATE SKIP LOCKED`.
 
 ## 9. Payment architecture
 
-`paymentGateway.ts` defines Japan-oriented method choices for the browser, while `apps/api/src/modules/payments` owns the payment boundary. The API creates `payment_transactions` before checkout, computes payable coverage from server-side product data, and exposes provider adapters through `ExternalPaymentProvider`. `DemoPaymentProvider` returns a server-signed completion token for local/dev auto-success; future Stripe/KOMOJU/PayPay adapters plug into the same intent, return, webhook, and reconciliation flow.
+`paymentGateway.ts` defines locale/currency-compatible method choices for the browser, while
+`apps/api/src/modules/payments` owns the payment boundary. The API creates `payment_transactions`
+before checkout, computes payable coverage from server-side product data, and exposes provider
+adapters through `ExternalPaymentProvider`. `DemoPaymentProvider` returns a server-signed
+completion token for local/dev auto-success. `PayosPaymentProvider` creates VND checkout links and
+QR payloads and verifies signed webhooks; future Japan PSP adapters plug into the same intent,
+return, webhook, and reconciliation flow.
 
 Production target:
 

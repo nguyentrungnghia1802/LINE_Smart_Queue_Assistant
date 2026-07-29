@@ -136,12 +136,17 @@ Per-item state determines prepaid coverage. The order header is `paid` only when
 
 ### Inventory reservation
 
-Finite stock is decremented and a `reserved` reservation is inserted in the same order transaction. Fulfillment transitions it to `consumed` without changing stock. Cancellation or no-show transitions it to `released` and restores stock. The expiry worker transitions due rows to `expired`, restores stock, and cancels the pending order/ticket. Every transition is conditional on `status = 'reserved'` and writes `inventory_reservation_events`, preventing double release or consume.
+Finite stock belongs to a branch. The selected branch inventory is decremented and a branch-scoped
+`reserved` reservation is inserted in the same order transaction. Fulfillment transitions it to
+`consumed` without changing stock. Cancellation or no-show transitions it to `released` and
+restores the same branch stock. The expiry worker transitions due rows to `expired`, restores stock,
+and cancels the pending order/ticket. Every transition is conditional on `status = 'reserved'` and
+writes `inventory_reservation_events`, preventing double release or consume.
 
 Values are `reserved`, `consumed`, `released`, and `expired`. Creation decrements
-`products.stock_quantity` and writes `reserved` in the booking transaction. Completion consumes the
-reservation; cancellation, no-show, and expiry restore stock exactly once through guarded
-reservation transitions.
+`branch_product_inventories.stock_quantity` and writes `reserved` in the booking transaction.
+Completion consumes the reservation; cancellation, no-show, and expiry restore stock exactly once
+through guarded reservation transitions.
 
 ## 3. Customer entry and identity flow
 
@@ -204,7 +209,9 @@ ID-token-to-system-JWT flow without a second customer auth model.
 2. The single booking action validates customer details and opens one checkout flow.
 3. Checkout offers two scopes: `required_items` or `all_items`.
 4. API creates a server-side payment intent and `payment_transactions` row with server-computed coverage.
-5. Demo provider completes with a server-signed token; future external providers redirect to PSP checkout and return via signed webhook/server verification.
+5. Demo provider completes with a server-signed token. payOS creates a VND checkout/QR and becomes
+   paid only through its signed webhook or server-side verification; future Japan providers follow
+   the same boundary.
 6. Browser returns to the booking page with its session draft preserved and only the verified `transactionId` stored locally.
 7. The booking page consumes the payment continuation once and automatically creates the order;
    no second booking-button click is required.

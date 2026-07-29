@@ -22,6 +22,11 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 16. `000016_branch_scoped_multi_queue.js`
 17. `000017_order_fulfillment_and_scope.js`
 18. `000018_system_workflow_hardening.js`
+19. `000019_application_review_emails.js`
+20. `000020_organization_product_catalog.js`
+21. `000021_role_aware_auth_sessions.js`
+22. `000022_branch_product_inventory.js`
+23. `000023_branch_map_place.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -33,6 +38,7 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
       |                          |---* organization_branches 1---* branch_memberships ---+
       |                                      |---* branch_business_hours
       |                                      |---* branch_exception_days
+      |                                      |---* branch_product_inventories *---1 products
       |                                      |---* products *---* queues (through queue_products)
       |                                      \---* queues 1---* queue_entries ----------+
       |                    | 0..1
@@ -61,7 +67,7 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 | `organization_exception_days` | Holidays and exceptional opening/closure dates                               | Unique tenant/date; closed/open time consistency                            |
 | `users`                       | Platform identity, role, password/profile, preferred locale                  | Globally unique normalized optional email; nullable locale; active flag     |
 | `organization_members`        | Tenant manager/staff authorization                                           | Unique organization/user pair; cascading tenant/user delete                 |
-| `organization_branches`       | Physical branch, stable QR, address, timezone, payment acceptance, lifecycle | Unique branch QR and organization/code; soft active flag                    |
+| `organization_branches`       | Physical branch, stable QR, address/map place, timezone, payment acceptance  | Unique branch QR and organization/code; soft active flag                    |
 | `branch_memberships`          | Manager/staff branch assignment                                              | Branch/member FK; one active branch for a manager                           |
 | `branch_business_hours`       | Weekly branch-local opening schedule                                         | Unique branch/weekday; closed/open time consistency                         |
 | `branch_exception_days`       | Branch holidays and exceptional opening/closure dates                        | Unique branch/date; overrides weekly schedule                               |
@@ -76,7 +82,8 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 
 | Table                               | Key purpose                               | Important constraints                                                                      |
 | ----------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `products`                          | Organization product/service catalog      | Organization FK; unique `SPn`/`DVn` code; nonnegative price/stock; service stock is `NULL` |
+| `products`                          | Organization product/service catalog      | Organization FK; unique `SPn`/`DVn` code; catalog pricing and service metadata             |
+| `branch_product_inventories`        | Branch-specific finite/unlimited stock    | Unique branch/product; service-enforced tenant scope; nullable/nonnegative stock/threshold |
 | `queues`                            | Named branch queue and daily counter      | Organization/branch FK; unique active branch/name; capacity/time checks                    |
 | `queue_products`                    | Queue-specific branch catalog assignment  | Queue branch scope plus organization product FK; unique mapping and active display order   |
 | `booking_groups`                    | Associate current and historical bookings | Tenant/customer/device keys; active/completed/cancelled check                              |
@@ -84,7 +91,7 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 | `order_items`                       | Price/name/duration/payment snapshots     | Positive quantity, nonnegative subtotal/prepaid amount                                     |
 | `payment_transactions`              | Provider intent/state/reconciliation      | Tenant/order, amount/currency, provider intent/external-ID indexes                         |
 | `payment_webhook_events`            | Idempotent provider callback log          | Unique provider/event ID; replay-safe status                                               |
-| `inventory_reservations`            | Finite stock allocation                   | Positive quantity; reserved/consumed/released/expired check                                |
+| `inventory_reservations`            | Branch-scoped finite stock allocation     | Branch/product/order FKs; positive quantity; reserved/consumed/released/expired check      |
 | `payment_reconciliation_operations` | Audited payment decisions                 | Unique idempotency key; tenant, transaction, order, actor and amount references            |
 | `queue_entries`                     | Ticket lifecycle and ETA fields           | Unique queue/ticket number and code; active-user/LINE indexes                              |
 
@@ -128,7 +135,9 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
   multiple platform roles.
 - Application approval requires `payment_status = 'paid'`; reviewed state requires reviewer/time,
   and approval creates a single-use owner activation action instead of accepting an applicant password.
-- Product stock cannot be negative; services cannot carry finite stock.
+- Branch product stock cannot be negative. `NULL` remains unlimited, including services.
+- A branch inventory row is unique for each `(branch_id, product_id)` and is created when an
+  organization product is assigned to a queue in that branch.
 - Active queue names are unique within a branch. A branch may have zero queues during initial setup
   or operational reconfiguration.
 - A non-owner manager can have only one active branch membership. The organization owner may retain
@@ -160,8 +169,8 @@ One explicit PostgreSQL transaction creates/updates:
 5. optional verified payment transaction link;
 6. optional location and pending alert;
 7. order items;
-8. finite stock decrement and reservation; an extension atomically increments the existing
-   `(order_id, product_id)` reservation.
+8. selected-branch finite stock decrement and reservation; an extension atomically increments the
+   existing `(order_id, branch_id, product_id)` reservation.
 
 An insufficient-stock update affects zero rows, raises a conflict, and rolls back all writes.
 
@@ -230,6 +239,13 @@ Migration `000021_role_aware_auth_sessions` is additive and does not require res
 only the session table and indexes; existing tenant, user, catalog, queue, order, and payment rows
 remain intact. Existing production access tokens without a session-family claim intentionally stop
 working after deployment, so signed-in users authenticate once to establish a revocable session.
+
+Migrations `000022_branch_product_inventory` and `000023_branch_map_place` are additive production
+upgrades. `000022` backfills branch inventory from queue assignments and legacy catalog stock,
+backfills reservation branches from linked orders, preserves unattributable legacy orphan rows,
+and applies a not-valid check that requires a branch on every new reservation. `000023` stores the
+selected Google place identifier and formatted map address on a branch. Neither migration requires
+reseeding or resetting tenant data.
 
 ## 10. Seed baseline
 

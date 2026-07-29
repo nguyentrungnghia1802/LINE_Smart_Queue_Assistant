@@ -73,16 +73,16 @@ role and does not use branch-operation endpoints.
 
 ### Catalog and inventory
 
-| ID         | Requirement                                                                                                       | Status                                  |
-| ---------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| FR-CAT-001 | Organization owner creates, edits, and deactivates the shared organization product/service catalog                | Implemented                             |
-| FR-CAT-002 | Catalog stores translatable name/description, image, type, JPY price, duration, prepayment requirement, and stock | Implemented                             |
-| FR-CAT-003 | `NULL` stock means unlimited; zero stock is unavailable                                                           | Implemented                             |
-| FR-CAT-004 | Customer cannot choose inactive/out-of-stock products or quantity above stock                                     | Implemented in UI and transaction guard |
-| FR-CAT-005 | Finite stock is changed atomically when the order succeeds                                                        | Implemented                             |
-| FR-CAT-006 | Cancellation/expiry restores or releases finite stock exactly once                                                | Implemented                             |
-| FR-CAT-007 | Branch managers select organization-catalog products for each assigned-branch queue                               | Implemented                             |
-| FR-CAT-008 | Product/service codes are unique per organization and generated as `SPn`/`DVn`                                    | Implemented                             |
+| ID         | Requirement                                                                                            | Status                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------- |
+| FR-CAT-001 | Organization owner creates, edits, and deactivates the shared organization product/service catalog     | Implemented                             |
+| FR-CAT-002 | Catalog stores translatable name/description, image, type, price, duration, and prepayment requirement | Implemented                             |
+| FR-CAT-003 | Each branch stores nullable stock and a low-stock threshold; `NULL` means unlimited                    | Implemented                             |
+| FR-CAT-004 | Customer cannot choose inactive/out-of-stock products or quantity above selected-branch stock          | Implemented in UI and transaction guard |
+| FR-CAT-005 | Selected-branch finite stock is changed atomically when the order succeeds                             | Implemented                             |
+| FR-CAT-006 | Cancellation/expiry restores finite stock to the same branch exactly once                              | Implemented                             |
+| FR-CAT-007 | Branch managers select organization-catalog products for each assigned-branch queue                    | Implemented                             |
+| FR-CAT-008 | Product/service codes are unique per organization and generated as `SPn`/`DVn`                         | Implemented                             |
 
 ### Booking, ordering, and payment
 
@@ -101,8 +101,8 @@ role and does not use branch-operation endpoints.
 | FR-BOOK-011 | Customer product cards expose a full localized detail view before quantity selection                                              | Implemented                                             |
 | FR-BOOK-012 | LIFF Home uses LINE `scanCodeV2` first, validates the decoded branch route, and retains a browser-camera fallback                 | Implemented                                             |
 | FR-PAY-001  | Demo mode completes automatically without paid third-party services                                                               | Implemented                                             |
-| FR-PAY-002  | Production provider creates a server-side payment intent and redirects securely                                                   | Foundation implemented; real PSP pending                |
-| FR-PAY-003  | Webhook verification is authoritative for paid/refunded/failed status                                                             | Implemented for demo framework; real PSP pending        |
+| FR-PAY-002  | Production provider creates a server-side payment intent and redirects securely                                                   | payOS VND adapter implemented; credentials/E2E pending  |
+| FR-PAY-003  | Webhook verification is authoritative for paid/refunded/failed status                                                             | Implemented for demo and signed payOS callbacks         |
 | FR-PAY-004  | Staff records final payment and prints a scoped receipt with subtotal, prepaid amount, balance, operator, branch, queue, and time | Implemented                                             |
 | FR-PAY-005  | Cancelling a paid order/ticket automatically refunds every collected transaction                                                  | Implemented for demo/manual providers; real PSP pending |
 
@@ -143,16 +143,16 @@ role and does not use branch-operation endpoints.
 
 ### Location, prediction, and analytics
 
-| ID         | Requirement                                                                                | Status                                  |
-| ---------- | ------------------------------------------------------------------------------------------ | --------------------------------------- |
-| FR-LOC-001 | With consent, capture customer and organization coordinates and calculate distance         | Partial                                 |
-| FR-LOC-002 | Warn a distant customer shortly before their turn through LINE                             | Planned; pending alerts are stored only |
-| FR-AI-001  | Estimate wait from queue position/workload and configured service time                     | Implemented heuristic                   |
-| FR-AI-002  | Persist forecast history with confidence/model metadata                                    | Implemented as measured heuristic       |
-| FR-AI-003  | Analyze historical load and recommend staff by weekday/hour                                | Schema only                             |
-| FR-AN-001  | Branch manager sees assigned-branch revenue trend, top-three catalog items, and top staff  | Implemented                             |
-| FR-AN-003  | Owner manager sees organization aggregates and per-branch revenue/cancellation performance | Implemented                             |
-| FR-AN-002  | Admin sees plan adoption and platform subscription revenue without tenant customer revenue | Implemented                             |
+| ID         | Requirement                                                                                | Status                                      |
+| ---------- | ------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| FR-LOC-001 | With consent, capture active-ticket customer coordinates and calculate walking travel time | Implemented; Google credentials/E2E pending |
+| FR-LOC-002 | Warn when longest walking route plus eight minutes exceeds the current queue ETA           | Implemented through durable LINE delivery   |
+| FR-AI-001  | Estimate wait from queue position/workload and configured service time                     | Implemented heuristic                       |
+| FR-AI-002  | Persist forecast history with confidence/model metadata                                    | Implemented as measured heuristic           |
+| FR-AI-003  | Analyze historical load and recommend staff by weekday/hour                                | Schema only                                 |
+| FR-AN-001  | Branch manager sees assigned-branch revenue trend, top-three catalog items, and top staff  | Implemented                                 |
+| FR-AN-003  | Owner manager sees organization aggregates and per-branch revenue/cancellation performance | Implemented                                 |
+| FR-AN-002  | Admin sees plan adoption and platform subscription revenue without tenant customer revenue | Implemented                                 |
 
 ## 4. Business rules
 
@@ -181,8 +181,8 @@ role and does not use branch-operation endpoints.
 | BR-ORDER-003    | The same verified LINE customer has one active order/ticket per queue; additional items extend it without consuming queue capacity or another ticket number. |
 | BR-ORDER-004    | Different queues and terminal historical orders remain separate; completed/cancelled/no-show records are excluded from active Staff and customer summaries.  |
 | BR-ORDER-005    | Receipt scope and fulfillment identity are stored as immutable order snapshots.                                                                              |
-| BR-STOCK-001    | `stock_quantity IS NULL` is unlimited; finite stock cannot become negative.                                                                                  |
-| BR-STOCK-002    | A finite item is unavailable when requested quantity exceeds stock.                                                                                          |
+| BR-STOCK-001    | Branch inventory `stock_quantity IS NULL` is unlimited; finite branch stock cannot become negative.                                                          |
+| BR-STOCK-002    | A finite item is unavailable when requested quantity exceeds stock in the selected branch.                                                                   |
 | BR-PAY-001      | Every selected `requires_prepayment` product ID must be in the paid coverage set before booking.                                                             |
 | BR-PAY-002      | Order is `paid` only when all selected items are covered; required-only payment leaves the order `unpaid`.                                                   |
 | BR-PAY-003      | Payment success comes from verified provider callback or server-side provider verification, never a browser flag.                                            |

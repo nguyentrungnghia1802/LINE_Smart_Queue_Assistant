@@ -187,6 +187,8 @@ export const customer = {
     requiredTotal: 'Phần bắt buộc trả trước',
     processing: 'Đang xử lý...',
     failed: 'Thanh toán thất bại. Vui lòng thử lại.',
+    pending: 'Chưa xác nhận được giao dịch. Vui lòng hoàn tất chuyển khoản rồi thử lại.',
+    providerUnavailable: 'Chưa cấu hình nhà cung cấp thanh toán thật cho loại tiền này.',
     organizationPrepayment: 'Xử lý khoản trả trước cho {{name}}.',
     requiredOnly: 'Chỉ phần bắt buộc',
     fullAmount: 'Thanh toán toàn bộ',
@@ -201,6 +203,10 @@ export const customer = {
     appHint:
       'Màn hình mô phỏng chuyển sang ứng dụng bên ngoài. Bản demo hoàn tất thanh toán tại đây.',
     methods: {
+      vietqr: {
+        label: 'Chuyển khoản VietQR',
+        description: 'Quét QR ngân hàng qua payOS, hệ thống tự động xác nhận giao dịch.',
+      },
       creditCard: { label: 'Thẻ tín dụng', description: 'Sẵn sàng kết nối Stripe / KOMOJU' },
       paypay: { label: 'PayPay', description: 'Sẵn sàng kết nối liên kết thanh toán PayPay' },
       rakuten: { label: 'Rakuten Pay', description: 'Sẵn sàng kết nối Rakuten Pay' },

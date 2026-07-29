@@ -13,11 +13,7 @@ async function login(page: Page, email: string) {
   await page.getByLabel('メール').fill(email);
   await page.getByRole('textbox', { name: 'パスワード' }).fill('123456');
   await page.getByRole('button', { name: 'ログイン', exact: true }).click();
-  await expect.poll(() => token(page)).not.toBeNull();
-}
-
-async function token(page: Page) {
-  return page.evaluate(() => localStorage.getItem('auth_token'));
+  await expect(page).not.toHaveURL(/\/login$/);
 }
 
 test('staff transitions a ticket and the durable mock outbox remains observable', async ({
@@ -33,8 +29,12 @@ test('staff transitions a ticket and the durable mock outbox remains observable'
   await page.getByRole('button', { name: '対応開始' }).click();
   await expect(page.getByText('対応中').first()).toBeVisible();
 
-  const staffToken = await token(page);
-  expect(staffToken).toBeTruthy();
+  const staffLogin = await page.request.post(apiUrl('/api/v1/auth/login'), {
+    data: { email: 'staff@gmail.com', password: '123456' },
+  });
+  expect(staffLogin.ok()).toBeTruthy();
+  const staffBody = (await staffLogin.json()) as { data: { token: string } };
+  const staffToken = staffBody.data.token;
   const seededServing = await page.request.post(
     apiUrl('/api/v1/staff/entries/66666666-6666-4666-8666-666666666503/serve'),
     { headers: { Authorization: `Bearer ${staffToken}` } }

@@ -125,6 +125,11 @@ export const config = {
       process.env.DEMO_PAYMENT_WEBHOOK_SECRET ?? process.env.JWT_SECRET ?? 'demo-payment-secret',
     externalRedirectBaseUrl: process.env.PAYMENT_EXTERNAL_REDIRECT_BASE_URL ?? '',
     maxWebhookAgeSeconds: Number.parseInt(process.env.PAYMENT_WEBHOOK_MAX_AGE_SECONDS ?? '300', 10),
+    payos: {
+      clientId: process.env.PAYOS_CLIENT_ID ?? '',
+      apiKey: process.env.PAYOS_API_KEY ?? '',
+      checksumKey: process.env.PAYOS_CHECKSUM_KEY ?? '',
+    },
   },
 
   inventory: {
@@ -140,6 +145,9 @@ export const config = {
   },
 
   location: {
+    travelProvider: (process.env.LOCATION_TRAVEL_PROVIDER ?? 'mock') as 'mock' | 'google_routes',
+    googleRoutesApiKey: process.env.GOOGLE_ROUTES_API_KEY ?? '',
+    travelBufferMinutes: positiveInteger('LOCATION_TRAVEL_BUFFER_MINUTES', 8),
     retentionDays: Number.parseInt(process.env.LOCATION_RETENTION_DAYS ?? '30', 10),
     alertBatchSize: Number.parseInt(process.env.LOCATION_ALERT_BATCH_SIZE ?? '50', 10),
     maxAttempts: Number.parseInt(process.env.LOCATION_ALERT_MAX_ATTEMPTS ?? '5', 10),

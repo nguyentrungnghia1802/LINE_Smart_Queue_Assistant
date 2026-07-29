@@ -73,7 +73,8 @@ export const enLineNotificationCopy: LineNotificationCopy = {
     location_warning: {
       headline: 'Check your distance from the store',
       status: 'Return reminder',
-      guidance: 'Your turn is approaching. Please allow enough time to return.',
+      guidance:
+        'You are farther from the store than the estimated wait allows. Please return now to arrive in time.',
       accentColor: '#0F766E',
     },
   },

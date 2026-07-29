@@ -6,6 +6,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { formatCurrency } from '../../i18n/format';
 import { get } from '../../services/apiClient';
+import { formatAddress } from '../../utils/address';
 
 interface Branch {
   id: string;
@@ -90,10 +91,16 @@ export function ManagerBranchDetailPage() {
         </Link>
         <h1 className="mt-3 text-3xl font-bold text-gray-950">{branch.name}</h1>
         <p className="mt-2 text-sm text-gray-500">
-          〒{branch.postal_code} {branch.prefecture}
-          {branch.city}
-          {branch.address_line1}
-          {branch.address_line2 ?? ''}
+          {formatAddress(
+            {
+              postalCode: branch.postal_code,
+              prefecture: branch.prefecture,
+              city: branch.city,
+              addressLine1: branch.address_line1,
+              addressLine2: branch.address_line2,
+            },
+            i18n.resolvedLanguage
+          )}
         </p>
       </header>
 

@@ -14,6 +14,7 @@ import { validate } from '../../middlewares/validate.middleware';
 import {
   cancelOrder,
   createOrder,
+  createOrderPaymentQr,
   getOrder,
   getOrderReceipt,
   getOrderStats,
@@ -52,6 +53,13 @@ ordersRouter.get(
   getOrderReceipt
 );
 ordersRouter.get('/:id', requireAuth, requireRole(UserRole.STAFF, UserRole.MANAGER), getOrder);
+ordersRouter.post(
+  '/:id/payment-qr',
+  requireAuth,
+  requireRole(UserRole.STAFF, UserRole.MANAGER),
+  authenticatedActionRateLimiter,
+  createOrderPaymentQr
+);
 ordersRouter.patch(
   '/:id/status',
   requireAuth,

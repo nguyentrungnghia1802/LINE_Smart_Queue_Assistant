@@ -284,6 +284,8 @@ CREATE TABLE organization_branches (
   address_line2 TEXT,
   latitude NUMERIC(9,6),
   longitude NUMERIC(9,6),
+  google_place_id TEXT,
+  formatted_map_address TEXT,
   timezone TEXT NOT NULL DEFAULT 'Asia/Tokyo',
   payment_settings JSONB NOT NULL DEFAULT '{}',
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -300,6 +302,7 @@ CREATE TABLE organization_branches (
   CHECK ((latitude IS NULL) = (longitude IS NULL))
 );
 CREATE TRIGGER trg_organization_branches_updated_at BEFORE UPDATE ON organization_branches FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE INDEX idx_organization_branches_google_place ON organization_branches(google_place_id) WHERE google_place_id IS NOT NULL;
 
 CREATE TABLE branch_business_hours (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -595,6 +598,22 @@ CREATE TABLE queue_products (
 CREATE INDEX idx_queue_products_queue_active ON queue_products(queue_id, display_order, product_id) WHERE is_active = TRUE;
 CREATE TRIGGER trg_queue_products_updated_at BEFORE UPDATE ON queue_products FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+CREATE TABLE branch_product_inventories (
+  branch_id UUID NOT NULL REFERENCES organization_branches(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  stock_quantity INT,
+  low_stock_threshold INT NOT NULL DEFAULT 10 CHECK (low_stock_threshold >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (branch_id, product_id),
+  CONSTRAINT branch_product_inventories_stock_non_negative CHECK (stock_quantity IS NULL OR stock_quantity >= 0)
+);
+CREATE INDEX idx_branch_product_inventories_low_stock
+  ON branch_product_inventories(branch_id, stock_quantity) WHERE stock_quantity IS NOT NULL;
+CREATE TRIGGER trg_branch_product_inventories_updated_at
+  BEFORE UPDATE ON branch_product_inventories FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 CREATE TABLE queue_translations (
   queue_id UUID NOT NULL REFERENCES queues(id) ON DELETE CASCADE,
   locale TEXT NOT NULL CHECK (locale IN ('ja','vi','en')),
@@ -750,6 +769,7 @@ CREATE TABLE order_items (
 CREATE TABLE inventory_reservations (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id  UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  branch_id        UUID NOT NULL REFERENCES organization_branches(id) ON DELETE RESTRICT,
   order_id         UUID REFERENCES orders(id) ON DELETE CASCADE,
   product_id       UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
   quantity         INT NOT NULL,
@@ -1044,6 +1064,8 @@ CREATE INDEX idx_order_items_payment_status ON order_items(order_id, payment_sta
 CREATE INDEX idx_inventory_reservations_product_active ON inventory_reservations(product_id, status)
   WHERE status = 'reserved';
 CREATE INDEX idx_inventory_reservations_order ON inventory_reservations(order_id) WHERE order_id IS NOT NULL;
+CREATE INDEX idx_inventory_reservations_branch_product_active
+  ON inventory_reservations(branch_id, product_id, status);
 
 CREATE INDEX idx_qe_queue_status_ticket ON queue_entries(queue_id, status, priority DESC, ticket_number ASC);
 CREATE INDEX idx_qe_queue_waiting ON queue_entries(queue_id, priority DESC, ticket_number ASC)

@@ -24,6 +24,22 @@ export interface DueLocationAlertRow {
   ticket_code: string;
   estimated_wait_seconds: number | null;
   ahead_count: number;
+  customer_latitude: string;
+  customer_longitude: string;
+  branch_latitude: string;
+  branch_longitude: string;
+}
+
+export interface ActiveLocationTargetRow {
+  queue_entry_id: string;
+  organization_id: string;
+  branch_latitude: string;
+  branch_longitude: string;
+  queue_id: string;
+  ticket_number: number;
+  ticket_code: string;
+  notify_ahead_positions: number;
+  avg_service_seconds: number;
 }
 
 export const locationRepository = {
@@ -59,6 +75,26 @@ export const locationRepository = {
       [userId]
     );
     return rows[0]?.enabled === true;
+  },
+
+  async findActiveTargets(userId: string, client: PoolClient): Promise<ActiveLocationTargetRow[]> {
+    const { rows } = await client.query<ActiveLocationTargetRow>(
+      `SELECT qe.id AS queue_entry_id, qe.organization_id,
+              branch.latitude::TEXT AS branch_latitude,
+              branch.longitude::TEXT AS branch_longitude,
+              q.id AS queue_id, qe.ticket_number, qe.ticket_code,
+              q.notify_ahead_positions, q.avg_service_seconds
+       FROM queue_entries qe
+       JOIN queues q ON q.id = qe.queue_id
+       JOIN organization_branches branch ON branch.id = q.branch_id
+       WHERE qe.user_id = $1
+         AND qe.status IN ('waiting', 'called', 'serving')
+         AND branch.latitude IS NOT NULL
+         AND branch.longitude IS NOT NULL
+       ORDER BY qe.created_at DESC`,
+      [userId]
+    );
+    return rows;
   },
 
   async revokeAndDelete(userId: string): Promise<number> {
@@ -104,6 +140,10 @@ export const locationRepository = {
       `SELECT la.id, la.organization_id, la.queue_entry_id, la.event_key,
               la.distance_to_org_meters, la.threshold_meters, la.attempt_count,
               qe.line_user_id, qe.user_id, qe.ticket_code, qe.estimated_wait_seconds,
+              cl.latitude::TEXT AS customer_latitude,
+              cl.longitude::TEXT AS customer_longitude,
+              branch.latitude::TEXT AS branch_latitude,
+              branch.longitude::TEXT AS branch_longitude,
               (SELECT COUNT(*)::int FROM queue_entries ahead
                WHERE ahead.queue_id = qe.queue_id AND ahead.status = 'waiting'
                  AND (ahead.priority > qe.priority OR
@@ -111,17 +151,19 @@ export const locationRepository = {
        FROM location_alerts la
        JOIN queue_entries qe ON qe.id = la.queue_entry_id
        JOIN customer_location_consents c ON c.user_id = qe.user_id AND c.enabled = TRUE
+       JOIN customer_locations cl ON cl.id = la.customer_location_id
        JOIN queues q ON q.id = qe.queue_id
+       JOIN organization_branches branch ON branch.id = q.branch_id
        WHERE la.status = 'pending'
          AND COALESCE(la.next_retry_at, la.due_at, la.created_at) <= NOW()
          AND qe.status = 'waiting'
          AND qe.line_user_id IS NOT NULL
          AND qe.user_id IS NOT NULL
-         AND (SELECT COUNT(*) FROM queue_entries ahead
-              WHERE ahead.queue_id = qe.queue_id AND ahead.status = 'waiting'
-                AND (ahead.priority > qe.priority OR
-                     (ahead.priority = qe.priority AND ahead.ticket_number < qe.ticket_number)))
-             <= q.notify_ahead_positions
+         AND cl.deleted_at IS NULL
+         AND cl.latitude IS NOT NULL
+         AND cl.longitude IS NOT NULL
+         AND branch.latitude IS NOT NULL
+         AND branch.longitude IS NOT NULL
        ORDER BY COALESCE(la.next_retry_at, la.due_at, la.created_at)
        LIMIT $1
        FOR UPDATE OF la SKIP LOCKED`,

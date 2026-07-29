@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
 
+import { UserRole } from '@line-queue/shared';
+
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
@@ -24,4 +26,12 @@ export const updateLocationConsent = asyncHandler(async (req: Request, res: Resp
 export const deleteLocationData = asyncHandler(async (req: Request, res: Response) => {
   const deletedSnapshots = await locationService.revokeAndDelete(userId(req));
   sendSuccess(res, { deletedSnapshots });
+});
+
+export const saveRealtimeLocation = asyncHandler(async (req: Request, res: Response) => {
+  if (req.user?.role !== UserRole.CUSTOMER || !req.user.lineUserId) {
+    throw AppError.forbidden('Verified LINE customer account is required');
+  }
+  const result = await locationService.saveRealtimeSnapshot(req.user.id, req.body);
+  sendSuccess(res, result);
 });

@@ -5,7 +5,7 @@ import { productsRepository } from '../../db/repositories/products.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
 
-import { CreateProductDto, UpdateProductDto } from './products.validator';
+import { CreateProductDto, UpdateBranchStockDto, UpdateProductDto } from './products.validator';
 
 interface AuditContext {
   actorUserId: string;
@@ -24,6 +24,47 @@ export const productsService = {
 
   async getByBranch(branchId: string, locale: SupportedLocale = 'ja') {
     return productsRepository.findByBranch(branchId, locale);
+  },
+
+  async getCatalogByBranch(branchId: string, locale: SupportedLocale = 'ja') {
+    return productsRepository.findCatalogByBranch(branchId, locale);
+  },
+
+  async updateBranchStock(
+    id: string,
+    organizationId: string,
+    branchId: string,
+    dto: UpdateBranchStockDto,
+    audit: AuditContext
+  ) {
+    const product = await productsRepository.findById(id);
+    if (!product || product.organization_id !== organizationId) {
+      throw AppError.notFound('Product not found');
+    }
+    const updated = await productsRepository.updateBranchStock(
+      branchId,
+      id,
+      organizationId,
+      product.product_type === 'service' ? null : dto.stockQuantity,
+      dto.lowStockThreshold
+    );
+    if (!updated) throw AppError.notFound('Product not found');
+    await auditLogRepository.create({
+      actorId: audit.actorUserId,
+      actorType: 'user',
+      action: 'branch_inventory.update',
+      resourceType: 'branch_product_inventory',
+      resourceId: id,
+      organizationId,
+      changes: {
+        branchId,
+        stockQuantity: updated.stock_quantity,
+        lowStockThreshold: updated.low_stock_threshold,
+      },
+      ipAddress: audit.ipAddress,
+      userAgent: audit.userAgent,
+    });
+    return updated;
   },
 
   async getById(id: string) {
@@ -45,7 +86,6 @@ export const productsService = {
           serviceTimeMinutes: dto.serviceTimeMinutes,
           maxWaitMinutes: dto.maxWaitMinutes,
           requiresPrepayment: dto.requiresPrepayment,
-          stockQuantity: dto.stockQuantity,
           productType: dto.productType,
         },
         client
@@ -84,21 +124,12 @@ export const productsService = {
       });
     }
     const nextProductType = dto.productType ?? product.product_type;
-    if (nextProductType === 'service' && dto.stockQuantity !== undefined) {
-      throw AppError.unprocessable('Services must use unlimited stock', {
-        fieldErrors: { stockQuantity: ['Services must use unlimited stock'] },
-      });
-    }
-    const normalizedDto = {
-      ...dto,
-      ...(nextProductType === 'service' ? { stockQuantity: null } : {}),
-    };
     const updated = await withTransaction(async (client) => {
       if (nextProductType !== product.product_type) {
         await productsRepository.lockCatalogNumbering(organizationId, client);
         await productsRepository.assignNextCodeForType(id, organizationId, nextProductType, client);
       }
-      const result = await productsRepository.update(id, normalizedDto, client);
+      const result = await productsRepository.update(id, dto, client);
       if (!result) throw AppError.notFound('Product not found');
       return result;
     });

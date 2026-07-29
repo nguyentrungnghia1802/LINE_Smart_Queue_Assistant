@@ -6,6 +6,7 @@ import { LiffRuntimeProvider } from '../../contexts/LiffRuntimeContext';
 import { useLiff } from '../../hooks/useLiff';
 import { BrandLogo } from '../BrandLogo';
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
+import { ActiveLocationTracker } from '../liff/ActiveLocationTracker';
 import { LineFriendshipPrompt } from '../liff/LineFriendshipPrompt';
 import { QrScannerButton } from '../liff/QrScannerButton';
 import { ErrorState } from '../ui/ErrorState';
@@ -74,6 +75,7 @@ export function LiffLayout() {
   return (
     <LiffRuntimeProvider value={liff}>
       <div className="min-h-dvh flex flex-col bg-gray-50">
+        <ActiveLocationTracker />
         {topHeader}
 
         {/* ── Page content (scrollable) ── */}

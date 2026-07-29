@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { formatCurrency } from '../../i18n/format';
-import { del, get } from '../../services/apiClient';
+import { del, get, patch } from '../../services/apiClient';
+import { useAuthStore } from '../../store/authStore';
 
 interface ProductRow {
   id: string;
@@ -16,6 +18,7 @@ interface ProductRow {
   max_wait_minutes: number | null;
   requires_prepayment: boolean;
   stock_quantity: number | null;
+  low_stock_threshold?: number;
   product_type: 'product' | 'service';
   is_active: boolean;
 }
@@ -25,6 +28,10 @@ export function ManagerProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const isOwner = user?.isOrganizationOwner === true;
+  const [stockQuantity, setStockQuantity] = useState('');
+  const [lowStockThreshold, setLowStockThreshold] = useState('10');
 
   const { data: product, isLoading } = useQuery<ProductRow>({
     queryKey: ['product', id],
@@ -39,6 +46,26 @@ export function ManagerProductDetailPage() {
       navigate('/manager/products');
     },
   });
+  const stockMutation = useMutation({
+    mutationFn: () =>
+      patch(`/api/v1/products/${id}/branch-stock`, {
+        stockQuantity:
+          product?.product_type === 'service' || stockQuantity === ''
+            ? null
+            : Number(stockQuantity),
+        lowStockThreshold: Number(lowStockThreshold),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['product', id] });
+      void queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+
+  useEffect(() => {
+    if (!product || isOwner) return;
+    setStockQuantity(product.stock_quantity === null ? '' : String(product.stock_quantity));
+    setLowStockThreshold(String(product.low_stock_threshold ?? 10));
+  }, [isOwner, product]);
 
   if (isLoading || !product)
     return <div className="text-gray-400 text-sm">{t('states.loading', { ns: 'common' })}</div>;
@@ -55,14 +82,14 @@ export function ManagerProductDetailPage() {
           </Link>
           <h1 className="mt-2 text-3xl font-bold text-gray-950">{product.name}</h1>
         </div>
-        <div className="flex gap-2">
+        {isOwner && (
           <Link
             to={`/manager/products/${id}/edit`}
             className="rounded-xl bg-gray-950 px-4 py-2 text-sm font-bold text-white hover:bg-gray-800"
           >
             {t('actions.edit', { ns: 'common' })}
           </Link>
-        </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
@@ -104,12 +131,16 @@ export function ManagerProductDetailPage() {
                   t('products.prepayment'),
                   product.requires_prepayment ? t('products.yes') : t('products.no'),
                 ],
-                [
-                  t('products.stock'),
-                  product.stock_quantity !== null
-                    ? String(product.stock_quantity)
-                    : t('units.unlimited', { ns: 'common' }),
-                ],
+                ...(!isOwner
+                  ? [
+                      [
+                        t('products.stock'),
+                        product.stock_quantity !== null
+                          ? String(product.stock_quantity)
+                          : t('units.unlimited', { ns: 'common' }),
+                      ],
+                    ]
+                  : []),
                 [
                   t('labels.status', { ns: 'common' }),
                   product.is_active ? t('products.enabled') : t('products.hidden'),
@@ -127,17 +158,61 @@ export function ManagerProductDetailPage() {
               {product.description}
             </p>
           )}
-
-          <div className="flex gap-3 pt-4">
-            <button
-              onClick={() => {
-                if (confirm(t('products.deleteConfirm'))) deleteMutation.mutate();
+          {!isOwner && (
+            <form
+              className="grid gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                stockMutation.mutate();
               }}
-              className="rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100"
             >
-              {t('actions.delete', { ns: 'common' })}
-            </button>
-          </div>
+              <label className="text-sm font-medium text-gray-700">
+                {t('products.stock')}
+                <input
+                  type="number"
+                  min="0"
+                  value={stockQuantity}
+                  onChange={(event) => setStockQuantity(event.target.value)}
+                  placeholder={
+                    product.stock_quantity === null ? '∞' : String(product.stock_quantity)
+                  }
+                  disabled={product.product_type === 'service'}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </label>
+              <label className="text-sm font-medium text-gray-700">
+                {t('products.lowStockThreshold')}
+                <input
+                  type="number"
+                  min="0"
+                  value={lowStockThreshold}
+                  onChange={(event) => setLowStockThreshold(event.target.value)}
+                  placeholder={String(product.low_stock_threshold ?? 10)}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={stockMutation.isPending}
+                className="rounded-lg bg-gray-950 px-4 py-2 text-sm font-bold text-white sm:col-span-2"
+              >
+                {t('products.saveBranchStock')}
+              </button>
+            </form>
+          )}
+
+          {isOwner && (
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={() => {
+                  if (confirm(t('products.deleteConfirm'))) deleteMutation.mutate();
+                }}
+                className="rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100"
+              >
+                {t('actions.delete', { ns: 'common' })}
+              </button>
+            </div>
+          )}
         </section>
       </div>
     </div>

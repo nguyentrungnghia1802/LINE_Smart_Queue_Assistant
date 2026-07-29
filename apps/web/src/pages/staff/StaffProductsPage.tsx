@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -25,6 +25,7 @@ export function StaffProductsPage() {
   const { user } = useAuthStore();
   const orgId = user?.organizationId;
   const [search, setSearch] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ['products-staff', orgId],
@@ -73,9 +74,11 @@ export function StaffProductsPage() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
         {visibleProducts.map((p) => (
-          <div
+          <button
+            type="button"
             key={p.id}
-            className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+            onClick={() => setSelectedProduct(p)}
+            className="overflow-hidden rounded-lg border border-gray-200 bg-white text-left shadow-sm transition hover:border-brand-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             {p.image_url ? (
               <img src={p.image_url} alt={p.name} className="aspect-square w-full object-cover" />
@@ -109,9 +112,89 @@ export function StaffProductsPage() {
                 </p>
               )}
             </div>
-          </div>
+          </button>
         ))}
       </div>
+
+      {selectedProduct && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="staff-product-detail-title"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-950/60 p-4 backdrop-blur-sm"
+        >
+          <article className="relative max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-5 shadow-2xl sm:p-6">
+            <button
+              type="button"
+              onClick={() => setSelectedProduct(null)}
+              aria-label={t('actions.close', { ns: 'common' })}
+              className="absolute right-3 top-3 rounded-full p-2 text-gray-500 hover:bg-gray-100"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+            {selectedProduct.image_url ? (
+              <img
+                src={selectedProduct.image_url}
+                alt={selectedProduct.name}
+                className="aspect-square w-full rounded-lg object-cover"
+              />
+            ) : (
+              <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-gray-100 text-5xl font-bold text-gray-400">
+                {selectedProduct.name.slice(0, 1)}
+              </div>
+            )}
+            <p className="mt-5 font-mono text-xs font-bold text-brand-700">
+              {selectedProduct.product_code}
+            </p>
+            <h2 id="staff-product-detail-title" className="mt-1 pr-10 text-2xl font-bold">
+              {selectedProduct.name}
+            </h2>
+            {selectedProduct.description && (
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-gray-600">
+                {selectedProduct.description}
+              </p>
+            )}
+            <dl className="mt-5 grid gap-3 rounded-lg bg-gray-50 p-4 text-sm sm:grid-cols-2">
+              <ProductDetail
+                label={t('products.price')}
+                value={formatCurrency(Number(selectedProduct.price), i18n.resolvedLanguage ?? 'ja')}
+              />
+              <ProductDetail
+                label={t('products.serviceTime')}
+                value={t('units.minutes', {
+                  ns: 'common',
+                  count: selectedProduct.service_time_minutes,
+                })}
+              />
+              <ProductDetail
+                label={t('products.stock')}
+                value={
+                  selectedProduct.stock_quantity === null
+                    ? t('products.unlimited')
+                    : String(selectedProduct.stock_quantity)
+                }
+              />
+              <ProductDetail
+                label={t('products.paymentRule')}
+                value={
+                  selectedProduct.requires_prepayment
+                    ? t('products.prepaymentRequired')
+                    : t('products.payAtCounter')
+                }
+              />
+            </dl>
+          </article>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductDetail({ label, value }: Readonly<{ label: string; value: string }>) {
+  return (
+    <div>
+      <dt className="text-xs font-semibold uppercase text-gray-400">{label}</dt>
+      <dd className="mt-1 font-bold text-gray-900">{value}</dd>
     </div>
   );
 }

@@ -114,6 +114,24 @@ export const paymentTransactionsRepository = {
     return rows[0] ?? null;
   },
 
+  async findByProviderIntent(
+    provider: string,
+    providerIntentId: string,
+    client?: PoolClient
+  ): Promise<PaymentTransactionRow | null> {
+    const executor = client ?? pool;
+    const { rows } = await executor.query<PaymentTransactionRow>(
+      `SELECT *
+       FROM payment_transactions
+       WHERE provider = $1
+         AND (payment_intent_id = $2 OR external_transaction_id = $2)
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [provider, providerIntentId]
+    );
+    return rows[0] ?? null;
+  },
+
   async findByIdForUpdate(id: string, client: PoolClient): Promise<PaymentTransactionRow | null> {
     const { rows } = await client.query<PaymentTransactionRow>(
       `SELECT * FROM payment_transactions WHERE id = $1 FOR UPDATE`,
@@ -132,6 +150,19 @@ export const paymentTransactionsRepository = {
        ORDER BY created_at DESC
        LIMIT 1
        FOR UPDATE`,
+      [orderId]
+    );
+    return rows[0] ?? null;
+  },
+
+  async findLatestPendingByOrder(orderId: string): Promise<PaymentTransactionRow | null> {
+    const { rows } = await pool.query<PaymentTransactionRow>(
+      `SELECT *
+       FROM payment_transactions
+       WHERE order_id = $1
+         AND status IN ('pending'::payment_status, 'authorized'::payment_status)
+       ORDER BY created_at DESC
+       LIMIT 1`,
       [orderId]
     );
     return rows[0] ?? null;

@@ -57,7 +57,20 @@ describe('StaffDashboardPage', () => {
             ticket_code: 'A001',
             queue_entry_status: 'waiting',
             created_at: new Date().toISOString(),
-            items: [],
+            items: [
+              {
+                id: 'item-1',
+                product_name: '商品',
+                product_price: '3000',
+                service_time_minutes: 10,
+                quantity: 1,
+                subtotal: '3000',
+                payment_status: 'unpaid',
+                prepaid_amount: '0',
+                refunded_amount: '0',
+                requires_prepayment_snapshot: false,
+              },
+            ],
           },
         },
       ],
@@ -112,6 +125,28 @@ describe('StaffDashboardPage', () => {
     expect(paidButton).toBeDisabled();
     fireEvent.click(paidButton);
     expect(patch).not.toHaveBeenCalled();
+  });
+
+  it('creates and displays a provider-backed counter payment QR', async () => {
+    vi.mocked(post).mockResolvedValue({
+      transactionId: 'payment-1',
+      status: 'pending',
+      amount: 3000,
+      currency: 'VND',
+      checkoutUrl: 'https://pay.payos.vn/web/payment-link',
+      qrCode: '00020101021238540010A0000007270124000697042201101234567890',
+    });
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: '決済QR' }));
+
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/orders/order-1/payment-qr', {}));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('QRコードでお支払い')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '決済ページを開く' })).toHaveAttribute(
+      'href',
+      'https://pay.payos.vn/web/payment-link'
+    );
   });
 
   it('subtracts prepaid item amounts from the amount still due', async () => {

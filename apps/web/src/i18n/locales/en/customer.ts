@@ -188,6 +188,8 @@ export const customer = {
     requiredTotal: 'Required prepayment',
     processing: 'Processing...',
     failed: 'Payment failed. Please try again.',
+    pending: 'Payment has not been confirmed yet. Please complete the bank transfer and retry.',
+    providerUnavailable: 'No production payment provider is available for this currency yet.',
     organizationPrepayment: 'Process the prepayment for {{name}}.',
     requiredOnly: 'Required amount only',
     fullAmount: 'Pay in full',
@@ -202,6 +204,10 @@ export const customer = {
     appHint:
       'This screen represents opening an external app. In demo mode, payment completes here.',
     methods: {
+      vietqr: {
+        label: 'VietQR bank transfer',
+        description: 'Scan a bank QR through payOS; confirmation is automatic.',
+      },
       creditCard: { label: 'Credit card', description: 'Ready for Stripe / KOMOJU integration' },
       paypay: { label: 'PayPay', description: 'Ready for PayPay checkout-link integration' },
       rakuten: { label: 'Rakuten Pay', description: 'Ready for Rakuten Pay integration' },

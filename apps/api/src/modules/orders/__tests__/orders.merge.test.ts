@@ -66,17 +66,18 @@ describe('ordersService active-order merge', () => {
       longitude: null,
     });
     (branchesRepository.isOpenNow as jest.Mock).mockResolvedValue(true);
-    (productsRepository.findByQueue as jest.Mock).mockResolvedValue([{ id: 'product-1' }]);
-    (productsRepository.findById as jest.Mock).mockResolvedValue({
-      id: 'product-1',
-      organization_id: 'org-1',
-      name: 'Cut',
-      price: '1500',
-      service_time_minutes: 30,
-      requires_prepayment: false,
-      stock_quantity: null,
-      is_active: true,
-    });
+    (productsRepository.findByQueue as jest.Mock).mockResolvedValue([
+      {
+        id: 'product-1',
+        organization_id: 'org-1',
+        name: 'Cut',
+        price: '1500',
+        service_time_minutes: 30,
+        requires_prepayment: false,
+        stock_quantity: null,
+        is_active: true,
+      },
+    ]);
     (paymentTransactionsRepository.findById as jest.Mock).mockResolvedValue(null);
     (ordersRepository.findActiveOrderForLineUserInQueue as jest.Mock).mockResolvedValue({
       order: {

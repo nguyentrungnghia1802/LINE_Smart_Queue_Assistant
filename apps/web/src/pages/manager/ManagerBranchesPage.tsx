@@ -4,7 +4,12 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
+import {
+  BranchLocationPicker,
+  type BranchMapLocation,
+} from '../../components/manager/BranchLocationPicker';
 import { ApiClientError, del, get, post } from '../../services/apiClient';
+import { formatAddress } from '../../utils/address';
 
 type Branch = {
   id: string;
@@ -38,6 +43,8 @@ const initial = {
   addressLine2: '',
   latitude: '',
   longitude: '',
+  googlePlaceId: '',
+  formattedMapAddress: '',
   managerName: '',
   managerEmail: '',
   managerPhone: '',
@@ -45,7 +52,7 @@ const initial = {
 };
 
 export function ManagerBranchesPage() {
-  const { t } = useTranslation(['manager', 'common']);
+  const { t, i18n } = useTranslation(['manager', 'common']);
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const [inviteBranchId, setInviteBranchId] = useState<string | null>(null);
@@ -84,6 +91,8 @@ export function ManagerBranchesPage() {
         addressLine2: form.addressLine2 || null,
         latitude: form.latitude ? Number(form.latitude) : null,
         longitude: form.longitude ? Number(form.longitude) : null,
+        googlePlaceId: form.googlePlaceId || null,
+        formattedMapAddress: form.formattedMapAddress || null,
         managers: [
           {
             displayName: form.managerName,
@@ -127,8 +136,6 @@ export function ManagerBranchesPage() {
     'city',
     'addressLine1',
     'addressLine2',
-    'latitude',
-    'longitude',
     'managerName',
     'managerEmail',
     'managerPhone',
@@ -170,9 +177,15 @@ export function ManagerBranchesPage() {
                   {index + 1}. {branch.name}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  〒{branch.postal_code} {branch.prefecture}
-                  {branch.city}
-                  {branch.address_line1}
+                  {formatAddress(
+                    {
+                      postalCode: branch.postal_code,
+                      prefecture: branch.prefecture,
+                      city: branch.city,
+                      addressLine1: branch.address_line1,
+                    },
+                    i18n.resolvedLanguage
+                  )}
                 </p>
               </div>
             </div>
@@ -273,6 +286,37 @@ export function ManagerBranchesPage() {
                   />
                 </label>
               ))}
+              <BranchLocationPicker
+                addressQuery={[
+                  form.name,
+                  form.postalCode,
+                  form.prefecture,
+                  form.city,
+                  form.addressLine1,
+                  form.addressLine2,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+                value={
+                  form.latitude && form.longitude && form.googlePlaceId
+                    ? {
+                        latitude: Number(form.latitude),
+                        longitude: Number(form.longitude),
+                        placeId: form.googlePlaceId,
+                        formattedAddress: form.formattedMapAddress,
+                      }
+                    : null
+                }
+                onChange={(location: BranchMapLocation) =>
+                  setForm((current) => ({
+                    ...current,
+                    latitude: String(location.latitude),
+                    longitude: String(location.longitude),
+                    googlePlaceId: location.placeId,
+                    formattedMapAddress: location.formattedAddress,
+                  }))
+                }
+              />
             </div>
             {create.error && (
               <p className="mt-4 text-sm text-red-700">

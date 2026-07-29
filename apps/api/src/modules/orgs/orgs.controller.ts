@@ -56,6 +56,9 @@ async function buildOrgResponse(orgId: string, clientLocale?: string, selectedBr
     })
   );
   const queue = queueCatalogs[0] ?? null;
+  const paymentSettings = branch.payment_settings ?? {};
+  const currencyCode = paymentSettings['currencyCode'] === 'VND' ? 'VND' : 'JPY';
+  const collectionProvider = paymentSettings['collectionProvider'] === 'payos' ? 'payos' : 'manual';
 
   return {
     org: {
@@ -90,9 +93,13 @@ async function buildOrgResponse(orgId: string, clientLocale?: string, selectedBr
       addressLine2: branch.address_line2,
       latitude: branch.latitude,
       longitude: branch.longitude,
+      googlePlaceId: branch.google_place_id,
+      formattedMapAddress: branch.formatted_map_address,
       timezone: branch.timezone,
       publicQrToken: branch.public_qr_token,
       isOpen: isBranchOpen,
+      currencyCode,
+      collectionProvider,
     },
     queues: queueCatalogs,
     queue,

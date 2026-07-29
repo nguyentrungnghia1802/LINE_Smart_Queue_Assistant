@@ -1,4 +1,4 @@
-export type PaymentProviderId = 'demo' | 'stripe' | 'komoju' | 'paypay';
+export type PaymentProviderId = 'demo' | 'payos' | 'stripe' | 'komoju' | 'paypay';
 
 export type PaymentState = 'pending' | 'authorized' | 'paid' | 'failed' | 'cancelled' | 'refunded';
 
@@ -16,6 +16,7 @@ export interface PaymentIntentMetadata {
   scope: PaymentScope;
   coveredProductIds: string[];
   cartSignature?: string;
+  counterBalance?: boolean;
   items: Array<{
     productId: string;
     quantity: number;
@@ -51,7 +52,7 @@ export interface ProviderPaymentStatus {
 export interface ParsedWebhookEvent {
   eventId: string;
   eventType: string;
-  transactionId: string;
+  transactionId?: string;
   providerIntentId?: string;
   status: PaymentState;
   occurredAt?: Date;

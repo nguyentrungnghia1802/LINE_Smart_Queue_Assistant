@@ -6,6 +6,7 @@ export const marketing = {
     businessSignup: 'Business signup',
     login: 'Log in',
     dashboard: 'Dashboard',
+    menu: 'Open navigation',
   },
   hero: {
     eyebrow: 'The next reception experience, powered by LINE',
@@ -97,6 +98,9 @@ export const marketing = {
     company: 'Company',
     legal: 'Terms and privacy',
     copyright: '© 2026 Smart Queue Assistant',
+    supportEmail: 'Support email',
+    supportPhone: '+84 948512463',
+    headquarters: 'Headquarters: Phuc Tho, Ha Noi, Viet Nam',
   },
   registration: {
     eyebrow: 'Business service application',

@@ -73,10 +73,10 @@ describe('CreateProductSchema — productType field', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects finite stock for services', () => {
+  it('rejects catalog-level stock because inventory belongs to a branch', () => {
     const result = CreateProductSchema.safeParse({
       ...baseProduct,
-      productType: 'service',
+      productType: 'product',
       stockQuantity: 5,
     });
     expect(result.success).toBe(false);
