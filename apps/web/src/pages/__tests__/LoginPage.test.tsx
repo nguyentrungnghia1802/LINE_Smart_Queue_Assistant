@@ -92,6 +92,16 @@ describe('LoginPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows the business application link on its own line', () => {
+    renderPage();
+
+    const prompt = screen.getByText('法人向けサービスの導入をご希望ですか？');
+    const link = screen.getByRole('link', { name: '法人申し込みを開始' });
+    expect(prompt).toHaveClass('block');
+    expect(link).toHaveClass('inline-block');
+    expect(link).toHaveAttribute('href', '/business/register');
+  });
+
   it('shows backend message when login fails with ApiClientError message', async () => {
     mockLogin.mockRejectedValueOnce(
       new ApiClientError('UNAUTHORIZED', 401, undefined, 'このアカウントは無効です。')

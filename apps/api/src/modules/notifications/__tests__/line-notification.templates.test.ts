@@ -53,6 +53,7 @@ describe('line-notification.templates', () => {
     expect(notification.textMessage).toContain('待ち時間目安: 約15分');
     expect(notification.flexMessage.contents).toMatchObject({
       type: 'bubble',
+      size: 'kilo',
       footer: {
         contents: [
           {
@@ -66,6 +67,31 @@ describe('line-notification.templates', () => {
         ],
       },
     });
+  });
+
+  it('uses a distinct accent color for every customer-facing event', () => {
+    const events: TicketNotificationEventType[] = [
+      'booking_created',
+      'eta_warning',
+      'called',
+      'serving',
+      'completed',
+      'cancelled',
+      'no_show',
+      'deferred',
+      'location_warning',
+    ];
+    const colors = events.map((eventType) => {
+      const notification = buildTicketNotification({
+        eventType,
+        ticketCode: 'A019',
+        ticketUrl: 'https://queue.example.com/liff/tickets/entry-123',
+      });
+      return (notification.flexMessage.contents.header as { backgroundColor?: string } | undefined)
+        ?.backgroundColor;
+    });
+
+    expect(new Set(colors).size).toBe(events.length);
   });
 
   it.each<[TicketNotificationEventType, string]>([

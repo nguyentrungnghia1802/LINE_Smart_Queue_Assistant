@@ -120,7 +120,7 @@ export function TicketStatusPage() {
 
       {/* ── Hero ticket card ──────────────────────────────────────────────── */}
       <div
-        className={`bg-white rounded-(--radius-card) border shadow-sm p-8 text-center space-y-3 ${
+        className={`space-y-3 rounded-lg border bg-white p-6 text-center shadow-sm sm:p-8 ${
           isCalled ? 'border-amber-300 ring-2 ring-amber-200' : 'border-gray-200'
         }`}
       >
@@ -128,7 +128,7 @@ export function TicketStatusPage() {
           {t('labels.ticketCode', { ns: 'common' })}
         </p>
         <p
-          className={`text-7xl font-extrabold leading-none ${
+          className={`text-6xl font-extrabold leading-none sm:text-7xl ${
             isCalled ? 'text-amber-500' : 'text-gray-900'
           }`}
         >
@@ -160,7 +160,7 @@ export function TicketStatusPage() {
 
       {/* ── Approx. currently serving ────────────────────────────────────── */}
       {approxServingNumber !== null && (
-        <div className="bg-white rounded-(--radius-card) border border-gray-200 shadow-sm p-4 flex items-center justify-between">
+        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
           <div>
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
               {t('ticket.currentServing', { ns: 'customer' })}
@@ -208,7 +208,7 @@ interface StatCardProps {
 function StatCard({ label, value, accent }: Readonly<StatCardProps>) {
   return (
     <div
-      className={`rounded-(--radius-card) border shadow-sm p-4 text-center ${
+      className={`rounded-lg border p-4 text-center shadow-sm ${
         accent ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'
       }`}
     >

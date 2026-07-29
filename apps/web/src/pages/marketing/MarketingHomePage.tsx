@@ -16,7 +16,7 @@ import {
   Utensils,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
@@ -121,14 +121,14 @@ export function MarketingHomePage() {
 
       <main>
         <section
-          className="relative flex min-h-[78svh] items-end overflow-hidden bg-cover bg-center"
+          className="relative flex min-h-[calc(100svh-7rem)] items-end overflow-hidden bg-cover bg-center"
           style={{ backgroundImage: "url('/img/landing-hero.webp')" }}
         >
-          <div className="absolute inset-0 bg-gray-950/55" aria-hidden="true" />
-          <div className="relative mx-auto w-full max-w-7xl px-4 pb-16 pt-24 sm:px-6 sm:pb-20 lg:pb-24">
+          <div className="absolute inset-0 bg-gray-950/65" aria-hidden="true" />
+          <div className="relative mx-auto w-full max-w-7xl px-4 pb-14 pt-24 sm:px-6 sm:pb-20 lg:pb-24">
             <div className="max-w-3xl text-white">
               <p className="text-sm font-bold uppercase text-emerald-300">{t('hero.eyebrow')}</p>
-              <h1 className="mt-4 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
+              <h1 className="mt-4 max-w-3xl text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
                 {t('hero.title')}
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-gray-100 sm:text-lg">
@@ -157,9 +157,9 @@ export function MarketingHomePage() {
           </div>
         </section>
 
-        <section
+        <RevealSection
           id="product"
-          className="scroll-mt-20 border-b border-gray-200 bg-white py-20 sm:py-24"
+          className="flex min-h-[82svh] scroll-mt-20 items-center border-b border-gray-200 bg-white py-20 sm:py-24"
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <div className="max-w-3xl">
@@ -167,7 +167,7 @@ export function MarketingHomePage() {
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{t('product.title')}</h2>
               <p className="mt-4 text-base leading-7 text-gray-600">{t('product.description')}</p>
             </div>
-            <div className="mt-12 grid border-y border-gray-200 md:grid-cols-3 md:divide-x md:divide-gray-200">
+            <div className="mt-14 grid border-y border-gray-200 md:grid-cols-3 md:divide-x md:divide-gray-200">
               <Feature
                 icon={MessageCircle}
                 title={t('product.features.line.title')}
@@ -185,9 +185,12 @@ export function MarketingHomePage() {
               />
             </div>
           </div>
-        </section>
+        </RevealSection>
 
-        <section id="solutions" className="scroll-mt-20 bg-gray-950 py-20 text-white sm:py-24">
+        <RevealSection
+          id="solutions"
+          className="flex min-h-[82svh] scroll-mt-20 items-center bg-gray-950 py-20 text-white sm:py-24"
+        >
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <p className="text-sm font-bold uppercase text-emerald-300">{t('solutions.eyebrow')}</p>
             <h2 className="mt-3 max-w-2xl text-3xl font-bold sm:text-4xl">
@@ -200,9 +203,12 @@ export function MarketingHomePage() {
               <Solution icon={ShoppingBag} label={t('solutions.counter')} />
             </div>
           </div>
-        </section>
+        </RevealSection>
 
-        <section id="pricing" className="scroll-mt-20 bg-gray-50 py-20 sm:py-24">
+        <RevealSection
+          id="pricing"
+          className="flex min-h-[90svh] scroll-mt-20 items-center bg-gray-50 py-20 sm:py-24"
+        >
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <div className="max-w-3xl">
               <p className="text-sm font-bold uppercase text-brand-700">{t('pricing.eyebrow')}</p>
@@ -263,9 +269,9 @@ export function MarketingHomePage() {
               ))}
             </div>
           </div>
-        </section>
+        </RevealSection>
 
-        <section className="border-y border-gray-200 bg-emerald-50 py-16 sm:py-20">
+        <RevealSection className="border-y border-gray-200 bg-emerald-50 py-16 sm:py-20">
           <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-3xl">
               <h2 className="text-3xl font-bold text-gray-950">{t('cta.title')}</h2>
@@ -279,47 +285,91 @@ export function MarketingHomePage() {
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
-        </section>
+        </RevealSection>
       </main>
 
-      <footer className="bg-white py-12">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 md:grid-cols-[1fr_auto]">
-          <div className="max-w-lg">
-            <div className="flex items-center gap-3">
-              <BrandLogo className="h-10 w-10" />
-              <span className="font-bold">Smart Queue Assistant</span>
+      <footer className="bg-white py-12 sm:py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="grid gap-10 md:grid-cols-2 md:items-start">
+            <div className="max-w-lg">
+              <div className="flex items-center gap-3">
+                <BrandLogo className="h-11 w-11" />
+                <span className="text-lg font-bold">Smart Queue Assistant</span>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-gray-600">{t('footer.description')}</p>
             </div>
-            <p className="mt-4 text-sm leading-6 text-gray-600">{t('footer.description')}</p>
+            <address className="not-italic text-sm leading-6 text-gray-600 md:justify-self-end md:text-right">
+              <p className="mb-3 text-xs font-bold uppercase text-gray-400">
+                {t('footer.contact')}
+              </p>
+              <a
+                href="mailto:trungnghia180205@gmail.com"
+                className="flex items-center gap-2 hover:text-brand-700 md:justify-end"
+              >
+                <Mail className="h-4 w-4" />
+                {t('footer.supportEmail')}
+              </a>
+              <a
+                href="tel:+84948512463"
+                className="mt-2 flex items-center gap-2 hover:text-brand-700 md:justify-end"
+              >
+                <Phone className="h-4 w-4" />
+                {t('footer.supportPhone')}
+              </a>
+              <p className="mt-2 flex items-center gap-2 md:justify-end">
+                <MapPin className="h-4 w-4 shrink-0" />
+                {t('footer.headquarters')}
+              </p>
+            </address>
           </div>
-          <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-gray-600">
-            <a href="#product">{t('footer.product')}</a>
-            <Link to="/business/register">{t('nav.businessSignup')}</Link>
-            <Link to="/login">{t('nav.login')}</Link>
+          <div className="mt-10 flex flex-col gap-4 border-t border-gray-200 pt-6 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs">{t('footer.copyright')}</p>
+            <nav className="flex flex-wrap gap-x-5 gap-y-2 font-semibold">
+              <a href="#product">{t('footer.product')}</a>
+              <Link to="/business/register">{t('nav.businessSignup')}</Link>
+              <Link to="/login">{t('nav.login')}</Link>
+            </nav>
           </div>
-          <address className="not-italic text-sm leading-6 text-gray-600 md:col-span-2">
-            <a
-              href="mailto:trungnghia180205@gmail.com"
-              className="flex items-center gap-2 hover:text-brand-700"
-            >
-              <Mail className="h-4 w-4" />
-              {t('footer.supportEmail')}
-            </a>
-            <a
-              href="tel:+84948512463"
-              className="mt-2 flex items-center gap-2 hover:text-brand-700"
-            >
-              <Phone className="h-4 w-4" />
-              {t('footer.supportPhone')}
-            </a>
-            <p className="mt-2 flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              {t('footer.headquarters')}
-            </p>
-          </address>
-          <p className="text-xs text-gray-500 md:col-span-2">{t('footer.copyright')}</p>
         </div>
       </footer>
     </div>
+  );
+}
+
+function RevealSection({
+  id,
+  className,
+  children,
+}: Readonly<{ id?: string; className: string; children: ReactNode }>) {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const [visible, setVisible] = useState(
+    () => typeof window === 'undefined' || !('IntersectionObserver' in window)
+  );
+
+  useEffect(() => {
+    if (visible || !sectionRef.current || !('IntersectionObserver' in window)) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setVisible(true);
+        observer.disconnect();
+      },
+      { threshold: 0.15 }
+    );
+    observer.observe(sectionRef.current);
+    return () => observer.disconnect();
+  }, [visible]);
+
+  return (
+    <section
+      ref={sectionRef}
+      id={id}
+      className={`${className} transform-gpu transition duration-700 ease-out motion-reduce:transform-none motion-reduce:transition-none ${
+        visible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
+      }`}
+    >
+      {children}
+    </section>
   );
 }
 

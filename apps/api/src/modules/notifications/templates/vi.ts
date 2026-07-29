@@ -37,7 +37,7 @@ export const viLineNotificationCopy: LineNotificationCopy = {
       headline: 'Đã đến lượt của bạn',
       status: 'Đang gọi',
       guidance: 'Vui lòng đến quầy phục vụ.',
-      accentColor: '#06C755',
+      accentColor: '#E11D48',
     },
     serving: {
       headline: 'Đã bắt đầu phục vụ',
@@ -61,7 +61,7 @@ export const viLineNotificationCopy: LineNotificationCopy = {
       headline: 'Đã ghi nhận vắng mặt',
       status: 'Vắng mặt',
       guidance: 'Vui lòng liên hệ nhân viên nếu bạn vẫn cần được hỗ trợ.',
-      accentColor: '#EA580C',
+      accentColor: '#7C3AED',
     },
     deferred: {
       headline: 'Lượt của bạn đã được chuyển xuống',

@@ -71,6 +71,12 @@ different: provide it as a web-image build argument (and optionally in `apps/web
 native local Vite process). Never place the Messaging API secret or access token in a `VITE_*`
 variable.
 
+The root `.env.example` is the superset for native development and image builds.
+`deploy/.env.example` intentionally contains only production API/runtime and Compose interpolation
+values. It omits all `VITE_*` values because an already-built web image cannot read or change them
+from the server `.env`; rebuild the web image when public frontend configuration changes. Runtime
+variables shared by the production API must remain synchronized between both examples.
+
 Browser-visible configuration:
 
 - `VITE_API_URL`
@@ -107,6 +113,13 @@ alternatives, uses the longest returned duration, adds
 `LOCATION_TRAVEL_BUFFER_MINUTES` (default 8), and enqueues a LINE warning only when that total
 exceeds the current ETA. Location capture remains consent-based and stops when the customer has no
 active ticket. Monitor provider quota/cost and complete privacy/legal acceptance before production.
+
+The current forecast/staffing implementation does not require `OPENAI_API_KEY`,
+`GEMINI_API_KEY`, or another model-provider secret. It is a measured PostgreSQL heuristic. Do not
+add an AI key to either env file until a backend-only provider adapter, cost controls, privacy
+review, and a concrete product flow are approved. Google Routes, LINE Messaging push volume, SMTP,
+and payment-provider settlement may incur external charges according to the selected provider plan;
+these should be monitored independently of application hosting.
 
 ### LINE webhook verification troubleshooting
 

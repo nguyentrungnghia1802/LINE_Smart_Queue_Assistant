@@ -361,17 +361,19 @@ creation/upload/default-setting is an operator command, not an API startup side 
 3. API calculates Haversine distance to organization coordinates.
 4. API stores a `customer_locations` snapshot.
 5. If over the current 1,000-meter threshold, API stores a pending idempotent `location_alert` without logging exact coordinates.
-6. A PostgreSQL-locked scheduler checks queue proximity, consent, LINE preferences, and the mock `TravelTimeProvider`, then enqueues a locale-aware `location_warning` through the durable notification outbox.
+6. A PostgreSQL-locked scheduler checks queue proximity, consent, LINE preferences, and the configured `TravelTimeProvider`. Mock mode is deterministic for development; Google Routes mode requests walking alternatives, selects the longest returned duration, and adds the configured safety buffer.
 7. Alerts become sent-to-outbox, skipped, retry-pending, or failed. Snapshot cleanup anonymizes coordinates after `LOCATION_RETENTION_DAYS`; the LIFF settings page can revoke consent and delete data immediately.
-8. Planned worker compares queue timing/distance, sends LINE warning, and records sent/skipped/failed.
+8. When buffered travel time exceeds queue ETA, the worker enqueues a localized LINE warning and records the outcome without blocking queue/order transitions.
 
-Step 6 is not implemented. There is no continuous tracking, and production requires consent/retention controls.
+The browser shares location only with explicit consent and while an active ticket exists; this is not continuous background tracking. Production Google Routes use still requires restricted credentials, quota/cost monitoring, privacy review, and physical-device acceptance.
 
 ## 11. ETA and staffing flow
 
 Current ETA uses total service workload when available, otherwise people ahead multiplied by configured average service seconds. Confidence is heuristic. A 30-second job updates waiting entries.
 
 The PostgreSQL-locked forecasting job aggregates the previous eight weeks by organization-local weekday/hour, persists demand and measured service duration, and writes versioned wait forecasts and staffing recommendations. Confidence increases with sample size, the API exposes locale-neutral numeric inputs for localized explanations in the UI, and expired records are removed according to configuration. This baseline is a deterministic measured heuristic, not a trained ML model.
+
+There is no OpenAI or Gemini call in this flow. Adding a generative-AI API key without a backend adapter and an explicit product decision would create unused secret configuration and is therefore prohibited.
 
 ## 12. Failure flows
 

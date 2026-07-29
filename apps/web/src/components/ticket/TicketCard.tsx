@@ -25,7 +25,7 @@ export function TicketCard({ ticket, onClick }: Readonly<TicketCardProps>) {
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left bg-white rounded-(--radius-card) border shadow-sm hover:shadow-md transition-shadow p-5 ${
+      className={`w-full rounded-lg border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
         isCalled ? 'border-amber-300 ring-2 ring-amber-200' : 'border-gray-200'
       }`}
       aria-label={t('ticket.cardAria', {
