@@ -20,24 +20,23 @@ const AbsoluteImageUrlSchema = z
 
 const ProductImageUrlSchema = z.union([RelativeMediaUrlSchema, AbsoluteImageUrlSchema]);
 
-const ProductFieldsSchema = z.object({
-  name: z.string().min(1).max(200),
-  description: z.string().max(1000).optional(),
-  imageUrl: ProductImageUrlSchema.optional(),
-  price: z.number().min(0),
-  serviceTimeMinutes: z.number().int().min(1).max(480),
-  maxWaitMinutes: z.number().int().min(1).optional(),
-  requiresPrepayment: z.boolean().default(false),
-  stockQuantity: z.number().int().min(0).optional(),
-  productType: z.enum(['product', 'service']).default('service'),
-});
+const ProductFieldsSchema = z
+  .object({
+    name: z.string().min(1).max(200),
+    description: z.string().max(1000).optional(),
+    imageUrl: ProductImageUrlSchema.optional(),
+    price: z.number().min(0),
+    serviceTimeMinutes: z.number().int().min(1).max(480),
+    maxWaitMinutes: z.number().int().min(1).optional(),
+    requiresPrepayment: z.boolean().default(false),
+    productType: z.enum(['product', 'service']).default('service'),
+  })
+  .strict();
 
 function validateProductConfiguration(
   value: {
     price?: number;
     requiresPrepayment?: boolean;
-    stockQuantity?: number;
-    productType?: 'product' | 'service';
   },
   ctx: z.RefinementCtx
 ) {
@@ -46,13 +45,6 @@ function validateProductConfiguration(
       code: z.ZodIssueCode.custom,
       path: ['price'],
       message: 'Prepaid products must have a price greater than zero',
-    });
-  }
-  if (value.productType === 'service' && value.stockQuantity !== undefined) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['stockQuantity'],
-      message: 'Services must use unlimited stock',
     });
   }
 }
@@ -65,5 +57,11 @@ export const UpdateProductSchema = ProductFieldsSchema.partial()
   })
   .superRefine(validateProductConfiguration);
 
+export const UpdateBranchStockSchema = z.object({
+  stockQuantity: z.number().int().min(0).nullable(),
+  lowStockThreshold: z.number().int().min(0).max(100000).default(10),
+});
+
 export type CreateProductDto = z.infer<typeof CreateProductSchema>;
 export type UpdateProductDto = z.infer<typeof UpdateProductSchema>;
+export type UpdateBranchStockDto = z.infer<typeof UpdateBranchStockSchema>;

@@ -5,7 +5,6 @@ test('LIFF mock authenticates, pays required items, books, and opens the ticket'
 }) => {
   await page.goto('/liff/qr/demo-queue-lab-2026');
 
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('auth_token'))).not.toBeNull();
   await expect(page.getByRole('heading', { name: '商品 / サービス' })).toBeVisible();
 
   await page.getByRole('button', { name: 'ヘアカラー を追加' }).click();

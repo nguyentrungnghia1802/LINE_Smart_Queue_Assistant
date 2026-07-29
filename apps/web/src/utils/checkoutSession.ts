@@ -22,10 +22,14 @@ export interface CheckoutSession {
   preferredMethod?: string;
   items: CheckoutItem[];
   subtotal: number;
+  currency?: 'JPY' | 'VND';
   coveredProductIds: string[];
   requiredProductIds?: string[];
   requiredSubtotal?: number;
   autoBookAfterPayment?: boolean;
+  pendingTransactionId?: string;
+  pendingPaymentScope?: 'required_items' | 'all_items';
+  pendingMethod?: string;
   createdAt: string;
 }
 

@@ -12,9 +12,14 @@ import {
   deleteProduct,
   getProduct,
   listProducts,
+  updateBranchStock,
   updateProduct,
 } from './products.controller';
-import { CreateProductSchema, UpdateProductSchema } from './products.validator';
+import {
+  CreateProductSchema,
+  UpdateBranchStockSchema,
+  UpdateProductSchema,
+} from './products.validator';
 
 export const productsRouter = Router();
 
@@ -30,6 +35,15 @@ productsRouter.post(
   authenticatedActionRateLimiter,
   validate(CreateProductSchema),
   createProduct
+);
+
+productsRouter.patch(
+  '/:id/branch-stock',
+  requireAuth,
+  requireRole(UserRole.MANAGER),
+  authenticatedActionRateLimiter,
+  validate(UpdateBranchStockSchema),
+  updateBranchStock
 );
 
 productsRouter.patch(

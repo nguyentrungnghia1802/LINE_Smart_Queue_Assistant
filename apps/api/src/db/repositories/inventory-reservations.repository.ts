@@ -7,6 +7,7 @@ export type InventoryReservationStatus = 'reserved' | 'consumed' | 'released' | 
 export interface InventoryReservationRow {
   id: string;
   organization_id: string;
+  branch_id: string;
   order_id: string;
   product_id: string;
   quantity: number;
@@ -24,6 +25,7 @@ export const inventoryReservationsRepository = {
   async reserve(
     params: {
       organizationId: string;
+      branchId: string;
       orderId: string;
       productId: string;
       quantity: number;
@@ -32,22 +34,23 @@ export const inventoryReservationsRepository = {
     },
     client: PoolClient
   ): Promise<InventoryReservationRow> {
-    const stock = await client.query<{ id: string }>(
-      `UPDATE products
+    const stock = await client.query<{ product_id: string }>(
+      `UPDATE branch_product_inventories
        SET stock_quantity = stock_quantity - $1
-       WHERE id = $2
-         AND organization_id = $3
+       WHERE branch_id = $2
+         AND product_id = $3
+         AND organization_id = $4
          AND stock_quantity IS NOT NULL
          AND stock_quantity >= $1
-       RETURNING id`,
-      [params.quantity, params.productId, params.organizationId]
+       RETURNING product_id`,
+      [params.quantity, params.branchId, params.productId, params.organizationId]
     );
     if (!stock.rows[0]) throw AppError.conflict('Insufficient finite stock');
 
     const reservation = await client.query<InventoryReservationRow & { inserted: boolean }>(
       `INSERT INTO inventory_reservations
-         (organization_id, order_id, product_id, quantity, status, expires_at)
-       VALUES ($1,$2,$3,$4,'reserved',$5)
+         (organization_id, branch_id, order_id, product_id, quantity, status, expires_at)
+       VALUES ($1,$2,$3,$4,$5,'reserved',$6)
        ON CONFLICT (order_id, product_id) WHERE order_id IS NOT NULL
        DO UPDATE SET
          quantity = inventory_reservations.quantity + EXCLUDED.quantity,
@@ -61,6 +64,7 @@ export const inventoryReservationsRepository = {
        RETURNING inventory_reservations.*, (xmax = 0) AS inserted`,
       [
         params.organizationId,
+        params.branchId,
         params.orderId,
         params.productId,
         params.quantity,
@@ -126,10 +130,10 @@ export const inventoryReservationsRepository = {
 
       if (params.toStatus === 'released' || params.toStatus === 'expired') {
         await client.query(
-          `UPDATE products
+          `UPDATE branch_product_inventories
            SET stock_quantity = stock_quantity + $1
-           WHERE id = $2 AND stock_quantity IS NOT NULL`,
-          [reservation.quantity, reservation.product_id]
+           WHERE branch_id = $2 AND product_id = $3 AND stock_quantity IS NOT NULL`,
+          [reservation.quantity, reservation.branch_id, reservation.product_id]
         );
       }
       await this.recordEvent(

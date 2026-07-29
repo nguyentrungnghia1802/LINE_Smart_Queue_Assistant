@@ -92,7 +92,6 @@ describe('productsService CRUD audit logging', () => {
         serviceTimeMinutes: dto.serviceTimeMinutes,
         maxWaitMinutes: undefined,
         requiresPrepayment: dto.requiresPrepayment,
-        stockQuantity: undefined,
         productType: dto.productType,
       },
       expect.anything()
@@ -142,7 +141,7 @@ describe('productsService CRUD audit logging', () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it('clears finite stock when a product is converted to a service', async () => {
+  it('does not mutate branch inventory when the catalog type changes', async () => {
     const existing = makeProduct({ product_type: 'product', stock_quantity: 5 });
     const updated = makeProduct({ product_type: 'service', stock_quantity: null });
     mockFindById.mockResolvedValue(existing);
@@ -152,7 +151,7 @@ describe('productsService CRUD audit logging', () => {
 
     expect(mockUpdate).toHaveBeenCalledWith(
       PRODUCT_ID,
-      expect.objectContaining({ productType: 'service', stockQuantity: null }),
+      { productType: 'service' },
       expect.anything()
     );
     expect(mockAssignNextCodeForType).toHaveBeenCalledWith(

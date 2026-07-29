@@ -19,6 +19,8 @@ export const auth = {
     onlineReception: 'オンライン受付',
     notificationIntegration: '通知連携',
     paymentDemo: '決済デモ',
+    businessSignupPrompt: '法人向けサービスの導入をご希望ですか？',
+    businessSignupLink: '法人申し込みを開始',
   },
   register: {
     title: 'アカウント登録',

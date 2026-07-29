@@ -123,7 +123,7 @@ export const paymentsPaths = {
           name: 'provider',
           in: 'path',
           required: true,
-          schema: { type: 'string', enum: ['demo', 'stripe', 'komoju', 'paypay'] },
+          schema: { type: 'string', enum: ['demo', 'payos', 'stripe', 'komoju', 'paypay'] },
         },
       ],
       requestBody: {

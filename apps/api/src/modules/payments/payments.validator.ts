@@ -12,7 +12,7 @@ export const CreatePaymentIntentSchema = z
     queueId: z.string().uuid(),
     items: z.array(PaymentItemSchema).min(1),
     scope: z.enum(['required_items', 'all_items']),
-    provider: z.enum(['demo', 'stripe', 'komoju', 'paypay']).default('demo'),
+    provider: z.enum(['demo', 'payos', 'stripe', 'komoju', 'paypay']).default('demo'),
     method: z.string().min(1).max(60).default('demo'),
     currency: z.string().length(3).default('JPY'),
     returnUrl: z.string().url().max(2000).optional(),
@@ -42,7 +42,7 @@ export const PaymentTransactionParamSchema = z.object({
 });
 
 export const PaymentProviderParamSchema = z.object({
-  provider: z.enum(['demo', 'stripe', 'komoju', 'paypay']),
+  provider: z.enum(['demo', 'payos', 'stripe', 'komoju', 'paypay']),
 });
 
 export type CreatePaymentIntentDto = z.infer<typeof CreatePaymentIntentSchema>;

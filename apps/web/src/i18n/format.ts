@@ -22,6 +22,6 @@ export function formatCurrency(value: number, locale: string, currency = 'JPY') 
   return new Intl.NumberFormat(toIntlLocale(locale), {
     style: 'currency',
     currency,
-    maximumFractionDigits: currency === 'JPY' ? 0 : 2,
+    maximumFractionDigits: currency === 'JPY' || currency === 'VND' ? 0 : 2,
   }).format(value);
 }

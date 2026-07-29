@@ -71,7 +71,8 @@ export const jaLineNotificationCopy: LineNotificationCopy = {
     location_warning: {
       headline: '店舗までの距離をご確認ください',
       status: '移動のご案内',
-      guidance: '順番が近づいています。余裕をもって店舗へお戻りください。',
+      guidance:
+        '現在地から店舗までの移動時間が待ち時間を上回っています。間に合うよう、すぐに店舗へお戻りください。',
       accentColor: '#0F766E',
     },
   },

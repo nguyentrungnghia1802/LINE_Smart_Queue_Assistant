@@ -16,6 +16,7 @@ import { ApiClientError, get, post, put } from '../../services/apiClient';
 import { getCustomerLineEntryUrl } from '../../services/liff/entryUrl';
 import { useAuthStore } from '../../store/authStore';
 import type { LiffAuthStatus } from '../../types/liff';
+import { formatAddress } from '../../utils/address';
 import {
   appendBookingRecord,
   type BookingGroup,
@@ -91,6 +92,10 @@ interface OrgResponse {
     addressLine2: string | null;
     latitude: string | null;
     longitude: string | null;
+    googlePlaceId: string | null;
+    formattedMapAddress: string | null;
+    currencyCode: 'JPY' | 'VND';
+    collectionProvider: 'payos' | 'manual';
     isOpen: boolean;
   };
   queues: QueueInfo[];
@@ -473,6 +478,7 @@ export function CustomerJoinPage({
       scope: 'required_items',
       items: checkoutItems,
       subtotal,
+      currency: data.branch.currencyCode,
       coveredProductIds: requiredPrepaymentItems.map((item) => item.productId),
       requiredProductIds: requiredPrepaymentItems.map((item) => item.productId),
       requiredSubtotal: requiredPrepaymentSubtotal,
@@ -703,7 +709,16 @@ export function CustomerJoinPage({
   }
 
   const { org } = data;
-  const branchAddress = `〒${data.branch.postalCode} ${data.branch.prefecture}${data.branch.city}${data.branch.addressLine1}${data.branch.addressLine2 ?? ''}`;
+  const branchAddress = formatAddress(
+    {
+      postalCode: data.branch.postalCode,
+      prefecture: data.branch.prefecture,
+      city: data.branch.city,
+      addressLine1: data.branch.addressLine1,
+      addressLine2: data.branch.addressLine2,
+    },
+    i18n.resolvedLanguage
+  );
 
   if (isBusinessAccount) {
     return (

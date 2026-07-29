@@ -49,6 +49,9 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     validator: 'BusinessCalendarSchema',
   }),
   endpoint('get', '/api/v1/branches/analytics', 'branches'),
+  endpoint('post', '/api/v1/branches/geocode', 'branches', {
+    validator: 'BranchGeocodeSchema',
+  }),
   endpoint('get', '/api/v1/branches', 'branches'),
   endpoint('post', '/api/v1/branches', 'branches', { validator: 'CreateBranchSchema' }),
   endpoint('get', '/api/v1/branches/audit', 'branches', {
@@ -113,6 +116,9 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     validator: 'UpdateLocationConsentSchema',
   }),
   endpoint('delete', '/api/v1/line/location-data', 'location'),
+  endpoint('post', '/api/v1/line/location-snapshot', 'location', {
+    validator: 'CustomerLocationSnapshotSchema',
+  }),
   endpoint('post', '/api/v1/line/webhook', 'line', {
     auth: false,
     validator: 'LineWebhookSignature',
@@ -148,6 +154,7 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
   endpoint('patch', '/api/v1/orders/{id}/payment', 'payments', {
     validator: 'UpdateOrderPaymentSchema',
   }),
+  endpoint('post', '/api/v1/orders/{id}/payment-qr', 'payments'),
 
   endpoint('get', '/api/v1/orgs/my-org', 'organizations'),
   endpoint('patch', '/api/v1/orgs/my-org', 'organizations', {
@@ -183,6 +190,9 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
   endpoint('get', '/api/v1/products/{id}', 'products', { auth: false }),
   endpoint('post', '/api/v1/products', 'products', { validator: 'CreateProductSchema' }),
   endpoint('patch', '/api/v1/products/{id}', 'products', { validator: 'UpdateProductSchema' }),
+  endpoint('patch', '/api/v1/products/{id}/branch-stock', 'products', {
+    validator: 'UpdateBranchStockSchema',
+  }),
   endpoint('delete', '/api/v1/products/{id}', 'products'),
 
   endpoint('post', '/api/v1/queue/join', 'queue-entry', {

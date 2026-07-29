@@ -2,6 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import {
+  BranchLocationPicker,
+  type BranchMapLocation,
+} from '../../components/manager/BranchLocationPicker';
 import { Time24HourField } from '../../components/manager/Time24HourField';
 import { get, patch, put } from '../../services/apiClient';
 
@@ -17,9 +21,13 @@ interface BranchInfo {
   address_line2: string | null;
   latitude: string | null;
   longitude: string | null;
+  google_place_id: string | null;
+  formatted_map_address: string | null;
   timezone: string;
   payment_settings: {
     merchantName?: string;
+    collectionProvider?: 'payos' | 'future_japan' | 'manual';
+    currencyCode?: 'JPY' | 'VND';
     settlementMethod?: 'bank_transfer' | 'card' | 'paypay' | 'cash';
     bankName?: string;
     bankBranchName?: string;
@@ -69,7 +77,11 @@ export function BranchManagerSettingsPage() {
     addressLine2: '',
     latitude: '',
     longitude: '',
+    googlePlaceId: '',
+    formattedMapAddress: '',
     merchantName: '',
+    collectionProvider: 'manual' as 'payos' | 'future_japan' | 'manual',
+    currencyCode: 'JPY' as 'JPY' | 'VND',
     settlementMethod: 'bank_transfer' as 'bank_transfer' | 'card' | 'paypay' | 'cash',
     bankName: '',
     bankBranchName: '',
@@ -93,7 +105,11 @@ export function BranchManagerSettingsPage() {
       addressLine2: branch.data.address_line2 ?? '',
       latitude: branch.data.latitude ?? '',
       longitude: branch.data.longitude ?? '',
+      googlePlaceId: branch.data.google_place_id ?? '',
+      formattedMapAddress: branch.data.formatted_map_address ?? '',
       merchantName: branch.data.payment_settings?.merchantName ?? '',
+      collectionProvider: branch.data.payment_settings?.collectionProvider ?? 'manual',
+      currencyCode: branch.data.payment_settings?.currencyCode ?? 'JPY',
       settlementMethod: branch.data.payment_settings?.settlementMethod ?? 'bank_transfer',
       bankName: branch.data.payment_settings?.bankName ?? '',
       bankBranchName: branch.data.payment_settings?.bankBranchName ?? '',
@@ -121,8 +137,12 @@ export function BranchManagerSettingsPage() {
         addressLine2: form.addressLine2 || null,
         latitude: form.latitude ? Number(form.latitude) : null,
         longitude: form.longitude ? Number(form.longitude) : null,
+        googlePlaceId: form.googlePlaceId || null,
+        formattedMapAddress: form.formattedMapAddress || null,
         paymentSettings: {
           merchantName: form.merchantName || undefined,
+          collectionProvider: form.collectionProvider,
+          currencyCode: form.currencyCode,
           settlementMethod: form.settlementMethod,
           bankName: form.bankName || undefined,
           bankBranchName: form.bankBranchName || undefined,
@@ -155,8 +175,6 @@ export function BranchManagerSettingsPage() {
     ['city', t('branches.fields.city')],
     ['addressLine1', t('branches.fields.addressLine1')],
     ['addressLine2', t('branches.fields.addressLine2')],
-    ['latitude', t('branches.fields.latitude')],
-    ['longitude', t('branches.fields.longitude')],
   ] as const;
 
   return (
@@ -203,17 +221,48 @@ export function BranchManagerSettingsPage() {
                 />
               </label>
             ))}
+            <BranchLocationPicker
+              addressQuery={[
+                form.name,
+                form.postalCode,
+                form.prefecture,
+                form.city,
+                form.addressLine1,
+                form.addressLine2,
+              ]
+                .filter(Boolean)
+                .join(', ')}
+              value={
+                form.latitude && form.longitude
+                  ? {
+                      latitude: Number(form.latitude),
+                      longitude: Number(form.longitude),
+                      placeId: form.googlePlaceId,
+                      formattedAddress:
+                        form.formattedMapAddress ||
+                        [
+                          form.postalCode,
+                          form.prefecture,
+                          form.city,
+                          form.addressLine1,
+                          form.addressLine2,
+                        ]
+                          .filter(Boolean)
+                          .join(', '),
+                    }
+                  : null
+              }
+              onChange={(location: BranchMapLocation) =>
+                setForm((current) => ({
+                  ...current,
+                  latitude: String(location.latitude),
+                  longitude: String(location.longitude),
+                  googlePlaceId: location.placeId,
+                  formattedMapAddress: location.formattedAddress,
+                }))
+              }
+            />
           </div>
-          {form.latitude && form.longitude && (
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${form.latitude},${form.longitude}`)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 inline-flex text-sm font-bold text-brand-700"
-            >
-              {t('branches.openMap')}
-            </a>
-          )}
         </section>
 
         <section className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
@@ -226,6 +275,41 @@ export function BranchManagerSettingsPage() {
               placeholder={t('settings.paymentMerchantPlaceholder')}
               onChange={(value) => setForm((current) => ({ ...current, merchantName: value }))}
             />
+            <label className="text-sm font-medium text-gray-700">
+              {t('settings.collectionProvider')}
+              <select
+                value={form.collectionProvider}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    collectionProvider: event.target.value as typeof current.collectionProvider,
+                  }))
+                }
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
+              >
+                <option value="manual">{t('settings.collectionProviders.manual')}</option>
+                <option value="payos">{t('settings.collectionProviders.payos')}</option>
+                <option value="future_japan" disabled>
+                  {t('settings.collectionProviders.future_japan')}
+                </option>
+              </select>
+            </label>
+            <label className="text-sm font-medium text-gray-700">
+              {t('settings.currencyCode')}
+              <select
+                value={form.currencyCode}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    currencyCode: event.target.value as typeof current.currencyCode,
+                  }))
+                }
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
+              >
+                <option value="JPY">JPY</option>
+                <option value="VND">VND</option>
+              </select>
+            </label>
             <label className="text-sm font-medium text-gray-700">
               {t('settings.paymentMethod')}
               <select

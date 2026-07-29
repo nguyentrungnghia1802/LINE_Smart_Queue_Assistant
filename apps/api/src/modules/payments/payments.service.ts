@@ -1,7 +1,9 @@
 import type { IncomingHttpHeaders } from 'node:http';
 
+import { config } from '../../config';
 import { pool } from '../../db/client';
 import type { PaymentTransactionRow } from '../../db/repositories/orders.repository';
+import { ordersRepository } from '../../db/repositories/orders.repository';
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { paymentTransactionsRepository } from '../../db/repositories/payment-transactions.repository';
 import { productsRepository } from '../../db/repositories/products.repository';
@@ -20,9 +22,19 @@ import {
 import { CreatePaymentIntentDto } from './payments.validator';
 import { demoPaymentProvider } from './providers/demo-payment.provider';
 
-function amountNumber(value: string | number): number {
+function amountNumber(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function trustedReturnUrl(requestedUrl?: string): string {
+  const configuredOrigin = new URL(config.web.origin);
+  if (!requestedUrl) return configuredOrigin.toString();
+  const requested = new URL(requestedUrl);
+  if (requested.origin !== configuredOrigin.origin) {
+    throw AppError.badRequest('Payment return URL must use the application origin');
+  }
+  return requested.toString();
 }
 
 function metadataFromTransaction(transaction: PaymentTransactionRow): PaymentIntentMetadata {
@@ -30,10 +42,14 @@ function metadataFromTransaction(transaction: PaymentTransactionRow): PaymentInt
   return metadata as unknown as PaymentIntentMetadata;
 }
 
-async function loadIntentProducts(orgId: string, items: CreatePaymentIntentDto['items']) {
+async function loadIntentProducts(
+  orgId: string,
+  items: CreatePaymentIntentDto['items'],
+  queueProducts: Map<string, Awaited<ReturnType<typeof productsRepository.findByQueue>>[number]>
+) {
   return Promise.all(
     items.map(async (item) => {
-      const product = await productsRepository.findById(item.productId);
+      const product = queueProducts.get(item.productId);
       if (!product) throw AppError.notFound(`Product ${item.productId}`);
       if (product.organization_id !== orgId) {
         throw AppError.badRequest('Product does not belong to this organization');
@@ -134,10 +150,10 @@ export const paymentsService = {
       throw new AppError('Branch is outside business hours', 409, 'BRANCH_CLOSED');
     }
 
-    const rows = await loadIntentProducts(org.id, dto.items);
-    const queueProductIds = new Set(
-      (await productsRepository.findByQueue(dto.queueId)).map((product) => product.id)
-    );
+    const queueProductRows = await productsRepository.findByQueue(dto.queueId);
+    const queueProducts = new Map(queueProductRows.map((product) => [product.id, product]));
+    const rows = await loadIntentProducts(org.id, dto.items, queueProducts);
+    const queueProductIds = new Set(queueProductRows.map((product) => product.id));
     if (rows.some((row) => !queueProductIds.has(row.product.id))) {
       throw AppError.badRequest('One or more products are unavailable in the selected queue');
     }
@@ -152,8 +168,24 @@ export const paymentsService = {
     if (amount <= 0) throw AppError.badRequest('Payment amount must be greater than zero');
 
     const providerId = dto.provider as PaymentProviderId;
+    if (config.payments.mode === 'external' && providerId === 'payos') {
+      const branch = await branchesRepository.findById(dto.branchId, org.id);
+      const paymentSettings = branch?.payment_settings ?? {};
+      if (
+        paymentSettings['collectionProvider'] !== 'payos' ||
+        paymentSettings['currencyCode'] !== 'VND' ||
+        dto.currency !== 'VND'
+      ) {
+        throw new AppError(
+          'This branch has not enabled payOS with VND',
+          409,
+          'BRANCH_PAYMENT_NOT_CONFIGURED'
+        );
+      }
+    }
     const provider = getPaymentProvider(providerId);
     const effectiveProviderId = provider.provider;
+    const returnUrl = trustedReturnUrl(dto.returnUrl);
     const metadata: PaymentIntentMetadata = {
       orgSlug: org.slug,
       branchId: dto.branchId,
@@ -177,19 +209,31 @@ export const paymentsService = {
       status: 'pending',
       amount,
       currency: dto.currency,
-      returnUrl: dto.returnUrl,
+      returnUrl,
       metadata: metadata as unknown as Record<string, unknown>,
       rawPayload: { requestedProvider: providerId },
     });
 
-    const intent = await provider.createPaymentIntent({
-      transactionId: transaction.id,
-      amount,
-      currency: dto.currency,
-      method: dto.method,
-      returnUrl: dto.returnUrl,
-      metadata,
-    });
+    let intent;
+    try {
+      intent = await provider.createPaymentIntent({
+        transactionId: transaction.id,
+        amount,
+        currency: dto.currency,
+        method: dto.method,
+        returnUrl,
+        metadata,
+      });
+    } catch (error) {
+      await paymentTransactionsRepository.updateStatus(transaction.id, {
+        status: 'failed',
+        rawPayload: {
+          providerCreationFailed: true,
+          errorCode: error instanceof AppError ? error.code : 'PAYMENT_PROVIDER_ERROR',
+        },
+      });
+      throw error;
+    }
 
     const updated = await paymentTransactionsRepository.updateProviderIntent(transaction.id, {
       paymentIntentId: intent.providerIntentId,
@@ -213,12 +257,136 @@ export const paymentsService = {
     };
   },
 
+  async createCounterPayment(params: {
+    orderId: string;
+    organizationId: string;
+    branchId: string;
+  }) {
+    const order = await ordersRepository.findById(params.orderId);
+    if (
+      !order ||
+      order.organization_id !== params.organizationId ||
+      order.branch_id !== params.branchId
+    ) {
+      throw AppError.notFound('Order');
+    }
+    if (!['pending', 'processing'].includes(order.status)) {
+      throw AppError.conflict('Only active orders can be paid');
+    }
+
+    const existing = await paymentTransactionsRepository.findLatestPendingByOrder(order.id);
+    if (existing?.provider === 'payos') {
+      return {
+        transactionId: existing.id,
+        status: existing.status,
+        amount: amountNumber(existing.amount),
+        currency: existing.currency,
+        checkoutUrl: existing.checkout_url,
+        qrCode: String(existing.raw_payload?.qrCode ?? ''),
+      };
+    }
+
+    const branch = await branchesRepository.findById(params.branchId, params.organizationId);
+    const paymentSettings = branch?.payment_settings ?? {};
+    if (
+      paymentSettings['collectionProvider'] !== 'payos' ||
+      paymentSettings['currencyCode'] !== 'VND'
+    ) {
+      throw new AppError(
+        'This branch has not enabled payOS with VND',
+        409,
+        'BRANCH_PAYMENT_NOT_CONFIGURED'
+      );
+    }
+    const provider = getPaymentProvider('payos');
+    if (provider.provider !== 'payos') {
+      throw new AppError(
+        'PAYMENT_MODE=external is required for counter QR payments',
+        503,
+        'PAYMENT_PROVIDER_NOT_CONFIGURED'
+      );
+    }
+    const prepaid = order.items.reduce(
+      (sum, item) =>
+        sum + Math.max(0, amountNumber(item.prepaid_amount) - amountNumber(item.refunded_amount)),
+      0
+    );
+    const amount = Math.max(0, amountNumber(order.subtotal) - prepaid);
+    if (amount <= 0) throw AppError.conflict('The order has no outstanding balance');
+
+    const metadata: PaymentIntentMetadata = {
+      orgSlug: '',
+      branchId: params.branchId,
+      queueId: order.queue_id,
+      scope: 'all_items',
+      counterBalance: true,
+      coveredProductIds: order.items.map((item) => item.product_id),
+      items: order.items.map((item) => ({
+        productId: item.product_id,
+        quantity: item.quantity,
+        unitPrice: amountNumber(item.product_price),
+        subtotal: amountNumber(item.subtotal),
+        requiresPrepayment: item.requires_prepayment_snapshot === true,
+      })),
+    };
+    const transaction = await paymentTransactionsRepository.createIntent({
+      organizationId: params.organizationId,
+      provider: 'payos',
+      method: 'vietqr_counter',
+      status: 'pending',
+      amount,
+      currency: 'VND',
+      returnUrl: `${config.web.origin.replace(/\/$/, '')}/staff`,
+      metadata: metadata as unknown as Record<string, unknown>,
+      rawPayload: { source: 'staff_counter' },
+    });
+    await paymentTransactionsRepository.attachToOrder(transaction.id, order.id);
+    let intent;
+    try {
+      intent = await provider.createPaymentIntent({
+        transactionId: transaction.id,
+        amount,
+        currency: 'VND',
+        method: 'vietqr_counter',
+        returnUrl: `${config.web.origin.replace(/\/$/, '')}/staff`,
+        metadata,
+      });
+    } catch (error) {
+      await paymentTransactionsRepository.updateStatus(transaction.id, {
+        status: 'failed',
+        rawPayload: {
+          source: 'staff_counter',
+          providerCreationFailed: true,
+          errorCode: error instanceof AppError ? error.code : 'PAYMENT_PROVIDER_ERROR',
+        },
+      });
+      throw error;
+    }
+    const updated = await paymentTransactionsRepository.updateProviderIntent(transaction.id, {
+      paymentIntentId: intent.providerIntentId,
+      externalTransactionId: intent.providerIntentId,
+      checkoutUrl: intent.checkoutUrl,
+      status: intent.status,
+      rawPayload: intent.rawPayload,
+    });
+    return {
+      transactionId: transaction.id,
+      status: updated?.status ?? intent.status,
+      amount,
+      currency: 'VND',
+      checkoutUrl: intent.checkoutUrl,
+      qrCode: String(intent.rawPayload?.['qrCode'] ?? ''),
+    };
+  },
+
   async getReturnStatus(transactionId: string) {
     const transaction = await paymentTransactionsRepository.findById(transactionId);
     if (!transaction) throw AppError.notFound('Payment transaction');
 
     const provider = getPaymentProvider(transaction.provider as PaymentProviderId);
-    const providerStatus = await provider.retrievePaymentStatus(transaction.id);
+    const providerStatus = await provider.retrievePaymentStatus(
+      transaction.payment_intent_id ?? transaction.id
+    );
     if (providerStatus.status !== 'pending' && providerStatus.status !== transaction.status) {
       await paymentTransactionsRepository.updateStatus(transaction.id, {
         ...paymentTimestamp(providerStatus.status),
@@ -267,7 +435,20 @@ export const paymentsService = {
     const signatureValid = provider.verifyWebhookSignature(rawBody, headers);
     if (!signatureValid) throw AppError.unauthorized('Invalid payment webhook signature');
     const event = provider.parseWebhookPayload(rawBody);
-    return this.applyProviderEvent(provider.provider, event, signatureValid);
+    if (!event.transactionId && event.providerIntentId) {
+      const transaction = await paymentTransactionsRepository.findByProviderIntent(
+        provider.provider,
+        event.providerIntentId
+      );
+      if (!transaction) throw AppError.notFound('Payment transaction');
+      event.transactionId = transaction.id;
+    }
+    if (!event.transactionId) throw AppError.badRequest('Payment webhook has no transaction');
+    return this.applyProviderEvent(
+      provider.provider,
+      { ...event, transactionId: event.transactionId },
+      signatureValid
+    );
   },
 
   async applyProviderEvent(
@@ -689,14 +870,28 @@ export const paymentsService = {
     const paid = transaction.status === 'paid';
     const refundedAmount = amountNumber(transaction.refunded_amount ?? 0);
 
-    await client.query(
-      `UPDATE order_items
-       SET payment_status = CASE WHEN $3::boolean AND product_id = ANY($2::uuid[]) THEN 'paid'::payment_status ELSE payment_status END,
-           prepaid_amount = CASE WHEN $3::boolean AND product_id = ANY($2::uuid[]) THEN subtotal ELSE prepaid_amount END,
-           payment_transaction_id = CASE WHEN $3::boolean AND product_id = ANY($2::uuid[]) THEN $1 ELSE payment_transaction_id END
-       WHERE order_id = $4`,
-      [transaction.id, Array.from(coveredProductIds), paid, transaction.order_id]
-    );
+    if (metadata.counterBalance && paid) {
+      await client.query(
+        `UPDATE order_items
+         SET payment_transaction_id = CASE
+               WHEN payment_status <> 'paid'::payment_status THEN $1
+               ELSE payment_transaction_id
+             END,
+             payment_status = 'paid'::payment_status,
+             prepaid_amount = subtotal
+         WHERE order_id = $2`,
+        [transaction.id, transaction.order_id]
+      );
+    } else {
+      await client.query(
+        `UPDATE order_items
+         SET payment_status = CASE WHEN $3::boolean AND product_id = ANY($2::uuid[]) THEN 'paid'::payment_status ELSE payment_status END,
+             prepaid_amount = CASE WHEN $3::boolean AND product_id = ANY($2::uuid[]) THEN subtotal ELSE prepaid_amount END,
+             payment_transaction_id = CASE WHEN $3::boolean AND product_id = ANY($2::uuid[]) THEN $1 ELSE payment_transaction_id END
+         WHERE order_id = $4`,
+        [transaction.id, Array.from(coveredProductIds), paid, transaction.order_id]
+      );
+    }
 
     if (paid) {
       await client.query(

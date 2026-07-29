@@ -58,10 +58,15 @@ export function ManagerAuditPage() {
               <div>
                 <p className="font-bold">
                   <span className="mr-2 text-gray-400">{index + 1}.</span>
-                  {t(`audit.actions.${item.action}`, { defaultValue: item.action })}
+                  {t(`audit.actions.${item.action.replace(/\./g, '_')}`, {
+                    defaultValue: item.action,
+                  })}
                 </p>
                 <p className="text-sm text-gray-500">
-                  {item.actor_name ?? t('audit.system')} · {item.resource_type}
+                  {item.actor_name ?? t('audit.system')} ·{' '}
+                  {t(`audit.resources.${item.resource_type}`, {
+                    defaultValue: item.resource_type,
+                  })}
                 </p>
               </div>
               <time className="text-xs text-gray-500">

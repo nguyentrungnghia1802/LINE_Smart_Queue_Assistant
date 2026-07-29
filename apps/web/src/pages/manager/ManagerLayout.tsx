@@ -18,6 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 
 const BRANCH_MANAGER_NAV_ITEMS: RoleNavItem[] = [
   { to: '/manager', labelKey: 'nav.dashboard', icon: LayoutDashboard, end: true },
+  { to: '/manager/products', labelKey: 'nav.products', icon: PackageSearch },
   { to: '/manager/queues', labelKey: 'nav.queue', icon: ListOrdered },
   { to: '/manager/users', labelKey: 'nav.staff', icon: Users },
   { to: '/manager/qr', labelKey: 'nav.qr', icon: QrCode },
@@ -58,7 +59,6 @@ export function ManagerLayout() {
     location.pathname.startsWith('/manager/audit') ||
     location.pathname.startsWith('/manager/settings');
   const branchPathForbidden =
-    location.pathname.startsWith('/manager/products') ||
     location.pathname.startsWith('/manager/branches') ||
     location.pathname.startsWith('/manager/audit');
   if (

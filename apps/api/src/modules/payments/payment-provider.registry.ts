@@ -2,9 +2,11 @@ import { config } from '../../config';
 
 import { ExternalPaymentProvider, PaymentProviderId } from './payments.types';
 import { demoPaymentProvider } from './providers/demo-payment.provider';
+import { payosPaymentProvider } from './providers/payos-payment.provider';
 import { UnsupportedExternalPaymentProvider } from './providers/unsupported-external.provider';
 
 const externalProviders: Record<Exclude<PaymentProviderId, 'demo'>, ExternalPaymentProvider> = {
+  payos: payosPaymentProvider,
   stripe: new UnsupportedExternalPaymentProvider('stripe'),
   komoju: new UnsupportedExternalPaymentProvider('komoju'),
   paypay: new UnsupportedExternalPaymentProvider('paypay'),

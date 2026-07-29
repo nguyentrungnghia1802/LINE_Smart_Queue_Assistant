@@ -17,6 +17,7 @@ interface ProductRow {
   price: string;
   service_time_minutes: number;
   stock_quantity: number | null;
+  low_stock_threshold?: number;
   product_type: 'product' | 'service';
   is_active: boolean;
 }
@@ -30,6 +31,8 @@ export function ManagerProductsPage() {
   const [deleteError, setDeleteError] = useState('');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'product' | 'service'>('all');
+  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const isOwner = user?.isOrganizationOwner === true;
 
   const { data: products = [], isLoading } = useQuery<ProductRow[]>({
     queryKey: ['products', orgId],
@@ -58,11 +61,19 @@ export function ManagerProductsPage() {
     return products.filter(
       (product) =>
         (typeFilter === 'all' || product.product_type === typeFilter) &&
+        (!lowStockOnly ||
+          (product.stock_quantity !== null &&
+            product.stock_quantity < (product.low_stock_threshold ?? 10))) &&
         (!query ||
           product.name.toLocaleLowerCase().includes(query) ||
           product.product_code.toLocaleLowerCase().includes(query))
     );
-  }, [products, search, typeFilter]);
+  }, [lowStockOnly, products, search, typeFilter]);
+  const lowStockProducts = products.filter(
+    (product) =>
+      product.stock_quantity !== null &&
+      product.stock_quantity < (product.low_stock_threshold ?? 10)
+  );
 
   if (isLoading)
     return <div className="text-gray-400 text-sm">{t('states.loading', { ns: 'common' })}</div>;
@@ -71,13 +82,25 @@ export function ManagerProductsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">{t('products.title')}</h1>
-        <Link
-          to="/manager/products/new"
-          className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
-        >
-          + {t('products.create')}
-        </Link>
+        {isOwner && (
+          <Link
+            to="/manager/products/new"
+            className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+          >
+            + {t('products.create')}
+          </Link>
+        )}
       </div>
+      {!isOwner && lowStockProducts.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setLowStockOnly((value) => !value)}
+          className="flex w-full items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-left text-sm text-red-800"
+        >
+          <span className="font-bold">{t('products.lowStockAlert')}</span>
+          <span>{lowStockProducts.map((product) => product.product_code).join(', ')}</span>
+        </button>
+      )}
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 sm:flex-row">
         <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-gray-300 px-3">
           <Search className="h-4 w-4 text-gray-400" aria-hidden="true" />
@@ -104,6 +127,17 @@ export function ManagerProductsPage() {
             </button>
           ))}
         </div>
+        {!isOwner && (
+          <button
+            type="button"
+            onClick={() => setLowStockOnly((value) => !value)}
+            className={`rounded-lg px-3 py-2 text-xs font-bold ${
+              lowStockOnly ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            {t('products.filters.lowStock')}
+          </button>
+        )}
       </div>
 
       {filteredProducts.length === 0 ? (
@@ -112,7 +146,10 @@ export function ManagerProductsPage() {
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="divide-y divide-gray-100 md:hidden">
             {filteredProducts.map((product, index) => (
-              <article key={product.id} className="p-4">
+              <article
+                key={product.id}
+                className={`p-4 ${!isOwner && product.stock_quantity !== null && product.stock_quantity < (product.low_stock_threshold ?? 10) ? 'bg-red-50/60' : ''}`}
+              >
                 <div className="flex min-w-0 gap-3">
                   {product.image_url ? (
                     <img
@@ -148,34 +185,42 @@ export function ManagerProductsPage() {
                         {formatCurrency(Number(product.price), i18n.resolvedLanguage ?? 'ja')}
                       </p>
                     </div>
-                    <p className="mt-2 text-xs text-gray-500">
-                      {t('products.stock')}: {product.stock_quantity ?? '∞'}
-                    </p>
+                    {!isOwner && (
+                      <p className="mt-2 text-xs text-gray-500">
+                        {t('products.stock')}: {product.stock_quantity ?? '∞'}
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-3 gap-2 border-t border-gray-100 pt-3">
+                <div
+                  className={`mt-4 grid gap-2 border-t border-gray-100 pt-3 ${isOwner ? 'grid-cols-3' : 'grid-cols-1'}`}
+                >
                   <Link
                     to={`/manager/products/${product.id}`}
                     className="rounded-lg bg-gray-100 px-2 py-2 text-center text-xs font-semibold text-gray-700"
                   >
                     {t('actions.open', { ns: 'common' })}
                   </Link>
-                  <Link
-                    to={`/manager/products/${product.id}/edit`}
-                    className="rounded-lg bg-blue-50 px-2 py-2 text-center text-xs font-semibold text-blue-700"
-                  >
-                    {t('actions.edit', { ns: 'common' })}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDeleteError('');
-                      setConfirmId(product.id);
-                    }}
-                    className="rounded-lg bg-red-50 px-2 py-2 text-xs font-semibold text-red-600"
-                  >
-                    {t('actions.delete', { ns: 'common' })}
-                  </button>
+                  {isOwner && (
+                    <Link
+                      to={`/manager/products/${product.id}/edit`}
+                      className="rounded-lg bg-blue-50 px-2 py-2 text-center text-xs font-semibold text-blue-700"
+                    >
+                      {t('actions.edit', { ns: 'common' })}
+                    </Link>
+                  )}
+                  {isOwner && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteError('');
+                        setConfirmId(product.id);
+                      }}
+                      className="rounded-lg bg-red-50 px-2 py-2 text-xs font-semibold text-red-600"
+                    >
+                      {t('actions.delete', { ns: 'common' })}
+                    </button>
+                  )}
                 </div>
               </article>
             ))}
@@ -196,15 +241,20 @@ export function ManagerProductsPage() {
                 <th className="px-4 py-3 font-medium text-right hidden sm:table-cell">
                   {t('products.duration')}
                 </th>
-                <th className="px-4 py-3 font-medium text-right hidden md:table-cell">
-                  {t('products.stock')}
-                </th>
+                {!isOwner && (
+                  <th className="px-4 py-3 font-medium text-right hidden md:table-cell">
+                    {t('products.stock')}
+                  </th>
+                )}
                 <th className="px-4 py-3 font-medium text-center">{t('products.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {filteredProducts.map((p, index) => (
-                <tr key={p.id} className="border-b border-gray-100 last:border-0">
+                <tr
+                  key={p.id}
+                  className={`border-b border-gray-100 last:border-0 ${!isOwner && p.stock_quantity !== null && p.stock_quantity < (p.low_stock_threshold ?? 10) ? 'bg-red-50/60' : ''}`}
+                >
                   <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
                   <td className="px-4 py-3 font-mono text-xs font-bold text-gray-700">
                     {p.product_code}
@@ -236,9 +286,11 @@ export function ManagerProductsPage() {
                   <td className="px-4 py-3 text-right text-gray-500 hidden sm:table-cell">
                     {t('units.minutes', { ns: 'common', count: p.service_time_minutes })}
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-500 hidden md:table-cell">
-                    {p.stock_quantity ?? '∞'}
-                  </td>
+                  {!isOwner && (
+                    <td className="px-4 py-3 text-right text-gray-500 hidden md:table-cell">
+                      {p.stock_quantity ?? '∞'}
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-2">
                       <Link
@@ -247,21 +299,25 @@ export function ManagerProductsPage() {
                       >
                         {t('actions.open', { ns: 'common' })}
                       </Link>
-                      <Link
-                        to={`/manager/products/${p.id}/edit`}
-                        className="text-gray-600 hover:underline text-xs"
-                      >
-                        {t('actions.edit', { ns: 'common' })}
-                      </Link>
-                      <button
-                        onClick={() => {
-                          setDeleteError('');
-                          setConfirmId(p.id);
-                        }}
-                        className="text-red-500 hover:underline text-xs"
-                      >
-                        {t('actions.delete', { ns: 'common' })}
-                      </button>
+                      {isOwner && (
+                        <Link
+                          to={`/manager/products/${p.id}/edit`}
+                          className="text-gray-600 hover:underline text-xs"
+                        >
+                          {t('actions.edit', { ns: 'common' })}
+                        </Link>
+                      )}
+                      {isOwner && (
+                        <button
+                          onClick={() => {
+                            setDeleteError('');
+                            setConfirmId(p.id);
+                          }}
+                          className="text-red-500 hover:underline text-xs"
+                        >
+                          {t('actions.delete', { ns: 'common' })}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -272,7 +328,7 @@ export function ManagerProductsPage() {
       )}
 
       {/* Confirm delete modal */}
-      {confirmId && (
+      {isOwner && confirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl sm:p-6">
             <p className="text-sm text-gray-700 mb-4">{t('products.deleteConfirm')}</p>

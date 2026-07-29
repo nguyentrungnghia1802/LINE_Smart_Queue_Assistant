@@ -186,6 +186,8 @@ export const customer = {
     requiredTotal: '事前支払い合計',
     processing: '処理中...',
     failed: '支払いに失敗しました。もう一度お試しください。',
+    pending: '入金をまだ確認できません。振込完了後にもう一度お試しください。',
+    providerUnavailable: 'この通貨に対応する本番決済はまだ設定されていません。',
     organizationPrepayment: '{{name}} の事前支払いを処理します。',
     requiredOnly: '必須分のみ',
     fullAmount: '全額支払い',
@@ -197,6 +199,10 @@ export const customer = {
     convenienceHint: 'コンビニ支払い番号を発行します。デモでは発行後すぐに支払い完了になります。',
     appHint: '外部アプリへ移動する想定の画面です。デモではこの画面で支払い完了になります。',
     methods: {
+      vietqr: {
+        label: 'VietQR銀行振込',
+        description: 'payOSの銀行QRで支払い、入金確認は自動で行われます。',
+      },
       creditCard: { label: 'クレジットカード', description: 'Stripe / KOMOJU 接続準備済み' },
       paypay: { label: 'PayPay', description: 'PayPay決済リンク接続準備済み' },
       rakuten: { label: '楽天ペイ', description: '楽天ペイ接続準備済み' },

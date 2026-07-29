@@ -6,6 +6,7 @@ export const marketing = {
     businessSignup: 'Đăng ký doanh nghiệp',
     login: 'Đăng nhập',
     dashboard: 'Dashboard',
+    menu: 'Mở điều hướng',
   },
   hero: {
     eyebrow: 'Trải nghiệm xếp hàng thế hệ mới với LINE',
@@ -92,6 +93,9 @@ export const marketing = {
     company: 'Doanh nghiệp',
     legal: 'Điều khoản và quyền riêng tư',
     copyright: '© 2026 Smart Queue Assistant',
+    supportEmail: 'Email hỗ trợ hệ thống',
+    supportPhone: '+84 948512463',
+    headquarters: 'Trụ sở: Phúc Thọ, Hà Nội, Việt Nam',
   },
   registration: {
     eyebrow: 'Đăng ký dịch vụ doanh nghiệp',

@@ -9,6 +9,7 @@ function reservation(status: InventoryReservationRow['status']): InventoryReserv
   return {
     id: '11111111-1111-4111-8111-111111111111',
     organization_id: '22222222-2222-4222-8222-222222222222',
+    branch_id: '66666666-6666-4666-8666-666666666666',
     order_id: '33333333-3333-4333-8333-333333333333',
     product_id: '44444444-4444-4444-8444-444444444444',
     quantity: 2,
@@ -53,6 +54,7 @@ describe('inventoryReservationsRepository', () => {
       inventoryReservationsRepository.reserve(
         {
           organizationId: '22222222-2222-4222-8222-222222222222',
+          branchId: '66666666-6666-4666-8666-666666666666',
           orderId: '33333333-3333-4333-8333-333333333333',
           productId: '44444444-4444-4444-8444-444444444444',
           quantity: 3,
@@ -74,6 +76,7 @@ describe('inventoryReservationsRepository', () => {
     await inventoryReservationsRepository.reserve(
       {
         organizationId: extended.organization_id,
+        branchId: extended.branch_id,
         orderId: extended.order_id,
         productId: extended.product_id,
         quantity: 1,

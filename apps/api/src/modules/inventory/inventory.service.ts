@@ -14,6 +14,7 @@ export const inventoryService = {
   async reserveFiniteProduct(
     params: {
       organizationId: string;
+      branchId: string;
       orderId: string;
       productId: string;
       quantity: number;

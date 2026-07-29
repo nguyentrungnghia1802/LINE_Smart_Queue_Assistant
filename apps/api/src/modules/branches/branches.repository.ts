@@ -17,6 +17,8 @@ export interface BranchRow {
   address_line2: string | null;
   latitude: string | null;
   longitude: string | null;
+  google_place_id: string | null;
+  formatted_map_address: string | null;
   timezone: string;
   payment_settings: Record<string, unknown>;
   is_active: boolean;
@@ -362,6 +364,8 @@ export class BranchesRepository extends BaseRepository {
       addressLine2?: string | null;
       latitude?: number | null;
       longitude?: number | null;
+      googlePlaceId?: string | null;
+      formattedMapAddress?: string | null;
       paymentSettings?: Record<string, unknown>;
       createdBy: string;
     },
@@ -371,9 +375,10 @@ export class BranchesRepository extends BaseRepository {
       client,
       `INSERT INTO organization_branches (
          organization_id, name, code, phone, email, postal_code, prefecture,
-         city, address_line1, address_line2, latitude, longitude, created_by
+         city, address_line1, address_line2, latitude, longitude,
+         google_place_id, formatted_map_address, created_by
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING *`,
       [
         params.organizationId,
@@ -388,6 +393,8 @@ export class BranchesRepository extends BaseRepository {
         params.addressLine2 ?? null,
         params.latitude ?? null,
         params.longitude ?? null,
+        params.googlePlaceId ?? null,
+        params.formattedMapAddress ?? null,
         params.createdBy,
       ]
     );
@@ -408,6 +415,9 @@ export class BranchesRepository extends BaseRepository {
       addressLine2?: string | null;
       latitude?: number | null;
       longitude?: number | null;
+      googlePlaceId?: string | null;
+      formattedMapAddress?: string | null;
+      paymentSettings?: Record<string, unknown>;
     },
     client: PoolClient
   ): Promise<BranchRow | null> {
@@ -422,6 +432,8 @@ export class BranchesRepository extends BaseRepository {
       addressLine2: 'address_line2',
       latitude: 'latitude',
       longitude: 'longitude',
+      googlePlaceId: 'google_place_id',
+      formattedMapAddress: 'formatted_map_address',
       paymentSettings: 'payment_settings',
     };
     const sets: string[] = [];

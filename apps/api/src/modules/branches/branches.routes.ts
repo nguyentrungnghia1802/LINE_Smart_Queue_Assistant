@@ -12,6 +12,7 @@ import { BusinessCalendarSchema } from '../orgs/orgs.validator';
 
 import {
   createBranch,
+  geocodeBranchAddress,
   getMyBranch,
   getMyBranchBusinessCalendar,
   getOrganizationBranchAnalytics,
@@ -24,6 +25,7 @@ import {
 } from './branches.controller';
 import {
   AuditLogQuerySchema,
+  BranchGeocodeSchema,
   BranchIdParamSchema,
   BranchManagerParamSchema,
   CreateBranchSchema,
@@ -49,6 +51,12 @@ branchesRouter.put(
   updateMyBranchBusinessCalendar
 );
 branchesRouter.get('/analytics', getOrganizationBranchAnalytics);
+branchesRouter.post(
+  '/geocode',
+  authenticatedActionRateLimiter,
+  validate(BranchGeocodeSchema),
+  geocodeBranchAddress
+);
 branchesRouter.get('/', listBranches);
 branchesRouter.get('/audit', validate(AuditLogQuerySchema, 'query'), listOrganizationAudit);
 branchesRouter.post(

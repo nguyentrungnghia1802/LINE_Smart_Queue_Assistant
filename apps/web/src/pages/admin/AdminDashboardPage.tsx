@@ -68,17 +68,19 @@ export function AdminDashboardPage() {
 
       <section className="rounded-xl border border-gray-200 bg-white p-5">
         <h2 className="font-bold text-gray-950">{t('dashboard.monthlyRevenue')}</h2>
-        <div className="mt-6 flex h-56 items-end gap-1.5 sm:gap-3">
+        <div className="mt-6 grid h-56 grid-cols-12 items-end gap-1.5 sm:gap-3">
           {data.monthlyRevenue.map((point) => (
             <div
               key={point.month}
-              className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2"
+              className="flex h-full min-w-0 flex-col items-center justify-end gap-2"
               title={`${point.month}: ${formatCurrency(point.revenue, locale)}`}
             >
-              <div
-                className="w-full rounded-t bg-brand-600"
-                style={{ height: `${Math.max(3, (point.revenue / maxRevenue) * 100)}%` }}
-              />
+              <div className="flex h-48 w-full items-end">
+                <div
+                  className="w-full rounded-t bg-brand-600"
+                  style={{ height: `${Math.max(3, (point.revenue / maxRevenue) * 100)}%` }}
+                />
+              </div>
               <span className="hidden text-[10px] text-gray-500 sm:block">
                 {point.month.slice(5)}
               </span>

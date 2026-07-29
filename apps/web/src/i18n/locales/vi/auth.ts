@@ -19,6 +19,8 @@ export const auth = {
     onlineReception: 'Tiếp nhận trực tuyến',
     notificationIntegration: 'Tích hợp thông báo',
     paymentDemo: 'Thanh toán demo',
+    businessSignupPrompt: 'Bạn muốn đăng ký dịch vụ cho doanh nghiệp?',
+    businessSignupLink: 'Bắt đầu đăng ký doanh nghiệp',
   },
   register: {
     title: 'Đăng ký tài khoản',
