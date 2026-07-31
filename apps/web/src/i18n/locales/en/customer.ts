@@ -166,6 +166,8 @@ export const customer = {
     icon: 'History',
   },
   preferences: {
+    account: 'Account',
+    logoutDescription: 'End the LINE reception session on this device.',
     title: 'Notification settings',
     line: 'LINE notifications',
     approaching: 'Approaching-turn notifications',

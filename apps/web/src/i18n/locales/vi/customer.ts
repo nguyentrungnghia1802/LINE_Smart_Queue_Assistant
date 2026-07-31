@@ -165,6 +165,8 @@ export const customer = {
     icon: 'Lịch sử',
   },
   preferences: {
+    account: 'Tài khoản',
+    logoutDescription: 'Kết thúc phiên tiếp nhận LINE trên thiết bị này.',
     title: 'Cài đặt thông báo',
     line: 'Thông báo LINE',
     approaching: 'Thông báo sắp đến lượt',

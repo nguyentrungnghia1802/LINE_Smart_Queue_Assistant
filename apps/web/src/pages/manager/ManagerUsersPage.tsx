@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
+import { Pagination } from '../../components/ui/Pagination';
 import { del, get, post } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
 
@@ -27,6 +28,7 @@ export function ManagerUsersPage() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const emptyForm = {
     displayName: '',
     email: '',
@@ -54,6 +56,7 @@ export function ManagerUsersPage() {
           candidate.employee_code?.toLocaleLowerCase().includes(query))
     );
   }, [search, users]);
+  const pageStaffUsers = staffUsers.slice((page - 1) * 15, page * 15);
 
   const createMutation = useMutation({
     mutationFn: () => post('/api/v1/users/staff', form),
@@ -103,7 +106,7 @@ export function ManagerUsersPage() {
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="divide-y divide-gray-100 sm:hidden">
-            {staffUsers.map((staffUser, index) => (
+            {pageStaffUsers.map((staffUser, index) => (
               <article key={staffUser.id} className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-950 text-sm font-bold text-white">
@@ -111,7 +114,7 @@ export function ManagerUsersPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <h2 className="truncate font-bold text-gray-900">
-                      {index + 1}. {staffUser.display_name}
+                      {(page - 1) * 15 + index + 1}. {staffUser.display_name}
                     </h2>
                     <p className="mt-0.5 truncate text-xs text-gray-500">
                       {staffUser.email ?? '—'}
@@ -152,7 +155,7 @@ export function ManagerUsersPage() {
           <table className="hidden w-full text-sm sm:table">
             <thead>
               <tr className="bg-gray-50 text-left text-gray-500 border-b border-gray-200">
-                <th className="w-16 whitespace-nowrap px-4 py-3 text-center font-medium">
+                <th className="w-16 whitespace-nowrap px-4 py-3 text-left font-medium">
                   {t('labels.number', { ns: 'common' })}
                 </th>
                 <th className="px-4 py-3 font-medium">{t('labels.name', { ns: 'common' })}</th>
@@ -162,9 +165,11 @@ export function ManagerUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {staffUsers.map((u, index) => (
+              {pageStaffUsers.map((u, index) => (
                 <tr key={u.id} className="border-b border-gray-100 last:border-0">
-                  <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
+                  <td className="px-4 py-3 text-left text-gray-500">
+                    {(page - 1) * 15 + index + 1}
+                  </td>
                   <td className="px-4 py-3 font-medium text-gray-800">{u.display_name}</td>
                   <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{u.email ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-600">
@@ -194,6 +199,16 @@ export function ManagerUsersPage() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            totalItems={staffUsers.length}
+            onPageChange={setPage}
+            previousLabel={t('pagination.previous', { ns: 'common' })}
+            nextLabel={t('pagination.next', { ns: 'common' })}
+            pageLabel={(current, total) =>
+              t('pagination.page', { ns: 'common', page: current, totalPages: total })
+            }
+          />
         </div>
       )}
 

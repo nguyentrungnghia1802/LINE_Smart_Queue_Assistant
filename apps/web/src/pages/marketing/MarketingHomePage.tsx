@@ -167,7 +167,7 @@ export function MarketingHomePage() {
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{t('product.title')}</h2>
               <p className="mt-4 text-base leading-7 text-gray-600">{t('product.description')}</p>
             </div>
-            <div className="mt-14 grid border-y border-gray-200 md:grid-cols-3 md:divide-x md:divide-gray-200">
+            <div className="mt-14 grid gap-3 md:grid-cols-3">
               <Feature
                 icon={MessageCircle}
                 title={t('product.features.line.title')}
@@ -196,7 +196,7 @@ export function MarketingHomePage() {
             <h2 className="mt-3 max-w-2xl text-3xl font-bold sm:text-4xl">
               {t('solutions.title')}
             </h2>
-            <div className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-gray-700 lg:grid-cols-4">
+            <div className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Solution icon={Scissors} label={t('solutions.salon')} />
               <Solution icon={HeartPulse} label={t('solutions.clinic')} />
               <Solution icon={Utensils} label={t('solutions.restaurant')} />
@@ -219,7 +219,7 @@ export function MarketingHomePage() {
               {(Object.keys(PLAN_PRICES) as Array<keyof typeof PLAN_PRICES>).map((plan) => (
                 <article
                   key={plan}
-                  className={`rounded-lg border bg-white p-6 ${
+                  className={`flex h-full flex-col rounded-lg border bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${
                     plan === 'standard'
                       ? 'border-brand-500 shadow-[var(--shadow-soft)]'
                       : 'border-gray-200'
@@ -298,25 +298,25 @@ export function MarketingHomePage() {
               </div>
               <p className="mt-4 text-sm leading-6 text-gray-600">{t('footer.description')}</p>
             </div>
-            <address className="not-italic text-sm leading-6 text-gray-600 md:justify-self-end md:text-right">
-              <p className="mb-3 text-xs font-bold uppercase text-gray-400">
+            <address className="not-italic text-sm leading-6 text-gray-600 md:justify-self-end md:text-left">
+              <p className="mb-3 text-sm font-bold uppercase tracking-wide text-brand-700">
                 {t('footer.contact')}
               </p>
               <a
                 href="mailto:trungnghia180205@gmail.com"
-                className="flex items-center gap-2 hover:text-brand-700 md:justify-end"
+                className="flex items-center gap-3 hover:text-brand-700"
               >
-                <Mail className="h-4 w-4" />
+                <Mail className="h-4 w-4 shrink-0" />
                 {t('footer.supportEmail')}
               </a>
               <a
                 href="tel:+84948512463"
-                className="mt-2 flex items-center gap-2 hover:text-brand-700 md:justify-end"
+                className="mt-2 flex items-center gap-3 hover:text-brand-700"
               >
-                <Phone className="h-4 w-4" />
+                <Phone className="h-4 w-4 shrink-0" />
                 {t('footer.supportPhone')}
               </a>
-              <p className="mt-2 flex items-center gap-2 md:justify-end">
+              <p className="mt-2 flex items-center gap-3">
                 <MapPin className="h-4 w-4 shrink-0" />
                 {t('footer.headquarters')}
               </p>
@@ -379,8 +379,10 @@ function Feature({
   description,
 }: Readonly<{ icon: typeof BellRing; title: string; description: string }>) {
   return (
-    <article className="border-b border-gray-200 py-8 md:border-b-0 md:px-8 first:md:pl-0 last:md:pr-0">
-      <Icon className="h-7 w-7 text-brand-600" aria-hidden="true" />
+    <article className="min-h-52 rounded-lg border border-gray-200 bg-gray-50 p-7 transition hover:-translate-y-1 hover:border-brand-200 hover:bg-white hover:shadow-md">
+      <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
+        <Icon className="h-6 w-6" aria-hidden="true" />
+      </span>
       <h3 className="mt-5 text-lg font-bold">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-gray-600">{description}</p>
     </article>
@@ -389,8 +391,10 @@ function Feature({
 
 function Solution({ icon: Icon, label }: Readonly<{ icon: typeof Store; label: string }>) {
   return (
-    <div className="flex min-h-40 flex-col justify-between bg-gray-900 p-5">
-      <Icon className="h-7 w-7 text-emerald-300" aria-hidden="true" />
+    <div className="flex min-h-48 flex-col justify-between rounded-lg border border-white/10 bg-gray-900 p-6 transition hover:-translate-y-1 hover:border-emerald-300/50 hover:bg-gray-800">
+      <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-300/10">
+        <Icon className="h-6 w-6 text-emerald-300" aria-hidden="true" />
+      </span>
       <p className="mt-8 font-bold">{label}</p>
     </div>
   );

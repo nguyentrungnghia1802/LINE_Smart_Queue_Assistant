@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import type { SupportedLocale } from '@line-queue/shared';
 import { API_BASE_PATH } from '@line-queue/shared';
 
+import { Pagination } from '../../components/ui/Pagination';
 import { get } from '../../services/apiClient';
 
 export interface OrgRow {
@@ -30,6 +31,7 @@ export function AdminOrganizationsPage() {
     queryFn: () => get<OrgRow[]>(`${API_BASE_PATH}/admin/organizations`),
   });
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const visibleOrganizations = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return orgs.filter(
@@ -39,6 +41,7 @@ export function AdminOrganizationsPage() {
         org.slug.toLocaleLowerCase().includes(query)
     );
   }, [orgs, search]);
+  const pageOrganizations = visibleOrganizations.slice((page - 1) * 15, page * 15);
 
   return (
     <div className="space-y-6">
@@ -84,16 +87,18 @@ export function AdminOrganizationsPage() {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {visibleOrganizations.map((org, index) => (
+            {pageOrganizations.map((org, index) => (
               <Link
                 key={org.id}
                 to={`/admin/orgs/${org.id}`}
                 className="grid grid-cols-[32px_56px_1fr] gap-3 px-4 py-4 hover:bg-gray-50 md:grid-cols-[48px_64px_1fr_160px_160px]"
               >
-                <span className="self-center text-center text-sm text-gray-500">{index + 1}</span>
+                <span className="self-center text-left text-sm text-gray-500">
+                  {(page - 1) * 15 + index + 1}
+                </span>
                 <Logo src={org.logo_url} name={org.name} />
                 <div className="min-w-0">
-                  <div className="truncate font-medium text-gray-900">{org.name}</div>
+                  <div className="self-center truncate font-medium text-gray-900">{org.name}</div>
                   <div className="mt-1 truncate text-xs font-mono text-gray-500 md:hidden">
                     {org.slug}
                   </div>
@@ -112,6 +117,16 @@ export function AdminOrganizationsPage() {
           </div>
         )}
       </div>
+      <Pagination
+        page={page}
+        totalItems={visibleOrganizations.length}
+        onPageChange={setPage}
+        previousLabel={t('pagination.previous', { ns: 'common' })}
+        nextLabel={t('pagination.next', { ns: 'common' })}
+        pageLabel={(current, total) =>
+          t('pagination.page', { ns: 'common', page: current, totalPages: total })
+        }
+      />
     </div>
   );
 }

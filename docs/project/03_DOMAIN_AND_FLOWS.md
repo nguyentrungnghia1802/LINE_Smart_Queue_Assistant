@@ -388,6 +388,17 @@ There is no OpenAI or Gemini call in this flow. Adding a generative-AI API key w
 - Database unavailable: `/ready` returns `503`; Vite proxy errors indicate the API is not accepting connections.
 - Payment provider uncertainty: keep transaction pending/failed; never infer success from redirect alone.
 
+## 13. Operational calendar and list behavior
+
+- Branch business calendars contain recurring weekly hours plus `exceptionDays`. A closed exception
+  overrides the weekly schedule for the whole local calendar day; it is persisted with the existing
+  business-calendar update endpoint.
+- Management list views use client-side pagination in the UI at 15 records per page after the
+  server-filtered result set is loaded. This is a presentation concern and does not weaken tenant
+  scope or server-side authorization.
+- The “arrival wait after call” value remains a branch/queue operational setting consumed by the
+  existing no-show worker; the settings UI must not introduce a second competing timer.
+
 # Business account lifecycle and branches
 
 - A public organization application never accepts or stores a manager password.

@@ -109,7 +109,7 @@ export function BranchLocationPicker({
           <iframe
             title={t('branches.selectedLocation')}
             src={`https://www.google.com/maps?q=${encodeURIComponent(`${value.latitude},${value.longitude}`)}&z=17&output=embed`}
-            className="h-56 w-full border-0"
+            className="h-[28rem] w-full border-0 sm:h-[32rem]"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
           />

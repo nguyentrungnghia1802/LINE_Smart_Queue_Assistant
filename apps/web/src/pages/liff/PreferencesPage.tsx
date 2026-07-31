@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
 import { del, get, put } from '../../services/apiClient';
 
 interface Preferences {
@@ -19,6 +20,7 @@ interface LocationConsent {
 export function PreferencesPage() {
   const { t } = useTranslation(['customer', 'common']);
   const queryClient = useQueryClient();
+  const { logout } = useLiffRuntime();
   const [notice, setNotice] = useState('');
   const preferences = useQuery({
     queryKey: ['line-preferences'],
@@ -118,6 +120,21 @@ export function PreferencesPage() {
           className="mt-4 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 disabled:opacity-40"
         >
           {t('preferences.deleteLocation', { ns: 'customer' })}
+        </button>
+      </section>
+      <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+        <h2 className="font-semibold text-gray-900">
+          {t('preferences.account', { ns: 'customer' })}
+        </h2>
+        <p className="mt-1 text-sm leading-6 text-gray-500">
+          {t('preferences.logoutDescription', { ns: 'customer' })}
+        </p>
+        <button
+          type="button"
+          onClick={logout}
+          className="mt-4 rounded-lg border border-gray-300 px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
+        >
+          {t('actions.logout', { ns: 'common' })}
         </button>
       </section>
     </div>
