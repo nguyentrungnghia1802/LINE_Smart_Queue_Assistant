@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Pagination } from '../../components/ui/Pagination';
 import { get } from '../../services/apiClient';
 
 type Audit = {
@@ -19,6 +20,7 @@ export function ManagerAuditPage() {
     queryFn: () => get('/api/v1/branches/audit?limit=200'),
   });
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const visibleAudit = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return data.filter(
@@ -29,6 +31,7 @@ export function ManagerAuditPage() {
         item.actor_name?.toLocaleLowerCase().includes(query)
     );
   }, [data, search]);
+  const pageAudit = visibleAudit.slice((page - 1) * 15, page * 15);
   return (
     <div className="space-y-5">
       <header>
@@ -50,14 +53,16 @@ export function ManagerAuditPage() {
         {visibleAudit.length === 0 ? (
           <p className="p-6 text-sm text-gray-500">{t('audit.empty')}</p>
         ) : (
-          visibleAudit.map((item, index) => (
+          pageAudit.map((item, index) => (
             <article
               key={item.id}
               className="grid gap-1 border-b p-4 last:border-0 sm:grid-cols-[1fr_auto]"
             >
               <div>
                 <p className="font-bold">
-                  <span className="mr-2 text-gray-400">{index + 1}.</span>
+                  <span className="mr-2 text-left text-gray-400">
+                    {(page - 1) * 15 + index + 1}.
+                  </span>
                   {t(`audit.actions.${item.action.replace(/\./g, '_')}`, {
                     defaultValue: item.action,
                   })}
@@ -78,6 +83,16 @@ export function ManagerAuditPage() {
             </article>
           ))
         )}
+        <Pagination
+          page={page}
+          totalItems={visibleAudit.length}
+          onPageChange={setPage}
+          previousLabel={t('pagination.previous', { ns: 'common' })}
+          nextLabel={t('pagination.next', { ns: 'common' })}
+          pageLabel={(current, total) =>
+            t('pagination.page', { ns: 'common', page: current, totalPages: total })
+          }
+        />
       </div>
     </div>
   );

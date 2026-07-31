@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { API_BASE_PATH } from '@line-queue/shared';
 
+import { Pagination } from '../../components/ui/Pagination';
 import { ApiClientError, get, patch, post } from '../../services/apiClient';
 
 type ApplicationStatus = 'pending' | 'approved' | 'rejected';
@@ -50,6 +51,7 @@ export function AdminOrganizationApplicationsPage() {
   const [note, setNote] = useState('');
   const [feedback, setFeedback] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const dateTime = useMemo(
     () =>
       new Intl.DateTimeFormat(i18n.resolvedLanguage ?? 'ja', {
@@ -160,6 +162,7 @@ export function AdminOrganizationApplicationsPage() {
         application.work_email.toLocaleLowerCase().includes(query)
     );
   }, [applicationsQuery.data, search]);
+  const pageApplications = applications.slice((page - 1) * 15, page * 15);
 
   return (
     <div className="space-y-6">
@@ -216,34 +219,39 @@ export function AdminOrganizationApplicationsPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <div className="hidden grid-cols-[44px_130px_1.4fr_1fr_150px_120px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase text-gray-500 lg:grid">
+          <div className="hidden grid-cols-[44px_1.5fr_180px_150px_140px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase text-gray-500 lg:grid">
             <span>{t('labels.number', { ns: 'common' })}</span>
-            <span>{t('applications.reference')}</span>
             <span>{t('applications.company')}</span>
-            <span>{t('applications.contact')}</span>
+            <span>
+              {t('applications.submittedAt', { defaultValue: t('applications.reference') })}
+            </span>
             <span>{t('applications.plan')}</span>
-            <span />
+            <span>{t('labels.status', { ns: 'common' })}</span>
           </div>
           <div className="divide-y divide-gray-200">
-            {applications.map((application, index) => (
+            {pageApplications.map((application, index) => (
               <article
                 key={application.id}
-                className="grid gap-4 px-5 py-5 lg:grid-cols-[44px_130px_1.4fr_1fr_150px_120px] lg:items-center"
+                role="button"
+                tabIndex={0}
+                onClick={() => openReview(application)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') openReview(application);
+                }}
+                className="grid cursor-pointer gap-3 px-5 py-4 transition hover:bg-gray-50 lg:grid-cols-[44px_1.5fr_180px_150px_140px] lg:items-center"
               >
-                <span className="text-sm text-gray-500">{index + 1}</span>
+                <span className="text-left text-sm text-gray-500">
+                  {(page - 1) * 15 + index + 1}
+                </span>
                 <div>
-                  <p className="font-mono text-sm font-bold">{application.reference_code}</p>
+                  <p className="font-bold text-gray-950">{application.trade_name}</p>
+                  <p className="mt-1 truncate text-xs text-gray-500">{application.legal_name}</p>
+                </div>
+                <div>
+                  <p className="font-mono text-xs font-bold">{application.reference_code}</p>
                   <p className="mt-1 text-xs text-gray-500">
                     {dateTime.format(new Date(application.submitted_at))}
                   </p>
-                </div>
-                <div>
-                  <p className="font-bold text-gray-950">{application.trade_name}</p>
-                  <p className="mt-1 text-sm text-gray-500">{application.legal_name}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">{application.contact_name}</p>
-                  <p className="mt-1 break-all text-xs text-gray-500">{application.work_email}</p>
                 </div>
                 <div>
                   <p className="text-sm font-bold">
@@ -253,19 +261,20 @@ export function AdminOrganizationApplicationsPage() {
                     {currency.format(application.amount_yen)}
                   </p>
                 </div>
-                <div className="flex items-center justify-between gap-3 lg:block">
-                  <StatusBadge status={application.status} />
-                  <button
-                    type="button"
-                    onClick={() => openReview(application)}
-                    className="rounded-md border border-gray-300 px-3 py-2 text-sm font-bold hover:bg-gray-50 lg:mt-2 lg:w-full"
-                  >
-                    {t('applications.review')}
-                  </button>
-                </div>
+                <StatusBadge status={application.status} />
               </article>
             ))}
           </div>
+          <Pagination
+            page={page}
+            totalItems={applications.length}
+            onPageChange={setPage}
+            previousLabel={t('pagination.previous', { ns: 'common' })}
+            nextLabel={t('pagination.next', { ns: 'common' })}
+            pageLabel={(current, total) =>
+              t('pagination.page', { ns: 'common', page: current, totalPages: total })
+            }
+          />
         </div>
       )}
 

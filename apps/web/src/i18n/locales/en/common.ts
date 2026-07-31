@@ -119,6 +119,7 @@ export const common = {
     UNKNOWN: 'Something went wrong. Please try again.',
   },
   accessibility: { mainNavigation: 'Main navigation', toggleMenu: 'Toggle menu' },
+  pagination: { previous: 'Previous', next: 'Next', page: 'Page {{page}} / {{totalPages}}' },
   pages: {
     notFoundTitle: 'Page not found',
     notFoundDescription: 'The page you are looking for does not exist.',

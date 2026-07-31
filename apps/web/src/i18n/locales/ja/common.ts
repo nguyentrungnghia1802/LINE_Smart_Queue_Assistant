@@ -121,6 +121,7 @@ export const common = {
     UNKNOWN: '処理中にエラーが発生しました。もう一度お試しください。',
   },
   accessibility: { mainNavigation: 'メインナビゲーション', toggleMenu: 'メニューを切り替え' },
+  pagination: { previous: '前へ', next: '次へ', page: '{{page}} / {{totalPages}}ページ' },
   pages: {
     notFoundTitle: 'ページが見つかりません',
     notFoundDescription: 'お探しのページは存在しません。',

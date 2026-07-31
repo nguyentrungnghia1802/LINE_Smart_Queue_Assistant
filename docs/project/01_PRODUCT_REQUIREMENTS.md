@@ -250,3 +250,14 @@ role and does not use branch-operation endpoints.
 - Third-party delivery failure is logged and retried according to its workflow; it must not expose provider secrets.
 - The UI preserves safe customer input after recoverable errors and shows localized recovery actions with Japanese fallback.
 - The login UI prefers a backend-supplied safe error message when available; otherwise it falls back to localized network/auth/validation/server messaging.
+
+## 8. Management usability
+
+- Long organization, application, product, and staff lists paginate at 15 rows per page. Sequence
+  numbers remain stable across pages and are aligned for fast scanning.
+- Organization applications are presented as compact summary rows; selecting a row opens the full
+  review and approval workspace.
+- Branch managers can maintain weekly business hours and persisted full-day exception closures. A
+  selected closure is visibly marked and applies in the branch timezone (Asia/Tokyo by default).
+- Customer preferences provide an explicit LINE session logout action. Logo uploads expose a clear
+  selected/uploaded state instead of relying on browser file-input text.

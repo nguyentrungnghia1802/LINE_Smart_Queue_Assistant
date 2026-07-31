@@ -119,6 +119,7 @@ export const common = {
     UNKNOWN: 'Đã xảy ra lỗi. Vui lòng thử lại.',
   },
   accessibility: { mainNavigation: 'Điều hướng chính', toggleMenu: 'Mở hoặc đóng menu' },
+  pagination: { previous: 'Trước', next: 'Sau', page: 'Trang {{page}} / {{totalPages}}' },
   pages: {
     notFoundTitle: 'Không tìm thấy trang',
     notFoundDescription: 'Trang bạn đang tìm không tồn tại.',
