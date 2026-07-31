@@ -180,6 +180,8 @@ export const customer = {
     deleteLocation: '共有を停止してデータを削除',
     locationDeleted: '位置情報の共有を停止し、保存データを削除しました。',
     loadFailed: '設定を読み込めませんでした。',
+    loggingOut: 'ログアウト中…',
+    logoutFailed: 'ログアウトできませんでした。もう一度お試しください。',
   },
   payment: {
     title: 'オンライン決済',

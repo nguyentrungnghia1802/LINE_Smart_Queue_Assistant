@@ -185,7 +185,10 @@ export function AdminOrganizationApplicationsPage() {
           <button
             key={status}
             type="button"
-            onClick={() => setFilter(status)}
+            onClick={() => {
+              setFilter(status);
+              setPage(1);
+            }}
             className={`rounded-md px-4 py-2 text-sm font-bold ${
               filter === status
                 ? 'bg-gray-950 text-white'
@@ -202,7 +205,10 @@ export function AdminOrganizationApplicationsPage() {
         <input
           type="search"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
           placeholder={t('applications.searchPlaceholder')}
           className="min-w-0 flex-1 border-0 py-2.5 text-sm outline-none"
         />
@@ -222,9 +228,7 @@ export function AdminOrganizationApplicationsPage() {
           <div className="hidden grid-cols-[44px_1.5fr_180px_150px_140px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase text-gray-500 lg:grid">
             <span>{t('labels.number', { ns: 'common' })}</span>
             <span>{t('applications.company')}</span>
-            <span>
-              {t('applications.submittedAt', { defaultValue: t('applications.reference') })}
-            </span>
+            <span>{t('applications.submittedAt')}</span>
             <span>{t('applications.plan')}</span>
             <span>{t('labels.status', { ns: 'common' })}</span>
           </div>
@@ -243,23 +247,14 @@ export function AdminOrganizationApplicationsPage() {
                 <span className="text-left text-sm text-gray-500">
                   {(page - 1) * 15 + index + 1}
                 </span>
-                <div>
+                <div className="self-center">
                   <p className="font-bold text-gray-950">{application.trade_name}</p>
-                  <p className="mt-1 truncate text-xs text-gray-500">{application.legal_name}</p>
                 </div>
-                <div>
-                  <p className="font-mono text-xs font-bold">{application.reference_code}</p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {dateTime.format(new Date(application.submitted_at))}
-                  </p>
+                <div className="self-center text-sm text-gray-600">
+                  {dateTime.format(new Date(application.submitted_at))}
                 </div>
-                <div>
-                  <p className="text-sm font-bold">
-                    {t(`pricing.${application.plan_code}.name`, { ns: 'marketing' })}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {currency.format(application.amount_yen)}
-                  </p>
+                <div className="self-center text-sm font-bold">
+                  {t(`pricing.${application.plan_code}.name`, { ns: 'marketing' })}
                 </div>
                 <StatusBadge status={application.status} />
               </article>

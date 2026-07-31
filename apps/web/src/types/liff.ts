@@ -39,7 +39,7 @@ export interface LiffContext {
   error: Error | null;
   authError: Error | null;
   login: () => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshFriendship: () => Promise<boolean>;
   requestFriendship: () => Promise<boolean>;
   /** Opens the native LIFF 2D-code reader when the runtime supports it. */

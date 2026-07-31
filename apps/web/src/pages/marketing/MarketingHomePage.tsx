@@ -196,7 +196,7 @@ export function MarketingHomePage() {
             <h2 className="mt-3 max-w-2xl text-3xl font-bold sm:text-4xl">
               {t('solutions.title')}
             </h2>
-            <div className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               <Solution icon={Scissors} label={t('solutions.salon')} />
               <Solution icon={HeartPulse} label={t('solutions.clinic')} />
               <Solution icon={Utensils} label={t('solutions.restaurant')} />
@@ -391,11 +391,11 @@ function Feature({
 
 function Solution({ icon: Icon, label }: Readonly<{ icon: typeof Store; label: string }>) {
   return (
-    <div className="flex min-h-48 flex-col justify-between rounded-lg border border-white/10 bg-gray-900 p-6 transition hover:-translate-y-1 hover:border-emerald-300/50 hover:bg-gray-800">
-      <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-300/10">
-        <Icon className="h-6 w-6 text-emerald-300" aria-hidden="true" />
+    <div className="flex min-h-60 flex-col justify-between rounded-lg border border-white/10 bg-gray-900 p-8 transition hover:-translate-y-1 hover:border-emerald-300/50 hover:bg-gray-800 lg:min-h-64">
+      <span className="flex h-14 w-14 items-center justify-center rounded-lg bg-emerald-300/10">
+        <Icon className="h-8 w-8 text-emerald-300" aria-hidden="true" />
       </span>
-      <p className="mt-8 font-bold">{label}</p>
+      <p className="mt-10 text-lg font-bold leading-7">{label}</p>
     </div>
   );
 }
