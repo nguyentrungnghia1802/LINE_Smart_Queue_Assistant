@@ -182,6 +182,8 @@ export const customer = {
     deleteLocation: 'Stop sharing and delete data',
     locationDeleted: 'Location sharing stopped and saved data deleted.',
     loadFailed: 'Could not load settings.',
+    loggingOut: 'Logging out…',
+    logoutFailed: 'Could not log out. Please try again.',
   },
   payment: {
     title: 'Online payment',

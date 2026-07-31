@@ -185,10 +185,12 @@ ID-token-to-system-JWT flow without a second customer auth model.
    minutes ends the session; continuous activity cannot extend it beyond 12 hours.
 5. Customer sessions do not use the business idle timer and can resume for at most 30 days. LIFF
    still re-verifies LINE identity when the app opens and authenticated requests still require an
-   active linked LINE account.
+   active linked LINE account. If the LIFF SDK temporarily reports signed-out after reload, an
+   already-restored customer cookie session may render without forcing another interactive login;
+   the next available LINE ID token is still exchanged server-side.
 6. Logout, password reset, account disablement, and staff removal revoke the relevant session
-   family or every active session for that user. Reuse outside the short concurrent-rotation grace
-   window revokes the family.
+   family or every active session for that user. Customer logout also clears the LIFF adapter state.
+   Reuse outside the short concurrent-rotation grace window revokes the family.
 
 ## 4. Booking without required prepayment
 
@@ -392,10 +394,13 @@ There is no OpenAI or Gemini call in this flow. Adding a generative-AI API key w
 
 - Branch business calendars contain recurring weekly hours plus `exceptionDays`. A closed exception
   overrides the weekly schedule for the whole local calendar day; it is persisted with the existing
-  business-calendar update endpoint.
+  business-calendar update endpoint. The UI places exception-day selection after weekly hours,
+  uses timezone-stable year/month arithmetic, supports multiple closures, and focuses the calendar
+  month when a date is selected through the date input.
 - Management list views use client-side pagination in the UI at 15 records per page after the
   server-filtered result set is loaded. This is a presentation concern and does not weaken tenant
-  scope or server-side authorization.
+  scope or server-side authorization. Visible sequence columns are left-aligned; the Admin
+  application list keeps review controls inside the selected application detail.
 - The “arrival wait after call” value remains a branch/queue operational setting consumed by the
   existing no-show worker; the settings UI must not introduce a second competing timer.
 

@@ -96,6 +96,7 @@ export function HomePage() {
         isLoggedIn={isLoggedIn}
         isInitialized={isInitialized}
         isLoading={isLoading}
+        authStatus={authStatus}
         onLogin={login}
       />
 
@@ -153,6 +154,7 @@ interface ProfileSectionProps {
   isLoggedIn: boolean;
   isInitialized: boolean;
   isLoading: boolean;
+  authStatus: string;
   onLogin: () => void;
 }
 
@@ -161,6 +163,7 @@ function ProfileSection({
   isLoggedIn,
   isInitialized,
   isLoading,
+  authStatus,
   onLogin,
 }: Readonly<ProfileSectionProps>) {
   const { t } = useTranslation(['customer', 'common']);
@@ -168,7 +171,7 @@ function ProfileSection({
     return <ProfileSkeleton />;
   }
 
-  if (isLoggedIn && profile) {
+  if ((isLoggedIn || authStatus === 'authenticated') && profile) {
     const initial = profile.displayName.charAt(0).toUpperCase();
     return (
       <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">

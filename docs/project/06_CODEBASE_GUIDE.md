@@ -89,6 +89,10 @@ Authentication is split between `modules/auth/auth-session.policy.ts` (role timi
 `AuthSessionManager` bootstraps the cookie session, tracks business-user activity, and keeps the
 short-lived access token in module memory through `store/authSession.ts`.
 
+`useLiff()` revokes both the backend refresh session and LIFF adapter state on customer logout. It
+continues to exchange available LINE ID tokens, while a customer session already restored from the
+secure cookie prevents an unnecessary interactive LINE login when the SDK is temporarily signed out.
+
 LIFF child pages should consume `LiffRuntimeContext` from `LiffLayout` instead of calling `useLiff()` directly. The layout initializes LIFF once and shares profile/auth status with booking, ticket, and home routes.
 
 `/liff/home` is the customer entry point for LINE Rich Menu. It should keep ticket resolution and booking navigation in the LIFF flow and must not hard-code queue entry IDs.
@@ -189,8 +193,10 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 - `apps/web/src/components/ui/Pagination.tsx` is the shared 15-row pagination control. Pass labels
   from the active locale namespace; do not hard-code customer-facing pagination copy in pages.
 - `AdminOrganizationApplicationsPage` intentionally uses a compact clickable summary list and keeps
-  approval/edit controls in its detail modal.
+  approval/edit controls in its detail modal. Summary rows contain only sequence, organization,
+  submission time, plan, and status.
 - `BranchManagerSettingsPage` updates existing `exceptionDays` through the business-calendar API;
-  no separate holiday table is required for full-day closures.
+  no separate holiday table is required for full-day closures. Month movement uses
+  `utils/calendarMonth.ts` rather than UTC string conversion.
 - `RoleAppShell` workspace content owns vertical scrolling on small screens so fixed/mobile
   navigation cannot hide form submission controls.

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { UserRole } from '@line-queue/shared';
+
 import { i18n } from '../i18n';
 import { post } from '../services/apiClient';
 import { isLiffMockMode, liffAdapter } from '../services/liff';
@@ -47,7 +49,8 @@ export function useLiff(): LiffContext {
   const [error, setError] = useState<Error | null>(null);
   const [authError, setAuthError] = useState<Error | null>(null);
 
-  const { loginWithLine } = useAuthStore();
+  const { loginWithLine, logout: logoutSystemSession, isAuthenticated, user } = useAuthStore();
+  const hasCustomerSession = isAuthenticated && user?.role === UserRole.CUSTOMER;
 
   const refreshFriendship = useCallback(async (): Promise<boolean> => {
     setFriendshipStatus('checking');
@@ -95,6 +98,14 @@ export function useLiff(): LiffContext {
         setIsLoggedIn(loggedIn);
 
         if (!loggedIn) {
+          if (hasCustomerSession) {
+            if (user?.displayName) {
+              setProfile({ userId: user.id, displayName: user.displayName });
+            }
+            setAuthStatus('authenticated');
+            setInitStatus('ready');
+            return;
+          }
           if (!isLiffMockMode) {
             setAuthStatus('authenticating');
             liffAdapter.login();
@@ -116,9 +127,8 @@ export function useLiff(): LiffContext {
             setAccessToken(token);
             setIdToken(oidcToken);
 
-            // Auto-authenticate with backend using LINE OIDC ID token.
-            // LIFF refreshes the system JWT on every app open so stale browser
-            // sessions never become the source of customer identity.
+            // Re-verify the current LINE identity whenever the SDK has an ID token.
+            // A restored backend session is only a fallback when the SDK is signed out.
             if (oidcToken) {
               setAuthStatus('authenticating');
               try {
@@ -168,16 +178,20 @@ export function useLiff(): LiffContext {
     liffAdapter.login();
   }, []);
 
-  const logout = useCallback(() => {
-    liffAdapter.logout();
-    setIsLoggedIn(false);
-    setProfile(null);
-    setAccessToken(null);
-    setIdToken(null);
-    setAuthStatus('guest');
-    setFriendshipStatus('unknown');
-    setAuthError(null);
-  }, []);
+  const logout = useCallback(async () => {
+    try {
+      await logoutSystemSession();
+    } finally {
+      liffAdapter.logout();
+      setIsLoggedIn(false);
+      setProfile(null);
+      setAccessToken(null);
+      setIdToken(null);
+      setAuthStatus('guest');
+      setFriendshipStatus('unknown');
+      setAuthError(null);
+    }
+  }, [logoutSystemSession]);
 
   return {
     initStatus,

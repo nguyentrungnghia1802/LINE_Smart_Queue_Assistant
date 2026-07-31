@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -9,6 +9,7 @@ import {
 } from '../../components/manager/BranchLocationPicker';
 import { Time24HourField } from '../../components/manager/Time24HourField';
 import { get, patch, put } from '../../services/apiClient';
+import { getCalendarMonthMeta, shiftCalendarMonth } from '../../utils/calendarMonth';
 
 interface BranchInfo {
   id: string;
@@ -56,7 +57,7 @@ interface BusinessCalendar {
 }
 
 export function BranchManagerSettingsPage() {
-  const { t, i18n } = useTranslation(['manager', 'common']);
+  const { t } = useTranslation(['manager', 'common']);
   const client = useQueryClient();
   const weekdays = t('settings.weekdays', { returnObjects: true }) as string[];
   const branch = useQuery<BranchInfo>({
@@ -92,9 +93,6 @@ export function BranchManagerSettingsPage() {
     invoiceRegistrationNumber: '',
   });
   const [calendar, setCalendar] = useState<BusinessCalendar | null>(null);
-  const [holidayPickerOpen, setHolidayPickerOpen] = useState(false);
-  const [holidayDate, setHolidayDate] = useState('');
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
     if (!branch.data) return;
@@ -169,35 +167,6 @@ export function BranchManagerSettingsPage() {
   if (branch.isLoading || savedCalendar.isLoading) {
     return <p className="text-sm text-gray-500">{t('states.loading', { ns: 'common' })}</p>;
   }
-
-  const monthStart = new Date(`${calendarMonth}-01T00:00:00`);
-  const monthDays = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
-  const monthOffset = monthStart.getDay();
-  const monthLabel = new Intl.DateTimeFormat(i18n.resolvedLanguage ?? 'ja', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'Asia/Tokyo',
-  }).format(monthStart);
-  const shiftMonth = (delta: number) => {
-    const next = new Date(monthStart);
-    next.setMonth(next.getMonth() + delta);
-    setCalendarMonth(next.toISOString().slice(0, 7));
-  };
-  const toggleHoliday = (date: string) => {
-    setCalendar((current) => {
-      if (!current) return current;
-      const exists = current.exceptionDays.some((day) => day.date === date && day.isClosed);
-      return {
-        ...current,
-        exceptionDays: exists
-          ? current.exceptionDays.filter((day) => day.date !== date)
-          : [
-              ...current.exceptionDays.filter((day) => day.date !== date),
-              { date, isClosed: true, opensAt: null, closesAt: null, reason: null },
-            ].sort((a, b) => a.date.localeCompare(b.date)),
-      };
-    });
-  };
 
   const fields = [
     ['name', t('branches.fields.name')],
@@ -295,157 +264,6 @@ export function BranchManagerSettingsPage() {
                 }))
               }
             />
-          </div>
-          <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="font-bold text-gray-950">{t('settings.holidays')}</h3>
-                <p className="mt-1 text-sm text-gray-500">{t('settings.exceptionDays')}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setHolidayPickerOpen((open) => !open)}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-800 hover:bg-gray-50"
-              >
-                <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                {t('settings.addDate')}
-              </button>
-            </div>
-            {holidayPickerOpen && (
-              <div className="mt-4 flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-3 sm:flex-row sm:items-end">
-                <label className="text-sm font-medium text-gray-700">
-                  {t('settings.exceptionDate')}
-                  <input
-                    type="date"
-                    value={holidayDate}
-                    onChange={(event) => setHolidayDate(event.target.value)}
-                    className="mt-1 block min-h-11 rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
-                  />
-                </label>
-                <button
-                  type="button"
-                  disabled={!holidayDate}
-                  onClick={() => {
-                    setCalendar((current) => {
-                      if (!current || !holidayDate) return current;
-                      const existing = current.exceptionDays.find(
-                        (day) => day.date === holidayDate
-                      );
-                      const nextDay = {
-                        date: holidayDate,
-                        isClosed: true,
-                        opensAt: null,
-                        closesAt: null,
-                        reason: existing?.reason ?? null,
-                      };
-                      return {
-                        ...current,
-                        exceptionDays: [
-                          ...current.exceptionDays.filter((day) => day.date !== holidayDate),
-                          nextDay,
-                        ].sort((a, b) => a.date.localeCompare(b.date)),
-                      };
-                    });
-                    setHolidayDate('');
-                  }}
-                  className="min-h-11 rounded-lg bg-gray-950 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40"
-                >
-                  {t('actions.confirm', { ns: 'common' })}
-                </button>
-              </div>
-            )}
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {(calendar?.exceptionDays ?? [])
-                .filter((day) => day.isClosed)
-                .map((day) => (
-                  <div
-                    key={day.date}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-                  >
-                    <span className="flex items-center gap-2">
-                      <X className="h-4 w-4" aria-hidden="true" />
-                      {day.date}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCalendar((current) =>
-                          current
-                            ? {
-                                ...current,
-                                exceptionDays: current.exceptionDays.filter(
-                                  (item) => item.date !== day.date
-                                ),
-                              }
-                            : current
-                        )
-                      }
-                      className="text-xs font-bold underline"
-                    >
-                      {t('actions.delete', { ns: 'common' })}
-                    </button>
-                  </div>
-                ))}
-            </div>
-            <div className="mt-5 rounded-lg border border-gray-200 bg-white p-3">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => shiftMonth(-1)}
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold hover:bg-gray-50"
-                  aria-label={t('pagination.previous', { ns: 'common' })}
-                >
-                  ‹
-                </button>
-                <strong className="text-sm text-gray-900">{monthLabel}</strong>
-                <button
-                  type="button"
-                  onClick={() => shiftMonth(1)}
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold hover:bg-gray-50"
-                  aria-label={t('pagination.next', { ns: 'common' })}
-                >
-                  ›
-                </button>
-              </div>
-              <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-gray-500">
-                {weekdays.map((day) => (
-                  <span key={day}>{day.slice(0, 2)}</span>
-                ))}
-              </div>
-              <div className="mt-1 grid grid-cols-7 gap-1">
-                {Array.from({ length: monthOffset }).map((_, index) => (
-                  <span key={`offset-${index}`} />
-                ))}
-                {Array.from({ length: monthDays }, (_, index) => {
-                  const dayNumber = index + 1;
-                  const date = `${calendarMonth}-${String(dayNumber).padStart(2, '0')}`;
-                  const dateObject = new Date(`${date}T00:00:00`);
-                  const exceptionClosed = calendar?.exceptionDays.some(
-                    (item) => item.date === date && item.isClosed
-                  );
-                  const weeklyClosed = calendar?.weeklyHours.find(
-                    (item) => item.weekday === dateObject.getDay()
-                  )?.isClosed;
-                  const closed = exceptionClosed || weeklyClosed;
-                  return (
-                    <button
-                      key={date}
-                      type="button"
-                      onClick={() => toggleHoliday(date)}
-                      className={`relative flex aspect-square min-h-10 items-center justify-center rounded-lg border text-sm font-semibold ${
-                        closed
-                          ? 'border-red-200 bg-red-50 text-red-700'
-                          : 'border-gray-100 text-gray-700 hover:border-brand-300 hover:bg-brand-50'
-                      }`}
-                      aria-label={date}
-                    >
-                      {dayNumber}
-                      {closed && <X className="absolute h-4 w-4 text-red-600" aria-hidden="true" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
           </div>
         </section>
 
@@ -630,6 +448,7 @@ export function BranchManagerSettingsPage() {
               </div>
             ))}
           </div>
+          <HolidayCalendar calendar={calendar} weekdays={weekdays} onChange={setCalendar} />
         </section>
 
         {save.error && <p className="text-sm text-red-700">{save.error.message}</p>}
@@ -661,6 +480,167 @@ export function BranchManagerSettingsPage() {
         : current
     );
   }
+}
+
+function HolidayCalendar({
+  calendar,
+  weekdays,
+  onChange,
+}: Readonly<{
+  calendar: BusinessCalendar | null;
+  weekdays: string[];
+  onChange: (calendar: BusinessCalendar) => void;
+}>) {
+  const { t, i18n } = useTranslation(['manager', 'common']);
+  const [isOpen, setIsOpen] = useState(false);
+  const [dateSearch, setDateSearch] = useState('');
+  const [calendarMonth, setCalendarMonth] = useState(currentCalendarMonth);
+
+  if (!calendar) return null;
+
+  const activeCalendar = calendar;
+  const monthMeta = getCalendarMonthMeta(calendarMonth);
+  const monthLabel = new Intl.DateTimeFormat(i18n.resolvedLanguage ?? 'ja', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Asia/Tokyo',
+  }).format(new Date(monthMeta.year, monthMeta.month - 1, 1, 12));
+  const selectedDays = activeCalendar.exceptionDays.filter((day) => day.isClosed);
+
+  function setException(date: string, shouldClose: boolean) {
+    onChange({
+      ...activeCalendar,
+      exceptionDays: shouldClose
+        ? [
+            ...activeCalendar.exceptionDays.filter((day) => day.date !== date),
+            { date, isClosed: true, opensAt: null, closesAt: null, reason: null },
+          ].sort((a, b) => a.date.localeCompare(b.date))
+        : activeCalendar.exceptionDays.filter((day) => day.date !== date),
+    });
+  }
+
+  function selectSearchedDate(date: string) {
+    setDateSearch(date);
+    if (!date) return;
+    setCalendarMonth(date.slice(0, 7));
+    setException(date, true);
+  }
+
+  return (
+    <div className="mt-5 max-w-lg rounded-lg border border-gray-200 bg-gray-50 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-gray-950">{t('settings.holidays')}</h3>
+          <p className="mt-0.5 text-xs text-gray-500">{t('settings.exceptionDays')}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsOpen((open) => !open)}
+          className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-800 hover:bg-gray-50"
+          aria-expanded={isOpen}
+        >
+          <CalendarDays className="h-4 w-4" aria-hidden="true" />
+          {t('settings.addDate')}
+        </button>
+      </div>
+
+      {selectedDays.length > 0 && (
+        <div className="mt-3 flex max-h-20 flex-wrap gap-1.5 overflow-y-auto">
+          {selectedDays.map((day) => (
+            <button
+              key={day.date}
+              type="button"
+              onClick={() => setException(day.date, false)}
+              className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700"
+              aria-label={`${t('actions.delete', { ns: 'common' })}: ${day.date}`}
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+              {day.date}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isOpen && (
+        <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3">
+          <label className="block text-xs font-medium text-gray-700">
+            {t('settings.exceptionDate')}
+            <input
+              type="date"
+              value={dateSearch}
+              onChange={(event) => selectSearchedDate(event.target.value)}
+              className="mt-1 block min-h-9 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm sm:max-w-52"
+            />
+          </label>
+
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setCalendarMonth((month) => shiftCalendarMonth(month, -1))}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50"
+              aria-label={t('pagination.previous', { ns: 'common' })}
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <strong className="text-sm text-gray-900">{monthLabel}</strong>
+            <button
+              type="button"
+              onClick={() => setCalendarMonth((month) => shiftCalendarMonth(month, 1))}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50"
+              aria-label={t('pagination.next', { ns: 'common' })}
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-500">
+            {weekdays.map((day) => (
+              <span key={day}>{day.slice(0, 2)}</span>
+            ))}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-1">
+            {Array.from({ length: monthMeta.offset }).map((_, index) => (
+              <span key={`offset-${index}`} />
+            ))}
+            {Array.from({ length: monthMeta.days }, (_, index) => {
+              const dayNumber = index + 1;
+              const date = `${calendarMonth}-${String(dayNumber).padStart(2, '0')}`;
+              const weekday = new Date(monthMeta.year, monthMeta.month - 1, dayNumber, 12).getDay();
+              const exceptionClosed = activeCalendar.exceptionDays.some(
+                (item) => item.date === date && item.isClosed
+              );
+              const weeklyClosed = activeCalendar.weeklyHours.find(
+                (item) => item.weekday === weekday
+              )?.isClosed;
+              const closed = exceptionClosed || weeklyClosed;
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  disabled={weeklyClosed && !exceptionClosed}
+                  onClick={() => setException(date, !exceptionClosed)}
+                  className={`relative flex h-9 items-center justify-center rounded-md border text-xs font-semibold ${
+                    closed
+                      ? 'border-red-200 bg-red-50 text-red-700'
+                      : 'border-gray-100 text-gray-700 hover:border-brand-300 hover:bg-brand-50'
+                  } disabled:cursor-default disabled:opacity-70`}
+                  aria-label={date}
+                  aria-pressed={exceptionClosed}
+                >
+                  {dayNumber}
+                  {closed && <X className="absolute h-3.5 w-3.5 text-red-600" aria-hidden="true" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function currentCalendarMonth(): string {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 }
 
 function PaymentField({

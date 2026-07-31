@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
 import { del, get, put } from '../../services/apiClient';
@@ -20,8 +21,11 @@ interface LocationConsent {
 export function PreferencesPage() {
   const { t } = useTranslation(['customer', 'common']);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { logout } = useLiffRuntime();
   const [notice, setNotice] = useState('');
+  const [logoutError, setLogoutError] = useState('');
+  const [logoutPending, setLogoutPending] = useState(false);
   const preferences = useQuery({
     queryKey: ['line-preferences'],
     queryFn: () => get<Preferences>('/api/v1/line/preferences'),
@@ -71,6 +75,20 @@ export function PreferencesPage() {
     updatePreferences.mutate({ ...data, [key]: checked });
   };
 
+  async function handleLogout() {
+    setLogoutError('');
+    setLogoutPending(true);
+    try {
+      await logout();
+      queryClient.clear();
+      navigate('/', { replace: true });
+    } catch {
+      setLogoutError(t('preferences.logoutFailed', { ns: 'customer' }));
+    } finally {
+      setLogoutPending(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -83,6 +101,9 @@ export function PreferencesPage() {
       </div>
       {notice && (
         <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">{notice}</p>
+      )}
+      {logoutError && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{logoutError}</p>
       )}
       <section className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white px-5 shadow-sm">
         <Toggle
@@ -131,10 +152,13 @@ export function PreferencesPage() {
         </p>
         <button
           type="button"
-          onClick={logout}
-          className="mt-4 rounded-lg border border-gray-300 px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
+          onClick={() => void handleLogout()}
+          disabled={logoutPending}
+          className="mt-4 rounded-lg border border-gray-300 px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:cursor-wait disabled:opacity-50"
         >
-          {t('actions.logout', { ns: 'common' })}
+          {logoutPending
+            ? t('preferences.loggingOut', { ns: 'customer' })
+            : t('actions.logout', { ns: 'common' })}
         </button>
       </section>
     </div>

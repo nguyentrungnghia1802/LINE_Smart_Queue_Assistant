@@ -63,7 +63,10 @@ export function AdminOrganizationsPage() {
         <input
           type="search"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
           placeholder={t('organizations.searchPlaceholder')}
           className="min-w-0 flex-1 border-0 py-2.5 text-sm outline-none"
         />
@@ -91,14 +94,14 @@ export function AdminOrganizationsPage() {
               <Link
                 key={org.id}
                 to={`/admin/orgs/${org.id}`}
-                className="grid grid-cols-[32px_56px_1fr] gap-3 px-4 py-4 hover:bg-gray-50 md:grid-cols-[48px_64px_1fr_160px_160px]"
+                className="grid grid-cols-[32px_56px_1fr] items-center gap-3 px-4 py-4 hover:bg-gray-50 md:grid-cols-[48px_64px_1fr_160px_160px]"
               >
                 <span className="self-center text-left text-sm text-gray-500">
                   {(page - 1) * 15 + index + 1}
                 </span>
                 <Logo src={org.logo_url} name={org.name} />
-                <div className="min-w-0">
-                  <div className="self-center truncate font-medium text-gray-900">{org.name}</div>
+                <div className="min-w-0 self-center">
+                  <div className="truncate font-medium text-gray-900">{org.name}</div>
                   <div className="mt-1 truncate text-xs font-mono text-gray-500 md:hidden">
                     {org.slug}
                   </div>
