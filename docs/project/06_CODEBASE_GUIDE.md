@@ -183,3 +183,14 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
   outbox/delivery semantics.
 - `apps/api/src/modules/line/rich-menu.*` and `apps/api/src/scripts/sync-line-rich-menu.ts`: external LINE Rich Menu configuration; never log channel access tokens.
 - `docs/archive/**`: historical; do not update as current truth.
+
+## 11. Shared UI conventions
+
+- `apps/web/src/components/ui/Pagination.tsx` is the shared 15-row pagination control. Pass labels
+  from the active locale namespace; do not hard-code customer-facing pagination copy in pages.
+- `AdminOrganizationApplicationsPage` intentionally uses a compact clickable summary list and keeps
+  approval/edit controls in its detail modal.
+- `BranchManagerSettingsPage` updates existing `exceptionDays` through the business-calendar API;
+  no separate holiday table is required for full-day closures.
+- `RoleAppShell` workspace content owns vertical scrolling on small screens so fixed/mobile
+  navigation cannot hide form submission controls.

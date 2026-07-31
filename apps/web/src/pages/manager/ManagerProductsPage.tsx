@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
+import { Pagination } from '../../components/ui/Pagination';
 import { formatCurrency } from '../../i18n/format';
 import { ApiClientError, del, get } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
@@ -32,6 +33,7 @@ export function ManagerProductsPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'product' | 'service'>('all');
   const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [page, setPage] = useState(1);
   const isOwner = user?.isOrganizationOwner === true;
 
   const { data: products = [], isLoading } = useQuery<ProductRow[]>({
@@ -74,6 +76,7 @@ export function ManagerProductsPage() {
       product.stock_quantity !== null &&
       product.stock_quantity < (product.low_stock_threshold ?? 10)
   );
+  const pageProducts = filteredProducts.slice((page - 1) * 15, page * 15);
 
   if (isLoading)
     return <div className="text-gray-400 text-sm">{t('states.loading', { ns: 'common' })}</div>;
@@ -145,7 +148,7 @@ export function ManagerProductsPage() {
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="divide-y divide-gray-100 md:hidden">
-            {filteredProducts.map((product, index) => (
+            {pageProducts.map((product, index) => (
               <article
                 key={product.id}
                 className={`p-4 ${!isOwner && product.stock_quantity !== null && product.stock_quantity < (product.low_stock_threshold ?? 10) ? 'bg-red-50/60' : ''}`}
@@ -166,7 +169,7 @@ export function ManagerProductsPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h2 className="truncate font-bold text-gray-900">
-                          {index + 1}. {product.name}
+                          {(page - 1) * 15 + index + 1}. {product.name}
                         </h2>
                         <p className="mt-1 text-xs text-gray-500">
                           <span className="font-mono font-bold">{product.product_code}</span>
@@ -229,7 +232,7 @@ export function ManagerProductsPage() {
           <table className="hidden w-full text-sm md:table">
             <thead>
               <tr className="bg-gray-50 text-left text-gray-500 border-b border-gray-200">
-                <th className="w-14 px-4 py-3 text-center font-medium">
+                <th className="w-14 px-4 py-3 text-left font-medium">
                   {t('labels.number', { ns: 'common' })}
                 </th>
                 <th className="px-4 py-3 font-medium">{t('products.code')}</th>
@@ -250,12 +253,14 @@ export function ManagerProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map((p, index) => (
+              {pageProducts.map((p, index) => (
                 <tr
                   key={p.id}
                   className={`border-b border-gray-100 last:border-0 ${!isOwner && p.stock_quantity !== null && p.stock_quantity < (p.low_stock_threshold ?? 10) ? 'bg-red-50/60' : ''}`}
                 >
-                  <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
+                  <td className="px-4 py-3 text-left text-gray-500">
+                    {(page - 1) * 15 + index + 1}
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs font-bold text-gray-700">
                     {p.product_code}
                   </td>
@@ -324,6 +329,16 @@ export function ManagerProductsPage() {
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={page}
+            totalItems={filteredProducts.length}
+            onPageChange={setPage}
+            previousLabel={t('pagination.previous', { ns: 'common' })}
+            nextLabel={t('pagination.next', { ns: 'common' })}
+            pageLabel={(current, total) =>
+              t('pagination.page', { ns: 'common', page: current, totalPages: total })
+            }
+          />
         </div>
       )}
 

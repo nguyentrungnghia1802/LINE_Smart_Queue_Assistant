@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { Upload } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { SupportedLocale } from '@line-queue/shared';
@@ -28,6 +29,7 @@ export function ManagerSettingsPage() {
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [logoBusy, setLogoBusy] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: '',
     logoUrl: '',
@@ -98,6 +100,7 @@ export function ManagerSettingsPage() {
       setFeedback(error instanceof Error ? error.message : t('settings.uploadFailed'));
     } finally {
       setLogoBusy(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
     }
   }
 
@@ -212,12 +215,27 @@ export function ManagerSettingsPage() {
                 />
               )}
               <input
+                ref={logoInputRef}
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
                 disabled={logoBusy}
                 onChange={(event) => void uploadLogo(event.target.files?.[0])}
-                className={inputClass}
+                className="sr-only"
               />
+              <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  disabled={logoBusy}
+                  onClick={() => logoInputRef.current?.click()}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <Upload className="h-4 w-4" aria-hidden="true" />
+                  {logoBusy ? t('settings.processingImage') : t('settings.chooseLogo')}
+                </button>
+                <p className="mt-2 truncate text-xs text-gray-500">
+                  {form.logoUrl ? t('settings.logoUploaded') : t('settings.logoNotSelected')}
+                </p>
+              </div>
             </div>
           </Field>
         </div>

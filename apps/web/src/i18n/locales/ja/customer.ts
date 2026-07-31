@@ -165,6 +165,8 @@ export const customer = {
     icon: '履歴',
   },
   preferences: {
+    account: 'アカウント',
+    logoutDescription: 'この端末のLINE受付セッションを終了します。',
     title: '通知設定',
     line: 'LINE通知',
     approaching: '順番が近い通知',

@@ -8,6 +8,7 @@ import {
   BranchLocationPicker,
   type BranchMapLocation,
 } from '../../components/manager/BranchLocationPicker';
+import { Pagination } from '../../components/ui/Pagination';
 import { ApiClientError, del, get, post } from '../../services/apiClient';
 import { formatAddress } from '../../utils/address';
 
@@ -64,6 +65,7 @@ export function ManagerBranchesPage() {
     managerTitle: '',
   });
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const { data = [] } = useQuery<Branch[]>({
     queryKey: ['branches'],
     queryFn: () => get('/api/v1/branches'),
@@ -78,6 +80,7 @@ export function ManagerBranchesPage() {
         branch.address_line1.toLocaleLowerCase().includes(query)
     );
   }, [data, search]);
+  const pageBranches = visibleBranches.slice((page - 1) * 15, page * 15);
   const create = useMutation({
     mutationFn: () =>
       post('/api/v1/branches', {
@@ -168,13 +171,13 @@ export function ManagerBranchesPage() {
         />
       </label>
       <div className="grid gap-4 lg:grid-cols-2">
-        {visibleBranches.map((branch, index) => (
+        {pageBranches.map((branch, index) => (
           <article key={branch.id} className="rounded-lg border border-gray-200 bg-white p-5">
             <div className="flex items-start gap-3">
               <Building2 className="h-5 w-5 text-brand-600" />
               <div>
                 <h2 className="font-bold">
-                  {index + 1}. {branch.name}
+                  {(page - 1) * 15 + index + 1}. {branch.name}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
                   {formatAddress(
@@ -248,6 +251,16 @@ export function ManagerBranchesPage() {
           </article>
         ))}
       </div>
+      <Pagination
+        page={page}
+        totalItems={visibleBranches.length}
+        onPageChange={setPage}
+        previousLabel={t('pagination.previous', { ns: 'common' })}
+        nextLabel={t('pagination.next', { ns: 'common' })}
+        pageLabel={(current, total) =>
+          t('pagination.page', { ns: 'common', page: current, totalPages: total })
+        }
+      />
       {open && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
           <form

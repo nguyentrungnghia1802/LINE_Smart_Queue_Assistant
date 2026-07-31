@@ -73,7 +73,7 @@ export function RoleAppShell({
       <main
         className={
           contentMode === 'workspace'
-            ? 'flex min-h-0 min-w-0 flex-1 pb-[calc(4.25rem+env(safe-area-inset-bottom))] lg:pb-0'
+            ? 'flex min-h-0 min-w-0 flex-1 overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))] lg:pb-0'
             : 'mx-auto w-full max-w-7xl flex-1 px-4 py-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-7 lg:px-8 lg:pb-8'
         }
       >
