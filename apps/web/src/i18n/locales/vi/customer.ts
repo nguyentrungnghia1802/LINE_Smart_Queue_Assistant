@@ -181,6 +181,8 @@ export const customer = {
     deleteLocation: 'Dừng chia sẻ và xóa dữ liệu',
     locationDeleted: 'Đã dừng chia sẻ vị trí và xóa dữ liệu đã lưu.',
     loadFailed: 'Không thể tải cài đặt.',
+    loggingOut: 'Đang đăng xuất…',
+    logoutFailed: 'Không thể đăng xuất. Vui lòng thử lại.',
   },
   payment: {
     title: 'Thanh toán trực tuyến',

@@ -144,7 +144,7 @@ export function ManagerBranchDetailPage() {
                 key={manager.id}
                 className="grid grid-cols-[32px_1fr] gap-2 rounded-lg bg-gray-50 px-3 py-2"
               >
-                <span className="text-center text-sm text-gray-500">{index + 1}</span>
+                <span className="text-left text-sm text-gray-500">{index + 1}</span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-gray-900">
                     {manager.displayName}
@@ -169,7 +169,7 @@ export function ManagerBranchDetailPage() {
                 key={queue.id}
                 className="grid grid-cols-[32px_1fr_auto] items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm"
               >
-                <span className="text-center text-gray-500">{index + 1}</span>
+                <span className="text-left text-gray-500">{index + 1}</span>
                 <span className="font-semibold text-gray-900">{queue.name}</span>
                 <span className="text-xs text-gray-500">
                   {t(`states.${queue.status}`, {

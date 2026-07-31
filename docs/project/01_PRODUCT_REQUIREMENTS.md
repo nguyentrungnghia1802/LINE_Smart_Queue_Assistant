@@ -254,10 +254,14 @@ role and does not use branch-operation endpoints.
 ## 8. Management usability
 
 - Long organization, application, product, and staff lists paginate at 15 rows per page. Sequence
-  numbers remain stable across pages and are aligned for fast scanning.
-- Organization applications are presented as compact summary rows; selecting a row opens the full
-  review and approval workspace.
+  numbers remain stable across pages and are left-aligned for fast scanning.
+- Organization applications are presented as compact rows containing sequence, organization,
+  submission time, plan, and status only; selecting a row opens the full review and approval
+  workspace.
 - Branch managers can maintain weekly business hours and persisted full-day exception closures. A
   selected closure is visibly marked and applies in the branch timezone (Asia/Tokyo by default).
-- Customer preferences provide an explicit LINE session logout action. Logo uploads expose a clear
-  selected/uploaded state instead of relying on browser file-input text.
+  The compact holiday calendar follows business hours, supports multiple dates, exact one-month
+  navigation, and month focus from date search.
+- Customer preferences provide an explicit logout action that revokes both the backend refresh
+  session and local LIFF session. Logo uploads expose a clear selected/uploaded state instead of
+  relying on browser file-input text.

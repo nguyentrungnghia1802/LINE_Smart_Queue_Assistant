@@ -14,14 +14,19 @@ describe('useLiff', () => {
     friendFlag = true,
     mockMode = true,
     loginWithLine = vi.fn().mockResolvedValue(undefined),
+    logoutSystemSession = vi.fn().mockResolvedValue(undefined),
+    existingCustomerSession = false,
   }: {
     loggedIn?: boolean;
     idToken?: string | null;
     friendFlag?: boolean;
     mockMode?: boolean;
     loginWithLine?: ReturnType<typeof vi.fn>;
+    logoutSystemSession?: ReturnType<typeof vi.fn>;
+    existingCustomerSession?: boolean;
   } = {}) {
     const liffLogin = vi.fn();
+    const liffLogout = vi.fn();
     const requestFriendship = vi.fn().mockResolvedValue(undefined);
     const getFriendship = vi.fn().mockResolvedValue(friendFlag);
     const syncFriendship = vi.fn().mockResolvedValue(undefined);
@@ -37,11 +42,18 @@ describe('useLiff', () => {
         getAccessToken: vi.fn(() => 'line-access-token'),
         getIDToken: vi.fn(() => idToken),
         login: liffLogin,
-        logout: vi.fn(),
+        logout: liffLogout,
       },
     }));
     vi.doMock('../../store/authStore', () => ({
-      useAuthStore: () => ({ loginWithLine }),
+      useAuthStore: () => ({
+        loginWithLine,
+        logout: logoutSystemSession,
+        isAuthenticated: existingCustomerSession,
+        user: existingCustomerSession
+          ? { id: 'customer-1', displayName: 'Taro', role: 'customer' }
+          : null,
+      }),
     }));
     vi.doMock('../../services/apiClient', () => ({
       post: syncFriendship,
@@ -56,6 +68,8 @@ describe('useLiff', () => {
       useLiff,
       loginWithLine,
       liffLogin,
+      liffLogout,
+      logoutSystemSession,
       syncFriendship,
       getFriendship,
       requestFriendship,
@@ -117,5 +131,34 @@ describe('useLiff', () => {
     renderHook(() => useLiff());
 
     await waitFor(() => expect(liffLogin).toHaveBeenCalledTimes(1));
+  });
+
+  it('reuses a restored customer session when the LIFF SDK is signed out', async () => {
+    const { useLiff, loginWithLine, liffLogin } = await loadHook({
+      existingCustomerSession: true,
+      loggedIn: false,
+      mockMode: false,
+    });
+
+    const { result } = renderHook(() => useLiff());
+
+    await waitFor(() => expect(result.current.authStatus).toBe('authenticated'));
+    expect(loginWithLine).not.toHaveBeenCalled();
+    expect(liffLogin).not.toHaveBeenCalled();
+    expect(result.current.profile?.displayName).toBe('Taro');
+  });
+
+  it('revokes both the backend session and the LIFF session when logging out', async () => {
+    const { useLiff, logoutSystemSession, liffLogout } = await loadHook();
+    const { result } = renderHook(() => useLiff());
+    await waitFor(() => expect(result.current.authStatus).toBe('authenticated'));
+
+    await act(async () => {
+      await result.current.logout();
+    });
+
+    expect(logoutSystemSession).toHaveBeenCalledTimes(1);
+    expect(liffLogout).toHaveBeenCalledTimes(1);
+    expect(result.current.authStatus).toBe('guest');
   });
 });
