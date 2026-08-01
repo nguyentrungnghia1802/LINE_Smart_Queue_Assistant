@@ -1,9 +1,11 @@
 import { productsRepository } from '../../../db/repositories/products.repository';
+import { queueEntriesRepository } from '../../../db/repositories/queue-entries.repository';
 import { type QueueRow, queuesRepository } from '../../../db/repositories/queues.repository';
 import { withTransaction } from '../../../db/transaction';
 import { queuesService } from '../queues.service';
 
 jest.mock('../../../db/repositories/products.repository');
+jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
 
@@ -41,6 +43,26 @@ describe('queuesService branch scope', () => {
     jest.clearAllMocks();
     jest.mocked(withTransaction).mockImplementation(async (callback) => callback({} as never));
     jest.mocked(productsRepository.syncProductsForQueue).mockResolvedValue(undefined);
+    jest.mocked(queueEntriesRepository.countLiveByQueueIds).mockResolvedValue({});
+  });
+
+  it('returns live customer counts separately from the daily ticket counter', async () => {
+    jest
+      .mocked(queuesRepository.findActiveByBranches)
+      .mockResolvedValue([{ ...queue, daily_ticket_counter: 2 }]);
+    jest.mocked(queueEntriesRepository.countLiveByQueueIds).mockResolvedValue({
+      [QUEUE_ID]: { waitingCount: 1, calledCount: 0, servingCount: 0 },
+    });
+
+    const result = await queuesService.listQueues(ORG_ID, BRANCH_ID);
+
+    expect(queueEntriesRepository.countLiveByQueueIds).toHaveBeenCalledWith([QUEUE_ID]);
+    expect(result[0]).toMatchObject({
+      currentNumber: 2,
+      waitingCount: 1,
+      calledCount: 0,
+      servingCount: 0,
+    });
   });
 
   it('creates another queue inside the authenticated manager branch', async () => {

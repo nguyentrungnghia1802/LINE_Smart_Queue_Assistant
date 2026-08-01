@@ -32,7 +32,16 @@ const adminQueueSchemas = {
       { $ref: '#/components/schemas/BaseEntity' },
       {
         type: 'object',
-        required: ['organizationId', 'branchId', 'name', 'status', 'currentNumber'],
+        required: [
+          'organizationId',
+          'branchId',
+          'name',
+          'status',
+          'currentNumber',
+          'waitingCount',
+          'calledCount',
+          'servingCount',
+        ],
         properties: {
           organizationId: { type: 'string', format: 'uuid' },
           branchId: { type: 'string', format: 'uuid' },
@@ -41,6 +50,9 @@ const adminQueueSchemas = {
           ticketPrefix: { type: 'string', example: 'A', nullable: true },
           status: { type: 'string', enum: ['open', 'paused', 'closed'] },
           currentNumber: { type: 'integer', minimum: 0 },
+          waitingCount: { type: 'integer', minimum: 0 },
+          calledCount: { type: 'integer', minimum: 0 },
+          servingCount: { type: 'integer', minimum: 0 },
           maxCapacity: { type: 'integer', nullable: true },
           avgServiceTimeMinutes: {
             type: 'integer',

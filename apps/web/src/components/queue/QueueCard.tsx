@@ -1,18 +1,18 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
-import type { Queue } from '@line-queue/shared';
-import { formatTicketNumber } from '@line-queue/shared';
+import type { QueueSummary } from '@line-queue/shared';
 
 import { QueueStatusBadge } from './QueueStatusBadge';
 
 interface QueueCardProps {
-  queue: Queue;
+  queue: QueueSummary;
   sequence?: number;
 }
 
 export function QueueCard({ queue, sequence }: QueueCardProps) {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation(['manager', 'common']);
+  const activeCustomerCount = queue.waitingCount + queue.calledCount + queue.servingCount;
   return (
     <Link
       to={`/manager/queues/${queue.id}`}
@@ -32,10 +32,8 @@ export function QueueCard({ queue, sequence }: QueueCardProps) {
 
       <div className="flex items-center gap-4 text-xs text-gray-400 mt-auto pt-3 border-t border-gray-100">
         <span>
-          {t('labels.current')}:{' '}
-          <span className="font-medium text-gray-700">
-            {formatTicketNumber(queue.currentNumber)}
-          </span>
+          {t('queue.activeCustomers')}:{' '}
+          <span className="font-medium text-gray-700">{activeCustomerCount}</span>
         </span>
         {queue.maxCapacity && (
           <span>

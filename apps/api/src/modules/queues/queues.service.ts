@@ -1,6 +1,10 @@
-import type { Queue, SupportedLocale } from '@line-queue/shared';
+import type { Queue, QueueSummary, SupportedLocale } from '@line-queue/shared';
 
 import { productsRepository } from '../../db/repositories/products.repository';
+import {
+  queueEntriesRepository,
+  type QueueLiveCounts,
+} from '../../db/repositories/queue-entries.repository';
 import { type QueueRow, queuesRepository } from '../../db/repositories/queues.repository';
 import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
@@ -28,10 +32,32 @@ function toQueue(row: QueueRow, productIds: string[] = []): Queue {
   };
 }
 
+const EMPTY_LIVE_COUNTS: QueueLiveCounts = {
+  waitingCount: 0,
+  calledCount: 0,
+  servingCount: 0,
+};
+
+function toQueueSummary(
+  row: QueueRow,
+  liveCounts: QueueLiveCounts = EMPTY_LIVE_COUNTS,
+  productIds: string[] = []
+): QueueSummary {
+  return {
+    ...toQueue(row, productIds),
+    ...liveCounts,
+  };
+}
+
+async function getLiveCounts(queueIds: string[]) {
+  return queueEntriesRepository.countLiveByQueueIds(queueIds);
+}
+
 export const queuesService = {
   async listQueues(orgId: string, branchId: string, locale: SupportedLocale = 'ja') {
     const queues = await queuesRepository.findActiveByBranches(orgId, [branchId], locale);
-    return queues.map((queue) => toQueue(queue));
+    const liveCounts = await getLiveCounts(queues.map((queue) => queue.id));
+    return queues.map((queue) => toQueueSummary(queue, liveCounts[queue.id]));
   },
 
   async getQueue(id: string, scope: BranchManagerScope) {
@@ -39,7 +65,12 @@ export const queuesService = {
     if (!queue) throw AppError.notFound(`Queue ${id} not found`);
     if (queue.organization_id !== scope.organizationId || queue.branch_id !== scope.branchId)
       throw AppError.forbidden('Queue is outside your assigned branch');
-    return toQueue(queue, await productsRepository.findProductIdsByQueue(queue.id));
+    const liveCounts = await getLiveCounts([queue.id]);
+    return toQueueSummary(
+      queue,
+      liveCounts[queue.id],
+      await productsRepository.findProductIdsByQueue(queue.id)
+    );
   },
 
   async createQueue(scope: BranchManagerScope, dto: CreateQueueDto) {
@@ -74,7 +105,7 @@ export const queuesService = {
       return created;
     });
     metricsService.increment('queue_created_total');
-    return toQueue(queue, dto.productIds);
+    return toQueueSummary(queue, EMPTY_LIVE_COUNTS, dto.productIds);
   },
 
   async updateQueue(id: string, scope: BranchManagerScope, dto: UpdateQueueDto) {
@@ -115,8 +146,10 @@ export const queuesService = {
       return result;
     });
     if (!updated) throw AppError.notFound(`Queue ${id} not found`);
-    return toQueue(
+    const liveCounts = await getLiveCounts([updated.id]);
+    return toQueueSummary(
       updated,
+      liveCounts[updated.id],
       dto.productIds ?? (await productsRepository.findProductIdsByQueue(updated.id))
     );
   },
@@ -129,7 +162,8 @@ export const queuesService = {
 
     const updated = await queuesRepository.update(id, { status: dto.status });
     if (!updated) throw AppError.notFound(`Queue ${id} not found`);
-    return toQueue(updated);
+    const liveCounts = await getLiveCounts([updated.id]);
+    return toQueueSummary(updated, liveCounts[updated.id]);
   },
 
   async deleteQueue(id: string, scope: BranchManagerScope) {

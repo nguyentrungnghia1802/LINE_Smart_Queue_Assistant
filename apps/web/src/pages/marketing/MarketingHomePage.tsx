@@ -540,17 +540,19 @@ function PricingPlan({
           </li>
         ))}
       </ul>
-      <Link
-        to={`/business/register?plan=${plan}`}
-        className={`mt-auto inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-bold ${
-          recommended
-            ? 'bg-line-green text-white hover:bg-brand-600'
-            : 'border border-gray-300 text-gray-950 hover:border-gray-950'
-        }`}
-      >
-        {t('pricing.choose')}
-        <ArrowRight className="h-4 w-4" aria-hidden="true" />
-      </Link>
+      <div className="mt-auto pt-8">
+        <Link
+          to={`/business/register?plan=${plan}`}
+          className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-bold ${
+            recommended
+              ? 'bg-line-green text-white hover:bg-brand-600'
+              : 'border border-gray-300 text-gray-950 hover:border-gray-950'
+          }`}
+        >
+          {t('pricing.choose')}
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </div>
     </article>
   );
 }

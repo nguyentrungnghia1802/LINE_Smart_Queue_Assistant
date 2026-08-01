@@ -163,12 +163,15 @@ does not accept `orgId` or `branchId` in queue write bodies.
 
 | Method | Path                        | Purpose                                                  |
 | ------ | --------------------------- | -------------------------------------------------------- |
-| GET    | `/api/v1/queues`            | List assigned-branch queues                              |
-| GET    | `/api/v1/queues/:id`        | Assigned-branch queue detail                             |
+| GET    | `/api/v1/queues`            | List assigned-branch queues with live status counts      |
+| GET    | `/api/v1/queues/:id`        | Assigned-branch queue detail with live status counts     |
 | POST   | `/api/v1/queues`            | Create a named queue and its selected product catalog    |
 | PATCH  | `/api/v1/queues/:id`        | Update queue rules, absence grace, and selected products |
 | PATCH  | `/api/v1/queues/:id/status` | Change queue status                                      |
 | DELETE | `/api/v1/queues/:id`        | Soft-delete an assigned-branch queue                     |
+
+Queue responses expose `waitingCount`, `calledCount`, and `servingCount`. `currentNumber` remains
+the latest daily ticket sequence value and must not be presented as the current customer count.
 
 ### Customer ticket operations
 

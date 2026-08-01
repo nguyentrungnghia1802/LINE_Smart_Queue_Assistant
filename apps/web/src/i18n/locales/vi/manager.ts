@@ -88,6 +88,8 @@ export const manager = {
     manage: 'Quản lý hàng đợi',
     showQr: 'Hiển thị QR',
     currentNumber: 'Số hiện tại',
+    activeCustomers: 'Khách đang trong hàng đợi',
+    lastTicketNumber: 'Số vé cấp gần nhất hôm nay',
     search: 'Tìm hàng đợi',
     searchPlaceholder: 'Tìm theo tên hoặc mô tả hàng đợi',
     productSearch: 'Tìm sản phẩm và dịch vụ',
