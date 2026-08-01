@@ -176,8 +176,8 @@ docker compose exec -T web wget -qO- http://127.0.0.1/health
 ### Kiem tra public endpoint
 
 ```bash
-curl -fsS https://playmcjava21.io.vn/health
-curl -I https://playmcjava21.io.vn/
+curl -fsS https://smartqueue.io.vn/health
+curl -I https://smartqueue.io.vn/
 ```
 
 ## 5. Kiem tra image dang chay
