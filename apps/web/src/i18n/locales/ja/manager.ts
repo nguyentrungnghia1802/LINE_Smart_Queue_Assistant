@@ -87,6 +87,8 @@ export const manager = {
     manage: 'キューを管理',
     showQr: 'QRを表示',
     currentNumber: '現在の番号',
+    activeCustomers: '受付中のお客様',
+    lastTicketNumber: '本日の最終受付番号',
     search: 'キューを検索',
     searchPlaceholder: 'キュー名・説明で検索',
     productSearch: '商品・サービスを検索',

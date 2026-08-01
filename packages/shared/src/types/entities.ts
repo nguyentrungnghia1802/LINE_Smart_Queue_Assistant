@@ -70,6 +70,7 @@ export interface Queue extends BaseEntity {
 /** Queue enriched with live counters — used in list / dashboard views */
 export interface QueueSummary extends Queue {
   waitingCount: number;
+  calledCount: number;
   servingCount: number;
 }
 

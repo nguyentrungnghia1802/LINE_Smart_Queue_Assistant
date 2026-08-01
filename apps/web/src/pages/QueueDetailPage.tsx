@@ -30,6 +30,8 @@ export function QueueDetailPage() {
     );
   }
 
+  const activeCustomerCount = queue.waitingCount + queue.calledCount + queue.servingCount;
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-2">
@@ -63,8 +65,9 @@ export function QueueDetailPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <DetailCard label={t('queue.currentNumber')} value={String(queue.currentNumber)} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+        <DetailCard label={t('queue.activeCustomers')} value={String(activeCustomerCount)} />
+        <DetailCard label={t('queue.lastTicketNumber')} value={String(queue.currentNumber)} />
         {queue.maxCapacity && (
           <DetailCard label={t('queue.capacity')} value={String(queue.maxCapacity)} />
         )}

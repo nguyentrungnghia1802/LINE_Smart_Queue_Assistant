@@ -87,6 +87,10 @@ Only active `open` queues accept a new booking/ticket, and only while the branch
 A new branch starts without a queue. Its assigned branch manager creates one or more named queues
 and may retire all queues while reconfiguring the branch.
 
+The queue row's `daily_ticket_counter` is a daily ticket-number sequence, not the current queue
+depth. Branch-manager queue list/detail responses derive live counts from queue entries in
+`waiting`, `called`, and `serving` states so completed or cancelled tickets are never counted.
+
 ### Queue entry
 
 PostgreSQL values are `waiting`, `called`, `serving`, `served`, `skipped`, `cancelled`, and `no_show`.

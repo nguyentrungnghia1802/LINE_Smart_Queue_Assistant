@@ -88,6 +88,8 @@ export const manager = {
     manage: 'Manage queue',
     showQr: 'Show QR',
     currentNumber: 'Current number',
+    activeCustomers: 'Active customers',
+    lastTicketNumber: 'Latest ticket issued today',
     search: 'Search queues',
     searchPlaceholder: 'Search by queue name or description',
     productSearch: 'Search products and services',

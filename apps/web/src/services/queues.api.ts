@@ -1,4 +1,4 @@
-import type { Queue } from '@line-queue/shared';
+import type { Queue, QueueSummary } from '@line-queue/shared';
 import { API_BASE_PATH } from '@line-queue/shared';
 
 import { del, get, patch, post } from './apiClient';
@@ -11,9 +11,9 @@ export interface QueueListParams {
 }
 
 export const queuesApi = {
-  list: (params?: QueueListParams) => get<Queue[]>(BASE, { params }),
+  list: (params?: QueueListParams) => get<QueueSummary[]>(BASE, { params }),
 
-  getById: (id: string) => get<Queue>(`${BASE}/${id}`),
+  getById: (id: string) => get<QueueSummary>(`${BASE}/${id}`),
 
   create: (data: {
     name: string;
@@ -23,7 +23,7 @@ export const queuesApi = {
     avgServiceTimeMinutes?: number;
     absenceGraceMinutes?: number;
     productIds?: string[];
-  }) => post<Queue>(BASE, data),
+  }) => post<QueueSummary>(BASE, data),
 
   update: (
     id: string,
@@ -39,10 +39,10 @@ export const queuesApi = {
         | 'productIds'
       >
     >
-  ) => patch<Queue>(`${BASE}/${id}`, data),
+  ) => patch<QueueSummary>(`${BASE}/${id}`, data),
 
   updateStatus: (id: string, status: Queue['status']) =>
-    patch<Queue>(`${BASE}/${id}/status`, { status }),
+    patch<QueueSummary>(`${BASE}/${id}/status`, { status }),
 
   delete: (id: string) => del(`${BASE}/${id}`),
 };

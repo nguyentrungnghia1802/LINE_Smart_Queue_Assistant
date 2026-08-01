@@ -42,6 +42,12 @@ export interface CreateEntryParams {
   priority?: number;
 }
 
+export interface QueueLiveCounts {
+  waitingCount: number;
+  calledCount: number;
+  servingCount: number;
+}
+
 // ── Repository ─────────────────────────────────────────────────────────────────
 
 export class QueueEntriesRepository extends BaseRepository {
@@ -98,6 +104,38 @@ export class QueueEntriesRepository extends BaseRepository {
       [queueId]
     );
     return Number(rows[0]?.count ?? 0);
+  }
+
+  async countLiveByQueueIds(queueIds: string[]): Promise<Record<string, QueueLiveCounts>> {
+    if (queueIds.length === 0) return {};
+
+    const rows = await this.query<{
+      queue_id: string;
+      waiting_count: string;
+      called_count: string;
+      serving_count: string;
+    }>(
+      `SELECT queue_id,
+              COUNT(*) FILTER (WHERE status = 'waiting') AS waiting_count,
+              COUNT(*) FILTER (WHERE status = 'called') AS called_count,
+              COUNT(*) FILTER (WHERE status = 'serving') AS serving_count
+       FROM queue_entries
+       WHERE queue_id = ANY($1::uuid[])
+         AND status IN ('waiting', 'called', 'serving')
+       GROUP BY queue_id`,
+      [queueIds]
+    );
+
+    return Object.fromEntries(
+      rows.map((row) => [
+        row.queue_id,
+        {
+          waitingCount: Number(row.waiting_count),
+          calledCount: Number(row.called_count),
+          servingCount: Number(row.serving_count),
+        },
+      ])
+    );
   }
 
   async create(params: CreateEntryParams, client?: PoolClient): Promise<QueueEntryRow> {
