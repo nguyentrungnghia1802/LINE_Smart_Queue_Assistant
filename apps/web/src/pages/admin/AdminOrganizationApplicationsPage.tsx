@@ -204,6 +204,8 @@ export function AdminOrganizationApplicationsPage() {
         <span className="sr-only">{t('applications.search')}</span>
         <input
           type="search"
+          name="applicationSearch"
+          maxLength={160}
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
@@ -354,6 +356,7 @@ export function AdminOrganizationApplicationsPage() {
                 <span className="mb-2 block text-sm font-bold">{t('applications.note')}</span>
                 <textarea
                   name="reviewNote"
+                  maxLength={1000}
                   rows={4}
                   value={note}
                   onChange={(event) => setNote(event.target.value)}
@@ -522,6 +525,7 @@ function ApplicationEditForm({
             <span className="mb-1.5 block text-xs font-bold text-gray-600">{field.label}</span>
             <input
               name={field.key}
+              maxLength={applicationFieldMaxLength(field.key)}
               type={field.type ?? 'text'}
               value={String(application[field.key] ?? '')}
               placeholder={field.placeholder}
@@ -639,6 +643,7 @@ function NumberField({
       <input
         type="number"
         min={1}
+        max={1_000_000}
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(Number(event.target.value))}
@@ -646,6 +651,25 @@ function NumberField({
       />
     </label>
   );
+}
+
+function applicationFieldMaxLength(key: keyof OrganizationApplication): number | undefined {
+  const limits: Partial<Record<keyof OrganizationApplication, number>> = {
+    legal_name: 200,
+    trade_name: 160,
+    registration_number: 32,
+    website_url: 500,
+    contact_name: 120,
+    contact_title: 120,
+    work_email: 254,
+    phone: 20,
+    postal_code: 8,
+    prefecture: 20,
+    city: 100,
+    address_line1: 200,
+    address_line2: 200,
+  };
+  return limits[key];
 }
 
 function Detail({

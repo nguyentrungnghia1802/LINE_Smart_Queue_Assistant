@@ -1426,7 +1426,9 @@ function TextInput({
     <label className="block">
       <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>
       <input
+        name={type === 'tel' ? 'customerPhone' : 'customerName'}
         type={type}
+        maxLength={type === 'tel' ? 20 : 100}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}

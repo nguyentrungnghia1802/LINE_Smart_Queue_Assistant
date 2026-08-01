@@ -171,6 +171,7 @@ export function ManagerProductDetailPage() {
                 <input
                   type="number"
                   min="0"
+                  max="100000000"
                   value={stockQuantity}
                   onChange={(event) => setStockQuantity(event.target.value)}
                   placeholder={
@@ -185,6 +186,7 @@ export function ManagerProductDetailPage() {
                 <input
                   type="number"
                   min="0"
+                  max="100000"
                   value={lowStockThreshold}
                   onChange={(event) => setLowStockThreshold(event.target.value)}
                   placeholder={String(product.low_stock_threshold ?? 10)}

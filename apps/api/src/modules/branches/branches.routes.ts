@@ -12,6 +12,7 @@ import { BusinessCalendarSchema } from '../orgs/orgs.validator';
 
 import {
   createBranch,
+  deleteBranch,
   geocodeBranchAddress,
   getMyBranch,
   getMyBranchBusinessCalendar,
@@ -64,6 +65,12 @@ branchesRouter.post(
   authenticatedActionRateLimiter,
   validate(CreateBranchSchema),
   createBranch
+);
+branchesRouter.delete(
+  '/:branchId',
+  authenticatedActionRateLimiter,
+  validate(BranchIdParamSchema, 'params'),
+  deleteBranch
 );
 branchesRouter.post(
   '/:branchId/managers',

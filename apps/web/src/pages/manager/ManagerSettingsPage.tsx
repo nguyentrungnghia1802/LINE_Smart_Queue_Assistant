@@ -9,6 +9,12 @@ import { get, patch } from '../../services/apiClient';
 import { uploadImage } from '../../services/media.api';
 import { useAuthStore } from '../../store/authStore';
 import { compressLogoFile } from '../../utils/compressLogoFile';
+import {
+  type ApiFieldErrors,
+  firstFieldError,
+  getApiFieldErrors,
+  INPUT_LIMITS,
+} from '../../utils/formValidation';
 
 interface OrgInfo {
   name: string;
@@ -29,6 +35,8 @@ export function ManagerSettingsPage() {
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [logoBusy, setLogoBusy] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [feedbackIsError, setFeedbackIsError] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<ApiFieldErrors>({});
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: '',
@@ -68,6 +76,13 @@ export function ManagerSettingsPage() {
     onSuccess: (updated) => {
       if (user) setUser({ ...user, displayName: updated.displayName, email: updated.email });
       setFeedback(t('settings.saved'));
+      setFeedbackIsError(false);
+      setFieldErrors({});
+    },
+    onError: (error) => {
+      setFieldErrors(getApiFieldErrors(error));
+      setFeedback(error instanceof Error ? error.message : t('settings.saveFailed'));
+      setFeedbackIsError(true);
     },
   });
   const organizationMutation = useMutation({
@@ -86,6 +101,13 @@ export function ManagerSettingsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['manager-my-org'] });
       setFeedback(t('settings.saved'));
+      setFeedbackIsError(false);
+      setFieldErrors({});
+    },
+    onError: (error) => {
+      setFieldErrors(getApiFieldErrors(error));
+      setFeedback(error instanceof Error ? error.message : t('settings.saveFailed'));
+      setFeedbackIsError(true);
     },
   });
 
@@ -93,11 +115,14 @@ export function ManagerSettingsPage() {
     if (!file) return;
     setLogoBusy(true);
     setFeedback('');
+    setFeedbackIsError(false);
     try {
       const asset = await uploadImage(await compressLogoFile(file), 'organization_logo');
       setForm((current) => ({ ...current, logoUrl: asset.public_url }));
+      setFeedback(t('settings.logoUploaded'));
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : t('settings.uploadFailed'));
+      setFeedbackIsError(true);
     } finally {
       setLogoBusy(false);
       if (logoInputRef.current) logoInputRef.current.value = '';
@@ -121,17 +146,31 @@ export function ManagerSettingsPage() {
       >
         <h2 className="font-bold text-gray-950">{t('settings.personalInfo')}</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label={t('labels.displayName', { ns: 'common' })}>
+          <Field
+            label={t('labels.displayName', { ns: 'common' })}
+            htmlFor="manager-display-name"
+            error={firstFieldError(fieldErrors, 'displayName')}
+          >
             <input
+              id="manager-display-name"
+              name="displayName"
               required
+              minLength={1}
+              maxLength={INPUT_LIMITS.displayName}
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
               placeholder={t('settings.placeholders.displayName')}
               className={inputClass}
             />
           </Field>
-          <Field label={t('labels.email', { ns: 'common' })}>
-            <input disabled value={user?.email ?? ''} className={`${inputClass} bg-gray-50`} />
+          <Field label={t('labels.email', { ns: 'common' })} htmlFor="manager-email">
+            <input
+              id="manager-email"
+              name="email"
+              disabled
+              value={user?.email ?? ''}
+              className={`${inputClass} bg-gray-50`}
+            />
           </Field>
         </div>
         <button className={buttonClass} disabled={profileMutation.isPending}>
@@ -148,17 +187,27 @@ export function ManagerSettingsPage() {
       >
         <h2 className="font-bold text-gray-950">{t('settings.organizationInfo')}</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label={t('settings.organizationName')}>
+          <Field
+            label={t('settings.organizationName')}
+            htmlFor="organization-name"
+            error={firstFieldError(fieldErrors, 'name')}
+          >
             <input
+              id="organization-name"
+              name="name"
               required
+              minLength={1}
+              maxLength={INPUT_LIMITS.organizationName}
               value={form.name}
               onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
               placeholder={t('settings.placeholders.organizationName')}
               className={inputClass}
             />
           </Field>
-          <Field label={t('settings.defaultLocale')}>
+          <Field label={t('settings.defaultLocale')} htmlFor="organization-locale">
             <select
+              id="organization-locale"
+              name="defaultLocale"
               value={form.defaultLocale}
               onChange={(event) =>
                 setForm((current) => ({
@@ -173,8 +222,16 @@ export function ManagerSettingsPage() {
               <option value="en">{t('language.en', { ns: 'common' })}</option>
             </select>
           </Field>
-          <Field label={t('labels.phone', { ns: 'common' })}>
+          <Field
+            label={t('labels.phone', { ns: 'common' })}
+            htmlFor="organization-phone"
+            error={firstFieldError(fieldErrors, 'phone')}
+          >
             <input
+              id="organization-phone"
+              name="phone"
+              type="tel"
+              maxLength={INPUT_LIMITS.phone}
               value={form.phone}
               onChange={(event) =>
                 setForm((current) => ({ ...current, phone: event.target.value }))
@@ -183,8 +240,17 @@ export function ManagerSettingsPage() {
               className={inputClass}
             />
           </Field>
-          <Field label={t('settings.postalCode')}>
+          <Field
+            label={t('settings.postalCode')}
+            htmlFor="organization-postal-code"
+            error={firstFieldError(fieldErrors, 'postalCode')}
+          >
             <input
+              id="organization-postal-code"
+              name="postalCode"
+              inputMode="numeric"
+              maxLength={INPUT_LIMITS.postalCode}
+              pattern="[0-9]{3}-?[0-9]{4}"
               value={form.postalCode}
               onChange={(event) =>
                 setForm((current) => ({ ...current, postalCode: event.target.value }))
@@ -194,8 +260,22 @@ export function ManagerSettingsPage() {
             />
           </Field>
           {(['prefecture', 'city', 'addressLine1', 'addressLine2'] as const).map((key) => (
-            <Field key={key} label={t(`settings.${key}`)}>
+            <Field
+              key={key}
+              label={t(`settings.${key}`)}
+              htmlFor={`organization-${key}`}
+              error={firstFieldError(fieldErrors, key)}
+            >
               <input
+                id={`organization-${key}`}
+                name={key}
+                maxLength={
+                  key === 'prefecture'
+                    ? INPUT_LIMITS.prefecture
+                    : key === 'city'
+                      ? INPUT_LIMITS.city
+                      : INPUT_LIMITS.addressLine
+                }
                 value={form[key]}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, [key]: event.target.value }))
@@ -210,13 +290,15 @@ export function ManagerSettingsPage() {
               {form.logoUrl && (
                 <img
                   src={form.logoUrl}
-                  alt=""
+                  alt={t('settings.logoAlt')}
                   className="h-20 w-20 rounded-lg border border-gray-200 object-cover"
                 />
               )}
               <input
                 ref={logoInputRef}
                 type="file"
+                id="organization-logo"
+                name="organizationLogo"
                 accept="image/png,image/jpeg,image/webp"
                 disabled={logoBusy}
                 onChange={(event) => void uploadLogo(event.target.files?.[0])}
@@ -243,7 +325,14 @@ export function ManagerSettingsPage() {
           {t('actions.save', { ns: 'common' })}
         </button>
       </form>
-      {feedback && <p className="text-sm font-medium text-gray-700">{feedback}</p>}
+      {feedback && (
+        <p
+          role={feedbackIsError ? 'alert' : 'status'}
+          className={`text-sm font-medium ${feedbackIsError ? 'text-red-700' : 'text-gray-700'}`}
+        >
+          {feedback}
+        </p>
+      )}
     </div>
   );
 }
@@ -256,11 +345,24 @@ function Field({
   label,
   children,
   wide = false,
-}: Readonly<{ label: string; children: React.ReactNode; wide?: boolean }>) {
+  htmlFor,
+  error,
+}: Readonly<{
+  label: string;
+  children: React.ReactNode;
+  wide?: boolean;
+  htmlFor?: string;
+  error?: string;
+}>) {
   return (
-    <label className={`text-sm font-medium text-gray-700 ${wide ? 'sm:col-span-2' : ''}`}>
-      {label}
+    <div className={`text-sm font-medium text-gray-700 ${wide ? 'sm:col-span-2' : ''}`}>
+      {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : <span>{label}</span>}
       {children}
-    </label>
+      {error && (
+        <p className="mt-1 text-xs font-medium text-red-700" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

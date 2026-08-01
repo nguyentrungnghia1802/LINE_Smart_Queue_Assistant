@@ -1,12 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { formatCurrency } from '../../i18n/format';
-import { get } from '../../services/apiClient';
+import { del, get } from '../../services/apiClient';
 import { formatAddress } from '../../utils/address';
+import { INPUT_LIMITS } from '../../utils/formValidation';
 
 interface Branch {
   id: string;
@@ -45,8 +46,11 @@ interface AnalyticsResponse {
 export function ManagerBranchDetailPage() {
   const { branchId = '' } = useParams();
   const { t, i18n } = useTranslation(['manager', 'common']);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [managerSearch, setManagerSearch] = useState('');
   const [queueSearch, setQueueSearch] = useState('');
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const branches = useQuery<Branch[]>({
     queryKey: ['branches'],
     queryFn: () => get('/api/v1/branches'),
@@ -57,6 +61,16 @@ export function ManagerBranchDetailPage() {
   });
   const branch = branches.data?.find((item) => item.id === branchId);
   const metrics = analytics.data?.branches.find((item) => item.branch_id === branchId);
+  const deleteMutation = useMutation({
+    mutationFn: () => del(`/api/v1/branches/${branchId}`),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['branches'] }),
+        queryClient.invalidateQueries({ queryKey: ['owner-branch-analytics'] }),
+      ]);
+      navigate('/manager/branches', { replace: true });
+    },
+  });
   const visibleManagers = useMemo(() => {
     const query = managerSearch.trim().toLocaleLowerCase();
     return (
@@ -182,6 +196,68 @@ export function ManagerBranchDetailPage() {
           </div>
         </section>
       </div>
+
+      <section className="rounded-xl border border-red-200 bg-red-50 p-5">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="font-bold text-gray-950">{t('branches.deleteTitle')}</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-600">
+              {t('branches.deleteDescription')}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDeleteOpen(true)}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            {t('branches.deleteAction')}
+          </button>
+        </div>
+      </section>
+
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-branch-title"
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+          >
+            <h2 id="delete-branch-title" className="text-xl font-bold text-gray-950">
+              {t('branches.deleteConfirmTitle')}
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-gray-600">
+              {t('branches.deleteConfirmDescription', { name: branch.name })}
+            </p>
+            {deleteMutation.error && (
+              <p className="mt-4 text-sm font-medium text-red-700" role="alert">
+                {deleteMutation.error.message}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={deleteMutation.isPending}
+                onClick={() => setDeleteOpen(false)}
+                className="rounded-lg px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-100"
+              >
+                {t('actions.cancel', { ns: 'common' })}
+              </button>
+              <button
+                type="button"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate()}
+                className="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800 disabled:opacity-50"
+              >
+                {deleteMutation.isPending
+                  ? t('branches.deleting')
+                  : t('branches.deleteConfirmAction')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -221,6 +297,8 @@ function SearchField({
       <span className="sr-only">{label}</span>
       <input
         type="search"
+        name="branchDetailSearch"
+        maxLength={INPUT_LIMITS.search}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}

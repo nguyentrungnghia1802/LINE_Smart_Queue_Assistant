@@ -59,6 +59,8 @@ export function BranchLocationPicker({
           <span className="sr-only">{t('branches.locationSearch')}</span>
           <input
             type="search"
+            name="branchLocationSearch"
+            maxLength={500}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('branches.locationSearchPlaceholder')}

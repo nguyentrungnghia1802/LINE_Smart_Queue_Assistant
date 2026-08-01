@@ -22,8 +22,10 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     // Build fieldErrors map from issues (replaces deprecated err.flatten())
     const fieldErrors = err.issues.reduce<Record<string, string[]>>((acc, issue) => {
       if (issue.path.length > 0) {
-        const key = String(issue.path[0]);
+        const key = issue.path.map(String).join('.');
         (acc[key] ??= []).push(issue.message);
+        const rootKey = String(issue.path[0]);
+        if (rootKey !== key) (acc[rootKey] ??= []).push(issue.message);
       }
       return acc;
     }, {});

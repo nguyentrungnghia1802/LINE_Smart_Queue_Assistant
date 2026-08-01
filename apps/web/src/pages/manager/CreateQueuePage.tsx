@@ -8,6 +8,7 @@ import {
   QueueProductPicker,
 } from '../../components/products/QueueProductPicker';
 import { get, post } from '../../services/apiClient';
+import { type ApiFieldErrors, getApiFieldErrors, INPUT_LIMITS } from '../../utils/formValidation';
 
 interface QueueRow {
   id: string;
@@ -19,6 +20,7 @@ export function CreateQueuePage() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<ApiFieldErrors>({});
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -42,6 +44,7 @@ export function CreateQueuePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
     setSaving(true);
     try {
       const queue = await post<QueueRow>('/api/v1/queues', {
@@ -58,6 +61,7 @@ export function CreateQueuePage() {
       });
       navigate(`/manager/queues/${queue.id}`);
     } catch (err: unknown) {
+      setFieldErrors(getApiFieldErrors(err));
       setError(err instanceof Error ? err.message : t('queue.createFailed'));
     } finally {
       setSaving(false);
@@ -78,10 +82,12 @@ export function CreateQueuePage() {
         onSubmit={handleSubmit}
         className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5"
       >
-        <Field label={t('queue.nameRequired')} required>
+        <Field label={t('queue.nameRequired')} required error={fieldErrors['name']?.[0]}>
           <input
+            name="name"
             required
             type="text"
+            maxLength={INPUT_LIMITS.queueName}
             placeholder={t('queue.namePlaceholder')}
             value={form.name}
             onChange={(e) => set('name', e.target.value)}
@@ -89,9 +95,14 @@ export function CreateQueuePage() {
           />
         </Field>
 
-        <Field label={t('labels.description', { ns: 'common' })}>
+        <Field
+          label={t('labels.description', { ns: 'common' })}
+          error={fieldErrors['description']?.[0]}
+        >
           <textarea
+            name="description"
             rows={2}
+            maxLength={INPUT_LIMITS.shortDescription}
             placeholder={t('queue.descriptionPlaceholder')}
             value={form.description}
             onChange={(e) => set('description', e.target.value)}
@@ -112,8 +123,9 @@ export function CreateQueuePage() {
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={t('queue.prefix')}>
+          <Field label={t('queue.prefix')} error={fieldErrors['prefix']?.[0]}>
             <input
+              name="prefix"
               type="text"
               placeholder="A"
               maxLength={10}
@@ -122,18 +134,21 @@ export function CreateQueuePage() {
               className={inputCls}
             />
           </Field>
-          <Field label={t('queue.capacity')}>
+          <Field label={t('queue.capacity')} error={fieldErrors['maxCapacity']?.[0]}>
             <input
+              name="maxCapacity"
               type="number"
               min="1"
+              max="100000"
               placeholder={t('units.unlimited', { ns: 'common' })}
               value={form.maxCapacity}
               onChange={(e) => set('maxCapacity', e.target.value)}
               className={inputCls}
             />
           </Field>
-          <Field label={t('queue.absenceGrace')}>
+          <Field label={t('queue.absenceGrace')} error={fieldErrors['absenceGraceMinutes']?.[0]}>
             <input
+              name="absenceGraceMinutes"
               type="number"
               min="1"
               max="120"
@@ -145,7 +160,7 @@ export function CreateQueuePage() {
           </Field>
         </div>
 
-        <Field label={t('queue.products')}>
+        <Field label={t('queue.products')} error={fieldErrors['productIds']?.[0]}>
           <QueueProductPicker
             products={products}
             selectedIds={form.productIds}
@@ -154,10 +169,15 @@ export function CreateQueuePage() {
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={t('queue.averageService')}>
+          <Field
+            label={t('queue.averageService')}
+            error={fieldErrors['avgServiceTimeMinutes']?.[0]}
+          >
             <input
+              name="avgServiceTimeMinutes"
               type="number"
               min="1"
+              max="480"
               placeholder="15"
               value={form.avgServiceTimeMinutes}
               onChange={(e) => set('avgServiceTimeMinutes', e.target.value)}
@@ -196,10 +216,12 @@ function Field({
   label,
   required,
   children,
+  error,
 }: {
   label: string;
   required?: boolean;
   children: React.ReactNode;
+  error?: string;
 }) {
   return (
     <div>
@@ -208,6 +230,11 @@ function Field({
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {children}
+      {error && (
+        <p className="mt-1 text-xs font-medium text-red-700" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

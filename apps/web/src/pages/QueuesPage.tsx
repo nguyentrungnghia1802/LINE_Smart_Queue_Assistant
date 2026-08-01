@@ -38,6 +38,8 @@ export function QueuesPage() {
         <span className="sr-only">{t('queue.search')}</span>
         <input
           type="search"
+          name="queueSearch"
+          maxLength={160}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t('queue.searchPlaceholder')}

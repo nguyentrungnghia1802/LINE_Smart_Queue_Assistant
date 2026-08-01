@@ -62,6 +62,8 @@ export function AdminOrganizationsPage() {
         <span className="sr-only">{t('organizations.search')}</span>
         <input
           type="search"
+          name="organizationSearch"
+          maxLength={160}
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);

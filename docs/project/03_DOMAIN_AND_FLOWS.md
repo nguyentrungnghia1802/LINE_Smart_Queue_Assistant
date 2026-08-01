@@ -423,6 +423,11 @@ There is no OpenAI or Gemini call in this flow. Adding a generative-AI API key w
   sessions and never grants access to other tenant accounts.
 - An owner manager may create branches and invite one or more branch managers. Every branch retains
   at least one assigned manager, but its queues are created later by an assigned branch manager.
+- An owner manager may permanently delete a branch through an explicit confirmation flow. The API
+  locks the branch and removes branch-owned accounts, queues, orders, payment records, inventory,
+  notifications, QR identity, and operational data atomically. Accounts with another active branch
+  assignment or pending non-deactivated assignment are retained; immutable audit history is also
+  retained. Pending email delivery is cancelled only for accounts that are actually removed.
 - Branch creation is serialized against the organization and enforces the subscription plan. The
   Standard plan permits at most three active branches.
 - The owner manager uses organization-level catalog, branch, manager, audit, and

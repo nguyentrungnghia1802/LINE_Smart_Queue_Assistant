@@ -40,6 +40,8 @@ export function QueueProductPicker({
         <span className="sr-only">{t('queue.productSearch')}</span>
         <input
           type="search"
+          name="queueProductSearch"
+          maxLength={160}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t('queue.productSearchPlaceholder')}

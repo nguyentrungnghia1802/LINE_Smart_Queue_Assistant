@@ -350,6 +350,177 @@ export class BranchesRepository extends BaseRepository {
       : this.queryOne<BranchRow>(sql, [id, organizationId]);
   }
 
+  async findByIdForUpdate(
+    id: string,
+    organizationId: string,
+    client: PoolClient
+  ): Promise<BranchRow | null> {
+    return this.queryOneTx<BranchRow>(
+      client,
+      `SELECT *
+       FROM organization_branches
+       WHERE id = $1 AND organization_id = $2 AND is_active = TRUE
+       FOR UPDATE`,
+      [id, organizationId]
+    );
+  }
+
+  async deleteWithDependencies(branch: BranchRow, actorId: string, client: PoolClient) {
+    const queueResult = await client.query<{ id: string }>(
+      'SELECT id FROM queues WHERE branch_id = $1 AND organization_id = $2 FOR UPDATE',
+      [branch.id, branch.organization_id]
+    );
+    const queueIds = queueResult.rows.map((row) => row.id);
+    const orderResult = await client.query<{ id: string; booking_group_id: string | null }>(
+      `SELECT id, booking_group_id
+       FROM orders
+       WHERE branch_id = $1 AND organization_id = $2
+       FOR UPDATE`,
+      [branch.id, branch.organization_id]
+    );
+    const orderIds = orderResult.rows.map((row) => row.id);
+    const bookingGroupIds = [
+      ...new Set(
+        orderResult.rows
+          .map((row) => row.booking_group_id)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+    const entryResult = await client.query<{ id: string }>(
+      `SELECT id
+       FROM queue_entries
+       WHERE queue_id = ANY($1::uuid[])
+       FOR UPDATE`,
+      [queueIds]
+    );
+    const entryIds = entryResult.rows.map((row) => row.id);
+    const paymentResult = await client.query<{ id: string }>(
+      `SELECT DISTINCT transaction_id AS id
+       FROM (
+         SELECT pt.id AS transaction_id
+         FROM payment_transactions pt
+         WHERE pt.order_id = ANY($1::uuid[])
+         UNION ALL
+         SELECT oi.payment_transaction_id AS transaction_id
+         FROM order_items oi
+         WHERE oi.order_id = ANY($1::uuid[])
+           AND oi.payment_transaction_id IS NOT NULL
+       ) payments`,
+      [orderIds]
+    );
+    const paymentIds = paymentResult.rows.map((row) => row.id);
+    const accountResult = await client.query<{ id: string; email: string | null }>(
+      `SELECT DISTINCT u.id, u.email
+       FROM branch_memberships bm
+       JOIN organization_members om
+         ON om.organization_id = bm.organization_id
+        AND om.user_id = bm.user_id
+       JOIN users u ON u.id = bm.user_id
+       WHERE bm.branch_id = $1
+         AND bm.organization_id = $2
+         AND bm.role IN ('manager', 'staff')
+         AND om.is_owner = FALSE`,
+      [branch.id, branch.organization_id]
+    );
+    const accountIds = accountResult.rows.map((row) => row.id);
+
+    await client.query('DELETE FROM notifications WHERE queue_entry_id = ANY($1::uuid[])', [
+      entryIds,
+    ]);
+    await client.query('DELETE FROM location_alerts WHERE queue_entry_id = ANY($1::uuid[])', [
+      entryIds,
+    ]);
+    await client.query('DELETE FROM customer_locations WHERE queue_entry_id = ANY($1::uuid[])', [
+      entryIds,
+    ]);
+    await client.query(
+      `DELETE FROM penalty_records
+       WHERE queue_id = ANY($1::uuid[]) OR queue_entry_id = ANY($2::uuid[])`,
+      [queueIds, entryIds]
+    );
+    await client.query('DELETE FROM queue_histories WHERE queue_id = ANY($1::uuid[])', [queueIds]);
+    await client.query(
+      'DELETE FROM payment_webhook_events WHERE payment_transaction_id = ANY($1::uuid[])',
+      [paymentIds]
+    );
+    await client.query(
+      `DELETE FROM payment_reconciliation_operations
+       WHERE payment_transaction_id = ANY($1::uuid[]) OR order_id = ANY($2::uuid[])`,
+      [paymentIds, orderIds]
+    );
+    await client.query('DELETE FROM payment_transactions WHERE id = ANY($1::uuid[])', [paymentIds]);
+    await client.query('DELETE FROM queue_entries WHERE id = ANY($1::uuid[])', [entryIds]);
+    await client.query('DELETE FROM inventory_reservations WHERE branch_id = $1', [branch.id]);
+    await client.query('DELETE FROM orders WHERE id = ANY($1::uuid[])', [orderIds]);
+    await client.query(
+      `DELETE FROM booking_groups bg
+       WHERE bg.id = ANY($1::uuid[])
+         AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.booking_group_id = bg.id)`,
+      [bookingGroupIds]
+    );
+    await client.query('DELETE FROM queues WHERE id = ANY($1::uuid[])', [queueIds]);
+    await client.query('DELETE FROM organization_branches WHERE id = $1 AND organization_id = $2', [
+      branch.id,
+      branch.organization_id,
+    ]);
+
+    await client.query(
+      `DELETE FROM organization_members om
+       WHERE om.organization_id = $1
+         AND om.user_id = ANY($2::uuid[])
+         AND om.is_owner = FALSE
+         AND NOT EXISTS (
+           SELECT 1
+           FROM branch_memberships bm
+           WHERE bm.organization_id = om.organization_id
+             AND bm.user_id = om.user_id
+             AND bm.deactivated_at IS NULL
+         )`,
+      [branch.organization_id, accountIds]
+    );
+    const deletedUsers = await client.query<{ id: string; email: string | null }>(
+      `DELETE FROM users u
+       WHERE u.id = ANY($1::uuid[])
+         AND u.role IN ('manager', 'staff')
+         AND NOT EXISTS (SELECT 1 FROM organization_members om WHERE om.user_id = u.id)
+       RETURNING u.id, u.email`,
+      [accountIds]
+    );
+    const deletedAccountEmails = deletedUsers.rows
+      .map((row) => row.email)
+      .filter((email): email is string => Boolean(email));
+    await client.query(
+      `UPDATE email_outbox
+       SET status = 'cancelled', processing_started_at = NULL, updated_at = NOW()
+       WHERE recipient_email = ANY($1::text[])
+         AND status IN ('pending', 'processing')`,
+      [deletedAccountEmails]
+    );
+    await client.query(
+      `INSERT INTO audit_logs
+         (actor_id, action, resource_type, resource_id, organization_id, changes)
+       VALUES ($1,'branch_deleted','organization_branch',$2,$3,$4)`,
+      [
+        actorId,
+        branch.id,
+        branch.organization_id,
+        JSON.stringify({
+          name: branch.name,
+          deletedQueues: queueIds.length,
+          deletedOrders: orderIds.length,
+          deletedAccounts: deletedUsers.rowCount ?? 0,
+        }),
+      ]
+    );
+    return {
+      deleted: true,
+      branchId: branch.id,
+      deletedQueues: queueIds.length,
+      deletedOrders: orderIds.length,
+      deletedAccounts: deletedUsers.rowCount ?? 0,
+    };
+  }
+
   async create(
     params: {
       organizationId: string;
@@ -525,6 +696,7 @@ export class BranchesRepository extends BaseRepository {
        WHERE branch_id = $1
          AND role = 'manager'
          AND user_id <> $2
+         AND is_active = TRUE
          AND deactivated_at IS NULL`,
       [branchId, exceptUserId]
     );

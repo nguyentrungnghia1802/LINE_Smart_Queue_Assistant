@@ -26,6 +26,10 @@ export const createBranch = asyncHandler(async (req: Request, res: Response) => 
   sendCreated(res, await branchesService.create(actor(req), req.body as CreateBranchDto));
 });
 
+export const deleteBranch = asyncHandler(async (req: Request, res: Response) => {
+  sendSuccess(res, await branchesService.deleteBranch(actor(req), req.params['branchId'] ?? ''));
+});
+
 export const inviteBranchManager = asyncHandler(async (req: Request, res: Response) => {
   sendCreated(
     res,

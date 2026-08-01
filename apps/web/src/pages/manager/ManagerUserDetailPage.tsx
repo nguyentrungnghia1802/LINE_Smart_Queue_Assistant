@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
 import { ApiClientError, get, patch } from '../../services/apiClient';
+import { type ApiFieldErrors, getApiFieldErrors, INPUT_LIMITS } from '../../utils/formValidation';
 
 interface StaffUser {
   id: string;
@@ -23,6 +24,7 @@ export function ManagerUserDetailPage() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<ApiFieldErrors>({});
   const [form, setForm] = useState({
     displayName: '',
     phone: '',
@@ -50,6 +52,7 @@ export function ManagerUserDetailPage() {
 
   const updateMutation = useMutation({
     mutationFn: () => patch(`/api/v1/users/staff/${userId}`, form),
+    onMutate: () => setFieldErrors({}),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['staff-user', userId] }),
@@ -58,10 +61,12 @@ export function ManagerUserDetailPage() {
       setEditing(false);
       setError('');
     },
-    onError: (updateError) =>
+    onError: (updateError) => {
+      setFieldErrors(getApiFieldErrors(updateError));
       setError(
         updateError instanceof ApiClientError ? updateError.message : t('users.updateFailed')
-      ),
+      );
+    },
   });
 
   if (userQuery.isLoading || !userQuery.data) {
@@ -123,7 +128,9 @@ export function ManagerUserDetailPage() {
               <label key={key} className="text-sm font-medium text-gray-700">
                 {label}
                 <input
+                  name={key}
                   required
+                  maxLength={staffFieldMaxLength(key)}
                   value={form[key]}
                   placeholder={placeholder}
                   onChange={(event) =>
@@ -131,6 +138,11 @@ export function ManagerUserDetailPage() {
                   }
                   className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
                 />
+                {fieldErrors[key]?.[0] && (
+                  <span className="mt-1 block text-xs font-medium text-red-700" role="alert">
+                    {fieldErrors[key]?.[0]}
+                  </span>
+                )}
               </label>
             ))}
             {error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
@@ -174,6 +186,17 @@ export function ManagerUserDetailPage() {
       </section>
     </div>
   );
+}
+
+function staffFieldMaxLength(key: string): number {
+  const limits: Record<string, number> = {
+    displayName: INPUT_LIMITS.displayName,
+    phone: INPUT_LIMITS.phone,
+    currentAddress: INPUT_LIMITS.currentAddress,
+    jobTitle: INPUT_LIMITS.jobTitle,
+    employeeCode: INPUT_LIMITS.employeeCode,
+  };
+  return limits[key] ?? INPUT_LIMITS.shortDescription;
 }
 
 function ReadOnlyField({ label, value }: Readonly<{ label: string; value: string }>) {

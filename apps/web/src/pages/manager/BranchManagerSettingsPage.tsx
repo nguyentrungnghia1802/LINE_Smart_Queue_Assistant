@@ -205,6 +205,7 @@ export function BranchManagerSettingsPage() {
               >
                 <span className="mb-1 block text-sm font-medium text-gray-700">{label}</span>
                 <input
+                  name={key}
                   required={!['email', 'addressLine2', 'latitude', 'longitude'].includes(key)}
                   type={
                     key === 'email'
@@ -214,6 +215,7 @@ export function BranchManagerSettingsPage() {
                         : 'text'
                   }
                   step={['latitude', 'longitude'].includes(key) ? '0.000001' : undefined}
+                  maxLength={branchSettingsFieldMaxLength(key)}
                   placeholder={t(`branches.placeholders.${key}`)}
                   value={form[key]}
                   onChange={(event) =>
@@ -480,6 +482,20 @@ export function BranchManagerSettingsPage() {
         : current
     );
   }
+}
+
+function branchSettingsFieldMaxLength(key: string): number | undefined {
+  const limits: Record<string, number> = {
+    name: 160,
+    phone: 20,
+    email: 254,
+    postalCode: 8,
+    prefecture: 20,
+    city: 100,
+    addressLine1: 200,
+    addressLine2: 200,
+  };
+  return limits[key];
 }
 
 function HolidayCalendar({
