@@ -412,6 +412,9 @@ There is no OpenAI or Gemini call in this flow. Adding a generative-AI API key w
 - Admin approval atomically creates an inactive organization, an invited owner-manager membership,
   and an account-activation email outbox record. No branch or queue is provisioned automatically.
 - The owner manager activates the tenant by opening the single-use email link and choosing a password. Owner managers cannot remove themselves.
+- Platform-admin owner recovery is limited to replacing the owner manager's sign-in email. The
+  owner changes their own display name and password; an admin email change revokes existing owner
+  sessions and never grants access to other tenant accounts.
 - An owner manager may create branches and invite one or more branch managers. Every branch retains
   at least one assigned manager, but its queues are created later by an assigned branch manager.
 - Branch creation is serialized against the organization and enforces the subscription plan. The

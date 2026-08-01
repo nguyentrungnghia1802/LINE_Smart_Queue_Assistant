@@ -59,18 +59,13 @@ export const CreateManagerSchema = z.object({
   password: z.string().min(6).max(128),
 });
 
-export const UpdateManagerSchema = z
+export const UpdateOwnerEmailSchema = z
   .object({
-    displayName: z.string().min(1).max(120).optional(),
-    email: z.string().trim().toLowerCase().email().max(254).optional(),
-    password: z.string().min(6).max(128).optional(),
-    isActive: z.boolean().optional(),
+    email: z.string().trim().toLowerCase().email().max(254),
   })
-  .refine((d) => Object.values(d).some((v) => v !== undefined), {
-    message: 'At least one field must be provided',
-  });
+  .strict();
 
 export type CreateManagerDto = z.infer<typeof CreateManagerSchema>;
 export type CreateOrganizationDto = z.infer<typeof CreateOrganizationSchema>;
-export type UpdateManagerDto = z.infer<typeof UpdateManagerSchema>;
+export type UpdateOwnerEmailDto = z.infer<typeof UpdateOwnerEmailSchema>;
 export type UpdateOrganizationDto = z.infer<typeof UpdateOrganizationSchema>;

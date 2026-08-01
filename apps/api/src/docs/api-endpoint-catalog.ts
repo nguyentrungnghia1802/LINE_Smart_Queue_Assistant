@@ -91,7 +91,7 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
   endpoint('delete', '/api/v1/admin/organizations/{orgId}', 'admin'),
   endpoint('get', '/api/v1/admin/organizations/{orgId}/managers', 'admin'),
   endpoint('patch', '/api/v1/admin/organizations/{orgId}/managers/{userId}', 'admin', {
-    validator: 'UpdateManagerSchema',
+    validator: 'UpdateOwnerEmailSchema',
   }),
 
   endpoint('get', '/api/v1/booking-groups/me', 'bookings', {
