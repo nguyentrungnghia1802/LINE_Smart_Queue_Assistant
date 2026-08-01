@@ -1,4 +1,7 @@
+import bcrypt from 'bcryptjs';
 import type { PoolClient } from 'pg';
+
+import { UserRole } from '@line-queue/shared';
 
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
@@ -10,7 +13,12 @@ import { authSessionService } from '../auth/auth-session.service';
 import { requireBranchManager } from '../branches/branch-scope';
 import { branchesRepository } from '../branches/branches.repository';
 
-import type { CreateUserDto, InviteStaffDto, UpdateStaffDto } from './users.validator';
+import type {
+  ChangeMyPasswordDto,
+  CreateUserDto,
+  InviteStaffDto,
+  UpdateStaffDto,
+} from './users.validator';
 
 async function assertTargetStaffBranch(actor: AuthUser, userId: string, client?: PoolClient) {
   const scope = requireBranchManager(actor);
@@ -50,6 +58,40 @@ export const usersService = {
     const updated = await usersRepository.updateProfile(userId, data);
     if (!updated) throw AppError.notFound('User not found');
     return updated;
+  },
+
+  async changeMyPassword(actor: AuthUser, data: ChangeMyPasswordDto) {
+    if (![UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF].includes(actor.role)) {
+      throw AppError.forbidden('Password login is available only for business accounts');
+    }
+    const existing = await usersRepository.findById(actor.id);
+    if (!existing?.is_active || existing.account_status === 'disabled') {
+      throw AppError.unauthorized('The account is not active');
+    }
+    if (!existing.password_hash) {
+      throw new AppError(
+        'This account does not have a password credential',
+        409,
+        'PASSWORD_CHANGE_UNAVAILABLE'
+      );
+    }
+    if (!(await bcrypt.compare(data.currentPassword, existing.password_hash))) {
+      throw new AppError('The current password is incorrect', 401, 'AUTH_INVALID_PASSWORD');
+    }
+    if (await bcrypt.compare(data.newPassword, existing.password_hash)) {
+      throw new AppError(
+        'The new password must differ from the current password',
+        409,
+        'PASSWORD_MUST_DIFFER'
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(data.newPassword, 12);
+    await withTransaction(async (client) => {
+      await usersRepository.setPassword(actor.id, passwordHash, client);
+      await authSessionService.revokeAllForUser(actor.id, 'password_changed', client);
+    });
+    return { changed: true };
   },
 
   async createUser(dto: CreateUserDto) {

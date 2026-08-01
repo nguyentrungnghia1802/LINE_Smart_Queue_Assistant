@@ -97,6 +97,8 @@ export const common = {
     AUTH_ACCOUNT_NOT_ACTIVATED: 'Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email mời.',
     AUTH_ACCOUNT_DISABLED: 'Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.',
     AUTH_INVALID_PASSWORD: 'Mật khẩu không chính xác.',
+    PASSWORD_MUST_DIFFER: 'Mật khẩu mới phải khác mật khẩu hiện tại.',
+    PASSWORD_CHANGE_UNAVAILABLE: 'Tài khoản này không hỗ trợ thay đổi mật khẩu.',
     AUTH_SESSION_REQUIRED: 'Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.',
     AUTH_SESSION_INVALID: 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.',
     AUTH_SESSION_EXPIRED: 'Phiên đăng nhập đã hết hạn do không hoạt động.',

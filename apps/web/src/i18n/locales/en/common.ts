@@ -97,6 +97,8 @@ export const common = {
     AUTH_ACCOUNT_NOT_ACTIVATED: 'This account is not active yet. Check your invitation email.',
     AUTH_ACCOUNT_DISABLED: 'This account has been disabled. Contact an administrator.',
     AUTH_INVALID_PASSWORD: 'The password is incorrect.',
+    PASSWORD_MUST_DIFFER: 'The new password must differ from the current password.',
+    PASSWORD_CHANGE_UNAVAILABLE: 'Password changes are unavailable for this account.',
     AUTH_SESSION_REQUIRED: 'Your session has ended. Please log in again.',
     AUTH_SESSION_INVALID: 'Your session is invalid. Please log in again.',
     AUTH_SESSION_EXPIRED: 'Your session expired due to inactivity. Please log in again.',

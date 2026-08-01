@@ -188,9 +188,11 @@ ID-token-to-system-JWT flow without a second customer auth model.
    active linked LINE account. If the LIFF SDK temporarily reports signed-out after reload, an
    already-restored customer cookie session may render without forcing another interactive login;
    the next available LINE ID token is still exchanged server-side.
-6. Logout, password reset, account disablement, and staff removal revoke the relevant session
-   family or every active session for that user. Customer logout also clears the LIFF adapter state.
-   Reuse outside the short concurrent-rotation grace window revokes the family.
+6. Logout, password reset, authenticated business-account password change, account disablement,
+   and staff removal revoke the relevant session family or every active session for that user.
+   Password change verifies the current password and commits the new hash with session revocation
+   in one transaction. Customer logout also clears the LIFF adapter state. Reuse outside the short
+   concurrent-rotation grace window revokes the family.
 
 ## 4. Booking without required prepayment
 

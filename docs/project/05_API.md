@@ -322,17 +322,18 @@ The upload request currently carries a browser-compressed data URL for compatibi
 
 ### Users and staff management
 
-| Method | Path                                 | Access               | Purpose                                      |
-| ------ | ------------------------------------ | -------------------- | -------------------------------------------- |
-| GET    | `/api/v1/users`                      | Branch manager/admin | List assigned-branch staff or platform users |
-| PATCH  | `/api/v1/users/me`                   | Authenticated        | Update own profile and `preferredLocale`     |
-| POST   | `/api/v1/users/staff`                | Branch manager       | Invite staff into the assigned branch        |
-| PATCH  | `/api/v1/users/staff/:userId/status` | Branch manager       | Change assigned-branch staff active state    |
-| PATCH  | `/api/v1/users/staff/:userId`        | Branch manager       | Update assigned-branch staff                 |
-| DELETE | `/api/v1/users/staff/:userId`        | Branch manager       | Soft-deactivate assigned-branch staff        |
-| GET    | `/api/v1/users/:id`                  | Authenticated        | User detail subject to service authorization |
-| POST   | `/api/v1/users`                      | Admin                | Create user                                  |
-| DELETE | `/api/v1/users/:id`                  | Admin                | Deactivate user                              |
+| Method | Path                                 | Access               | Purpose                                             |
+| ------ | ------------------------------------ | -------------------- | --------------------------------------------------- |
+| GET    | `/api/v1/users`                      | Branch manager/admin | List assigned-branch staff or platform users        |
+| PATCH  | `/api/v1/users/me`                   | Authenticated        | Update own profile and `preferredLocale`            |
+| PATCH  | `/api/v1/users/me/password`          | Admin/manager/staff  | Verify and change own password; revoke all sessions |
+| POST   | `/api/v1/users/staff`                | Branch manager       | Invite staff into the assigned branch               |
+| PATCH  | `/api/v1/users/staff/:userId/status` | Branch manager       | Change assigned-branch staff active state           |
+| PATCH  | `/api/v1/users/staff/:userId`        | Branch manager       | Update assigned-branch staff                        |
+| DELETE | `/api/v1/users/staff/:userId`        | Branch manager       | Soft-deactivate assigned-branch staff               |
+| GET    | `/api/v1/users/:id`                  | Authenticated        | User detail subject to service authorization        |
+| POST   | `/api/v1/users`                      | Admin                | Create user                                         |
+| DELETE | `/api/v1/users/:id`                  | Admin                | Deactivate user                                     |
 
 `POST /users/staff` requires the staff profile and a non-empty `employeeCode`; it does not accept a
 branch selector. The API derives the target branch from the authenticated non-owner manager's
@@ -385,6 +386,8 @@ email cannot be invited again under another role.
 - `POST /api/v1/auth/activate-account` consumes an activation token and sets the invited account password.
 - `POST /api/v1/auth/forgot-password` always returns an accepted response to prevent account enumeration.
 - `POST /api/v1/auth/reset-password` consumes a reset token and updates an active business account password.
+- `PATCH /api/v1/users/me/password` requires the current password, enforces the shared business
+  password policy, updates the hash, and revokes all sessions so the user must sign in again.
 - `GET|POST /api/v1/branches` lists branches or lets the organization owner create a branch with
   at least one manager and a default closed queue.
 - `GET|PATCH /api/v1/branches/me` and

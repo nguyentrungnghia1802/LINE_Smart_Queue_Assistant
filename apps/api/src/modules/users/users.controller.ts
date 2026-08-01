@@ -9,7 +9,12 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { sendCreated, sendNoContent, sendSuccess } from '../../utils/response';
 
 import { usersService } from './users.service';
-import type { CreateUserDto, InviteStaffDto, UpdateStaffDto } from './users.validator';
+import type {
+  ChangeMyPasswordDto,
+  CreateUserDto,
+  InviteStaffDto,
+  UpdateStaffDto,
+} from './users.validator';
 
 export const getUser = asyncHandler(async (req: Request, res: Response) => {
   const actor = req.user;
@@ -56,6 +61,12 @@ export const updateMyProfile = asyncHandler(async (req: Request, res: Response) 
   }
   const updated = await usersService.updateMyProfile(userId, req.body);
   sendSuccess(res, updated);
+});
+
+export const changeMyPassword = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw AppError.unauthorized();
+  const result = await usersService.changeMyPassword(req.user, req.body as ChangeMyPasswordDto);
+  sendSuccess(res, result);
 });
 
 export const createUser = asyncHandler(async (req: Request, res: Response) => {

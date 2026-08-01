@@ -260,6 +260,9 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
   }),
 
   endpoint('get', '/api/v1/users', 'users'),
+  endpoint('patch', '/api/v1/users/me/password', 'users', {
+    validator: 'ChangeMyPasswordSchema',
+  }),
   endpoint('patch', '/api/v1/users/me', 'users', { validator: 'UpdateMyProfileSchema' }),
   endpoint('post', '/api/v1/users/staff', 'users'),
   endpoint('patch', '/api/v1/users/staff/{userId}/status', 'users'),
