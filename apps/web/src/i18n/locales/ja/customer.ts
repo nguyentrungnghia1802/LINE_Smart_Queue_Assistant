@@ -62,6 +62,7 @@ export const customer = {
     branchClosed: '現在は営業時間外です。営業時間内にもう一度お試しください。',
     queuePaused: 'この受付キューは現在停止中です。別のキューを選択してください。',
     selectQueue: '受付キューを選択',
+    selectQueuePlaceholder: '受付キューを選んでください',
     productsTitle: '商品 / サービス',
     productsHint: '必要な項目を選択してください。',
     lineAuthFailed: 'LINE認証を完了できませんでした。LINEからもう一度開いてください。',

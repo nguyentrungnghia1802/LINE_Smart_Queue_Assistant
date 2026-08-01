@@ -284,7 +284,9 @@ describe('LiffCustomerJoinPage', () => {
     await screen.findByRole('heading', { name: '東京店' });
     expect(screen.queryByRole('button', { name: 'カット を追加' })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /カラー受付/ }));
+    const queueSelect = screen.getByRole('combobox', { name: '受付キューを選択' });
+    expect(screen.queryByRole('button', { name: /カラー受付/ })).not.toBeInTheDocument();
+    await user.selectOptions(queueSelect, 'queue-2');
 
     expect(screen.getByRole('button', { name: 'ヘアカラー を追加' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'カット を追加' })).not.toBeInTheDocument();
