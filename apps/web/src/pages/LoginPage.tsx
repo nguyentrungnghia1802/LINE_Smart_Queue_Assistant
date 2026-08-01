@@ -9,6 +9,7 @@ import { BrandLogo } from '../components/BrandLogo';
 import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher';
 import { ApiClientError } from '../services/apiClient';
 import { getCustomerLineEntryUrl } from '../services/liff/entryUrl';
+import { consumeAuthSessionNotice } from '../store/authSession';
 import { useAuthStore } from '../store/authStore';
 
 const CUSTOMER_LINE_ENTRY_URL = getCustomerLineEntryUrl('/liff/home');
@@ -20,6 +21,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [sessionNotice, setSessionNotice] = useState(() => consumeAuthSessionNotice());
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -32,6 +34,7 @@ export function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setSessionNotice(null);
     setLoading(true);
     try {
       await login(email, password);
@@ -179,6 +182,15 @@ export function LoginPage() {
                 </Link>
               </div>
             </div>
+
+            {sessionNotice && !error && (
+              <p
+                role="status"
+                className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+              >
+                {t(`errors.${sessionNotice}`, { ns: 'common' })}
+              </p>
+            )}
 
             {error && (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>

@@ -83,7 +83,11 @@ the API remains authoritative.
 Login and refresh responses include `token`, `user`, and public `session` timing metadata. The raw
 refresh token is never returned in JSON; it uses a `/api/v1/auth` path-scoped `HttpOnly`,
 `SameSite=Strict` cookie with `Secure` enabled in production. Browser clients send credentials and
-retry one failed authenticated request after a single refresh attempt.
+retry one failed authenticated request after a single shared refresh attempt. Login and LINE token
+exchange requests opt out of automatic refresh so invalid credentials remain normal form errors.
+`AUTH_SESSION_REQUIRED`, refresh failure, or a repeated `401` is a terminal browser-session signal:
+the client clears private state and redirects once using its localized `AUTH_SESSION_EXPIRED`
+notice instead of rendering the backend message.
 
 ### Platform admin
 

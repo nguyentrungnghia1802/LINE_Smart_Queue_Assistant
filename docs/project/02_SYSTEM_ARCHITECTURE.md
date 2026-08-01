@@ -112,6 +112,10 @@ email login for customer-role users and exposes no public customer registration 
    an opaque rotating refresh token in a path-scoped `HttpOnly`, production-`Secure` cookie.
 4. The SPA keeps the access token in memory. It bootstraps or renews access through
    `/api/v1/auth/refresh`; access and refresh tokens are never persisted in browser storage.
+   Authenticated API calls share one in-flight refresh operation and retry the original request at
+   most once. `AUTH_SESSION_REQUIRED`, a failed refresh, or a second `401` ends the client session,
+   clears the private query cache and user state, and performs one redirect to email login with a
+   localized notice. Provider and backend error text is not rendered for this terminal path.
 5. `currentUserMiddleware` verifies the JWT and active session family; `requireAuth` and
    `requireRole` enforce protected routes.
 6. `currentUserMiddleware` reloads active organization membership, owner flag, and branch IDs from

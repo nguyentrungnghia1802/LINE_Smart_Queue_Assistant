@@ -1,19 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router-dom';
 
 import { AuthSessionManager } from './components/auth/AuthSessionManager';
 import { LocaleSync } from './components/i18n/LocaleSync';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { router } from './router';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      retry: 1,
-    },
-  },
-});
+import { queryClient } from './services/queryClient';
 
 export default function App() {
   return (

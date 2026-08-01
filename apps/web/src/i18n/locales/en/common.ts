@@ -101,7 +101,7 @@ export const common = {
     PASSWORD_CHANGE_UNAVAILABLE: 'Password changes are unavailable for this account.',
     AUTH_SESSION_REQUIRED: 'Your session has ended. Please log in again.',
     AUTH_SESSION_INVALID: 'Your session is invalid. Please log in again.',
-    AUTH_SESSION_EXPIRED: 'Your session expired due to inactivity. Please log in again.',
+    AUTH_SESSION_EXPIRED: 'Your session expired after a period of inactivity. Please log in again.',
     AUTH_SESSION_REUSED: 'Your session was revoked for security. Please log in again.',
     UNAUTHORIZED: 'Please log in again.',
     FORBIDDEN: 'You do not have permission to perform this action.',

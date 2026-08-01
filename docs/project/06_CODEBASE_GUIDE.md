@@ -94,6 +94,11 @@ Authentication is split between `modules/auth/auth-session.policy.ts` (role timi
 (issue/rotation/revocation), and `auth.cookies.ts` (refresh-cookie boundary). The frontend
 `AuthSessionManager` bootstraps the cookie session, tracks business-user activity, and keeps the
 short-lived access token in module memory through `store/authSession.ts`.
+`services/apiClient.ts` owns the authenticated-response interceptor and delegates refresh and
+terminal cleanup to `store/authSession.ts`; components must not implement their own `401`, refresh,
+or redirect flow. Refresh is single-flight and each request retries once. Terminal cleanup resets
+the auth store through a listener and clears the singleton React Query client exported by
+`services/queryClient.ts` before the guarded login redirect.
 Authenticated business users change passwords through `usersService.changeMyPassword`; the new
 hash and revocation of every active session are committed in one transaction. `AccountPage` owns
 the shared Admin/Manager/Staff form and returns the user to email login after success.
