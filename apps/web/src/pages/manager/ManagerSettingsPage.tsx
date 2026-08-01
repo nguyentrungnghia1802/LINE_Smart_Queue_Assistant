@@ -86,10 +86,11 @@ export function ManagerSettingsPage() {
     },
   });
   const organizationMutation = useMutation({
-    mutationFn: () =>
-      patch('/api/v1/orgs/my-org', {
+    mutationFn: () => {
+      const logoUrl = organizationLogoForUpdate(form.logoUrl);
+      return patch('/api/v1/orgs/my-org', {
         name: form.name,
-        logoUrl: form.logoUrl || null,
+        ...(logoUrl !== undefined ? { logoUrl } : {}),
         phone: form.phone || null,
         postalCode: form.postalCode || null,
         prefecture: form.prefecture || null,
@@ -97,7 +98,8 @@ export function ManagerSettingsPage() {
         addressLine1: form.addressLine1 || null,
         addressLine2: form.addressLine2 || null,
         defaultLocale: form.defaultLocale,
-      }),
+      });
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['manager-my-org'] });
       setFeedback(t('settings.saved'));
@@ -119,6 +121,11 @@ export function ManagerSettingsPage() {
     try {
       const asset = await uploadImage(await compressLogoFile(file), 'organization_logo');
       setForm((current) => ({ ...current, logoUrl: asset.public_url }));
+      setFieldErrors((current) => {
+        const remaining = { ...current };
+        delete remaining.logoUrl;
+        return remaining;
+      });
       setFeedback(t('settings.logoUploaded'));
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : t('settings.uploadFailed'));
@@ -285,7 +292,16 @@ export function ManagerSettingsPage() {
               />
             </Field>
           ))}
-          <Field label={t('settings.organizationLogo')} wide>
+          <Field
+            label={t('settings.organizationLogo')}
+            htmlFor="organization-logo"
+            error={
+              firstFieldError(fieldErrors, 'logoUrl')
+                ? t('settings.logoUrlValidationHint')
+                : undefined
+            }
+            wide
+          >
             <div className="flex items-center gap-4">
               {form.logoUrl && (
                 <img
@@ -340,6 +356,13 @@ export function ManagerSettingsPage() {
 const inputClass = 'mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm';
 const buttonClass =
   'mt-5 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50';
+
+function organizationLogoForUpdate(logoUrl: string): string | null | undefined {
+  if (!logoUrl) return null;
+  return logoUrl.length <= INPUT_LIMITS.url && !logoUrl.startsWith('data:image/')
+    ? logoUrl
+    : undefined;
+}
 
 function Field({
   label,

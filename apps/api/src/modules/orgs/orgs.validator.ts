@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
-import { JapanesePhoneSchema } from '../shared/shared.validator';
+import { JapanesePhoneSchema, StoredImageUrlSchema } from '../shared/shared.validator';
 
 export const UpdateOrgSettingsSchema = z.object({
   defaultLocale: z.enum(['ja', 'vi', 'en']).optional(),
   name: z.string().min(1).max(200).optional(),
-  logoUrl: z.string().url().max(2_000).nullable().optional(),
+  logoUrl: StoredImageUrlSchema.nullable().optional(),
   address: z.string().max(500).nullable().optional(),
   postalCode: z
     .string()

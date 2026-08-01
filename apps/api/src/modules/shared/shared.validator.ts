@@ -22,6 +22,28 @@ export const JapanesePhoneSchema = z
     'Enter a valid Japanese phone number'
   );
 
+const RelativeMediaUrlSchema = z
+  .string()
+  .max(2_000)
+  .regex(
+    /^\/(?:media|mock-media)\/[a-zA-Z0-9][a-zA-Z0-9/_-]*(?:\.[a-zA-Z0-9]+)?$/,
+    'Image URL must be an uploaded media path'
+  );
+
+const AbsoluteImageUrlSchema = z
+  .string()
+  .max(2_000)
+  .url()
+  .refine((value) => {
+    try {
+      return ['http:', 'https:'].includes(new URL(value).protocol);
+    } catch {
+      return false;
+    }
+  }, 'Image URL must use HTTP or HTTPS');
+
+export const StoredImageUrlSchema = z.union([RelativeMediaUrlSchema, AbsoluteImageUrlSchema]);
+
 export const BusinessPasswordSchema = z
   .string()
   .min(10)
