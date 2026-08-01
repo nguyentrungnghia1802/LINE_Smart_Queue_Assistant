@@ -4,7 +4,7 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { sendNoContent, sendSuccess } from '../../utils/response';
 
 import { adminService } from './admin.service';
-import { UpdateManagerDto } from './admin.validator';
+import { UpdateOwnerEmailDto } from './admin.validator';
 
 export const getDashboard = asyncHandler(async (_req: Request, res: Response) => {
   sendSuccess(res, await adminService.getDashboard());
@@ -25,11 +25,11 @@ export const listManagers = asyncHandler(async (req: Request, res: Response) => 
   sendSuccess(res, managers);
 });
 
-export const updateManager = asyncHandler(async (req: Request, res: Response) => {
-  const manager = await adminService.updateManager(
+export const updateOwnerEmail = asyncHandler(async (req: Request, res: Response) => {
+  const manager = await adminService.updateOwnerEmail(
     req.params['orgId'] ?? '',
     req.params['userId'] ?? '',
-    req.body as UpdateManagerDto
+    req.body as UpdateOwnerEmailDto
   );
   sendSuccess(res, manager);
 });

@@ -1,5 +1,3 @@
-import bcrypt from 'bcryptjs';
-
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
 import { withTransaction } from '../../db/transaction';
@@ -7,7 +5,7 @@ import { AppError } from '../../utils/AppError';
 import { authSessionService } from '../auth/auth-session.service';
 import { organizationApplicationsRepository } from '../organization-applications/organization-applications.repository';
 
-import { UpdateManagerDto } from './admin.validator';
+import { UpdateOwnerEmailDto } from './admin.validator';
 
 export const adminService = {
   async listOrganizations() {
@@ -97,7 +95,7 @@ export const adminService = {
     return owner ? [owner] : [];
   },
 
-  async updateManager(orgId: string, userId: string, dto: UpdateManagerDto) {
+  async updateOwnerEmail(orgId: string, userId: string, dto: UpdateOwnerEmailDto) {
     const member = await organizationsRepository.findMember(orgId, userId);
     if (!member || member.role !== 'manager' || !member.is_owner) {
       throw AppError.notFound('Organization owner manager not found');
@@ -106,31 +104,17 @@ export const adminService = {
     const user = await usersRepository.findById(userId);
     if (!user) throw AppError.notFound('User not found');
 
-    if (dto.email && dto.email !== user.email) {
-      const duplicate = await usersRepository.findByEmail(dto.email);
-      if (duplicate && duplicate.id !== userId) {
-        throw AppError.conflict('A user with this email already exists');
-      }
+    if (dto.email === user.email) return user;
+
+    const duplicate = await usersRepository.findByEmail(dto.email);
+    if (duplicate && duplicate.id !== userId) {
+      throw AppError.conflict('A user with this email already exists');
     }
 
     const updated = await usersRepository.updateProfile(userId, {
-      displayName: dto.displayName,
       email: dto.email,
     });
-
-    if (dto.password?.trim()) {
-      const passwordHash = await bcrypt.hash(dto.password, 10);
-      await usersRepository.setPassword(userId, passwordHash);
-      await authSessionService.revokeAllForUser(userId, 'admin_password_reset');
-    }
-
-    if (dto.isActive !== undefined) {
-      await usersRepository.setActive(userId, dto.isActive);
-      await organizationsRepository.setMemberActive(orgId, userId, dto.isActive);
-      if (!dto.isActive) {
-        await authSessionService.revokeAllForUser(userId, 'account_disabled');
-      }
-    }
+    await authSessionService.revokeAllForUser(userId, 'admin_owner_email_changed');
 
     return usersRepository.findById(updated?.id ?? userId);
   },

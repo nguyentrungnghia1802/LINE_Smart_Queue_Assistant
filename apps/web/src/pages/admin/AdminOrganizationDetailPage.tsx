@@ -22,9 +22,7 @@ export function AdminOrganizationDetailPage() {
   const { orgId = '' } = useParams();
   const navigate = useNavigate();
   const client = useQueryClient();
-  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const organizations = useQuery<OrgRow[]>({
@@ -44,20 +42,15 @@ export function AdminOrganizationDetailPage() {
 
   useEffect(() => {
     if (!owner) return;
-    setDisplayName(owner.display_name);
     setEmail(owner.email ?? '');
   }, [owner]);
 
   const updateOwner = useMutation({
     mutationFn: () =>
       patch(`${API_BASE_PATH}/admin/organizations/${orgId}/managers/${owner?.id}`, {
-        displayName,
         email,
-        ...(password ? { password } : {}),
-        isActive: true,
       }),
     onSuccess: () => {
-      setPassword('');
       setError('');
       void client.invalidateQueries({ queryKey: ['admin-org-owner', orgId] });
     },
@@ -157,13 +150,16 @@ export function AdminOrganizationDetailPage() {
         <p className="mt-1 text-sm text-gray-500">{t('organizations.ownerRepairHint')}</p>
         {owner ? (
           <>
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <Field
-                label={t('labels.displayName', { ns: 'common' })}
-                value={displayName}
-                onChange={setDisplayName}
-                placeholder={t('organizations.ownerNamePlaceholder')}
-              />
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="rounded-lg bg-gray-50 px-4 py-3">
+                <p className="text-xs font-semibold text-gray-500">
+                  {t('labels.displayName', { ns: 'common' })}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-950">{owner.display_name}</p>
+                <p className="mt-1 text-xs leading-5 text-gray-500">
+                  {t('organizations.ownerNameReadOnly')}
+                </p>
+              </div>
               <Field
                 label={t('labels.email', { ns: 'common' })}
                 value={email}
@@ -171,21 +167,13 @@ export function AdminOrganizationDetailPage() {
                 type="email"
                 placeholder="owner@example.jp"
               />
-              <Field
-                label={t('organizations.newPassword')}
-                value={password}
-                onChange={setPassword}
-                type="password"
-                placeholder={t('organizations.passwordPlaceholder')}
-                required={false}
-              />
             </div>
             <button
               type="submit"
               disabled={updateOwner.isPending}
               className="mt-4 rounded-lg bg-gray-950 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
             >
-              {t('organizations.saveManager')}
+              {t('organizations.saveOwnerEmail')}
             </button>
           </>
         ) : (
@@ -215,14 +203,12 @@ function Field({
   onChange,
   type = 'text',
   placeholder,
-  required = true,
 }: Readonly<{
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
   placeholder?: string;
-  required?: boolean;
 }>) {
   return (
     <label className="text-sm font-medium text-gray-700">
@@ -232,7 +218,7 @@ function Field({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        required={required}
+        required
         className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
       />
     </label>
