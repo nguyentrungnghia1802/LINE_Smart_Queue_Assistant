@@ -14,12 +14,12 @@ import {
   listManagers,
   listOrganizations,
   removeOrganization,
-  updateManager,
+  updateOwnerEmail,
 } from './admin.controller';
 import {
   AdminOrgIdParamSchema,
   AdminOrgManagerParamSchema,
-  UpdateManagerSchema,
+  UpdateOwnerEmailSchema,
 } from './admin.validator';
 
 export const adminRouter = Router();
@@ -43,6 +43,6 @@ adminRouter.patch(
   '/organizations/:orgId/managers/:userId',
   authenticatedActionRateLimiter,
   validate(AdminOrgManagerParamSchema, 'params'),
-  validate(UpdateManagerSchema),
-  updateManager
+  validate(UpdateOwnerEmailSchema),
+  updateOwnerEmail
 );

@@ -83,13 +83,18 @@ retry one failed authenticated request after a single refresh attempt.
 
 All paths require `admin`.
 
-| Method | Path                                                  | Purpose                                                    |
-| ------ | ----------------------------------------------------- | ---------------------------------------------------------- |
-| GET    | `/api/v1/admin/dashboard`                             | Plan adoption and platform subscription revenue metrics    |
-| GET    | `/api/v1/admin/organizations`                         | List organizations without tenant operational data         |
-| DELETE | `/api/v1/admin/organizations/:orgId`                  | Soft-deactivate organization and every tenant account      |
-| GET    | `/api/v1/admin/organizations/:orgId/managers`         | Read only the immutable organization-owner manager         |
-| PATCH  | `/api/v1/admin/organizations/:orgId/managers/:userId` | Recover/update only the organization-owner manager account |
+| Method | Path                                                  | Purpose                                                   |
+| ------ | ----------------------------------------------------- | --------------------------------------------------------- |
+| GET    | `/api/v1/admin/dashboard`                             | Plan adoption and platform subscription revenue metrics   |
+| GET    | `/api/v1/admin/organizations`                         | List organizations without tenant operational data        |
+| DELETE | `/api/v1/admin/organizations/:orgId`                  | Soft-deactivate organization and every tenant account     |
+| GET    | `/api/v1/admin/organizations/:orgId/managers`         | Read only the immutable organization-owner manager        |
+| PATCH  | `/api/v1/admin/organizations/:orgId/managers/:userId` | Replace only the owner manager sign-in email for recovery |
+
+The owner recovery PATCH accepts the strict body `{ "email": "owner@example.jp" }`. Extra fields,
+including `displayName`, `password`, and `isActive`, fail validation. A successful email change
+revokes the owner's existing refresh sessions so the recovered address becomes the next login
+authority.
 
 ### Organization service applications
 
