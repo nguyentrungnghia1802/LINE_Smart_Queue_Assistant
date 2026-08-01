@@ -7,8 +7,8 @@ export const CreateQueueSchema = z.object({
   description: z.string().max(500).optional(),
   status: z.enum(['open', 'paused', 'closed']).default('open'),
   prefix: z.string().max(10).optional(),
-  maxCapacity: z.number().int().positive().optional(),
-  avgServiceTimeMinutes: z.number().int().positive().optional(),
+  maxCapacity: z.number().int().min(1).max(100_000).optional(),
+  avgServiceTimeMinutes: z.number().int().min(1).max(480).optional(),
   absenceGraceMinutes: z.number().int().min(1).max(120).default(5),
   productIds: z.array(z.string().uuid()).max(200).default([]),
 });
@@ -20,8 +20,8 @@ export const UpdateQueueSchema = z
     name: z.string().min(1).max(120).optional(),
     description: z.string().max(500).optional(),
     status: z.enum(['open', 'paused', 'closed']).optional(),
-    maxCapacity: z.number().int().positive().optional(),
-    avgServiceTimeMinutes: z.number().int().positive().optional(),
+    maxCapacity: z.number().int().min(1).max(100_000).optional(),
+    avgServiceTimeMinutes: z.number().int().min(1).max(480).optional(),
     absenceGraceMinutes: z.number().int().min(1).max(120).optional(),
     productIds: z.array(z.string().uuid()).max(200).optional(),
   })

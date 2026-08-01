@@ -110,6 +110,8 @@ export function ManagerProductsPage() {
           <span className="sr-only">{t('products.search')}</span>
           <input
             type="search"
+            name="productSearch"
+            maxLength={160}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t('products.searchPlaceholder')}

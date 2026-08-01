@@ -334,6 +334,16 @@ export const manager = {
     managerSearchPlaceholder: 'Search by name or email',
     queueSearch: 'Search queues',
     queueSearchPlaceholder: 'Search by queue name',
+    lastManagerRequired: 'A branch must always retain at least one active manager.',
+    deleteTitle: 'Permanently delete branch',
+    deleteDescription:
+      'Delete branch managers, staff, queues, orders, QR data, inventory, and other branch operations. This cannot be undone.',
+    deleteAction: 'Delete branch',
+    deleteConfirmTitle: 'Delete this branch?',
+    deleteConfirmDescription:
+      'All operational data related to “{{name}}” will be permanently deleted. Only audit records are retained.',
+    deleteConfirmAction: 'Delete permanently',
+    deleting: 'Deleting...',
   },
   audit: {
     title: 'Personnel audit log',

@@ -71,6 +71,7 @@ role and does not use branch-operation endpoints.
 | FR-ORG-014 | Branch creation enforces the selected subscription plan; Standard permits at most three active branches                                                                   | Implemented                                |
 | FR-ORG-015 | Management lists provide localized search and stable visible row numbers                                                                                                  | Implemented                                |
 | FR-ORG-016 | Branch settings store non-secret payment acceptance details separately from organization settings                                                                         | Implemented; real PSP pending              |
+| FR-ORG-017 | Owner manager can permanently delete a branch and all branch-owned operational data atomically while retaining audit evidence                                             | Implemented                                |
 | FR-ORG-017 | The public product site presents the service, solutions, and plans through a responsive editorial layout with a muted video hero and poster fallback                      | Implemented                                |
 | FR-ORG-018 | Platform admin may change only the owner manager sign-in email for account recovery; display name, password, status, and other tenant accounts remain outside admin scope | Implemented                                |
 | FR-ORG-019 | The public product footer exposes the dedicated `support@smartqueue.io.vn` address as a working email link                                                                | Implemented                                |
@@ -252,6 +253,9 @@ role and does not use branch-operation endpoints.
 ## 7. Error behavior
 
 - Validation errors return `422 VALIDATION_ERROR` with field details.
+- Every editable form applies field-appropriate browser limits and API validation. Invalid values
+  are reported beside the exact input, including nested collection paths such as
+  `managers.0.email`; browser limits improve usability but never replace server validation.
 - Missing authentication returns `401`; insufficient role/tenant ownership returns `403`.
 - Missing resources return `404`; state/stock/idempotency conflicts return `409` where applicable.
 - Third-party delivery failure is logged and retried according to its workflow; it must not expose provider secrets.
@@ -271,4 +275,5 @@ role and does not use branch-operation endpoints.
   navigation, and month focus from date search.
 - Customer preferences provide an explicit logout action that revokes both the backend refresh
   session and local LIFF session. Logo uploads expose a clear selected/uploaded state instead of
-  relying on browser file-input text.
+  relying on browser file-input text. The native logo picker opens only from its explicit button,
+  accepts PNG/JPEG/WebP up to 5 MB, and reports validation or upload failure in the settings form.

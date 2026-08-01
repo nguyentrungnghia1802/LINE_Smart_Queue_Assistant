@@ -11,6 +11,12 @@ import {
 import { Pagination } from '../../components/ui/Pagination';
 import { ApiClientError, del, get, post } from '../../services/apiClient';
 import { formatAddress } from '../../utils/address';
+import {
+  type ApiFieldErrors,
+  firstFieldError,
+  getApiFieldErrors,
+  INPUT_LIMITS,
+} from '../../utils/formValidation';
 
 type Branch = {
   id: string;
@@ -66,6 +72,8 @@ export function ManagerBranchesPage() {
   });
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [createFieldErrors, setCreateFieldErrors] = useState<ApiFieldErrors>({});
+  const [inviteFieldErrors, setInviteFieldErrors] = useState<ApiFieldErrors>({});
   const { data = [] } = useQuery<Branch[]>({
     queryKey: ['branches'],
     queryFn: () => get('/api/v1/branches'),
@@ -105,11 +113,13 @@ export function ManagerBranchesPage() {
           },
         ],
       }),
+    onMutate: () => setCreateFieldErrors({}),
     onSuccess: () => {
       setOpen(false);
       setForm(initial);
       void client.invalidateQueries({ queryKey: ['branches'] });
     },
+    onError: (error) => setCreateFieldErrors(getApiFieldErrors(error)),
   });
   const invite = useMutation({
     mutationFn: () =>
@@ -119,11 +129,13 @@ export function ManagerBranchesPage() {
         phone: managerForm.managerPhone,
         jobTitle: managerForm.managerTitle,
       }),
+    onMutate: () => setInviteFieldErrors({}),
     onSuccess: () => {
       setInviteBranchId(null);
       setManagerForm({ managerName: '', managerEmail: '', managerPhone: '', managerTitle: '' });
       void client.invalidateQueries({ queryKey: ['branches'] });
     },
+    onError: (error) => setInviteFieldErrors(getApiFieldErrors(error)),
   });
   const remove = useMutation({
     mutationFn: ({ branchId, userId }: { branchId: string; userId: string }) =>
@@ -164,6 +176,8 @@ export function ManagerBranchesPage() {
         <span className="sr-only">{t('branches.search')}</span>
         <input
           type="search"
+          name="branchSearch"
+          maxLength={INPUT_LIMITS.search}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t('branches.searchPlaceholder')}
@@ -238,8 +252,17 @@ export function ManagerBranchesPage() {
                     </div>
                     {!manager.isOwner && (
                       <button
+                        type="button"
+                        disabled={
+                          remove.isPending || wouldLeaveBranchWithoutActiveManager(branch, manager)
+                        }
                         onClick={() => remove.mutate({ branchId: branch.id, userId: manager.id })}
-                        className="shrink-0 text-xs font-semibold text-red-700"
+                        title={
+                          wouldLeaveBranchWithoutActiveManager(branch, manager)
+                            ? t('branches.lastManagerRequired')
+                            : undefined
+                        }
+                        className="shrink-0 text-xs font-semibold text-red-700 disabled:cursor-not-allowed disabled:text-gray-400"
                       >
                         {t('branches.removeManager')}
                       </button>
@@ -283,6 +306,7 @@ export function ManagerBranchesPage() {
                     {t(`branches.fields.${key}`)}
                   </span>
                   <input
+                    name={key}
                     required={!['email', 'addressLine2', 'latitude', 'longitude'].includes(key)}
                     type={
                       key.toLowerCase().includes('email')
@@ -292,10 +316,17 @@ export function ManagerBranchesPage() {
                           : 'text'
                     }
                     step={['latitude', 'longitude'].includes(key) ? '0.000001' : undefined}
+                    minLength={branchFieldMinLength(key)}
+                    maxLength={branchFieldMaxLength(key)}
+                    inputMode={branchFieldInputMode(key)}
+                    pattern={key === 'postalCode' ? '[0-9]{3}-?[0-9]{4}' : undefined}
                     placeholder={t(`branches.placeholders.${key}`)}
                     value={form[key]}
                     onChange={(e) => setForm((v) => ({ ...v, [key]: e.target.value }))}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
+                  />
+                  <FieldError
+                    message={firstFieldError(createFieldErrors, branchApiFieldPath(key))}
                   />
                 </label>
               ))}
@@ -371,14 +402,27 @@ export function ManagerBranchesPage() {
                       {t(`branches.fields.${key}`)}
                     </span>
                     <input
-                      required
+                      name={key}
+                      required={key !== 'managerTitle'}
                       type={key === 'managerEmail' ? 'email' : 'text'}
+                      minLength={key === 'managerName' ? 2 : undefined}
+                      maxLength={branchFieldMaxLength(key)}
+                      inputMode={
+                        key === 'managerPhone'
+                          ? 'tel'
+                          : key === 'managerEmail'
+                            ? 'email'
+                            : undefined
+                      }
                       placeholder={t(`branches.placeholders.${key}`)}
                       value={managerForm[key]}
                       onChange={(event) =>
                         setManagerForm((value) => ({ ...value, [key]: event.target.value }))
                       }
                       className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
+                    />
+                    <FieldError
+                      message={firstFieldError(inviteFieldErrors, inviteApiFieldPath(key))}
                     />
                   </label>
                 )
@@ -401,4 +445,67 @@ export function ManagerBranchesPage() {
       )}
     </div>
   );
+}
+
+function branchFieldMaxLength(key: keyof typeof initial): number | undefined {
+  const limits: Partial<Record<keyof typeof initial, number>> = {
+    name: INPUT_LIMITS.branchName,
+    phone: INPUT_LIMITS.phone,
+    email: INPUT_LIMITS.email,
+    postalCode: INPUT_LIMITS.postalCode,
+    prefecture: INPUT_LIMITS.prefecture,
+    city: INPUT_LIMITS.city,
+    addressLine1: INPUT_LIMITS.addressLine,
+    addressLine2: INPUT_LIMITS.addressLine,
+    managerName: INPUT_LIMITS.displayName,
+    managerEmail: INPUT_LIMITS.email,
+    managerPhone: INPUT_LIMITS.phone,
+    managerTitle: INPUT_LIMITS.jobTitle,
+  };
+  return limits[key];
+}
+
+function branchFieldMinLength(key: keyof typeof initial): number | undefined {
+  return key === 'name' || key === 'managerName' ? 2 : undefined;
+}
+
+function branchFieldInputMode(key: keyof typeof initial) {
+  if (key === 'phone' || key === 'managerPhone') return 'tel' as const;
+  if (key === 'email' || key === 'managerEmail') return 'email' as const;
+  if (key === 'postalCode') return 'numeric' as const;
+  return undefined;
+}
+
+function branchApiFieldPath(key: keyof typeof initial): string {
+  const managerPaths: Partial<Record<keyof typeof initial, string>> = {
+    managerName: 'managers.0.displayName',
+    managerEmail: 'managers.0.email',
+    managerPhone: 'managers.0.phone',
+    managerTitle: 'managers.0.jobTitle',
+  };
+  return managerPaths[key] ?? key;
+}
+
+function inviteApiFieldPath(key: 'managerName' | 'managerEmail' | 'managerPhone' | 'managerTitle') {
+  return {
+    managerName: 'displayName',
+    managerEmail: 'email',
+    managerPhone: 'phone',
+    managerTitle: 'jobTitle',
+  }[key];
+}
+
+function FieldError({ message }: { message?: string }) {
+  return message ? (
+    <p className="mt-1 text-xs font-medium text-red-700" role="alert">
+      {message}
+    </p>
+  ) : null;
+}
+
+function wouldLeaveBranchWithoutActiveManager(
+  branch: Branch,
+  manager: Branch['managers'][number]
+): boolean {
+  return branch.manager_count - (manager.accountStatus === 'active' ? 1 : 0) < 1;
 }

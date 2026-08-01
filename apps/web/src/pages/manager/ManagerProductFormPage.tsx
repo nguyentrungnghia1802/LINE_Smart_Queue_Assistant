@@ -7,6 +7,7 @@ import { ApiClientError, get, patch, post } from '../../services/apiClient';
 import { uploadImage } from '../../services/media.api';
 import { useAuthStore } from '../../store/authStore';
 import { compressLogoFile } from '../../utils/compressLogoFile';
+import { type ApiFieldErrors, getApiFieldErrors, INPUT_LIMITS } from '../../utils/formValidation';
 
 interface ProductRow {
   id: string;
@@ -56,6 +57,7 @@ export function ManagerProductFormPage() {
   const [form, setForm] = useState<FormState>(empty);
   const [error, setError] = useState('');
   const [errorFields, setErrorFields] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<ApiFieldErrors>({});
   const [imageBusy, setImageBusy] = useState(false);
 
   async function handleImage(file: File | undefined) {
@@ -63,6 +65,7 @@ export function ManagerProductFormPage() {
     setImageBusy(true);
     setError('');
     setErrorFields([]);
+    setFieldErrors({});
     try {
       const dataUrl = await compressLogoFile(file);
       const asset = await uploadImage(dataUrl, 'product_image');
@@ -106,6 +109,7 @@ export function ManagerProductFormPage() {
     onError: (saveError) => {
       if (saveError instanceof ApiClientError && saveError.code === 'VALIDATION_ERROR') {
         const fields = getValidationFields(saveError.details);
+        setFieldErrors(getApiFieldErrors(saveError));
         setErrorFields(fields);
         setError(
           t('products.validationFailed', {
@@ -124,6 +128,7 @@ export function ManagerProductFormPage() {
     e.preventDefault();
     setError('');
     setErrorFields([]);
+    setFieldErrors({});
     const dto: Record<string, unknown> = {
       name: form.name,
       description: form.description || undefined,
@@ -138,11 +143,16 @@ export function ManagerProductFormPage() {
     mutation.mutate(dto);
   }
 
-  function field(label: string, input: React.ReactNode) {
+  function field(label: string, input: React.ReactNode, errorMessage?: string) {
     return (
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
         {input}
+        {errorMessage && (
+          <p className="mt-1 text-xs font-medium text-red-700" role="alert">
+            {errorMessage}
+          </p>
+        )}
       </div>
     );
   }
@@ -163,12 +173,15 @@ export function ManagerProductFormPage() {
         {field(
           t('products.nameRequired'),
           <input
+            name="name"
             className={inputCls}
             required
+            maxLength={INPUT_LIMITS.productName}
             value={form.name}
             placeholder={t('products.namePlaceholder')}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          />
+          />,
+          fieldErrors['name']?.[0]
         )}
         {field(
           t('products.typeRequired'),
@@ -189,12 +202,15 @@ export function ManagerProductFormPage() {
         {field(
           t('labels.description', { ns: 'common' }),
           <textarea
+            name="description"
             className={inputCls}
             rows={3}
+            maxLength={INPUT_LIMITS.description}
             value={form.description}
             placeholder={t('products.descriptionPlaceholder')}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          />
+          />,
+          fieldErrors['description']?.[0]
         )}
         {field(
           t('products.image'),
@@ -209,6 +225,7 @@ export function ManagerProductFormPage() {
               </div>
             )}
             <input
+              name="image"
               type="file"
               accept="image/png,image/jpeg,image/webp"
               disabled={imageBusy}
@@ -223,37 +240,46 @@ export function ManagerProductFormPage() {
         {field(
           t('products.priceYenRequired'),
           <input
+            name="price"
             className={inputCls}
             type="number"
             min={form.requiresPrepayment ? 1 : 0}
+            max={100_000_000}
             required
             value={form.price}
             placeholder="3500"
             onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-          />
+          />,
+          fieldErrors['price']?.[0]
         )}
         {field(
           t('products.serviceTimeRequired'),
           <input
+            name="serviceTimeMinutes"
             className={inputCls}
             type="number"
             min={1}
+            max={480}
             required
             value={form.serviceTimeMinutes}
             placeholder="30"
             onChange={(e) => setForm((f) => ({ ...f, serviceTimeMinutes: e.target.value }))}
-          />
+          />,
+          fieldErrors['serviceTimeMinutes']?.[0]
         )}
         {field(
           t('products.maxWait'),
           <input
+            name="maxWaitMinutes"
             className={inputCls}
             type="number"
             min={1}
+            max={1_440}
             value={form.maxWaitMinutes}
             placeholder="60"
             onChange={(e) => setForm((f) => ({ ...f, maxWaitMinutes: e.target.value }))}
-          />
+          />,
+          fieldErrors['maxWaitMinutes']?.[0]
         )}
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input

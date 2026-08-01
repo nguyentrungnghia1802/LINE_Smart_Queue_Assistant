@@ -291,6 +291,15 @@ export const branchesService = {
     });
   },
 
+  async deleteBranch(actor: AuthUser, branchId: string) {
+    const organizationId = requireOrganizationOwner(actor);
+    return withTransaction(async (client) => {
+      const branch = await branchesRepository.findByIdForUpdate(branchId, organizationId, client);
+      if (!branch) throw AppError.notFound('Branch');
+      return branchesRepository.deleteWithDependencies(branch, actor.id, client);
+    });
+  },
+
   async removeManager(actor: AuthUser, branchId: string, userId: string) {
     const organizationId = requireOrganizationOwner(actor);
     if (actor.id === userId) throw AppError.forbidden('Managers cannot remove their own account');

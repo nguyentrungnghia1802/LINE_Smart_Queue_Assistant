@@ -9,7 +9,7 @@ export const OrderItemSchema = z.object({
 
 export const CreateOrderSchema = z
   .object({
-    orgSlug: z.string().min(1),
+    orgSlug: z.string().min(1).max(120),
     branchId: z.string().uuid(),
     queueId: z.string().uuid(),
     customerName: z.string().trim().min(1).max(100),

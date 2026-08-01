@@ -90,8 +90,10 @@ function WalkInModal({ queueId, onClose }: { queueId: string; onClose: () => voi
               {t('dashboard.customerName')}
             </label>
             <input
+              name="guestName"
               type="text"
               required
+              maxLength={100}
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}

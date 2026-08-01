@@ -43,6 +43,8 @@ export function ManagerAuditPage() {
         <span className="sr-only">{t('audit.search')}</span>
         <input
           type="search"
+          name="auditSearch"
+          maxLength={160}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t('audit.searchPlaceholder')}

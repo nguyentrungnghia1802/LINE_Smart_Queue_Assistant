@@ -331,6 +331,16 @@ export const manager = {
     managerSearchPlaceholder: '氏名またはメールアドレスで検索',
     queueSearch: '受付キューを検索',
     queueSearchPlaceholder: '受付キュー名で検索',
+    lastManagerRequired: '店舗には有効なマネージャーが1名以上必要です。',
+    deleteTitle: '支店を完全に削除',
+    deleteDescription:
+      'この支店のマネージャー、スタッフ、受付、注文、QRコード、在庫などの運用データを削除します。この操作は元に戻せません。',
+    deleteAction: '支店を削除',
+    deleteConfirmTitle: '支店を削除しますか？',
+    deleteConfirmDescription:
+      '「{{name}}」と関連するすべての運用データを完全に削除します。監査記録のみ保持されます。',
+    deleteConfirmAction: '完全に削除',
+    deleting: '削除中...',
   },
   audit: {
     title: '人事操作ログ',

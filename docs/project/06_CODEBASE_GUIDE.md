@@ -84,6 +84,11 @@ apps/web/src/
 
 Pages orchestrate data and interactions. Reusable visual patterns belong in components, server calls in services/hooks, and non-React transformations in utils. Browser storage is for drafts and convenience, never authorization/payment truth.
 
+Shared form limits and API field-error extraction live in `apps/web/src/utils/formValidation.ts`.
+New forms must set stable `name` attributes, appropriate HTML input types and limits, and map API
+`details.fieldErrors` to the exact field path. These client constraints are usability aids; matching
+Zod validators remain the security and data-integrity boundary.
+
 Authentication is split between `modules/auth/auth-session.policy.ts` (role timing),
 `auth-session.repository.ts` (hashed PostgreSQL rows), `auth-session.service.ts`
 (issue/rotation/revocation), and `auth.cookies.ts` (refresh-cookie boundary). The frontend

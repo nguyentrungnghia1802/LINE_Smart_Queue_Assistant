@@ -214,7 +214,9 @@ function Field({
     <label className="text-sm font-medium text-gray-700">
       {label}
       <input
+        name={type === 'email' ? 'email' : undefined}
         type={type}
+        maxLength={type === 'email' ? 254 : 200}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}

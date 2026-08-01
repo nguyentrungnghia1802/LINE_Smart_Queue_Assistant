@@ -1,10 +1,17 @@
+import { i18n } from '../i18n';
+
 const MAX_LOGO_EDGE = 720;
 const LOGO_QUALITY = 0.74;
 const MAX_DATA_URL_BYTES = 850_000;
+const MAX_ORIGINAL_FILE_BYTES = 5 * 1024 * 1024;
+const SUPPORTED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 export async function compressLogoFile(file: File): Promise<string> {
-  if (!file.type.startsWith('image/')) {
+  if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
     throw new Error(i18n.t('common:clientErrors.imageRequired'));
+  }
+  if (file.size === 0 || file.size > MAX_ORIGINAL_FILE_BYTES) {
+    throw new Error(i18n.t('common:clientErrors.imageTooLarge'));
   }
 
   const image = await loadImage(file);
@@ -71,4 +78,3 @@ function blobToDataUrl(blob: Blob): Promise<string> {
     reader.readAsDataURL(blob);
   });
 }
-import { i18n } from '../i18n';

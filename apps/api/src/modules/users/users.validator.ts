@@ -6,14 +6,14 @@ const LocaleSchema = z.enum(['ja', 'vi', 'en']);
 
 export const CreateUserSchema = z.object({
   displayName: z.string().min(1).max(120),
-  email: z.string().email().optional(),
+  email: z.string().email().max(254).optional(),
   role: z.enum(['admin', 'staff', 'customer']).default('customer'),
 });
 
 export const UpdateUserSchema = z
   .object({
     displayName: z.string().min(1).max(120).optional(),
-    email: z.string().email().optional(),
+    email: z.string().email().max(254).optional(),
     preferredLocale: LocaleSchema.nullable().optional(),
     role: z.enum(['admin', 'staff', 'customer']).optional(),
   })
@@ -24,7 +24,7 @@ export const UpdateUserSchema = z
 export const UpdateMyProfileSchema = z
   .object({
     displayName: z.string().min(1).max(120).optional(),
-    email: z.string().email().optional(),
+    email: z.string().email().max(254).optional(),
   })
   .refine((d) => Object.values(d).some((v) => v !== undefined), {
     message: 'At least one field must be provided',

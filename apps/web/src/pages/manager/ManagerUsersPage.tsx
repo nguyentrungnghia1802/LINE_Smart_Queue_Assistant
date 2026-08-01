@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { Pagination } from '../../components/ui/Pagination';
 import { del, get, post } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
+import { type ApiFieldErrors, getApiFieldErrors, INPUT_LIMITS } from '../../utils/formValidation';
 
 interface UserRow {
   id: string;
@@ -39,6 +40,7 @@ export function ManagerUsersPage() {
   };
   const [form, setForm] = useState(emptyForm);
   const [addError, setAddError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<ApiFieldErrors>({});
 
   const { data: users = [], isLoading } = useQuery<UserRow[]>({
     queryKey: ['users-staff', user?.branchIds?.[0]],
@@ -60,14 +62,17 @@ export function ManagerUsersPage() {
 
   const createMutation = useMutation({
     mutationFn: () => post('/api/v1/users/staff', form),
+    onMutate: () => setFieldErrors({}),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['users-staff'] });
       setShowAdd(false);
       setForm(emptyForm);
       setAddError('');
     },
-    onError: (err: { message?: string }) =>
-      setAddError(err?.message ?? t('errors.UNKNOWN', { ns: 'common' })),
+    onError: (err: { message?: string }) => {
+      setFieldErrors(getApiFieldErrors(err));
+      setAddError(err?.message ?? t('errors.UNKNOWN', { ns: 'common' }));
+    },
   });
 
   const deleteMutation = useMutation({
@@ -94,6 +99,8 @@ export function ManagerUsersPage() {
         <span className="sr-only">{t('users.search')}</span>
         <input
           type="search"
+          name="staffSearch"
+          maxLength={INPUT_LIMITS.search}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t('users.searchPlaceholder')}
@@ -254,12 +261,20 @@ export function ManagerUsersPage() {
               <div key={key}>
                 <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
                 <input
+                  name={key}
                   type={type}
+                  required
+                  maxLength={staffFieldMaxLength(key as keyof typeof form)}
                   placeholder={placeholder}
                   value={form[key as keyof typeof form]}
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
+                {fieldErrors[key]?.[0] && (
+                  <p className="mt-1 text-xs font-medium text-red-700" role="alert">
+                    {fieldErrors[key]?.[0]}
+                  </p>
+                )}
               </div>
             ))}
             {addError && <p className="text-xs text-red-500">{addError}</p>}
@@ -297,4 +312,16 @@ export function ManagerUsersPage() {
       )}
     </div>
   );
+}
+
+function staffFieldMaxLength(key: string): number {
+  const limits: Record<string, number> = {
+    displayName: INPUT_LIMITS.displayName,
+    email: INPUT_LIMITS.email,
+    phone: INPUT_LIMITS.phone,
+    currentAddress: INPUT_LIMITS.currentAddress,
+    jobTitle: INPUT_LIMITS.jobTitle,
+    employeeCode: INPUT_LIMITS.employeeCode,
+  };
+  return limits[key] ?? INPUT_LIMITS.shortDescription;
 }

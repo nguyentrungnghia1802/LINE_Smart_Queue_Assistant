@@ -334,6 +334,16 @@ export const manager = {
     managerSearchPlaceholder: 'Tìm theo tên hoặc email',
     queueSearch: 'Tìm hàng đợi',
     queueSearchPlaceholder: 'Tìm theo tên hàng đợi',
+    lastManagerRequired: 'Chi nhánh phải luôn có ít nhất một Manager đang hoạt động.',
+    deleteTitle: 'Xóa toàn bộ chi nhánh',
+    deleteDescription:
+      'Xóa Manager con, Staff, hàng đợi, đơn hàng, mã QR, tồn kho và dữ liệu vận hành thuộc chi nhánh. Thao tác này không thể hoàn tác.',
+    deleteAction: 'Xóa chi nhánh',
+    deleteConfirmTitle: 'Xác nhận xóa chi nhánh?',
+    deleteConfirmDescription:
+      'Toàn bộ dữ liệu vận hành liên quan đến “{{name}}” sẽ bị xóa vĩnh viễn. Hệ thống chỉ giữ lại nhật ký kiểm toán.',
+    deleteConfirmAction: 'Xóa vĩnh viễn',
+    deleting: 'Đang xóa...',
   },
   audit: {
     title: 'Nhật ký nhân sự',

@@ -30,7 +30,10 @@ const LogoUrlSchema = z
 export const CreateOrganizationSchema = z.object({
   name: z.string().min(1).max(160),
   defaultLocale: z.enum(['ja', 'vi', 'en']).default('ja'),
-  slug: z.string().regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/),
+  slug: z
+    .string()
+    .max(120)
+    .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/),
   logoUrl: LogoUrlSchema.nullable().optional(),
   phone: JapanesePhoneSchema.nullable().optional(),
   address: z.string().max(500).nullable().optional(),

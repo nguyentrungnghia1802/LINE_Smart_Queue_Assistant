@@ -63,6 +63,12 @@ Common status semantics: `200` success, `201` created, `204` no content, `400` b
 
 Clients branch on `error.code` and localize it. `error.message` is diagnostic text, not a display-text contract. Locale-aware reads accept `Accept-Language`; supported values are `ja`, `vi`, and `en`.
 
+For `VALIDATION_ERROR`, `details.fieldErrors` includes complete dot-separated paths for nested
+values, for example `managers.0.email`. A root-key alias is also returned for compatibility with
+older forms. Frontends should prefer the complete path so the message appears beside the exact
+input. Client-side `maxLength`, numeric bounds, and accepted-file hints mirror the API validators;
+the API remains authoritative.
+
 ## 4. Endpoint inventory
 
 ### Authentication
@@ -121,6 +127,7 @@ authority.
 | ------ | --------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------- |
 | GET    | `/api/v1/branches`                            | Owner manager  | List branches, managers, staff counts, and active queues                                    |
 | POST   | `/api/v1/branches`                            | Owner manager  | Create branch within the plan with map coordinates, calendar, and manager invites; no queue |
+| DELETE | `/api/v1/branches/:branchId`                  | Owner manager  | Permanently remove a branch and branch-owned operational data in one transaction            |
 | GET    | `/api/v1/branches/analytics`                  | Owner manager  | Revenue trend, total/best/worst branch, and branch performance                              |
 | GET    | `/api/v1/branches/audit`                      | Owner manager  | Personnel and branch audit history                                                          |
 | POST   | `/api/v1/branches/geocode`                    | Manager        | Resolve a typed branch address to safe Google place candidates                              |
@@ -402,6 +409,10 @@ email cannot be invited again under another role.
   `GET|PUT /api/v1/branches/me/business-calendar` are branch-manager-only and derive branch scope
   from the authenticated assignment.
 - `GET /api/v1/branches/analytics` returns owner-only organization/branch performance.
-- `POST /api/v1/branches/:branchId/managers` and `DELETE /api/v1/branches/:branchId/managers/:userId` manage branch-manager assignments; owner-only.
+- `DELETE /api/v1/branches/:branchId` hard-deletes branch-scoped managers/staff who have no other
+  branch assignment, queues, orders, payments, reservations, notifications, QR identity, and
+  operational records in one transaction. Historical audit rows and the final deletion snapshot
+  remain available for accountability.
+- `POST /api/v1/branches/:branchId/managers` and `DELETE /api/v1/branches/:branchId/managers/:userId` manage branch-manager assignments; owner-only. Removing a manager counts only active assignments and cannot remove the final active manager.
 - `GET /api/v1/branches/audit` returns owner-only personnel and branch audit history.
 - `POST /api/v1/users/staff` now creates an invitation with profile and branch assignment. It no longer accepts a manager-selected password.

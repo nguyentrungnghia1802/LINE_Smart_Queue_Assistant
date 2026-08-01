@@ -13,6 +13,7 @@ import { Spinner } from '../../components/ui/Spinner';
 import { useQueue } from '../../hooks/useQueues';
 import { get } from '../../services/apiClient';
 import { queuesApi } from '../../services/queues.api';
+import { type ApiFieldErrors, getApiFieldErrors, INPUT_LIMITS } from '../../utils/formValidation';
 
 export function QueueSettingsPage() {
   const { t } = useTranslation(['manager', 'common']);
@@ -21,6 +22,7 @@ export function QueueSettingsPage() {
   const { data: queue, isLoading } = useQueue(id ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<ApiFieldErrors>({});
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -64,6 +66,7 @@ export function QueueSettingsPage() {
     e.preventDefault();
     if (!id) return;
     setError('');
+    setFieldErrors({});
     setSaving(true);
     try {
       await queuesApi.update(id, {
@@ -80,6 +83,7 @@ export function QueueSettingsPage() {
       setSaved(true);
       setTimeout(() => navigate(`/manager/queues/${id}`), 1000);
     } catch (err: unknown) {
+      setFieldErrors(getApiFieldErrors(err));
       setError(err instanceof Error ? err.message : t('queue.saveFailed'));
     } finally {
       setSaving(false);
@@ -108,10 +112,12 @@ export function QueueSettingsPage() {
         onSubmit={handleSubmit}
         className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5"
       >
-        <Field label={t('queue.nameRequired')}>
+        <Field label={t('queue.nameRequired')} error={fieldErrors['name']?.[0]}>
           <input
+            name="name"
             required
             type="text"
+            maxLength={INPUT_LIMITS.queueName}
             value={form.name}
             onChange={(e) => set('name', e.target.value)}
             placeholder={t('queue.namePlaceholder')}
@@ -119,9 +125,14 @@ export function QueueSettingsPage() {
           />
         </Field>
 
-        <Field label={t('labels.description', { ns: 'common' })}>
+        <Field
+          label={t('labels.description', { ns: 'common' })}
+          error={fieldErrors['description']?.[0]}
+        >
           <textarea
+            name="description"
             rows={2}
+            maxLength={INPUT_LIMITS.shortDescription}
             value={form.description}
             onChange={(e) => set('description', e.target.value)}
             placeholder={t('queue.descriptionPlaceholder')}
@@ -142,28 +153,36 @@ export function QueueSettingsPage() {
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label={t('queue.capacity')}>
+          <Field label={t('queue.capacity')} error={fieldErrors['maxCapacity']?.[0]}>
             <input
+              name="maxCapacity"
               type="number"
               min="1"
+              max="100000"
               placeholder={t('units.unlimited', { ns: 'common' })}
               value={form.maxCapacity}
               onChange={(e) => set('maxCapacity', e.target.value)}
               className={inputCls}
             />
           </Field>
-          <Field label={t('queue.averageService')}>
+          <Field
+            label={t('queue.averageService')}
+            error={fieldErrors['avgServiceTimeMinutes']?.[0]}
+          >
             <input
+              name="avgServiceTimeMinutes"
               type="number"
               min="1"
+              max="480"
               placeholder="15"
               value={form.avgServiceTimeMinutes}
               onChange={(e) => set('avgServiceTimeMinutes', e.target.value)}
               className={inputCls}
             />
           </Field>
-          <Field label={t('queue.absenceGrace')}>
+          <Field label={t('queue.absenceGrace')} error={fieldErrors['absenceGraceMinutes']?.[0]}>
             <input
+              name="absenceGraceMinutes"
               type="number"
               min="1"
               max="120"
@@ -175,7 +194,7 @@ export function QueueSettingsPage() {
           </Field>
         </div>
 
-        <Field label={t('queue.products')}>
+        <Field label={t('queue.products')} error={fieldErrors['productIds']?.[0]}>
           <QueueProductPicker
             products={products}
             selectedIds={form.productIds}
@@ -210,11 +229,24 @@ export function QueueSettingsPage() {
 const inputCls =
   'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent';
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  error,
+}: {
+  label: string;
+  children: React.ReactNode;
+  error?: string;
+}) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       {children}
+      {error && (
+        <p className="mt-1 text-xs font-medium text-red-700" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

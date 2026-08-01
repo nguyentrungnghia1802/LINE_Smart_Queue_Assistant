@@ -709,6 +709,7 @@ function Field({
         min={min}
         max={max}
         minLength={minLength}
+        maxLength={registrationFieldMaxLength(name, type)}
         aria-invalid={Boolean(error)}
         className={`h-11 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 ${error ? 'border-red-400 focus:ring-red-100' : 'border-gray-300 focus:border-brand-500 focus:ring-brand-100'}`}
       />
@@ -719,6 +720,26 @@ function Field({
       ) : null}
     </label>
   );
+}
+
+function registrationFieldMaxLength(name: string, type: string): number | undefined {
+  if (type === 'number') return undefined;
+  const limits: Record<string, number> = {
+    legalName: 200,
+    tradeName: 160,
+    registrationNumber: 32,
+    websiteUrl: 500,
+    contactName: 120,
+    contactTitle: 120,
+    workEmail: 254,
+    phone: 20,
+    postalCode: 8,
+    prefecture: 20,
+    city: 100,
+    addressLine1: 200,
+    addressLine2: 200,
+  };
+  return limits[name] ?? 500;
 }
 
 function SelectField({

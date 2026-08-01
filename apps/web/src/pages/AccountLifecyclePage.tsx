@@ -90,9 +90,11 @@ export function AccountLifecyclePage() {
           <form className="mt-6 space-y-4" onSubmit={submit}>
             {mode === 'forgot' ? (
               <input
+                name="email"
                 className="w-full rounded-lg border border-gray-300 px-3 py-3"
                 type="email"
                 required
+                maxLength={254}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder={t('lifecycle.email')}
@@ -100,19 +102,23 @@ export function AccountLifecyclePage() {
             ) : (
               <>
                 <input
+                  name="password"
                   className="w-full rounded-lg border border-gray-300 px-3 py-3"
                   type="password"
                   required
                   minLength={10}
+                  maxLength={128}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder={t('lifecycle.password')}
                 />
                 <input
+                  name="passwordConfirmation"
                   className="w-full rounded-lg border border-gray-300 px-3 py-3"
                   type="password"
                   required
                   minLength={10}
+                  maxLength={128}
                   value={confirmation}
                   onChange={(event) => setConfirmation(event.target.value)}
                   placeholder={t('lifecycle.confirmPassword')}
