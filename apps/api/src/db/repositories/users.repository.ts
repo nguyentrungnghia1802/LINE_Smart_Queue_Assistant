@@ -238,11 +238,13 @@ export class UsersRepository extends BaseRepository {
     await this.query('UPDATE users SET is_active = $1 WHERE id = $2', [isActive, id]);
   }
 
-  async setPassword(id: string, passwordHash: string): Promise<void> {
-    await this.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [
-      passwordHash,
-      id,
-    ]);
+  async setPassword(id: string, passwordHash: string, client?: PoolClient): Promise<void> {
+    const sql = 'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2';
+    if (client) {
+      await this.queryTx(client, sql, [passwordHash, id]);
+      return;
+    }
+    await this.query(sql, [passwordHash, id]);
   }
 
   async deactivate(id: string): Promise<void> {

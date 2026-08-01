@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { JapanesePhoneSchema } from '../shared/shared.validator';
+import { BusinessPasswordSchema, JapanesePhoneSchema } from '../shared/shared.validator';
 
 const LocaleSchema = z.enum(['ja', 'vi', 'en']);
 
@@ -30,6 +30,21 @@ export const UpdateMyProfileSchema = z
     message: 'At least one field must be provided',
   });
 
+export const ChangeMyPasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(128),
+    newPassword: BusinessPasswordSchema,
+    passwordConfirmation: z.string().min(1).max(128),
+  })
+  .refine((value) => value.newPassword === value.passwordConfirmation, {
+    path: ['passwordConfirmation'],
+    message: 'Passwords do not match',
+  })
+  .refine((value) => value.currentPassword !== value.newPassword, {
+    path: ['newPassword'],
+    message: 'New password must differ from the current password',
+  });
+
 export const InviteStaffSchema = z.object({
   displayName: z.string().trim().min(1).max(120),
   email: z.string().trim().toLowerCase().email().max(254),
@@ -53,5 +68,6 @@ export const StaffUserParamSchema = z.object({ userId: z.string().uuid() });
 export type CreateUserDto = z.infer<typeof CreateUserSchema>;
 export type UpdateUserDto = z.infer<typeof UpdateUserSchema>;
 export type UpdateMyProfileDto = z.infer<typeof UpdateMyProfileSchema>;
+export type ChangeMyPasswordDto = z.infer<typeof ChangeMyPasswordSchema>;
 export type InviteStaffDto = z.infer<typeof InviteStaffSchema>;
 export type UpdateStaffDto = z.infer<typeof UpdateStaffSchema>;

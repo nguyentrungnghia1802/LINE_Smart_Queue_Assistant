@@ -1,4 +1,4 @@
-import { InviteStaffSchema, UpdateStaffSchema } from './users.validator';
+import { ChangeMyPasswordSchema, InviteStaffSchema, UpdateStaffSchema } from './users.validator';
 
 const validStaff = {
   displayName: 'Yuki Tanaka',
@@ -24,5 +24,36 @@ describe('staff invitation validation', () => {
   it('does not allow an existing employee code to be cleared', () => {
     expect(UpdateStaffSchema.safeParse({ employeeCode: '' }).success).toBe(false);
     expect(UpdateStaffSchema.safeParse({ employeeCode: 'ST-002' }).success).toBe(true);
+  });
+});
+
+describe('business password change validation', () => {
+  const validPayload = {
+    currentPassword: 'Current1234',
+    newPassword: 'Replacement5678',
+    passwordConfirmation: 'Replacement5678',
+  };
+
+  it('accepts a confirmed password containing letters and numbers', () => {
+    expect(ChangeMyPasswordSchema.safeParse(validPayload).success).toBe(true);
+  });
+
+  it('rejects mismatched, weak, or unchanged passwords', () => {
+    expect(
+      ChangeMyPasswordSchema.safeParse({
+        ...validPayload,
+        passwordConfirmation: 'Different5678',
+      }).success
+    ).toBe(false);
+    expect(
+      ChangeMyPasswordSchema.safeParse({ ...validPayload, newPassword: 'onlyletters' }).success
+    ).toBe(false);
+    expect(
+      ChangeMyPasswordSchema.safeParse({
+        ...validPayload,
+        newPassword: validPayload.currentPassword,
+        passwordConfirmation: validPayload.currentPassword,
+      }).success
+    ).toBe(false);
   });
 });

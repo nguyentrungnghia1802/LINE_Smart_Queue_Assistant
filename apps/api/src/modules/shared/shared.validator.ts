@@ -22,5 +22,12 @@ export const JapanesePhoneSchema = z
     'Enter a valid Japanese phone number'
   );
 
+export const BusinessPasswordSchema = z
+  .string()
+  .min(10)
+  .max(128)
+  .regex(/[A-Za-z]/, 'Password must contain a letter')
+  .regex(/[0-9]/, 'Password must contain a number');
+
 export type PaginationQuery = z.infer<typeof PaginationSchema>;
 export type UUIDParam = z.infer<typeof UUIDParamSchema>;

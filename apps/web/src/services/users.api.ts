@@ -15,4 +15,9 @@ export const usersApi = {
   deactivate: (id: string) => del(`${BASE}/${id}`),
   updateMe: (data: { displayName?: string; email?: string; preferredLocale?: SupportedLocale }) =>
     patch<User>(`${BASE}/me`, data),
+  changePassword: (data: {
+    currentPassword: string;
+    newPassword: string;
+    passwordConfirmation: string;
+  }) => patch<{ changed: true }>(`${BASE}/me/password`, data),
 };

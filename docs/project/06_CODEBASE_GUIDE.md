@@ -89,6 +89,9 @@ Authentication is split between `modules/auth/auth-session.policy.ts` (role timi
 (issue/rotation/revocation), and `auth.cookies.ts` (refresh-cookie boundary). The frontend
 `AuthSessionManager` bootstraps the cookie session, tracks business-user activity, and keeps the
 short-lived access token in module memory through `store/authSession.ts`.
+Authenticated business users change passwords through `usersService.changeMyPassword`; the new
+hash and revocation of every active session are committed in one transaction. `AccountPage` owns
+the shared Admin/Manager/Staff form and returns the user to email login after success.
 
 `useLiff()` revokes both the backend refresh session and LIFF adapter state on customer logout. It
 continues to exchange available LINE ID tokens, while a customer session already restored from the

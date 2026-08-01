@@ -1,5 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
+import type { PoolClient } from 'pg';
+
 import { UserRole } from '@line-queue/shared';
 
 import { withTransaction } from '../../db/transaction';
@@ -145,7 +147,11 @@ export const authSessionService = {
     });
   },
 
-  async revokeAllForUser(userId: string, reason = 'account_invalid'): Promise<void> {
-    await authSessionRepository.revokeAllForUser(userId, reason);
+  async revokeAllForUser(
+    userId: string,
+    reason = 'account_invalid',
+    client?: PoolClient
+  ): Promise<void> {
+    await authSessionRepository.revokeAllForUser(userId, reason, client);
   },
 };
