@@ -112,7 +112,7 @@ export const marketing = {
     company: 'Company',
     legal: 'Terms and privacy',
     copyright: '© 2026 Smart Queue Assistant',
-    supportEmail: 'LINE Smart Queue Assistant',
+    supportEmail: 'support@smartqueue.io.vn',
     supportPhone: '+84 948512463',
     headquarters: 'Headquarters: Phuc Tho, Ha Noi, Viet Nam',
   },

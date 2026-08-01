@@ -73,6 +73,7 @@ role and does not use branch-operation endpoints.
 | FR-ORG-016 | Branch settings store non-secret payment acceptance details separately from organization settings                                                                         | Implemented; real PSP pending              |
 | FR-ORG-017 | The public product site presents the service, solutions, and plans through a responsive editorial layout with a muted video hero and poster fallback                      | Implemented                                |
 | FR-ORG-018 | Platform admin may change only the owner manager sign-in email for account recovery; display name, password, status, and other tenant accounts remain outside admin scope | Implemented                                |
+| FR-ORG-019 | The public product footer exposes the dedicated `support@smartqueue.io.vn` address as a working email link                                                                | Implemented                                |
 
 ### Catalog and inventory
 
