@@ -5,7 +5,7 @@ import { UserRole } from '@line-queue/shared';
 import {
   AUTH_ACTIVITY_STORAGE_KEY,
   AUTH_REFRESH_STORAGE_KEY,
-  clearAuthSession,
+  terminateAuthSession,
 } from '../../store/authSession';
 import { useAuthStore } from '../../store/authStore';
 import { Spinner } from '../ui/Spinner';
@@ -26,7 +26,6 @@ export function AuthSessionManager({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
   const initialize = useAuthStore((state) => state.initialize);
   const refresh = useAuthStore((state) => state.refresh);
-  const logout = useAuthStore((state) => state.logout);
   const refreshRunning = useRef(false);
 
   useEffect(() => {
@@ -66,8 +65,7 @@ export function AuthSessionManager({ children }: { children: ReactNode }) {
       const lastRefresh = storedTimestamp(AUTH_REFRESH_STORAGE_KEY, now);
 
       if (now - lastActivity >= idleTimeoutMs) {
-        clearAuthSession();
-        void logout();
+        void terminateAuthSession({ revokeServerSession: true });
         return;
       }
       if (
@@ -78,8 +76,7 @@ export function AuthSessionManager({ children }: { children: ReactNode }) {
         refreshRunning.current = true;
         void refresh()
           .catch(() => {
-            clearAuthSession();
-            return logout();
+            return terminateAuthSession();
           })
           .finally(() => {
             refreshRunning.current = false;
@@ -91,7 +88,7 @@ export function AuthSessionManager({ children }: { children: ReactNode }) {
       window.clearInterval(interval);
       for (const event of events) window.removeEventListener(event, markActivity);
     };
-  }, [isAuthenticated, logout, refresh, session, user]);
+  }, [isAuthenticated, refresh, session, user]);
 
   if (!initialized) {
     return (

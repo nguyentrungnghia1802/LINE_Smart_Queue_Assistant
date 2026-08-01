@@ -3,8 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UserRole } from '@line-queue/shared';
 
 import { post } from '../../services/apiClient';
-import { refreshAuthSession, revokeAuthSession, setAuthToken } from '../authSession';
+import { establishAuthSession, refreshAuthSession, revokeAuthSession } from '../authSession';
 import { useAuthStore } from '../authStore';
+
+const authSessionMock = vi.hoisted(() => ({
+  terminationListener: undefined as (() => void) | undefined,
+}));
 
 vi.mock('../../services/apiClient', () => ({
   post: vi.fn(),
@@ -12,10 +16,16 @@ vi.mock('../../services/apiClient', () => ({
 vi.mock('../authSession', () => ({
   clearAuthSession: vi.fn(),
   clearLegacyAuthStorage: vi.fn(),
+  establishAuthSession: vi.fn(),
   refreshAuthSession: vi.fn(),
   registerAuthRefreshListener: vi.fn(),
-  revokeAuthSession: vi.fn().mockResolvedValue(undefined),
-  setAuthToken: vi.fn(),
+  registerAuthTerminationListener: vi.fn((listener: () => void) => {
+    authSessionMock.terminationListener = listener;
+    return vi.fn();
+  }),
+  revokeAuthSession: vi.fn().mockImplementation(async () => {
+    authSessionMock.terminationListener?.();
+  }),
 }));
 
 const businessSession = {
@@ -45,7 +55,7 @@ describe('authStore API routes', () => {
 
     await useAuthStore.getState().login('staff@example.com', 'password');
 
-    expect(setAuthToken).toHaveBeenCalledWith('jwt-token');
+    expect(establishAuthSession).toHaveBeenCalledWith('jwt-token');
     expect(localStorage.getItem('auth_token')).toBeNull();
     expect(post).toHaveBeenCalledWith(
       '/api/v1/auth/login',
@@ -66,7 +76,7 @@ describe('authStore API routes', () => {
 
     await useAuthStore.getState().loginWithLine('line-id-token');
 
-    expect(setAuthToken).toHaveBeenCalledWith('jwt-token');
+    expect(establishAuthSession).toHaveBeenCalledWith('jwt-token');
     expect(post).toHaveBeenCalledWith(
       '/api/v1/auth/line',
       { idToken: 'line-id-token' },

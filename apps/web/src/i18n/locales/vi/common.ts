@@ -101,7 +101,8 @@ export const common = {
     PASSWORD_CHANGE_UNAVAILABLE: 'Tài khoản này không hỗ trợ thay đổi mật khẩu.',
     AUTH_SESSION_REQUIRED: 'Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.',
     AUTH_SESSION_INVALID: 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.',
-    AUTH_SESSION_EXPIRED: 'Phiên đăng nhập đã hết hạn do không hoạt động.',
+    AUTH_SESSION_EXPIRED:
+      'Phiên đăng nhập đã hết hạn do không hoạt động trong một thời gian. Vui lòng đăng nhập lại.',
     AUTH_SESSION_REUSED: 'Phiên đăng nhập đã bị thu hồi để bảo vệ tài khoản.',
     UNAUTHORIZED: 'Bạn cần đăng nhập lại.',
     FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',

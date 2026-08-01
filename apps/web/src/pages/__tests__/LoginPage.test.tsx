@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LoginPage } from '../../pages/LoginPage';
 import { ApiClientError } from '../../services/apiClient';
+import { AUTH_SESSION_NOTICE_STORAGE_KEY } from '../../store/authSession';
 
 const { mockNavigate, mockLogin, mockGetState } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
@@ -41,6 +42,7 @@ describe('LoginPage', () => {
     mockLogin.mockReset();
     mockGetState.mockReset();
     mockGetState.mockReturnValue({ user: null });
+    sessionStorage.clear();
   });
 
   it('toggles password visibility', () => {
@@ -144,6 +146,19 @@ describe('LoginPage', () => {
     await submitLogin();
 
     expect(await screen.findByText('入力内容を確認してください。')).toBeInTheDocument();
+  });
+
+  it('shows a friendly localized notice after an expired session redirect', () => {
+    sessionStorage.setItem(AUTH_SESSION_NOTICE_STORAGE_KEY, 'AUTH_SESSION_EXPIRED');
+
+    renderPage();
+
+    expect(
+      screen.getByText(
+        '一定時間操作がなかったため、ログインセッションが終了しました。もう一度ログインしてください。'
+      )
+    ).toBeInTheDocument();
+    expect(sessionStorage.getItem(AUTH_SESSION_NOTICE_STORAGE_KEY)).toBeNull();
   });
 });
 
