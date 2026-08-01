@@ -52,24 +52,25 @@ role and does not use branch-operation endpoints.
 
 ### Organization administration
 
-| ID         | Requirement                                                                                                                              | Status                                     |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| FR-ORG-001 | Admin sees an organization list, not an implicit single-organization editor                                                              | Implemented                                |
-| FR-ORG-002 | Admin opens a separate detail view for full organization information                                                                     | Implemented                                |
-| FR-ORG-003 | A business submits a public service application with work email, plan, demo payment, plan-fit guidance, and receipt email                | Implemented                                |
-| FR-ORG-004 | Admin approves or rejects applications but does not manually register new organizations; rejection sends an applicant email              | Implemented                                |
-| FR-ORG-005 | The system generates a unique organization slug and one public QR token per branch                                                       | Implemented                                |
-| FR-ORG-006 | Branch manager edits only their assigned branch settings and business calendar                                                           | Implemented                                |
-| FR-ORG-007 | Branch stores location, business hours, holiday rules, and provider configuration                                                        | Implemented; real provider secrets pending |
-| FR-ORG-008 | Branch-manager print/copy actions prefer LIFF QR and expose public web booking as fallback                                               | Implemented                                |
-| FR-ORG-009 | Approval atomically creates an inactive organization, invited owner, activation action, and email outbox row; it creates no branch/queue | Implemented                                |
-| FR-ORG-010 | Public organization applications never accept or store account credentials                                                               | Implemented                                |
-| FR-ORG-011 | Owner manager creates branches with at least one invited branch manager; assigned managers create queues later                           | Implemented                                |
-| FR-ORG-012 | Owner dashboard shows organization revenue, branch count, best/worst branch, trend, and branch detail                                    | Implemented                                |
-| FR-ORG-013 | Owner navigation excludes branch product, queue, staff, and QR operations                                                                | Implemented                                |
-| FR-ORG-014 | Branch creation enforces the selected subscription plan; Standard permits at most three active branches                                  | Implemented                                |
-| FR-ORG-015 | Management lists provide localized search and stable visible row numbers                                                                 | Implemented                                |
-| FR-ORG-016 | Branch settings store non-secret payment acceptance details separately from organization settings                                        | Implemented; real PSP pending              |
+| ID         | Requirement                                                                                                                                          | Status                                     |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| FR-ORG-001 | Admin sees an organization list, not an implicit single-organization editor                                                                          | Implemented                                |
+| FR-ORG-002 | Admin opens a separate detail view for full organization information                                                                                 | Implemented                                |
+| FR-ORG-003 | A business submits a public service application with work email, plan, demo payment, plan-fit guidance, and receipt email                            | Implemented                                |
+| FR-ORG-004 | Admin approves or rejects applications but does not manually register new organizations; rejection sends an applicant email                          | Implemented                                |
+| FR-ORG-005 | The system generates a unique organization slug and one public QR token per branch                                                                   | Implemented                                |
+| FR-ORG-006 | Branch manager edits only their assigned branch settings and business calendar                                                                       | Implemented                                |
+| FR-ORG-007 | Branch stores location, business hours, holiday rules, and provider configuration                                                                    | Implemented; real provider secrets pending |
+| FR-ORG-008 | Branch-manager print/copy actions prefer LIFF QR and expose public web booking as fallback                                                           | Implemented                                |
+| FR-ORG-009 | Approval atomically creates an inactive organization, invited owner, activation action, and email outbox row; it creates no branch/queue             | Implemented                                |
+| FR-ORG-010 | Public organization applications never accept or store account credentials                                                                           | Implemented                                |
+| FR-ORG-011 | Owner manager creates branches with at least one invited branch manager; assigned managers create queues later                                       | Implemented                                |
+| FR-ORG-012 | Owner dashboard shows organization revenue, branch count, best/worst branch, trend, and branch detail                                                | Implemented                                |
+| FR-ORG-013 | Owner navigation excludes branch product, queue, staff, and QR operations                                                                            | Implemented                                |
+| FR-ORG-014 | Branch creation enforces the selected subscription plan; Standard permits at most three active branches                                              | Implemented                                |
+| FR-ORG-015 | Management lists provide localized search and stable visible row numbers                                                                             | Implemented                                |
+| FR-ORG-016 | Branch settings store non-secret payment acceptance details separately from organization settings                                                    | Implemented; real PSP pending              |
+| FR-ORG-017 | The public product site presents the service, solutions, and plans through a responsive editorial layout with a muted video hero and poster fallback | Implemented                                |
 
 ### Catalog and inventory
 

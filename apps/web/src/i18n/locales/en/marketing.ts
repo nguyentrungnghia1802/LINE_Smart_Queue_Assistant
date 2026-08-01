@@ -16,6 +16,11 @@ export const marketing = {
     primary: 'Start for your business',
     secondary: 'Explore the product',
     trusted: 'Built for salons, clinics, restaurants, and service counters',
+    signals: {
+      entry: { value: 'QR and LIFF', label: 'Start reception without another app install' },
+      notify: { value: 'LINE messages', label: 'Automatic updates matched to queue progress' },
+      control: { value: 'Live operations', label: 'One view from reception through analytics' },
+    },
   },
   product: {
     eyebrow: 'One operations workspace',
@@ -40,10 +45,18 @@ export const marketing = {
   solutions: {
     eyebrow: 'Designed around your operation',
     title: 'A fit for many service businesses',
+    description:
+      'Adapt reception, catalogs, and business hours to each location without adding operational complexity.',
     salon: 'Salon and beauty',
     clinic: 'Clinics',
     restaurant: 'Restaurants and pickup',
     counter: 'Retail and public counters',
+    details: {
+      salon: 'Combine services and duration so customers can prepare before their turn.',
+      clinic: 'Reduce waiting-room crowding and notify patients at the right moment.',
+      restaurant: 'Coordinate orders and pickup sequence for dine-in and takeaway customers.',
+      counter: 'Organize multiple request types and make service progress easy to follow.',
+    },
   },
   pricing: {
     eyebrow: 'Straightforward pricing',

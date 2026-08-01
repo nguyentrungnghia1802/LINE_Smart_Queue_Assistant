@@ -16,6 +16,11 @@ export const marketing = {
     primary: '法人向けに導入する',
     secondary: '機能を見る',
     trusted: 'サロン・クリニック・飲食店・窓口業務に対応',
+    signals: {
+      entry: { value: 'QR・LIFF受付', label: 'アプリ追加なしで受付を開始' },
+      notify: { value: 'LINE通知', label: '順番に合わせて自動でお知らせ' },
+      control: { value: 'リアルタイム運用', label: '受付から分析まで一元管理' },
+    },
   },
   product: {
     eyebrow: 'ひとつの運用画面',
@@ -40,10 +45,17 @@ export const marketing = {
   solutions: {
     eyebrow: '現場に合わせて',
     title: 'さまざまなサービス業にフィット',
+    description: '店舗ごとの受付方法、商品、サービス、営業時間に合わせて、シンプルに導入できます。',
     salon: 'サロン・美容',
     clinic: 'クリニック',
     restaurant: '飲食・テイクアウト',
     counter: '店舗・公共窓口',
+    details: {
+      salon: '施術メニューと所要時間を組み合わせ、来店前から順番を案内します。',
+      clinic: '院内の混雑を抑えながら、患者さまへ適切なタイミングで通知します。',
+      restaurant: '注文と受け取り順をまとめ、店内とテイクアウトの流れを整えます。',
+      counter: '複数の受付内容を整理し、来訪者と担当スタッフの動きを見える化します。',
+    },
   },
   pricing: {
     eyebrow: 'シンプルな料金',

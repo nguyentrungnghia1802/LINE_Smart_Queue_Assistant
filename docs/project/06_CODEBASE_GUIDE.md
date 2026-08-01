@@ -74,8 +74,9 @@ apps/web/src/
 |-- contexts/                Runtime providers such as LIFF initialization state
 |-- types/                   Frontend-only contracts
 |-- utils/                   Checkout storage, payment boundary, logo compression
-|-- public/logo.svg          Shared SQA brand mark and browser favicon
-|-- public/img/landing-hero.webp  Optimized product-site hero asset
+|-- public/logo.svg               Shared SQA brand mark and browser favicon
+|-- public/img/landing-hero.webp  Product-site hero poster and video fallback
+|-- public/vid/banner.mp4         Muted looping product-site hero video
 |-- router.tsx               Route map
 |-- index.css                Shared design tokens/global styling
 \-- main.tsx                 Browser entry
@@ -160,6 +161,8 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 9. Add API methods/hooks outside the page and component tests for risky behavior.
 10. Verify desktop and mobile routes in a browser, including navigation visibility, page-level
     horizontal overflow, modal fit, and fixed-navigation content clearance.
+11. Public marketing video must remain muted and inline, retain an image poster fallback, and
+    respect the browser's reduced-motion preference without making page content depend on playback.
 
 ## 9. Error, logging, and transactions
 

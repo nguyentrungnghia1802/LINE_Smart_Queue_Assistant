@@ -16,6 +16,14 @@ export const marketing = {
     primary: 'Đăng ký cho doanh nghiệp',
     secondary: 'Xem tính năng',
     trusted: 'Phù hợp salon, phòng khám, nhà hàng và quầy dịch vụ',
+    signals: {
+      entry: { value: 'QR và LIFF', label: 'Bắt đầu tiếp nhận không cần cài thêm ứng dụng' },
+      notify: { value: 'Tin nhắn LINE', label: 'Tự động thông báo theo tiến độ hàng đợi' },
+      control: {
+        value: 'Vận hành realtime',
+        label: 'Quản lý xuyên suốt từ tiếp nhận đến phân tích',
+      },
+    },
   },
   product: {
     eyebrow: 'Một không gian vận hành',
@@ -40,10 +48,18 @@ export const marketing = {
   solutions: {
     eyebrow: 'Linh hoạt theo mô hình',
     title: 'Phù hợp nhiều ngành dịch vụ',
+    description:
+      'Dễ dàng thích ứng với cách tiếp nhận, danh mục dịch vụ và giờ hoạt động của từng mô hình kinh doanh.',
     salon: 'Salon và làm đẹp',
     clinic: 'Phòng khám',
     restaurant: 'Nhà hàng và mang đi',
     counter: 'Cửa hàng và quầy công',
+    details: {
+      salon: 'Kết hợp dịch vụ và thời lượng để khách chủ động chuẩn bị trước khi đến lượt.',
+      clinic: 'Giảm tập trung tại phòng chờ và gửi thông báo đúng thời điểm cho bệnh nhân.',
+      restaurant: 'Quản lý đơn và thứ tự nhận món cho cả khách tại chỗ lẫn mang đi.',
+      counter: 'Phân luồng nhiều loại yêu cầu và giúp khách theo dõi tiến độ phục vụ rõ ràng.',
+    },
   },
   pricing: {
     eyebrow: 'Chi phí rõ ràng',
