@@ -573,7 +573,7 @@ function MarketingFooter() {
           <address className="min-w-72 not-italic text-sm leading-6 text-gray-600">
             <p className="mb-4 text-base font-bold text-brand-700">{t('footer.contact')}</p>
             <a
-              href="mailto:trungnghia180205@gmail.com"
+              href="mailto:support@smartqueue.io.vn"
               className="flex items-center gap-3 hover:text-brand-700"
             >
               <Mail className="h-4 w-4 shrink-0" aria-hidden="true" />
