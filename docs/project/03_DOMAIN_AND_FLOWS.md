@@ -185,7 +185,8 @@ ID-token-to-system-JWT flow without a second customer auth model.
 2. The opaque refresh token exists only in a path-scoped `HttpOnly` cookie; PostgreSQL stores its
    SHA-256 hash. The SPA stores the access token only in memory.
 3. On reload or an access-token `401`, the client sends the cookie to `/auth/refresh`. The API locks
-   the current row, rotates the token, and issues a new access token for the same family.
+   the current row, rotates the token, and issues a new access token for the same family. Concurrent
+   callers share one refresh promise and each original request is retried no more than once.
 4. Admin, manager, and staff browser interaction triggers periodic refresh. No interaction for 15
    minutes ends the session; continuous activity cannot extend it beyond 12 hours.
 5. Customer sessions do not use the business idle timer and can resume for at most 30 days. LIFF
@@ -198,6 +199,11 @@ ID-token-to-system-JWT flow without a second customer auth model.
    Password change verifies the current password and commits the new hash with session revocation
    in one transaction. Customer logout also clears the LIFF adapter state. Reuse outside the short
    concurrent-rotation grace window revokes the family.
+7. If refresh fails, the retried request remains unauthorized, or the API returns
+   `AUTH_SESSION_REQUIRED`, the SPA atomically clears its access token, Zustand auth state, legacy
+   auth storage, and React Query cache. A guarded terminal-session action redirects to `/login`
+   once and displays a localized inactivity message stored only for that navigation; technical API
+   messages are not exposed to the user.
 
 ## 4. Booking without required prepayment
 

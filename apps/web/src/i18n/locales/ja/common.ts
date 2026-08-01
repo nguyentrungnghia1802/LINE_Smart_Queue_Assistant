@@ -102,7 +102,8 @@ export const common = {
     PASSWORD_CHANGE_UNAVAILABLE: 'このアカウントではパスワードを変更できません。',
     AUTH_SESSION_REQUIRED: 'セッションが終了しました。もう一度ログインしてください。',
     AUTH_SESSION_INVALID: 'セッションが無効です。もう一度ログインしてください。',
-    AUTH_SESSION_EXPIRED: '一定時間操作がなかったため、セッションが終了しました。',
+    AUTH_SESSION_EXPIRED:
+      '一定時間操作がなかったため、ログインセッションが終了しました。もう一度ログインしてください。',
     AUTH_SESSION_REUSED:
       'セキュリティ保護のためセッションを無効化しました。もう一度ログインしてください。',
     UNAUTHORIZED: '認証が必要です。もう一度ログインしてください。',

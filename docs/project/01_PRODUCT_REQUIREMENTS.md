@@ -50,6 +50,7 @@ role and does not use branch-operation endpoints.
 | FR-AUTH-014 | Expire business sessions after 15 idle minutes or 12 total hours                                              | Implemented |
 | FR-AUTH-015 | Allow LINE customer sessions to resume for at most 30 days                                                    | Implemented |
 | FR-AUTH-016 | Allow active admin, manager, and staff accounts to change their password after verifying the current password | Implemented |
+| FR-AUTH-017 | Refresh an expired access token once, retry the request, and end an invalid session without redirect loops    | Implemented |
 
 ### Organization administration
 
@@ -207,6 +208,7 @@ role and does not use branch-operation endpoints.
 | BR-AUTH-004     | Admin, manager, and staff activity refreshes the server session; 15 idle minutes ends it even when a browser still has UI state.                             |
 | BR-AUTH-005     | Customer refresh sessions have a 30-day absolute limit and never bypass fresh LINE-link verification performed by authenticated requests.                    |
 | BR-AUTH-006     | A successful business-account password change revokes every active session for that user and requires sign-in with the new credential.                       |
+| BR-AUTH-007     | An unrecoverable browser session clears in-memory credentials, user state, and private query cache, then redirects once with a localized sign-in notice.     |
 | BR-PRIVACY-001  | Location is optional, consent-based, purpose-limited, and must have a retention/deletion policy.                                                             |
 
 ## 5. Core acceptance criteria

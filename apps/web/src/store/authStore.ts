@@ -5,10 +5,11 @@ import { post } from '../services/apiClient';
 import {
   clearAuthSession,
   clearLegacyAuthStorage,
+  establishAuthSession,
   refreshAuthSession,
   registerAuthRefreshListener,
+  registerAuthTerminationListener,
   revokeAuthSession,
-  setAuthToken,
 } from './authSession';
 import type { AuthenticationResponse, AuthSessionMetadata, AuthUser } from './authTypes';
 
@@ -46,7 +47,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       },
       { headers: { 'X-Skip-Auth-Redirect': 'true' } }
     );
-    setAuthToken(result.token);
+    establishAuthSession(result.token);
     set({ ...result, isAuthenticated: true, isInitialized: true });
   },
 
@@ -56,7 +57,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       { idToken },
       { headers: { 'X-Skip-Auth-Redirect': 'true' } }
     );
-    setAuthToken(result.token);
+    establishAuthSession(result.token);
     set({ ...result, isAuthenticated: true, isInitialized: true });
   },
 
@@ -90,13 +91,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    set({
-      user: null,
-      token: null,
-      session: null,
-      isAuthenticated: false,
-      isInitialized: true,
-    });
     await revokeAuthSession();
   },
 
@@ -105,4 +99,14 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 registerAuthRefreshListener((result) => {
   useAuthStore.setState({ ...result, isAuthenticated: true, isInitialized: true });
+});
+
+registerAuthTerminationListener(() => {
+  useAuthStore.setState({
+    user: null,
+    token: null,
+    session: null,
+    isAuthenticated: false,
+    isInitialized: true,
+  });
 });
