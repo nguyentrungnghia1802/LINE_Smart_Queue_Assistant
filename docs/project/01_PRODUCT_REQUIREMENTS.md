@@ -126,6 +126,7 @@ role and does not use branch-operation endpoints.
 | FR-QUEUE-010 | A branch may temporarily have no queue during setup or reconfiguration                                                        | Implemented                     |
 | FR-QUEUE-011 | Booking is accepted only while both the branch calendar and selected queue status are open                                    | Implemented                     |
 | FR-QUEUE-012 | An idle queue automatically calls its earliest waiting ticket after booking or a transition frees the active slot             | Implemented                     |
+| FR-QUEUE-013 | Branch-manager queue cards and detail show live active customer depth separately from the daily ticket sequence counter       | Implemented                     |
 
 ### LINE and notifications
 

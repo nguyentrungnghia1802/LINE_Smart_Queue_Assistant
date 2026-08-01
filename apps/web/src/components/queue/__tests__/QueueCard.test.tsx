@@ -2,17 +2,20 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import type { Queue } from '@line-queue/shared';
+import type { QueueSummary } from '@line-queue/shared';
 import { QueueStatus } from '@line-queue/shared';
 
 import { QueueCard } from '../QueueCard';
 
-const mockQueue: Queue = {
+const mockQueue: QueueSummary = {
   id: 'q-123',
   name: 'Test Queue',
   description: 'A test queue description',
   status: QueueStatus.ACTIVE,
   currentNumber: 7,
+  waitingCount: 1,
+  calledCount: 1,
+  servingCount: 0,
   maxCapacity: 50,
   avgServiceTimeMinutes: 5,
   organizationId: 'org-1',
@@ -50,10 +53,11 @@ describe('QueueCard', () => {
     expect(link).toHaveAttribute('href', '/manager/queues/q-123');
   });
 
-  it('renders the formatted current ticket number', () => {
+  it('renders the live active customer count instead of the issued ticket counter', () => {
     renderQueueCard();
-    // formatTicketNumber(7) → '007'
-    expect(screen.getByText('007')).toBeInTheDocument();
+    expect(screen.getByText('受付中のお客様:')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.queryByText('007')).not.toBeInTheDocument();
   });
 
   it('renders capacity when provided', () => {

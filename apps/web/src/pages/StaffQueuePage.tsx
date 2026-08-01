@@ -126,7 +126,7 @@ function WalkInModal({ queueId, onClose }: { queueId: string; onClose: () => voi
 
 export function StaffQueuePage() {
   const { t } = useTranslation(['staff', 'common']);
-  const { queueId = '' } = useParams<{ queueId: string }>();
+  const { id: queueId = '' } = useParams<{ id: string }>();
   const [showWalkIn, setShowWalkIn] = useState(false);
 
   const { data: overview, isLoading, isError } = useStaffQueueOverview(queueId);

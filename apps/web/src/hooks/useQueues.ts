@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { Queue } from '@line-queue/shared';
+import type { Queue, QueueSummary } from '@line-queue/shared';
 
 import { queuesApi } from '../services/queues.api';
 
@@ -37,7 +37,7 @@ export function useUpdateQueueStatus() {
     mutationFn: ({ id, status }: { id: string; status: Queue['status'] }) =>
       queuesApi.updateStatus(id, status),
     onSuccess: (updated) => {
-      qc.setQueryData<Queue>(queuesKeys.detail(updated.id), updated);
+      qc.setQueryData<QueueSummary>(queuesKeys.detail(updated.id), updated);
       qc.invalidateQueries({ queryKey: queuesKeys.list() });
     },
   });
