@@ -84,8 +84,9 @@ export const authSessionRepository = {
     );
   },
 
-  async revokeAllForUser(userId: string, reason: string): Promise<void> {
-    await pool.query(
+  async revokeAllForUser(userId: string, reason: string, client?: PoolClient): Promise<void> {
+    const executor = client ?? pool;
+    await executor.query(
       `UPDATE auth_sessions
        SET revoked_at = COALESCE(revoked_at, NOW()),
            revocation_reason = COALESCE(revocation_reason, $2)

@@ -32,23 +32,24 @@ role and does not use branch-operation endpoints.
 
 ### Authentication and profile
 
-| ID          | Requirement                                                                    | Status      |
-| ----------- | ------------------------------------------------------------------------------ | ----------- |
-| FR-AUTH-001 | Authenticate staff/manager/admin by email and password and issue JWT access    | Implemented |
-| FR-AUTH-002 | Authenticate a customer from a LINE LIFF ID token after server verification    | Implemented |
-| FR-AUTH-003 | Link one LINE account to one platform user and preserve the LINE user ID       | Implemented |
-| FR-AUTH-004 | Allow the authenticated user to view/update supported profile fields           | Implemented |
-| FR-AUTH-005 | Persist preferred locale with organization/client/Japanese fallback            | Implemented |
-| FR-AUTH-006 | Automatically initialize LIFF login and exchange ID token for system JWT       | Implemented |
-| FR-AUTH-007 | Store LINE-verified customer email when the optional email claim is available  | Implemented |
-| FR-AUTH-008 | Use LINE-only customer login and email/password only for business roles        | Implemented |
-| FR-AUTH-009 | Provide a paired frontend/backend LIFF mock identity only in local development | Implemented |
-| FR-AUTH-010 | Keep the login entry responsive and visually balanced across access paths      | Implemented |
-| FR-AUTH-011 | Block authenticated business roles from QR booking and direct queue admission  | Implemented |
-| FR-AUTH-012 | Require a verified LINE-derived customer JWT for payment intent and booking    | Implemented |
-| FR-AUTH-013 | Use 15-minute access tokens with revocable rotating server-side sessions       | Implemented |
-| FR-AUTH-014 | Expire business sessions after 15 idle minutes or 12 total hours               | Implemented |
-| FR-AUTH-015 | Allow LINE customer sessions to resume for at most 30 days                     | Implemented |
+| ID          | Requirement                                                                                                   | Status      |
+| ----------- | ------------------------------------------------------------------------------------------------------------- | ----------- |
+| FR-AUTH-001 | Authenticate staff/manager/admin by email and password and issue JWT access                                   | Implemented |
+| FR-AUTH-002 | Authenticate a customer from a LINE LIFF ID token after server verification                                   | Implemented |
+| FR-AUTH-003 | Link one LINE account to one platform user and preserve the LINE user ID                                      | Implemented |
+| FR-AUTH-004 | Allow the authenticated user to view/update supported profile fields                                          | Implemented |
+| FR-AUTH-005 | Persist preferred locale with organization/client/Japanese fallback                                           | Implemented |
+| FR-AUTH-006 | Automatically initialize LIFF login and exchange ID token for system JWT                                      | Implemented |
+| FR-AUTH-007 | Store LINE-verified customer email when the optional email claim is available                                 | Implemented |
+| FR-AUTH-008 | Use LINE-only customer login and email/password only for business roles                                       | Implemented |
+| FR-AUTH-009 | Provide a paired frontend/backend LIFF mock identity only in local development                                | Implemented |
+| FR-AUTH-010 | Keep the login entry responsive and visually balanced across access paths                                     | Implemented |
+| FR-AUTH-011 | Block authenticated business roles from QR booking and direct queue admission                                 | Implemented |
+| FR-AUTH-012 | Require a verified LINE-derived customer JWT for payment intent and booking                                   | Implemented |
+| FR-AUTH-013 | Use 15-minute access tokens with revocable rotating server-side sessions                                      | Implemented |
+| FR-AUTH-014 | Expire business sessions after 15 idle minutes or 12 total hours                                              | Implemented |
+| FR-AUTH-015 | Allow LINE customer sessions to resume for at most 30 days                                                    | Implemented |
+| FR-AUTH-016 | Allow active admin, manager, and staff accounts to change their password after verifying the current password | Implemented |
 
 ### Organization administration
 
@@ -200,6 +201,7 @@ role and does not use branch-operation endpoints.
 | BR-AUTH-003     | Email/password login cannot issue a customer session; local customer testing uses the mock ID-token exchange.                                                |
 | BR-AUTH-004     | Admin, manager, and staff activity refreshes the server session; 15 idle minutes ends it even when a browser still has UI state.                             |
 | BR-AUTH-005     | Customer refresh sessions have a 30-day absolute limit and never bypass fresh LINE-link verification performed by authenticated requests.                    |
+| BR-AUTH-006     | A successful business-account password change revokes every active session for that user and requires sign-in with the new credential.                       |
 | BR-PRIVACY-001  | Location is optional, consent-based, purpose-limited, and must have a retention/deletion policy.                                                             |
 
 ## 5. Core acceptance criteria

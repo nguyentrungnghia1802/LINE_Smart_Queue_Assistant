@@ -7,6 +7,7 @@ import { validate } from '../../middlewares/validate.middleware';
 import { UUIDParamSchema } from '../shared/shared.validator';
 
 import {
+  changeMyPassword,
   createStaff,
   createUser,
   deactivateUser,
@@ -18,6 +19,7 @@ import {
   updateStaffStatus,
 } from './users.controller';
 import {
+  ChangeMyPasswordSchema,
   CreateUserSchema,
   InviteStaffSchema,
   StaffUserParamSchema,
@@ -27,6 +29,15 @@ import {
 } from './users.validator';
 
 export const usersRouter = Router();
+
+usersRouter.patch(
+  '/me/password',
+  requireAuth,
+  requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF),
+  authenticatedActionRateLimiter,
+  validate(ChangeMyPasswordSchema),
+  changeMyPassword
+);
 
 // GET /api/v1/users - list users by org/role (requires auth for manager portal)
 usersRouter.get('/', requireAuth, requireRole(UserRole.MANAGER, UserRole.ADMIN), listUsers);
