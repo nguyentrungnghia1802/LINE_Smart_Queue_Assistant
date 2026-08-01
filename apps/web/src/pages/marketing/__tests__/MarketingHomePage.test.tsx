@@ -20,6 +20,14 @@ describe('MarketingHomePage', () => {
       '/business/register'
     );
     expect(screen.getByText('LINEファースト')).toBeInTheDocument();
+    const heroVideo = screen.getByTestId('marketing-hero-video') as HTMLVideoElement;
+    expect(heroVideo.muted).toBe(true);
+    expect(heroVideo).toHaveAttribute('loop');
+    expect(heroVideo).toHaveAttribute('playsinline');
+    expect(heroVideo.querySelector('source')).toHaveAttribute('src', '/vid/banner.mp4');
+    expect(
+      screen.getByRole('heading', { name: 'さまざまなサービス業にフィット' })
+    ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'LINE Smart Queue Assistant' })).toHaveAttribute(
       'href',
       'mailto:trungnghia180205@gmail.com'
