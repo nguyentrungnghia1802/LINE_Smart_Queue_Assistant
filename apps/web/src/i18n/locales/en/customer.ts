@@ -62,6 +62,7 @@ export const customer = {
     branchClosed: 'This branch is currently outside business hours. Please return when it is open.',
     queuePaused: 'This queue is paused. Please select another queue.',
     selectQueue: 'Select a service queue',
+    selectQueuePlaceholder: 'Choose a service queue',
     productsTitle: 'Products / Services',
     productsHint: 'Select the items you need.',
     lineAuthFailed: 'Could not complete LINE authentication. Please reopen from LINE.',

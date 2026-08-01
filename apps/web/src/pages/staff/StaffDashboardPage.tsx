@@ -125,7 +125,6 @@ function formatCurrency(n: string | number) {
 interface PaymentSummary {
   total: number;
   prepaid: number;
-  requiredPrepaid: number;
   amountDue: number;
 }
 
@@ -139,11 +138,10 @@ function summarizeItems(items: OrderItem[]): PaymentSummary {
       );
       summary.total += subtotal;
       summary.prepaid += netPrepaid;
-      if (item.requires_prepayment_snapshot) summary.requiredPrepaid += netPrepaid;
       summary.amountDue += Math.max(0, subtotal - netPrepaid);
       return summary;
     },
-    { total: 0, prepaid: 0, requiredPrepaid: 0, amountDue: 0 }
+    { total: 0, prepaid: 0, amountDue: 0 }
   );
 }
 
@@ -163,12 +161,10 @@ function PaymentBreakdown({ summary, t }: { summary: PaymentSummary; t: TFunctio
         <span className="font-semibold text-gray-600">{t('labels.total', { ns: 'common' })}</span>
         <span className="font-bold text-gray-900">{formatCurrency(summary.total)}</span>
       </div>
-      {summary.requiredPrepaid > 0 && (
+      {summary.prepaid > 0 && (
         <div className="flex items-center justify-between text-sm">
           <span className="font-semibold text-emerald-700">{t('dashboard.prepaidAmount')}</span>
-          <span className="font-bold text-emerald-700">
-            {formatCurrency(summary.requiredPrepaid)}
-          </span>
+          <span className="font-bold text-emerald-700">{formatCurrency(summary.prepaid)}</span>
         </div>
       )}
       <div className="flex items-center justify-between border-t border-gray-100 pt-2">
@@ -231,7 +227,7 @@ function printReceipt(order: Order, ticketCode: string) {
           <tbody>${rows}</tbody>
         </table>
         <div class="total">${i18n.t('common:labels.total')} ${formatCurrency(summary.total)}</div>
-        ${summary.requiredPrepaid > 0 ? `<div class="total">${i18n.t('staff:dashboard.prepaidAmount')} ${formatCurrency(summary.requiredPrepaid)}</div>` : ''}
+        ${summary.prepaid > 0 ? `<div class="total">${i18n.t('staff:dashboard.prepaidAmount')} ${formatCurrency(summary.prepaid)}</div>` : ''}
         <div class="total">${i18n.t('staff:dashboard.amountDue')} ${formatCurrency(summary.amountDue)}</div>
         <span class="paid">${i18n.t('common:states.paid')}</span>
       </body>
@@ -756,10 +752,10 @@ export function StaffDashboardPage() {
                         <span>{t('labels.total', { ns: 'common' })}</span>
                         <span>{formatCurrency(groupedPaymentSummary.total)}</span>
                       </div>
-                      {groupedPaymentSummary.requiredPrepaid > 0 && (
+                      {groupedPaymentSummary.prepaid > 0 && (
                         <div className="flex justify-between text-emerald-700">
                           <span>{t('dashboard.prepaidAmount')}</span>
-                          <span>{formatCurrency(groupedPaymentSummary.requiredPrepaid)}</span>
+                          <span>{formatCurrency(groupedPaymentSummary.prepaid)}</span>
                         </div>
                       )}
                     </div>

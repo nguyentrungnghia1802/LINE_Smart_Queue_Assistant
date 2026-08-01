@@ -110,8 +110,9 @@ Terminal states are `served`, `cancelled`, and `no_show`. Exact transition guard
 2. If a JWT is present, only a `customer` role may create an order or join a queue. The API rejects a staff, manager, or admin JWT with `CUSTOMER_ACCOUNT_REQUIRED` before business services run.
 3. The public QR UI detects the same business session, keeps it unchanged, and offers a return path to that role's dashboard.
 4. The UI creates the current QR LIFF deep link only as an explicit customer action. LIFF then verifies the LINE identity and exchanges the ID token for the customer JWT before booking.
-5. With multiple queues, the customer selects a queue first. Changing queues clears the previous
-   cart/payment draft and displays only products mapped to the new queue.
+5. With multiple queues, the customer selects one queue from a compact dropdown before its detail
+   and catalog are shown. Changing queues clears the previous cart/payment draft and displays only
+   products mapped to the new queue.
 6. Payment intent and order creation reload the branch, queue, queue-product mapping, price, stock,
    and branch calendar; IDs supplied by the browser are selectors, never authorization.
 
@@ -278,8 +279,9 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
    for unpaid items, reconciles item payment states, and marks the order paid only when no unpaid
    item remains.
 7. Receipt printing uses immutable organization/branch/queue and fulfilling-staff snapshots. It
-   shows gross total, collected prepayment, and remaining balance without charging prepaid items
-   twice. After completion, the Staff UI holds a centered receipt-ready modal over the current
+   shows gross total, every net amount already collected (whether required-item or full-cart
+   checkout), and remaining balance without charging paid items twice. After completion, the Staff
+   UI holds a centered receipt-ready modal over the current
    workspace; it refreshes and moves to the next ticket only after Staff confirms.
 8. Related booking groups are historical associations, but the Staff working context filters them
    to tickets in `waiting`, `called`, or `serving`.
