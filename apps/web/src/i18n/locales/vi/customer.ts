@@ -63,6 +63,7 @@ export const customer = {
     branchClosed: 'Chi nhánh hiện ngoài giờ hoạt động. Vui lòng quay lại trong giờ mở cửa.',
     queuePaused: 'Hàng đợi này đang tạm dừng. Vui lòng chọn hàng đợi khác.',
     selectQueue: 'Chọn hàng đợi phục vụ',
+    selectQueuePlaceholder: 'Vui lòng chọn một hàng đợi',
     productsTitle: 'Sản phẩm / Dịch vụ',
     productsHint: 'Chọn các mục bạn cần.',
     lineAuthFailed: 'Không thể hoàn tất xác thực LINE. Vui lòng mở lại từ LINE.',

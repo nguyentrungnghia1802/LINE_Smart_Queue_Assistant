@@ -214,6 +214,72 @@ describe('StaffDashboardPage', () => {
     expect(screen.getAllByText(/3,500/).length).toBeGreaterThan(0);
   });
 
+  it('shows the full collected amount when checkout covered required and optional items', async () => {
+    vi.mocked(get).mockResolvedValue({
+      queueId: 'queue-1',
+      queueName: '受付カウンターA',
+      waitingCount: 1,
+      totalActiveCount: 1,
+      waitingEntriesWithOrders: [
+        {
+          id: 'entry-1',
+          ticket_code: 'A001',
+          status: 'waiting',
+          order: {
+            id: 'order-1',
+            booking_group_id: null,
+            order_number: 'ORD-0001',
+            customer_name: '山田 太郎',
+            customer_phone: '09000000000',
+            customer_line_display_name: 'LINE 山田',
+            status: 'pending',
+            subtotal: '5000',
+            payment_status: 'paid',
+            ticket_code: 'A001',
+            queue_entry_status: 'waiting',
+            created_at: new Date().toISOString(),
+            items: [
+              {
+                id: 'item-required',
+                product_name: '予約サービス',
+                product_price: '1500',
+                service_time_minutes: 30,
+                quantity: 1,
+                subtotal: '1500',
+                payment_status: 'paid',
+                prepaid_amount: '1500',
+                refunded_amount: '0',
+                requires_prepayment_snapshot: true,
+              },
+              {
+                id: 'item-optional',
+                product_name: '追加商品',
+                product_price: '3500',
+                service_time_minutes: 10,
+                quantity: 1,
+                subtotal: '3500',
+                payment_status: 'paid',
+                prepaid_amount: '3500',
+                refunded_amount: '0',
+                requires_prepayment_snapshot: false,
+              },
+            ],
+          },
+        },
+      ],
+      calledEntryWithOrder: null,
+      servingEntryWithOrder: null,
+    });
+
+    renderPage();
+
+    const prepaidLabels = await screen.findAllByText('事前支払い済み');
+    expect(prepaidLabels.some((label) => label.parentElement?.textContent?.includes('5,000'))).toBe(
+      true
+    );
+    expect(screen.getAllByText('￥0').length).toBeGreaterThan(0);
+  });
+
   it('completes a serving ticket without sending a request body', async () => {
     vi.mocked(get).mockResolvedValue({
       queueId: 'queue-1',

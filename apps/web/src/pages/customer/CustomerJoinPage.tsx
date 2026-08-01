@@ -818,49 +818,29 @@ export function CustomerJoinPage({
 
         <div className="space-y-6">
           <section className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-            <div className="mb-4">
-              <h2 className="text-lg font-bold text-gray-950">
+            <label className="block">
+              <span className="text-lg font-bold text-gray-950">
                 {t('booking.selectQueue', { ns: 'customer' })}
-              </h2>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {data.queues.map((queueOption) => (
-                <button
-                  key={queueOption.id}
-                  type="button"
-                  onClick={() => selectQueue(queueOption.id)}
-                  className={`min-h-24 rounded-xl border p-4 text-left transition ${
-                    selectedQueueId === queueOption.id
-                      ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100'
-                      : 'border-gray-200 bg-white hover:border-brand-200'
-                  }`}
+              </span>
+              {data.queues.length > 0 && (
+                <select
+                  value={selectedQueueId}
+                  onChange={(event) => selectQueue(event.target.value)}
+                  className="mt-3 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-950 shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                 >
-                  <span className="block font-bold text-gray-950">{queueOption.name}</span>
-                  {queueOption.description && (
-                    <span className="mt-1 line-clamp-2 block text-xs text-gray-500">
-                      {queueOption.description}
-                    </span>
-                  )}
-                  <span className="mt-3 block text-xs font-medium text-gray-600">
-                    {t('labels.peopleAhead', { ns: 'common' })}: {queueOption.waitingCount}
-                    {' · '}
-                    {t('units.minutes', {
-                      ns: 'common',
-                      count: queueOption.avgWaitMinutes,
-                    })}
-                  </span>
-                  {!queueOption.isAcceptingBookings && (
-                    <span className="mt-2 block text-xs font-semibold text-amber-700">
-                      {t(queueAvailabilityKey(queueOption, data.queues.length), {
-                        ns: 'customer',
-                      })}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
+                  <option value="" disabled>
+                    {t('booking.selectQueuePlaceholder', { ns: 'customer' })}
+                  </option>
+                  {data.queues.map((queueOption) => (
+                    <option key={queueOption.id} value={queueOption.id}>
+                      {queueOption.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </label>
             {data.queues.length === 0 && (
-              <p className="text-sm text-amber-700">
+              <p className="mt-3 text-sm text-amber-700">
                 {t('booking.noQueuesConfigured', { ns: 'customer' })}
               </p>
             )}
