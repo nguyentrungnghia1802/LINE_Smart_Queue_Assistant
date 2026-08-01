@@ -195,6 +195,7 @@ export const manager = {
     chooseLogo: 'Choose file',
     logoUploaded: 'Logo uploaded',
     logoNotSelected: 'No logo selected',
+    logoUrlValidationHint: 'Upload the logo image again.',
     uploadFailed: 'Could not upload the image.',
     saveFailed: 'Something went wrong. Please try again.',
     postalCode: 'Postal code',

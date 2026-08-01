@@ -195,6 +195,7 @@ export const manager = {
     chooseLogo: 'Chọn tệp',
     logoUploaded: 'Đã tải logo lên',
     logoNotSelected: 'Chưa chọn logo',
+    logoUrlValidationHint: 'Vui lòng tải lại ảnh logo.',
     uploadFailed: 'Không thể tải ảnh lên.',
     saveFailed: 'Đã xảy ra lỗi. Vui lòng thử lại.',
     postalCode: 'Mã bưu điện',

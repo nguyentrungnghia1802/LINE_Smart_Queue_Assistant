@@ -193,6 +193,7 @@ export const manager = {
     chooseLogo: 'ファイルを選択',
     logoUploaded: 'ロゴをアップロードしました',
     logoNotSelected: 'ロゴはまだ選択されていません',
+    logoUrlValidationHint: 'ロゴ画像をもう一度アップロードしてください。',
     uploadFailed: '画像をアップロードできませんでした。',
     saveFailed: 'エラーが発生しました。もう一度お試しください。',
     postalCode: '郵便番号',

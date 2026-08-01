@@ -1,32 +1,12 @@
 import { z } from 'zod';
 
-const RelativeMediaUrlSchema = z
-  .string()
-  .max(2_000)
-  .regex(
-    /^\/(?:media|mock-media)\/[a-zA-Z0-9][a-zA-Z0-9/_-]*(?:\.[a-zA-Z0-9]+)?$/,
-    'Image URL must be an uploaded media path'
-  );
-
-const AbsoluteImageUrlSchema = z
-  .string()
-  .max(2_000)
-  .url()
-  .refine((value) => {
-    try {
-      return ['http:', 'https:'].includes(new URL(value).protocol);
-    } catch {
-      return false;
-    }
-  }, 'Image URL must use HTTP or HTTPS');
-
-const ProductImageUrlSchema = z.union([RelativeMediaUrlSchema, AbsoluteImageUrlSchema]);
+import { StoredImageUrlSchema } from '../shared/shared.validator';
 
 const ProductFieldsSchema = z
   .object({
     name: z.string().min(1).max(200),
     description: z.string().max(1000).optional(),
-    imageUrl: ProductImageUrlSchema.optional(),
+    imageUrl: StoredImageUrlSchema.optional(),
     price: z.number().min(0).max(100_000_000),
     serviceTimeMinutes: z.number().int().min(1).max(480),
     maxWaitMinutes: z.number().int().min(1).max(1_440).optional(),

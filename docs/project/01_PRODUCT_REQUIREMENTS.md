@@ -279,3 +279,5 @@ role and does not use branch-operation endpoints.
   session and local LIFF session. Logo uploads expose a clear selected/uploaded state instead of
   relying on browser file-input text. The native logo picker opens only from its explicit button,
   accepts PNG/JPEG/WebP up to 5 MB, and reports validation or upload failure in the settings form.
+  Organization settings persist the safe media URL returned by the upload API; an oversized legacy
+  data URL may remain readable for preview but is never resubmitted as an organization setting.
