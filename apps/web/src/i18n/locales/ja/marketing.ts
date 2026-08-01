@@ -95,7 +95,7 @@ export const marketing = {
     company: '運営情報',
     legal: '利用規約・プライバシー',
     copyright: '© 2026 Smart Queue Assistant',
-    supportEmail: 'LINE Smart Queue Assistant',
+    supportEmail: 'support@smartqueue.io.vn',
     supportPhone: '+84 948512463',
     headquarters: '本社：ベトナム・ハノイ市・フックトー',
   },

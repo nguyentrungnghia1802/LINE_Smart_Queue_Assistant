@@ -28,9 +28,9 @@ describe('MarketingHomePage', () => {
     expect(
       screen.getByRole('heading', { name: 'さまざまなサービス業にフィット' })
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'LINE Smart Queue Assistant' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'support@smartqueue.io.vn' })).toHaveAttribute(
       'href',
-      'mailto:trungnghia180205@gmail.com'
+      'mailto:support@smartqueue.io.vn'
     );
   });
 });
