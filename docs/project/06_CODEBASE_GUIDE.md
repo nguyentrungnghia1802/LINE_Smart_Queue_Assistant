@@ -84,6 +84,11 @@ apps/web/src/
 
 Pages orchestrate data and interactions. Reusable visual patterns belong in components, server calls in services/hooks, and non-React transformations in utils. Browser storage is for drafts and convenience, never authorization/payment truth.
 
+Persisted product and organization image fields use the shared `StoredImageUrlSchema` from
+`modules/shared/shared.validator.ts`. It accepts only HTTP(S) URLs or generated same-origin
+`/media/...` and `/mock-media/...` paths. Upload request data URLs terminate at the media service
+and must not be written back into organization or product records.
+
 Shared form limits and API field-error extraction live in `apps/web/src/utils/formValidation.ts`.
 New forms must set stable `name` attributes, appropriate HTML input types and limits, and map API
 `details.fieldErrors` to the exact field path. These client constraints are usability aids; matching

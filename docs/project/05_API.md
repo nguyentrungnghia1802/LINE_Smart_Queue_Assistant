@@ -153,7 +153,7 @@ authority.
 | PATCH  | `/api/v1/products/:id/branch-stock` | Branch manager     | Update only assigned-branch stock and low-stock threshold     |
 | DELETE | `/api/v1/products/:id`              | Organization owner | Soft-deactivate an organization catalog product               |
 
-Product `imageUrl` accepts either an HTTP/HTTPS object-storage URL or a same-origin path returned by the media upload API (`/media/...` or `/mock-media/...`). Arbitrary relative paths and data URLs remain invalid. Validation responses use `VALIDATION_ERROR` with `details.fieldErrors`; manager product forms show the error code and affected field without exposing server internals.
+Product `imageUrl` and organization `logoUrl` accept either an HTTP/HTTPS object-storage URL or a same-origin path returned by the media upload API (`/media/...` or `/mock-media/...`). Arbitrary relative paths and data URLs remain invalid. Validation responses use `VALIDATION_ERROR` with `details.fieldErrors`; manager forms identify the affected image field without exposing server internals.
 
 Product create, update, and deactivate operations write their authenticated owner actor as audit type `user`, matching the canonical PostgreSQL `audit_actor_type` enum. Catalog writes invalidate every locale-aware organization cache key and public slug cache key so deleted products and prepayment changes are not served from stale catalog data.
 
@@ -337,7 +337,7 @@ Booking-group requests never accept a customer or LINE user ID as authority. Cus
 | POST   | `/api/v1/media`     | Manager/admin | Validate, compress to WebP, store, and register an image asset |
 | DELETE | `/api/v1/media/:id` | Tenant/admin  | Delete storage object and mark its metadata deleted            |
 
-The upload request currently carries a browser-compressed data URL for compatibility, but the service validates decoded bytes and image metadata, caps input pixels/bytes, creates a safe generated key, and stores only the returned URL in organization/product records. The local and mock providers are implemented; a real object-storage client remains external configuration.
+The upload request currently carries a browser-compressed data URL for compatibility, but the service validates decoded bytes and image metadata, caps input pixels/bytes, creates a safe generated key, and stores only the returned URL in organization/product records. The returned same-origin path is a valid persisted image reference. Existing oversized data URLs are preview-only and are omitted from organization updates until replaced through the media endpoint. The local and mock providers are implemented; a real object-storage client remains external configuration.
 
 ### Users and staff management
 
