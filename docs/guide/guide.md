@@ -1,42 +1,38 @@
-# ご利用・テストガイド
+# ご利用ガイド
 
 # LINE SMART QUEUE ASSISTANT
 
 ## 1. 本書の目的
 
-本書は、山田様および大村様が、ソースコードを参照せずに LINE Smart Queue Assistant へアクセスし、機能を理解し、最初から最後まで体験・検証できるようにするためのエンドユーザー向けガイドです。
+本書は、LINE Smart Queue Assistantを利用するすべての方を対象とした操作ガイドです。ソースコードや技術資料を参照しなくても、法人申込み、管理者による初期設定、店舗運用、LINEからの受付、Staffによる対応完了までを画面に沿って進められます。
 
-法人申込み、Platform Admin による審査、Organization Owner による初期設定、Branch Manager による店舗準備、LINE/LIFF からの予約、Staff による受付完了まで、実際の操作順に説明します。
-
-掲載画像は、隔離されたローカル環境とデモデータで撮影した日本語 UI の共通画像です。画像内の氏名・メールアドレス・店舗情報はテスト専用であり、実在のお客様の情報ではありません。
+利用するロールに応じて必要な章から読み始めてください。画面名、ボタン名、状態、注意事項は現在のアプリケーションに合わせて記載しています。
 
 ## 2. アクセス情報
 
-| 項目               | テスト時の値                                                           |
-| ------------------ | ---------------------------------------------------------------------- |
-| Production URL     | `[PRODUCTION URLを記入]`                                               |
-| Test URL           | ローカルは `http://localhost:5173`、共有環境は `[TEST URLを記入]`      |
-| サポートメール     | `support@smartqueue.io.vn`                                             |
-| LINE公式アカウント | `[OA名またはリンクを記入]`                                             |
-| 店舗QR             | ローカルでは Branch Manager の **QR表示**、共有環境は `[店舗QRを記入]` |
-| ガイド作成日       | `2026/08/02`                                                           |
-| 対象バージョン     | `[レビュー対象のリリースまたはコミットを記入]`                         |
+運用環境に応じて、管理者から案内された情報を使用してください。
 
-> 共有環境でレビューする場合は、URL、対象バージョン、店舗QRをプロジェクト担当者に確認してください。許可なく production のQRでテストデータを作成しないでください。
+| 項目                     | 情報                                   |
+| ------------------------ | -------------------------------------- |
+| Web URL                  | `[運用URLを記入]`                      |
+| サポートメール           | `support@smartqueue.io.vn`             |
+| LINE公式アカウント       | `[LINE公式アカウント名／リンクを記入]` |
+| Branch QR                | `[利用するBranch QRを掲載]`            |
+| ガイド更新日／バージョン | `[YYYY-MM-DD／バージョンを記入]`       |
 
-## 3. テストアカウント
+Branch QRは店舗ごとに異なります。正しいBranch名を確認してから掲示・共有してください。
 
-以下はローカルのデモデータ専用アカウントです。production では使用しないでください。
+## 3. ログイン方法
 
-| ロール             | メール／アカウント                                              | パスワード               | 対象範囲                                               |
-| ------------------ | --------------------------------------------------------------- | ------------------------ | ------------------------------------------------------ |
-| Platform Admin     | `admin@gmail.com`                                               | `123456`                 | プラットフォーム全体、導入申請、組織                   |
-| Organization Owner | `manager2@gmail.com`                                            | `123456`                 | デモ組織、商品・サービス、支店、支店管理者、操作ログ   |
-| Branch Manager     | `manager@gmail.com`                                             | `123456`                 | 割り当てられた1支店のキュー、在庫、Staff、QR、営業時間 |
-| Staff              | `staff@gmail.com`                                               | `123456`                 | 割り当てられた支店の受付業務                           |
-| LINE Customer      | Mock LIFF: **LINEデモ顧客**、実機: テスター本人のLINEアカウント | システム用パスワードなし | LINE/LIFF で予約・受付番号を確認                       |
+| ロール             | ログイン方法                                         | アクセス範囲                          |
+| ------------------ | ---------------------------------------------------- | ------------------------------------- |
+| Platform Admin     | 管理者から発行された業務用メール／パスワード         | プラットフォーム全体                  |
+| Organization Owner | 招待メールで有効化した業務用メール／パスワード       | 所属Organization                      |
+| Branch Manager     | Ownerから招待された業務用メール／パスワード          | 割り当てられたBranch                  |
+| Staff              | Branch Managerから招待された業務用メール／パスワード | 割り当てられたBranchの受付業務        |
+| Customer           | Branch QRからLINE Login／LIFF                        | 自分のBooking、Ticket、履歴、通知設定 |
 
-共有テスト環境のパスワードを文書に保存できない場合は、`[安全な経路で共有]` と記載し、別の安全な連絡手段で提供してください。production の認証情報は本書や不具合報告に記載しないでください。
+パスワード、認証リンク、QR管理情報を第三者へ共有しないでください。Customer用のメール／パスワードログインはありません。
 
 ## 4. システム概要
 
@@ -80,7 +76,7 @@ flowchart LR
 1. 法人担当者が公開ページから利用申請を開始します。
 2. 法人情報、連絡先、住所を入力します。
 3. 想定支店数、月間顧客数、適切なプランを選択します。
-4. テスト環境では Demo Payment を完了し、審査待ちとして送信します。
+4. デモ環境では Demo Payment を完了し、審査待ちとして送信します。
 5. Platform Admin が申請を確認し、審査中であれば必要に応じて編集して、承認または却下します。
 6. 承認すると **Organization** と **招待状態のOwner** が作成されます。**Branch と Queue は自動作成されません**。
 7. Owner が一度だけ使えるメールリンクを開き、パスワードを設定します。
@@ -103,30 +99,30 @@ Platform Admin が審査する法人利用申請を作成します。申請フ�
 ### 事前条件
 
 - システムのURLが分かっていること。
-- テストに使用できる業務用メールアドレスがあること。
+- 連絡を受け取れる業務用メールアドレスがあること。
 - 想定支店数と月間顧客数が分かっていること。
-- Demo Payment が有効なテスト環境を使用すること。
+- Demo Payment が有効なデモ環境を使用すること。
 
 ### 操作手順
 
 1. 公開トップページを開きます。
 2. 製品名、**法人向けに導入する**、QR/LIFFの説明を確認します。
 
-![公開トップページ](./docs/images/guide/01-landing-page.png)
+![公開トップページ](../images/guide/01-landing-page.png)
 
 _図01 — LINE Smart Queue Assistant の公開トップページ。_
 
 3. **法人向けに導入する**を選択します。
 4. **法人情報**のステップと右側のプラン概要を確認します。
 
-![法人申込み開始画面](./docs/images/guide/02-business-registration-start.png)
+![法人申込み開始画面](../images/guide/02-business-registration-start.png)
 
 _図02 — 法人利用申込みの開始画面。_
 
 5. 法人名、屋号、業種、登録番号、Webサイト、担当者名・役職、業務用メール、正しい日本の電話番号を入力します。
 6. 郵便番号、都道府県、市区町村、住所を入力します。OwnerまたはManagerのパスワードは入力しません。
 
-![法人情報入力フォーム](./docs/images/guide/03-business-registration-form.png)
+![法人情報入力フォーム](../images/guide/03-business-registration-form.png)
 
 _図03 — デモデータによる法人、連絡先、住所の入力。_
 
@@ -134,33 +130,24 @@ _図03 — デモデータによる法人、連絡先、住所の入力。_
 8. 想定拠点数と月間顧客数を入力します。
 9. 適合性ガイドを読み、**Starter**、**Standard**、**Scale**から選びます。現在の支店上限は、Starterが1、Standardが3、Scaleは設定上無制限です。
 
-![料金プラン選択](./docs/images/guide/04-business-registration-plan.png)
+![料金プラン選択](../images/guide/04-business-registration-plan.png)
 
 _図04 — 規模に応じたプラン選択と適合性ガイド。_
 
 10. **次へ**を選択し、入力内容を確認して利用条件に同意します。
-11. **デモ決済して申請**を選択します。Demo Paymentはテスト環境だけの成功シミュレーションです。
+11. **デモ決済して申請**を選択します。Demo Paymentはデモ環境だけの成功シミュレーションです。
 12. 表示された申請番号を控えます。
 
-![申請送信完了](./docs/images/guide/05-business-registration-complete.png)
+![申請送信完了](../images/guide/05-business-registration-complete.png)
 
 _図05 — 送信済みでPlatform Adminの審査待ちとなった申請。_
 
-### 期待結果
+### 操作後の状態
 
 - **申請は審査待ちです**と申請番号が表示されます。
 - Platform Admin の**導入審査**一覧に表示されます。
 - 送信時点ではOwnerアカウント、Branch、Queueは作成されません。
 - 同じメールまたは使用済みpayment referenceは明確に拒否され、重複申請は作成されません。
-
-### 推奨テストケース
-
-- 必須項目を空欄にする。
-- 不正なメール、電話番号、郵便番号を入力する。
-- プラン上限を超える支店数を指定する。
-- 同じメール／payment referenceで二重送信する。
-- 前のステップへ戻り、入力値が保持されているか確認する。
-- 入力途中で日本語、ベトナム語、英語を切り替える。
 
 ### 画像について
 
@@ -176,27 +163,27 @@ _図05 — 送信済みでPlatform Adminの審査待ちとなった申請。_
 
 - Platform Adminアカウントがあること。
 - **審査待ち**の申請が1件以上あること。
-- テスト用メール環境が設定済みであること。ローカルはmockであり、実在する宛先には送信しません。
+- 案内されたメール環境が設定済みであること。ローカルはmockであり、実在する宛先には送信しません。
 
 ### 操作手順
 
 1. `/login`を開きます。
 2. Platform Adminのメールとパスワードを入力して**ログイン**します。これはビジネスロール用ログインであり、LINE Loginではありません。
 
-![Platform Adminログイン](./docs/images/guide/06-admin-login.png)
+![Platform Adminログイン](../images/guide/06-admin-login.png)
 
 _図06 — Admin、Owner、Branch Manager、Staff共通のログイン画面。_
 
 3. **管理ダッシュボード**で組織数、審査待ち、売上、プラン分布を確認します。
 
-![Platform Adminダッシュボード](./docs/images/guide/07-admin-dashboard.png)
+![Platform Adminダッシュボード](../images/guide/07-admin-dashboard.png)
 
 _図07 — Platform Adminの概要ダッシュボード。_
 
 4. **導入審査**を開きます。
 5. **審査待ち**、**承認済み**、**却下済み**、**すべて**または検索欄で申請を探します。
 
-![導入申請一覧](./docs/images/guide/08-admin-applications.png)
+![導入申請一覧](../images/guide/08-admin-applications.png)
 
 _図08 — ステータス別の法人申請一覧。_
 
@@ -204,38 +191,29 @@ _図08 — ステータス別の法人申請一覧。_
 7. 法人、連絡先、住所、規模、プラン、Demo Paymentの状態を確認します。
 8. 申請が**審査待ち**で、安全に修正できる誤りがある場合は編集して**申請を保存**します。
 
-![申請詳細](./docs/images/guide/09-admin-application-detail.png)
+![申請詳細](../images/guide/09-admin-application-detail.png)
 
 _図09 — 審査中申請の確認・更新ダイアログ。_
 
 9. 承認する場合は**承認して組織を作成**を選択し、確認メッセージに同意します。
 10. 成功メッセージと**承認済み**への変更を確認します。
 
-![申請承認結果](./docs/images/guide/10-admin-application-approval.png)
+![申請承認結果](../images/guide/10-admin-application-approval.png)
 
 _図10 — Organizationと招待Ownerを作成した後の結果。_
 
-11. 却下を確認する場合は別のデモ申請を使い、**却下**を選んで理由を入力します。
+11. 申込みを却下する場合は、**却下**を選んで理由を入力します。
 
-### 期待結果
+### 操作後の状態
 
 - 承認すると**Organization**と**招待状態のOwner**が作成されます。
 - 承認では**BranchもQueueも作成されません**。Ownerが有効化後に設定します。
 - メール配信が有効な環境ではOwnerへ有効化メール、却下時は通知と理由が送信されます。ローカルmockは実送信しません。
 - 同じ承認／却下操作を繰り返してもOrganizationは重複作成されません。
 
-### 推奨テストケース
-
-- 法人名、メール、申請番号で検索する。
-- 審査中申請を編集して保存する。
-- 有効なDemo Paymentの申請を承認する。
-- 却下理由の有無を検証する。
-- 承認済み申請を再度承認できないことを確認する。
-- 有効化前のOwnerがログインできないことを確認する。
-
 ### 画像について
 
-図06〜10はAdmin画面と承認結果です。実メールは別途、テスト用受信箱で確認してください。
+図06〜10はAdmin画面と承認結果です。メール配信が有効な環境では、Ownerの業務用受信箱に有効化メールが届きます。
 
 ## 9. Owner アカウントの有効化
 
@@ -246,7 +224,7 @@ _図10 — Organizationと招待Ownerを作成した後の結果。_
 ### 事前条件
 
 - Platform Adminが申請を承認済みであること。
-- テスト受信箱または担当者から安全に共有された有効化リンクがあること。
+- Ownerの業務用受信箱に届いた有効化リンクがあること。
 - リンクが有効期限内で未使用であること。
 
 ### 操作手順
@@ -255,7 +233,7 @@ _図10 — Organizationと招待Ownerを作成した後の結果。_
 2. 有効化リンクを選択します。画面には情報漏えいを避けるためマスクされたメールだけが表示されます。
 3. 10文字以上の新しいパスワードと確認用パスワードを入力します。
 
-![Ownerアカウント有効化](./docs/images/guide/11-owner-activation.png)
+![Ownerアカウント有効化](../images/guide/11-owner-activation.png)
 
 _図11 — 有効なリンクでOwner、Organization、マスク済みメールを表示。_
 
@@ -263,24 +241,16 @@ _図11 — 有効なリンクでOwner、Organization、マスク済みメール�
 5. ログイン画面へ戻り、業務用メールと新しいパスワードでログインします。
 6. パスワードを忘れた場合は**パスワードをお忘れですか？**から再設定します。メールの存在有無を外部へ漏らさないよう、画面は常に共通の受付結果を返します。
 
-### 期待結果
+### 操作後の状態
 
 - 有効なパスワード設定後、アカウントとOrganizationが有効になります。
 - リンクは初回成功時に使用済みになります。
 - 期限切れ、不正、使用済みリンクは拒否され、パスワードは変更されません。
 - パスワード変更または再設定後、以前のセッションは無効になります。
 
-### 推奨テストケース
-
-- 短いパスワード、確認不一致、ポリシー違反。
-- 同じリンクを2つのウィンドウで開き、片方だけ成功すること。
-- 有効化後のリンク再利用。
-- 期限切れまたは一部欠損したリンク。
-- 登録済み／未登録メールでパスワード再設定を依頼する。
-
 ### 画像について
 
-図11はローカルfixtureのtokenだけで取得しており、画像にtokenは含みません。不具合報告でもtoken付きURLを撮影しないでください。
+図11では有効化URLのtokenを表示していません。サポートへ連絡する場合も、token付きURLを共有しないでください。
 
 ## 10. Organization Owner の操作
 
@@ -298,14 +268,14 @@ Organization単位の設定、商品・サービスカタログ、Branch、Branc
 
 1. **ダッシュボード**で売上、支店数、支店別の状況を確認します。
 
-![Organization Ownerダッシュボード](./docs/images/guide/12-owner-dashboard.png)
+![Organization Ownerダッシュボード](../images/guide/12-owner-dashboard.png)
 
 _図12 — Organization単位のOwnerダッシュボード。_
 
 2. **設定**で組織名、連絡先、住所、既定営業時間を更新します。既定営業時間は新しいBranchの初期値であり、その後はBranch Managerが支店ごとに管理します。
 3. **商品**を開きます。ここにある定義はOrganization所有であり、特定Branchだけのものではありません。
 
-![商品・サービスカタログ](./docs/images/guide/13-owner-product-catalog.png)
+![商品・サービスカタログ](../images/guide/13-owner-product-catalog.png)
 
 _図13 — 自動生成されたDV/SPコードを持つOrganization共通カタログ。_
 
@@ -314,13 +284,13 @@ _図13 — 自動生成されたDV/SPコードを持つOrganization共通カタ�
 6. 予約確定前に支払いが必要な項目は**事前支払い必須**を有効にします。
 7. 保存します。コードは種類に応じて`SP...`または`DV...`として自動生成され、利用者は入力しません。
 
-![商品・サービス作成フォーム](./docs/images/guide/14-owner-create-product.png)
+![商品・サービス作成フォーム](../images/guide/14-owner-create-product.png)
 
 _図14 — Organizationカタログへ項目を追加するフォーム。_
 
 8. **支店**を開き、Branch一覧、Queue数、現在のBranch Managerを確認します。
 
-![Branch一覧](./docs/images/guide/15-owner-branches.png)
+![Branch一覧](../images/guide/15-owner-branches.png)
 
 _図15 — Organizationに属するBranch一覧。_
 
@@ -329,41 +299,31 @@ _図15 — Organizationに属するBranch一覧。_
 11. 氏名、業務用メール、電話番号、役職、社員番号を入力して、少なくとも1名のBranch Managerを招待します。Ownerが代理でパスワードを設定することはありません。
 12. **支店を作成**します。現在の上限はStarter 1、Standard 3、Scaleは設定上無制限です。
 
-![Branch作成フォーム](./docs/images/guide/16-owner-create-branch.png)
+![Branch作成フォーム](../images/guide/16-owner-create-branch.png)
 
 _図16 — Branch作成と同時にBranch Managerを招待。_
 
 13. Branchカードの**管理者を追加**から追加招待します。
 14. 必要に応じてBranch Managerを削除します。ただし、稼働中の最後の管理者は削除できません。
 
-![Branch Manager管理](./docs/images/guide/17-owner-branch-managers.png)
+![Branch Manager管理](../images/guide/17-owner-branch-managers.png)
 
 _図17 — 既存BranchにBranch Managerを追加するダイアログ。_
 
 15. **操作ログ**を開き、スタッフ・支店関連の操作を確認します。新規データでは対象イベントが発生するまで**アクティビティはありません**と表示される場合があります。
 
-![Owner操作ログ](./docs/images/guide/18-owner-audit.png)
+![Owner操作ログ](../images/guide/18-owner-audit.png)
 
 _図18 — Organization単位の操作ログ。_
 
 16. デモBranchを削除する場合も、警告を十分に確認してください。Branch削除はQueue、注文、決済、在庫予約、QR、運用データに影響する破壊的操作です。追跡用の最終auditは保持されます。
 
-### 期待結果
+### 操作後の状態
 
 - 新しい商品・サービスが自動生成コード付きでOrganizationカタログに表示されます。
 - Branch Managerは選択Branchだけに割り当てられ、配信可能な環境では有効化メールを受け取ります。
 - 新Branchには初期営業時間と固定QRがありますが、**既定Queueはありません**。
 - Ownerは組織分析と操作ログを確認できますが、Branch Manager向けのQueue、Staff、在庫、QR運用メニューは表示されません。
-
-### 推奨テストケース
-
-- 無料Serviceと有料Productを作成する。
-- 前払い必須／不要、画像あり／なしを組み合わせる。
-- SP/DVコードが連番で、編集後も変わらないことを確認する。
-- プラン上限までBranchを作成し、超過を試す。
-- 重複メールを招待する、または最後のBranch Managerを削除しようとする。
-- OwnerでBranch Manager専用URLを開き、拒否またはリダイレクトを確認する。
-- 削除警告を確認し、保持すべきデータでは確定しない。
 
 ### 画像について
 
@@ -385,26 +345,26 @@ _図18 — Organization単位の操作ログ。_
 
 1. **ダッシュボード**を開き、正しいBranch名を確認します。データがあれば、売上、注文数、キャンセル率、処理中注文、待ち人数、平均ETAが表示されます。
 
-![Branch Managerダッシュボード](./docs/images/guide/19-branch-manager-dashboard.png)
+![Branch Managerダッシュボード](../images/guide/19-branch-manager-dashboard.png)
 
 _図19 — Branch Managerの運用概要。_
 
 2. **設定**でBranch名、電話、メール、住所、決済設定を更新します。
 
-![Branch設定](./docs/images/guide/20-branch-settings.png)
+![Branch設定](../images/guide/20-branch-settings.png)
 
 _図20 — Branch範囲で確認・更新できる設定。_
 
 3. **営業時間**で曜日ごとの休業／営業と開始・終了時刻を設定します。
 4. 例外日で休日・祝日・特別営業時間を登録します。例外日は週間設定より優先されます。
 
-![営業時間と例外日](./docs/images/guide/21-business-calendar.png)
+![営業時間と例外日](../images/guide/21-business-calendar.png)
 
 _図21 — 週間営業時間と例外日設定。_
 
 5. **キュー**を開き、各カードのステータスとライブ件数を確認します。
 
-![Queue一覧](./docs/images/guide/22-queue-list.png)
+![Queue一覧](../images/guide/22-queue-list.png)
 
 _図22 — 1つのBranchに複数の独立したQueue。_
 
@@ -417,61 +377,50 @@ _図22 — 1つのBranchに複数の独立したQueue。_
 8. 名称、説明、状態、Ticket prefix、最大収容数、標準対応時間を入力します。
 9. 不在時の後退位置数と最大不在回数を確認します。デモは3位置後退、最大3回です。
 
-![Queue作成フォーム](./docs/images/guide/23-create-queue.png)
+![Queue作成フォーム](../images/guide/23-create-queue.png)
 
 _図23 — Queueの基本設定と運用ルール。_
 
 10. 同じフォームでOrganizationカタログの商品・サービスを選択します。Customerには選択Queueへ割り当てられた項目だけが表示されます。
 
-![Queueへの商品割当](./docs/images/guide/24-queue-product-assignment.png)
+![Queueへの商品割当](../images/guide/24-queue-product-assignment.png)
 
 _図24 — 商品を複製せず、OrganizationカタログからQueueへ割り当て。_
 
 11. Branch範囲の**商品**を開いて在庫を更新します。Serviceは無制限、Productは設定により無制限または有限です。
 
-![Branch別在庫](./docs/images/guide/25-branch-stock.png)
+![Branch別在庫](../images/guide/25-branch-stock.png)
 
 _図25 — 同じOrganization商品コードでも、在庫は現在のBranchが所有。_
 
 12. **スタッフ**で氏名、状態、メール、役職、社員番号を確認します。
 
-![Staff一覧](./docs/images/guide/26-staff-list.png)
+![Staff一覧](../images/guide/26-staff-list.png)
 
 _図26 — 現在のBranchに所属するStaff一覧。_
 
 13. **＋スタッフを追加**を選び、情報を入力して招待します。Branch ManagerはStaffのパスワードを設定しません。
 
-![Staff招待フォーム](./docs/images/guide/27-invite-staff.png)
+![Staff招待フォーム](../images/guide/27-invite-staff.png)
 
 _図27 — BranchへStaffを招待するフォーム。_
 
 14. **QR表示**でBranchの固定QRを確認します。
 15. **リンクをコピー**、**QRコードをコピー**、**QRコードを印刷**を使用します。1 Branchにつき固定QRは1つで、読み取り後にCustomerがQueueを選択します。
 
-![Branch固定QR](./docs/images/guide/28-branch-qr.png)
+![Branch固定QR](../images/guide/28-branch-qr.png)
 
 _図28 — Branch QRとコピー／印刷操作。_
 
 16. `currentNumber`は**当日最後に発行した番号**であり、現在の待ち人数ではありません。待ち人数はwaiting/live countで確認してください。
 
-### 期待結果
+### 操作後の状態
 
 - Branch Managerは割当Branchだけを閲覧・更新できます。
 - Closed、Paused、Archived、営業時間外、満員のQueueは新規受付できません。
 - Queueには割当済みかつBranchで利用可能な項目だけが表示されます。
 - Branch Aの在庫変更はBranch Bへ影響しません。
 - Queueを追加・削除してもBranch QRは変わりません。
-
-### 推奨テストケース
-
-- QueueをClosed、Open、Paused、Archivedへ順番に変更する。
-- capacityを小さくし、有効Ticketで満員にする。
-- 異なるprefixのQueueを2つ作る。
-- Productを割当／解除し、Customerカタログを確認する。
-- Productを在庫0、有限、無制限に設定する。
-- 重複Staffメールまたは不正電話番号を入力する。
-- 別BranchのURLを開き、アクセス拒否を確認する。
-- 週間営業時間／祝日を変更し、Booking可否を確認する。
 
 ### 画像について
 
@@ -488,42 +437,34 @@ Branch QRを読み取り、LINEで認証し、Queueと商品・サービスを�
 - BranchとQueueが稼働中で、営業時間内、満員でないこと。
 - Queueに利用可能な商品・サービスが1件以上割り当てられていること。
 - 実機ではLINEがインストールされ、通信可能であること。
-- ローカルbrowserではMock LIFFに**LINEデモ顧客**が表示され、Demo Paymentが有効であること。
+- LINEアプリからBranch QRを開き、Customerとしてログインできること。
 
 ### 操作手順
 
-1. LINEでBranch QRを読み取るか、Mock LIFFでQRリンクを開きます。
+1. LINEでBranch QRを読み取ります。
 2. 未ログインの場合はLINE Login/LIFF認証を完了します。Customerはビジネス用メール／パスワードを入力しません。
 3. **ホーム**で確認済みLINE名と、予約、現在の受付、履歴、設定への導線を確認します。
 
-![LIFFホーム（モバイル）](./docs/images/guide/29-liff-home-mobile.png)
+![LIFFホーム（モバイル）](../images/guide/29-liff-home-mobile.png)
 
-_図29 — Mock LIFFのデモCustomerホーム。_
-
-> **手動で追加する画像：**
->
-> 実機でLINE Login同意画面を撮影してください。不要なアカウント情報は隠してください。
-
-> **手動で追加する画像：**
->
-> 実機でLINE公式アカウントの友だち追加／ブロック解除画面を撮影してください。
+_図29 — LINE/LIFFのCustomerホーム。_
 
 4. **予約する**を選ぶか、Branch QRをもう一度開きます。
 5. Branch名と住所を確認し、**受付キューを選択**を開きます。
 
-![Queue選択（モバイル）](./docs/images/guide/30-customer-queue-selection-mobile.png)
+![Queue選択（モバイル）](../images/guide/30-customer-queue-selection-mobile.png)
 
 _図30 — 1つのBranch QRから目的のQueueを選択。_
 
 6. Queueを選び、前方人数、待ち時間目安、Queue専用カタログを確認します。
 
-![Queue別カタログ](./docs/images/guide/31-customer-catalog-mobile.png)
+![Queue別カタログ](../images/guide/31-customer-catalog-mobile.png)
 
 _図31 — 選択Queueに割り当てられた商品・サービスだけを表示。_
 
 7. 商品名、画像、詳細ボタンを選び、説明、価格、種類、時間、前払い要否、在庫を確認します。
 
-![商品・サービス詳細](./docs/images/guide/32-product-detail-mobile.png)
+![商品・サービス詳細](../images/guide/32-product-detail-mobile.png)
 
 _図32 — モバイルの商品・サービス詳細。_
 
@@ -531,7 +472,7 @@ _図32 — モバイルの商品・サービス詳細。_
 9. お客様名と、有効な日本の電話番号（携帯電話は通常10〜11桁）を入力します。
 10. 距離通知に位置情報を使用してよければ**共有**します。任意項目のため、拒否してもBookingできます。
 
-![Customer Bookingフォーム](./docs/images/guide/33-customer-booking-form-mobile.png)
+![Customer Bookingフォーム](../images/guide/33-customer-booking-form-mobile.png)
 
 _図33 — 数量、お客様情報、Booking前の合計。_
 
@@ -539,31 +480,31 @@ _図33 — 数量、お客様情報、Booking前の合計。_
 12. 前払い必須商品がある場合は**支払って予約**を選択します。
 13. ローカルでは**オンライン決済**でデモ方式を選び、**デモ決済**を実行します。実在するカード情報は入力しないでください。
 
-![Demo Payment（モバイル）](./docs/images/guide/34-demo-payment-mobile.png)
+![Demo Payment（モバイル）](../images/guide/34-demo-payment-mobile.png)
 
-_図34 — Demo Payment画面。表示されるカード番号はテストデータです。_
+_図34 — Demo Payment画面。表示されるカード番号はデモデータです。_
 
 14. 決済return後に正しいTicketへ戻り、再読み込みやreturn URL再訪で重複が生じないことを確認します。
 
-![Booking成功後のTicket](./docs/images/guide/35-booking-success-mobile.png)
+![Booking成功後のTicket](../images/guide/35-booking-success-mobile.png)
 
 _図35 — Booking成功後、直接Ticketへ移動した状態。_
 
 15. Ticketで**受付番号**、**注文番号**、状態、前方人数、ETA、Branch/Queue、作成時刻、明細、合計、支払済み、残金を確認します。
 
-![Customer Ticket詳細](./docs/images/guide/36-customer-ticket-mobile.png)
+![Customer Ticket詳細](../images/guide/36-customer-ticket-mobile.png)
 
 _図36 — 有効Ticketと支払概要。_
 
 16. **履歴**を開き、過去と現在のBookingおよび状態を確認します。
 
-![Booking履歴](./docs/images/guide/37-customer-booking-history-mobile.png)
+![Booking履歴](../images/guide/37-customer-booking-history-mobile.png)
 
 _図37 — 確認済みLINEアカウントのBooking履歴。_
 
 17. **設定**で通知種類、位置情報、ログアウトを管理します。
 
-![LINE通知・位置情報設定](./docs/images/guide/38-customer-line-preferences-mobile.png)
+![LINE通知・位置情報設定](../images/guide/38-customer-line-preferences-mobile.png)
 
 _図38 — 通知、位置情報、ログアウト設定。_
 
@@ -571,36 +512,17 @@ _図38 — 通知、位置情報、ログアウト設定。_
 19. 別QueueでBookingすると、そのQueue用の別Ticketが作成されます。
 20. 公式アカウントの友だち追加／ブロック解除を断ってもBookingできます。ただし、LINE push通知が届かない場合があります。
 
-> **手動で追加する画像：**
->
-> 実機のLINE QRスキャナーとLIFF起動結果を撮影してください。
-
-> **手動で追加する画像：**
->
-> LINEアプリ内のRich Menuを撮影してください。
-
-### 期待結果
+### 操作後の状態
 
 - Customerの本人情報は確認済みLINE Login/LIFFから取得され、browserが送るLINE User IDを信用しません。
 - 価格、Organization、Branch、Queue、payment status、権限はserver側で再確認され、browser入力を信用しません。
 - 前払い不要BookingはTicketへ直接移動します。
-- 前払い必須Bookingは検証済みDemo Payment成功後に確定します。
+- 前払い必須Bookingは利用可能Demo Payment成功後に確定します。
 - 友だち追加を拒否してもBookingできますが、LINE通知は失敗する場合があります。
-
-### 推奨テストケース
-
-- 正しい／不正な日本の電話番号。
-- 在庫切れまたは在庫超過数量。
-- Closed、Paused、満員、営業時間外のQueue。
-- 位置情報を拒否したBooking。
-- OA未追加／ブロック状態でBookingと通知配信を確認する。
-- payment returnを再読み込みし、注文・Ticket・決済の重複がないことを確認する。
-- 同じQueueへの追加Bookingと別QueueへのBooking。
-- ログアウト後にLINE sessionが必要なページを開く。
 
 ### 画像について
 
-図29〜38はMock LIFF/Demo Paymentで取得しました。LINEチャットを偽装した画像ではありません。native画面は上記のとおり実機で追加してください。
+図29〜38はCustomerのLINE/LIFF操作と、決済が必要な場合の画面を順番に示しています。
 
 ## 13. Ticket と Queue のステータス
 
@@ -642,7 +564,7 @@ Branchの有効Ticketを呼び出し、不在対応、サービス開始・完�
 
 1. `/login`を開き、Staffのメールを入力します。不具合報告の画像・動画にはパスワードを表示しないでください。
 
-![Staffログイン](./docs/images/guide/39-staff-login.png)
+![Staffログイン](../images/guide/39-staff-login.png)
 
 _図39 — 共通ビジネスログインからStaff画面へ遷移。_
 
@@ -650,25 +572,25 @@ _図39 — 共通ビジネスログインからStaff画面へ遷移。_
 3. Ticketを選択し、Booking名、電話番号、確認済みLINE表示名、注文番号、商品・サービス、数量、支払済み、残金を確認します。
 4. Queueに適切なCalled／Serving Ticketがない場合、先頭Waiting Ticketは自動で呼び出されます。独立した手動**Call Next**操作はありません。
 
-![Staffワークスペース（デスクトップ）](./docs/images/guide/40-staff-workspace-desktop.png)
+![Staffワークスペース（デスクトップ）](../images/guide/40-staff-workspace-desktop.png)
 
 _図40 — デスクトップのTicket一覧、顧客・注文詳細、操作。_
 
 5. モバイルでは横方向のTicketバーと縦方向の詳細を使用します。下部ナビゲーションに重要操作が隠れないことを確認します。
 
-![Staffワークスペース（モバイル）](./docs/images/guide/41-staff-workspace-mobile.png)
+![Staffワークスペース（モバイル）](../images/guide/41-staff-workspace-mobile.png)
 
 _図41 — 390×844のresponsive Staffレイアウト。_
 
 6. **呼び出し中**Ticketを選び、**対応開始**、**3つ後ろへ移動**、**受付をキャンセル**を確認します。
 
-![Called状態のTicket](./docs/images/guide/42-ticket-called.png)
+![Called状態のTicket](../images/guide/42-ticket-called.png)
 
 _図42 — Called状態でStaffが実行できる操作。_
 
 7. Customerが来店していれば**対応開始**を選びます。Ticketは**対応中**になります。
 
-![Serving状態のTicket](./docs/images/guide/43-ticket-serving.png)
+![Serving状態のTicket](../images/guide/43-ticket-serving.png)
 
 _図43 — Serving状態、完了操作、残金表示。_
 
@@ -676,19 +598,19 @@ _図43 — Serving状態、完了操作、残金表示。_
 9. **完了**を選びます。在庫予約が消費され、TicketがServed／完了になり、条件に応じて次のCustomerへ進みます。
 10. 完了ダイアログを確認し、**領収書を印刷**または閉じて続行します。
 
-![Ticket完了結果](./docs/images/guide/44-ticket-completed.png)
+![Ticket完了結果](../images/guide/44-ticket-completed.png)
 
 _図44 — 完了確認と領収書への導線。_
 
 11. 印刷画面でBranch、Queue、Ticket／Order、時刻、明細、数量、合計、支払済み、残金を確認します。
 
-![領収書](./docs/images/guide/45-receipt.png)
+![領収書](../images/guide/45-receipt.png)
 
 _図45 — 別ウィンドウで印刷できる領収書。_
 
 12. 初回不在の場合は**3つ後ろへ移動**を選び、確認します。Ticketは後方のWaitingへ戻ります。
 
-![不在時の後退操作](./docs/images/guide/46-absence-defer.png)
+![不在時の後退操作](../images/guide/46-absence-defer.png)
 
 _図46 — Defer後にTicketがWaitingへ戻り、Queueが継続。_
 
@@ -698,7 +620,7 @@ _図46 — Defer後にTicketがWaitingへ戻り、Queueが継続。_
     - 3回目：設定ポリシーによりNo-show／取消。商品在庫予約を解放・復元し、前払いがある場合はrefund workflowを作成します。
 14. **受付をキャンセル**は正当な理由がある場合だけ使用し、注文、在庫、通知への影響を確認してください。
 
-### 期待結果
+### 操作後の状態
 
 - 割り当てられたBranchの有効Ticketだけが表示されます。
 - 許可された順序で状態が変わり、同じ操作を繰り返しても効果が重複しません。
@@ -706,19 +628,9 @@ _図46 — Defer後にTicketがWaitingへ戻り、Queueが継続。_
 - LINE配信に失敗しても、完了したQueue状態は元に戻りません。
 - 領収書はserverが確認した価格・payment statusを使用します。
 
-### 推奨テストケース
-
-- Called → Serving → Served。
-- Called → 1回目／2回目defer → Waiting。
-- 3回目不在 → ポリシーどおりNo-show／cancel。
-- 有限在庫を含むTicketを取消し、在庫を確認する。
-- 残金を回収し、領収書を印刷する。
-- デスクトップとモバイルで操作する。
-- StaffでManager／Admin画面を開き、拒否またはリダイレクトを確認する。
-
 ### 画像について
 
-図39〜46は、同じテスト実行内で作成したTicket fixtureとMock LIFF Bookingを使用しています。
+図39〜46は、StaffがTicketを呼び出してから対応完了、領収書、不在処理までを示しています。
 
 ## 15. LINE Notification
 
@@ -744,7 +656,7 @@ CustomerがLIFFを開いたままにしなくても、重要な受付イベン�
 7. Flex Messageが配信／表示できない場合、text fallbackを確認します。
 8. **設定**で通知種別を1つ無効にし、対応イベントを再実行します。
 
-### 期待結果
+### 操作後の状態
 
 - created、exactly-five-ahead、called、completed、deferred、cancelled、no-showで送信要求が作成されます。
 - Flex Messageを優先し、text fallbackがあります。
@@ -752,34 +664,9 @@ CustomerがLIFFを開いたままにしなくても、重要な受付イベン�
 - 配信失敗は運用上記録・再試行されますが、Queue状態を取り消しません。
 - LINE Login成功はMessaging APIの配信成功を保証しません。両者は別機能です。
 
-### 推奨テストケース
-
-- OAを友だち追加し、すべての通知を有効にする。
-- 友だち追加を拒否／OAをブロックしてもBookingできること。
-- 通知設定を種類ごとに無効化する。
-- 前方人数が6から5になったときだけ該当イベントが発生すること。
-- Customer sessionあり／なしでdeep linkを開く。
-- Flexが利用できない場合にtext fallbackを確認する。
-
 ### 画像について
 
 現在、Webには利用者向けの「Notification operations」画面がないため、`47-notification-operation.png`は作成していません。API出力や偽のLINEチャット画像で成功を装ってはいません。
-
-> **手動で追加する画像：**
->
-> 実機で**Booking created**のLINE Flex Messageを撮影してください。
-
-> **手動で追加する画像：**
->
-> 実機で**Called／Completed／Deferred／Cancelled／No-show**のFlex Messageを撮影してください。
-
-> **手動で追加する画像：**
->
-> 実機でtext fallbackとTicket deep linkを撮影してください。
-
-> **手動で追加する画像：**
->
-> 端末の通知バナーを撮影し、不要な個人情報を隠してください。
 
 ## 16. Payment
 
@@ -803,23 +690,13 @@ CustomerがLIFFを開いたままにしなくても、重要な受付イベン�
 6. Staffは完了前に**支払済み**と**残金**を照合します。
 7. cancel／no-show時はrefund workflowの状態と金額を確認します。providerの確認がない限り、実口座への返金完了とは判断しません。
 
-### 期待結果
+### 操作後の状態
 
 - 支払額は現在のcatalogからserverが計算し、browserは価格を決定しません。
-- payment successは検証済みprovider／demoフローだけから受け付けます。
+- payment successは利用可能provider／demoフローだけから受け付けます。
 - Branch設定UIにcollection providerとして`payOS`が表示される場合がありますが、本ローカルガイドで確認したのはDemo Paymentです。
 - UIの内部状態だけでは、payOS production settlement、reconciliation、provider refundのend-to-end完了を証明できません。
 - 取消時に内部refund workflowが作成されても、provider側の証拠なしに実返金済みとは表記しません。
-
-### 推奨テストケース
-
-- 前払いなし。
-- 混合注文で必須項目だけ前払い。
-- full-order payment。
-- 決済取消／失敗後にcatalogへ戻る。
-- return／callback再実行、使用済みpayment reference。
-- 前払い後に取消し、refund statusを確認する。
-- Staffが残金を回収し、領収書と金額を照合する。
 
 ### 画像について
 
@@ -849,21 +726,12 @@ Demo Paymentは図34、Ticketのpayment summaryは図36、領収書は図45を�
 5. Bookingの取消または期限切れでは、対応フローに従ってreservationがrelease／restoreされます。
 6. 2つのCustomer sessionで最後の1個を同時に要求します。1つだけが確保でき、もう1つは明確な在庫切れ／競合エラーになります。
 
-### 期待結果
+### 操作後の状態
 
 - Organizationの商品編集は共通定義に反映されますが、Branch Aの在庫はBranch Bを変更しません。
 - Bookingは在庫を原子的に確保し、過剰販売を防ぎます。
 - 完了は消費し、取消／期限切れは現在の状態規則に従い解放します。
 - Serviceは有限在庫でブロックされません。
-
-### 推奨テストケース
-
-- 在庫0、1、2、無制限。
-- 2人が最後の1個を同時に予約する。
-- Booking後に取消す。
-- Booking後に完了する。
-- Booking確定前にpaymentを失敗させる。
-- QueueからProductを外してもOrganizationカタログには残ること。
 
 ### 画像について
 
@@ -874,7 +742,7 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
 - Admin、Owner、Branch Manager、Staffのbusiness sessionは、約**15分**操作がないと期限切れとなり、操作中でも絶対上限は**12時間**です。
 - CustomerのLINE sessionは現在約**30日**ですが、LINE/LIFFの状態によって再認証が必要になることがあります。
 - refreshが有効な間は、画面がsessionを透過的に更新するため、通常は技術的な更新操作は見えません。
-- 完全に期限切れになるとログイン画面へ移動するか、LINEから開き直すよう求められます。期限切れテスト前に入力中の内容を控えてください。
+- 完全に期限切れになるとログイン画面へ移動するか、LINEから開き直すよう求められます。長時間操作しない場合は、入力中の内容を先に保存してください。
 - **ログアウト**はその端末／browserの現在sessionを削除します。
 - パスワード変更／再設定後、以前のbusiness sessionは無効です。新しいパスワードで再ログインしてください。
 - 期限切れ後に読み込みが続く場合は1回再読み込みし、それでも解消しなければログアウト、またはLIFFを閉じて正しいURLから開き直してください。不具合報告にcookie／tokenを添付しないでください。
@@ -883,7 +751,7 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
 
 画面上部の言語選択から**日本語**、**Tiếng Việt**、**English**を利用できます。翻訳データまたはUI文言がない場合のfallbackは日本語です。
 
-各言語で次を確認してください。
+言語を切り替える場合は、次の点に注意してください。
 
 1. メニュー、見出し、ボタン、validation、状態、payment文言が切り替わること。
 2. 日本語より長い英語／ベトナム語でレイアウトが崩れないこと。
@@ -892,164 +760,32 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
 5. ログアウト／再ログイン後も、保存権限がある利用者では選択言語が保持されること。
 6. 翻訳がない場合、技術的なi18n keyではなく意味のある日本語fallbackが表示されること。
 
-## 20. 推奨テストシナリオ
+## 20. 15〜20分で把握する基本操作
 
-### A. 法人オンボーディング全体
+1. 公開トップページを開き、法人申込みの流れを確認します。
+2. Platform Adminでログインし、申込み一覧と詳細を開きます。
+3. Organization Ownerでログインし、商品・サービスとBranchを確認します。
+4. Branch Managerでログインし、営業時間、Queue、在庫、Staff、Branch QRを確認します。
+5. Branch QRをLINEで読み取り、Queueと商品・サービスを選択します。
+6. 必要事項を入力し、必要な場合は表示された決済手順を完了します。
+7. 発行されたTicketで受付番号、前方人数、ETA、注文内容を確認します。
+8. Staffでログインし、Ticketを呼び出して対応を開始します。
+9. 対応を完了し、必要に応じて残金と領収書を処理します。
+10. Customer側のTicket状態とLINE通知を確認します。
 
-- [ ] `.invalid`または指定テストメールで有効な申請を送る。
-- [ ] フォームにManagerパスワードがないことを確認する。
-- [ ] Adminが申請を検索、詳細確認、承認する。
-- [ ] 作成されたのはOrganizationと招待Ownerだけで、Branch／Queueが0であることを確認する。
-- [ ] Ownerが一度限りのリンクでパスワードを設定しログインする。
-- [ ] 同じリンクを再利用し、拒否されることを確認する。
+## 21. 現在の制限事項
 
-### B. Ownerの商品カタログとBranch設定
-
-- [ ] 前払い不要のServiceを作成する。
-- [ ] 画像と価格があり、前払い必須のProductを作成する。
-- [ ] DV／SPコードの自動生成を確認する。
-- [ ] Branch Manager招待を1名以上含むBranchを作成する。
-- [ ] Starter／Standard／Scaleの上限を確認する。
-- [ ] 操作ログと分析を見る。
-- [ ] 保持すべきデータがあるBranch削除を確定しない。
-
-### C. Branch ManagerのQueue・Staff設定
-
-- [ ] 住所と週間営業時間を更新する。
-- [ ] 例外休日を追加する。
-- [ ] 固有prefixと小さいcapacityを持つOpen Queueを作成する。
-- [ ] Organizationカタログから2項目以上を割り当てる。
-- [ ] 有限／無制限／在庫切れを設定する。
-- [ ] Staffを招待し、正しいBranch所属を確認する。
-- [ ] QRをコピー／印刷し、正しいBranchが開くことを確認する。
-
-### D. 前払いなしのCustomer LINE Booking
-
-- [ ] QRを読み取り、LINE LoginしてQueueを選択する。
-- [ ] 前払い不要項目を選ぶ。
-- [ ] 有効な氏名と日本の電話番号を入力する。
-- [ ] 位置情報を拒否してもBookingできることを確認する。
-- [ ] Ticketへ直接移動することを確認する。
-- [ ] Ticket Code、Order Number、前方人数、ETA、残金を照合する。
-
-### E. Demo前払いを伴うCustomer Booking
-
-- [ ] 前払い必須項目を選ぶ。
-- [ ] scopeに応じた支払額を確認する。
-- [ ] 実カードを使わずDemo Paymentを完了する。
-- [ ] 正しいTicketへ戻ることを確認する。
-- [ ] returnを再読み込みし、注文／Ticket／paymentが重複しないことを確認する。
-- [ ] 合計、支払済み、残金を照合する。
-
-### F. Staffによる対応完了
-
-- [ ] Staffでログインし、正しいQueueを選択する。
-- [ ] auto-called Ticketを確認する。
-- [ ] 対応開始する。
-- [ ] 必要なら残金を回収・記録する。
-- [ ] 完了し、領収書を開く。
-- [ ] Ticket／Order／明細／合計を照合する。
-- [ ] 次のCustomerが処理されることを確認する。
-
-### G. 取消と在庫復元
-
-- [ ] Booking前の在庫を記録する。
-- [ ] 有限ProductをBookingする。
-- [ ] 利用可能在庫が確保されたことを確認する。
-- [ ] StaffがTicketを取消す。
-- [ ] reservationの解放／在庫復元を確認する。
-- [ ] 前払い済みならrefund workflowを確認し、provider返金完了と決めつけない。
-
-### H. 同じQueueでの追加Booking
-
-- [ ] Queue Aに有効Ticketを作る。
-- [ ] 同じBranchからQueue Aを再選択する。
-- [ ] 商品・サービスを追加Bookingする。
-- [ ] 同じQueueに競合する2つ目のTicketが作られないことを確認する。
-- [ ] 現在Ticketと関連Orderを照合する。
-
-### I. 別QueueでのBooking
-
-- [ ] Queue Aの有効Ticketを保持する。
-- [ ] Branch QRを再度開き、Queue Bを選択する。
-- [ ] 有効なBookingを作成する。
-- [ ] Queue B固有のprefix、前方人数、ETAを持つ別Ticketを確認する。
-- [ ] 各QueueのStaff画面に適切な運用データだけが表示されることを確認する。
-
-### J. 不在／defer／no-show
-
-- [ ] Ticketを呼び出し、1回目deferで3位置後退を確認する。
-- [ ] 再呼出し後、2回目も後退することを確認する。
-- [ ] 3回目にポリシーどおりNo-show／cancelとなることを確認する。
-- [ ] 在庫解放とrefund workflowを確認する。
-- [ ] 実機でDeferred／No-show通知を確認する。
-
-### K. 権限境界
-
-- [ ] OwnerがBranch ManagerのQueue／Stock／Staff／QR URLを開く。
-- [ ] Branch ManagerがOrganizationカタログ、別Branch、Adminを開く。
-- [ ] StaffがManager／Adminを開く。
-- [ ] Customerがbusiness portalを開く。
-- [ ] URL／browserデータのOrganization、Branch、LINE User IDを変更しても権限を越えないことを確認する。
-- [ ] browser側で価格／payment statusを書き換えても反映されないことを確認する。
-
-### L. モバイル・responsive表示
-
-- [ ] 390×844のLIFFに横スクロールがない。
-- [ ] 主操作とbottom navigationが重ならない。
-- [ ] 商品詳細、payment、Ticketが読める。
-- [ ] Staff mobileでTicket選択と操作ができる。
-- [ ] 1440×1000で重要なmodal／tableが切れない。
-- [ ] 画面回転／サイズ変更で状態が失われない。
-
-### M. 多言語
-
-- [ ] 日本語で1つのフローを実行する。
-- [ ] ベトナム語で再実行する。
-- [ ] 英語で再実行する。
-- [ ] 未翻訳データの日本語fallbackを確認する。
-- [ ] 生のi18n keyや文字切れがない。
-- [ ] JPY、日付、時刻、数値形式を確認する。
-
-### N. Session期限切れとログアウト
-
-- [ ] business sessionをidle期限切れにし、ログインへ戻ることを確認する。
-- [ ] 有効なtransparent refreshで操作内容が失われない。
-- [ ] business logout後にBackで保護ページが開かない。
-- [ ] CustomerがLIFFでlogout後、Ticketを開く。
-- [ ] パスワード変更後、古いsessionが失効する。
-- [ ] 不具合報告にcookie／tokenを添付しない。
-
-## 21. 15〜20分のクイック体験チェックリスト
-
-1. [ ] Landing Pageを開き、QR／LINEの利用方法を確認する。
-2. [ ] Business Registrationの最初の2ステップを確認する。短時間の場合は新規送信不要。
-3. [ ] Platform Adminでログインする。
-4. [ ] Organization Applicationを1件開き、プランとDemo Paymentを確認する。
-5. [ ] ログアウトし、Organization Ownerでログインする。
-6. [ ] Product CatalogとBranchesを見る。
-7. [ ] ログアウトし、Branch Managerでログインする。
-8. [ ] Queue、Staff、Stock、QRを見る。
-9. [ ] 実機LINEでQRを読むか、Mock LIFFで開く。
-10. [ ] Queueを選び、前払いなしまたはDemo PaymentのCustomer Bookingを作成する。
-11. [ ] Ticket Code、Order Number、前方人数、ETA、payment summaryを見る。
-12. [ ] 必要に応じて別ウィンドウでStaffログインする。
-13. [ ] 対象Ticketを**対応開始**し、**完了**する。
-14. [ ] Customer Ticketの状態を再確認し、実機ではLINE Notificationも確認する。
-
-## 22. 現在の制限事項
-
-- **実決済**：ローカルのDemo Paymentは確認済みです。payOS／providerのproduction settlement、reconciliation、refund end-to-endはproviderと別途受入確認が必要です。内部状態だけを実返金の証拠としません。
-- **LINE実機**：LINE Login同意、友だち追加／ブロック解除、Rich Menu、Flex Message、native QR scanner、通知バナーは実機acceptance testが必要です。
-- **production Rich Menu**：OA production上の設定とdeep linkを確認する必要があります。
-- **Google Routes／位置情報**：実距離／routeの受入前にproduction credentialsと適切なprivacy同意が必要です。
+- **実決済**：Demo Paymentは実際の決済ではありません。実運用では、画面に表示される決済事業者の結果を確認し、内部状態だけを実返金の証拠としないでください。
+- **LINE実機**：各画面と通知の表示は、LINEアプリ、Official Account、端末の通知設定に依存します。
+- **LINE Rich Menu**：利用可否は運用中のOfficial Account設定とdeep link設定に依存します。
+- **Google Routes／位置情報**：実距離／routeの利用には有効なcredentialsと適切なprivacy同意が必要です。
 - **ETA／forecast**：運用データに基づく測定heuristicであり、学習済みmachine learningモデルではありません。データが少ない場合や対応時間が変動する場合は結果も変わります。
-- **media／object storage**：ローカルはmedia mockです。productionのobject storage、lifecycle、アクセス制御は別途hardeningと運用確認が必要です。
-- **production基盤**：監視、backup／restore、一部運用手順はproduction-like環境での受入が必要です。
-- **大規模負荷**：production-scaleのload／soak testは未完了です。実装済み機能が最大負荷を証明するものではありません。
+- **media／object storage**：メディアの保存、lifecycle、アクセス制御は運用環境の構成に依存します。
+- **運用基盤**：監視、backup／restore、メディア保存などの機能は運用環境の構成に依存します。
+- **大規模運用**：利用可能な処理量は運用環境の構成と契約内容に依存します。
 - **Notification operations UI**：配信状態を閲覧する利用者向けdashboardは現時点でありません。LINEチャットの証跡は実機または権限を持つ運用経路で取得します。
 
-## 23. 簡単なトラブルシューティング
+## 22. 簡単なトラブルシューティング
 
 | 症状                      | 利用者が確認すること                                                                                                              |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -1066,44 +802,25 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
 
 token、cookie、価格、payment statusを含むURLを編集して「直そう」としないでください。次の様式で報告してください。
 
-## 24. 不具合報告テンプレート
+## 23. サポート依頼時に伝える情報
 
-不具合ごとに次をコピーしてください。
+サポートへ連絡する場合は、次の情報を可能な範囲で記載してください。
 
-```text
-タイトル：
-URL：
-発生日時・タイムゾーン：
-ロール：
-端末・モデル：
-OS：
-Browser／LINEバージョン：
-言語：
-Branch：
-Queue：
-事前条件：
+- 発生した内容
+- URLと発生日時
+- 利用ロール
+- 端末、OS、ブラウザ
+- 表示言語
+- BranchとQueue
+- 発生前の状態と操作手順
+- 画面に表示されたメッセージ
+- スクリーンショットまたは動画
+- 画面にRequest IDが表示されている場合はその値
 
-再現手順：
-1.
-2.
-3.
+パスワード、認証リンク、token、secret、実在顧客の不要な個人情報は送信しないでください。
 
-実際の結果：
-期待結果：
-頻度：毎回／時々／1回のみ
-重要度：Blocker／High／Medium／Low
-添付画像・動画：
-UIに表示されたRequest ID：
-補足：
-```
+## 24. サポート窓口
 
-パスワード、有効化／再設定token、cookie、secret、実カード情報、生のLINE User ID、実在Customerの個人情報をタイトル、本文、画像、動画へ含めないでください。デモデータを使用し、不要な情報をマスクしてください。
-
-## 25. サポート窓口
-
-- Email：`support@smartqueue.io.vn`
-- プロジェクトオーナー：`[PROJECT OWNER名を記入]`
-- 推奨連絡方法：`[SLACK／TEAMS／EMAIL／電話を記入]`
-- 対応時間：`[時間帯とタイムゾーンを記入]`
-
-連絡時は、対象バージョン、環境、ロール、Branch／Queue、発生時刻、セクション24の報告内容を添えてください。secretや実在Customerの情報は送信しないでください。
+- サポートメール：`support@smartqueue.io.vn`
+- LINE公式アカウント：`[運用中のアカウントを記入]`
+- 対応時間：`[対応時間を記入]`

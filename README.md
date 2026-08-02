@@ -1,6 +1,6 @@
 # LINE Smart Queue Assistant
 
-<details open>
+<details>
 <summary><strong>🇯🇵 日本語</strong></summary>
 
 ## LINEで始める、見える・離れられる受付体験
@@ -116,10 +116,10 @@ _Staffは顧客、注文、Ticket状態、残金、対応操作を1画面で扱�
 
 ### ガイドと連絡先
 
-- [日本語の完全利用・テストガイド](./guide.md)
+- [日本語ご利用ガイド](./docs/guide/guide.md)
 - サポート：`support@smartqueue.io.vn`
-- プロジェクトオーナー：`[PROJECT OWNER名を記入]`
-- 推奨連絡方法：`[SLACK／TEAMS／EMAIL／電話を記入]`
+- プロジェクト担当者：Nguyễn Trung Nghĩa
+- 連絡先：[メール](mailto:trungnghia180205@gmail.com)／[LinkedIn](https://www.linkedin.com/in/nguyen-trung-nghia-366842157/)
 
 </details>
 
@@ -239,10 +239,10 @@ The system uses a React/Vite web UI, an Express/TypeScript API, and PostgreSQL, 
 
 ### Guide and contact
 
-- [Complete English user and testing guide](./guide.en.md)
+- [English user guide](./docs/guide/guide.en.md)
 - Support: `support@smartqueue.io.vn`
-- Project owner: `[ADD PROJECT OWNER NAME]`
-- Preferred contact: `[ADD SLACK/TEAMS/EMAIL/PHONE]`
+- Project lead: Nguyễn Trung Nghĩa
+- Contact: [Email](mailto:trungnghia180205@gmail.com) / [LinkedIn](https://www.linkedin.com/in/nguyen-trung-nghia-366842157/)
 
 </details>
 
@@ -362,9 +362,9 @@ Hệ thống dùng Web UI React/Vite, API Express/TypeScript và PostgreSQL; có
 
 ### Hướng dẫn và liên hệ
 
-- [Hướng dẫn sử dụng và kiểm thử đầy đủ bằng tiếng Việt](./guide.vi.md)
+- [Hướng dẫn sử dụng](./docs/guide/guide.vi.md)
 - Hỗ trợ: `support@smartqueue.io.vn`
-- Người phụ trách dự án: `[BỔ SUNG TÊN PROJECT OWNER]`
-- Kênh ưu tiên: `[BỔ SUNG SLACK/TEAMS/EMAIL/ĐIỆN THOẠI]`
+- Người phụ trách dự án: Nguyễn Trung Nghĩa
+- Liên hệ: [Email](mailto:trungnghia180205@gmail.com) / [LinkedIn](https://www.linkedin.com/in/nguyen-trung-nghia-366842157/)
 
 </details>
