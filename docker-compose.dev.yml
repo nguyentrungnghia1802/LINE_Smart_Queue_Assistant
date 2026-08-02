@@ -65,6 +65,7 @@ services:
       - ./packages/shared/tsconfig.json:/app/packages/shared/tsconfig.json
       - ./packages/config:/app/packages/config
       - ./db/migrations/node-pg-migrate:/app/db/migrations/node-pg-migrate:ro
+      - ./db/fixtures:/app/db/fixtures:ro
     ports:
       - '4000:4000'
       - '9229:9229' # Node.js inspector — attach via VS Code or Chrome DevTools
@@ -102,6 +103,7 @@ services:
       - ./apps/web/src:/app/apps/web/src
       - ./apps/web/index.html:/app/apps/web/index.html
       - ./apps/web/vite.config.ts:/app/apps/web/vite.config.ts
+      - ./apps/web/vite-plugins:/app/apps/web/vite-plugins
       - ./apps/web/public:/app/apps/web/public
       - ./packages/shared/src:/app/packages/shared/src
     ports:

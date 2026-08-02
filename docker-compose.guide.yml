@@ -1,0 +1,35 @@
+# Safe local overrides for deterministic guide screenshots.
+# Usage: docker compose -f docker-compose.dev.yml -f docker-compose.guide.yml up -d --build
+services:
+  api:
+    environment:
+      NODE_ENV: development
+      WEB_ORIGIN: http://localhost:5173
+      CORS_ORIGIN: http://localhost:5173
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: ''
+      LINE_MESSAGING_CHANNEL_SECRET: ''
+      LINE_CHANNEL_ACCESS_TOKEN: ''
+      LINE_CHANNEL_SECRET: ''
+      LINE_LOGIN_CHANNEL_ID: ''
+      LINE_LOGIN_LIFF_ID: ''
+      LINE_LIFF_ID: ''
+      LINE_ID_TOKEN_MOCK_USER_ID: mock-guide-customer
+      LINE_ID_TOKEN_MOCK_DISPLAY_NAME: LINEデモ顧客
+      EMAIL_TRANSPORT: mock
+      EMAIL_FROM_ADDRESS: no-reply@guide.invalid
+      EMAIL_TOKEN_ENCRYPTION_KEY: local-guide-only-encryption-key-2026
+      EMAIL_MOCK_OUTPUT_DIR: /tmp/line-queue-guide-email
+      PAYMENT_MODE: demo
+      MEDIA_STORAGE_MODE: mock
+  web:
+    environment:
+      VITE_LIFF_ID: ''
+      VITE_LIFF_MOCK: 'true'
+      VITE_LIFF_MOCK_LOGGED_IN: 'true'
+      VITE_LIFF_MOCK_FRIEND: 'true'
+      VITE_LIFF_MOCK_USER_ID: mock-guide-customer
+      VITE_LIFF_MOCK_DISPLAY_NAME: LINEデモ顧客
+      VITE_LIFF_DEFAULT_BOOKING_PATH: /liff/qr/demo-queue-lab-2026
+      VITE_PAYMENT_MODE: demo
+      VITE_GOOGLE_MAPS_API_KEY: ''
+      VITE_GOOGLE_MAPS_MAP_ID: ''

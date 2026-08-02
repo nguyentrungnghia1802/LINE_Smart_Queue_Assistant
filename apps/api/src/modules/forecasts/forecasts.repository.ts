@@ -61,7 +61,8 @@ export const forecastsRepository = {
         SELECT om.organization_id, bm.branch_id, COUNT(DISTINCT om.user_id)::int AS active_staff_count
         FROM organization_members om
         JOIN branch_memberships bm
-          ON bm.organization_member_id = om.id
+          ON bm.organization_id = om.organization_id
+         AND bm.user_id = om.user_id
          AND bm.is_active = TRUE
          AND bm.deactivated_at IS NULL
         WHERE om.is_active = TRUE AND om.role IN ('manager', 'staff')
@@ -89,7 +90,8 @@ export const forecastsRepository = {
                SELECT COUNT(DISTINCT om.user_id)
                FROM organization_members om
                JOIN branch_memberships bm
-                 ON bm.organization_member_id = om.id
+                 ON bm.organization_id = om.organization_id
+                AND bm.user_id = om.user_id
                 AND bm.branch_id = q.branch_id
                 AND bm.is_active = TRUE
                 AND bm.deactivated_at IS NULL

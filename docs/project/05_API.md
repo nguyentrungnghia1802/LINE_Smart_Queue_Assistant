@@ -408,7 +408,8 @@ email cannot be invited again under another role.
 - `PATCH /api/v1/users/me/password` requires the current password, enforces the shared business
   password policy, updates the hash, and revokes all sessions so the user must sign in again.
 - `GET|POST /api/v1/branches` lists branches or lets the organization owner create a branch with
-  at least one manager and a default closed queue.
+  at least one invited manager. Branch creation does not create a queue; the assigned branch manager
+  creates queues separately.
 - `GET|PATCH /api/v1/branches/me` and
   `GET|PUT /api/v1/branches/me/business-calendar` are branch-manager-only and derive branch scope
   from the authenticated assignment.
