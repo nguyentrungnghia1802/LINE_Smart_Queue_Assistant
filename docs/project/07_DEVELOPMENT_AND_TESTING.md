@@ -79,6 +79,20 @@ npm run docker:dev:down
 
 `npm run docker:clean` also removes development database volumes and is destructive.
 
+### Workspace hygiene
+
+Generated build, coverage, browser-test, TypeScript cache, temporary Jest result, and log files are
+excluded by `.gitignore` and `.dockerignore`; they must not be committed or copied into production
+image contexts. `npm run clean` removes workspace build output and TypeScript build caches. Other
+ignored artifacts may be removed after their process has stopped. Do not treat `.env`,
+`apps/web/.env.local`, `deploy/.env`, `node_modules`, PostgreSQL volumes, or local media under `var`
+as disposable cleanup targets unless an explicit environment reset is intended.
+
+Before removing a tracked source, asset, Compose file, migration, fixture, or canonical document,
+verify imports, runtime/static references, package scripts, tests, Docker `COPY` instructions, and
+documentation links. The canonical and deploy production Compose files intentionally have identical
+content and are both required by the documented deployment workflow.
+
 ## 4. Run natively
 
 Create the database and set `DATABASE_URL`, then:

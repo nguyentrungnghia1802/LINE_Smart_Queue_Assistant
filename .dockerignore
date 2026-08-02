@@ -17,6 +17,7 @@ build
 coverage
 **/coverage
 *.lcov
+*-jest-results.json
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
