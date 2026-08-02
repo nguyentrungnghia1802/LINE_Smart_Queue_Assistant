@@ -59,8 +59,9 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Public business onboarding with organization/contact/address/usage/plan details, a work-email
   owner invitation, optional compressed logo, server-calculated demo payment, and admin
   approval/rejection. Applicants do not submit account credentials.
-- Branch-scoped product/service CRUD, prepayment flag, service duration, finite or unlimited stock,
-  and active state; queue configuration owns the queue-to-product catalog mapping.
+- Organization-level product/service CRUD for owners, including prepayment flag, service duration,
+  and active state; stock is branch-owned and may be finite or unlimited, while queue configuration
+  owns the queue-to-product catalog mapping.
 - Multiple named queues per branch with opening state, capacity configuration, ticket prefix/counter,
   three-slot absence deferral, ETA configuration, and branches that can start without a queue.
 - Atomic order, queue-entry, order-item, payment-transaction, inventory-reservation, and optional location writes.
