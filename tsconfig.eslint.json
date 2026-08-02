@@ -6,10 +6,5 @@
     "lib": ["ES2022", "DOM"],
     "types": ["node", "@playwright/test"]
   },
-  "include": [
-    "playwright.config.ts",
-    "playwright.guide.config.ts",
-    "e2e/**/*.ts",
-    "apps/web/src/i18n/locales/ja/*.ts"
-  ]
+  "include": ["playwright.config.ts", "e2e/**/*.ts"]
 }
