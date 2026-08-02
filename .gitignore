@@ -39,6 +39,7 @@ test-results/
 playwright-report/
 blob-report/
 *.lcov
+*-jest-results.json
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Logs
