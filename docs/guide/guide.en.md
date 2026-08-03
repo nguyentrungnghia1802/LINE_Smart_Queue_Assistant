@@ -12,13 +12,13 @@ Start with the chapter for your role. Screen names, buttons, states, and caution
 
 Use the information supplied by your system administrator for the relevant environment.
 
-| Item                  | Information                           |
-| --------------------- | ------------------------------------- |
-| Web URL               | `[ADD OPERATING URL]`                 |
-| Support email         | `support@smartqueue.io.vn`            |
-| LINE Official Account | `[ADD OFFICIAL ACCOUNT NAME OR LINK]` |
-| Branch QR             | `[ADD THE BRANCH QR IN USE]`          |
-| Guide date/version    | `[ADD YYYY-MM-DD AND VERSION]`        |
+| Item                  | Information                                            |
+| --------------------- | ------------------------------------------------------ |
+| Web URL               | [https://smartqueue.io.vn/](https://smartqueue.io.vn/) |
+| Support email         | `trungnghia180205@gmail.com`                           |
+| LINE Official Account | [Smart Queue](https://line.me/R/ti/p/@081llngs)        |
+| Branch QR             | `[ADD THE BRANCH QR IN USE]`                           |
+| Guide date/version    | `01/08/2026`                                           |
 
 Each Branch has its own stable QR. Confirm the Branch name before displaying or sharing it.
 
@@ -821,6 +821,6 @@ Do not send passwords, activation links, tokens, secrets, or unnecessary persona
 
 ## 24. Support contact
 
-- Support email: `support@smartqueue.io.vn`
-- LINE Official Account: `[ADD THE ACTIVE ACCOUNT]`
+- Support email: [trungnghia180205@gmail.com](mailto:trungnghia180205@gmail.com)
+- LINE Official Account: [Smart Queue](https://line.me/R/ti/p/@081llngs)
 - Support hours: `[ADD SUPPORT HOURS]`

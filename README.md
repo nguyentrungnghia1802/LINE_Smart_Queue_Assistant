@@ -3,6 +3,8 @@
 <details>
 <summary><strong>🇯🇵 日本語</strong></summary>
 
+🌐 Webサイト：[https://smartqueue.io.vn/](https://smartqueue.io.vn/)
+
 ## LINEで始める、見える・離れられる受付体験
 
 LINE Smart Queue Assistantは、日本の店舗、サロン、クリニック、サービス窓口向けの受付・予約・注文・決済基盤・顧客通知プラットフォームです。お客様は店舗に並び続ける代わりに、固定QRからLINEで受付し、自分の順番と待ち時間目安を確認できます。事業者は役割別のWeb画面で、組織、支店、キュー、商品、在庫、スタッフ、受付状況を管理します。
@@ -117,14 +119,16 @@ _Staffは顧客、注文、Ticket状態、残金、対応操作を1画面で扱�
 ### ガイドと連絡先
 
 - [日本語ご利用ガイド](./docs/guide/guide.md)
-- サポート：`support@smartqueue.io.vn`
-- プロジェクト担当者：Nguyễn Trung Nghĩa
+- サポート：[trungnghia180205@gmail.com](mailto:trungnghia180205@gmail.com)
+- プロジェクト担当者：グエン・チュン・ギア
 - 連絡先：[メール](mailto:trungnghia180205@gmail.com)／[LinkedIn](https://www.linkedin.com/in/nguyen-trung-nghia-366842157/)
 
 </details>
 
 <details>
 <summary><strong>🇬🇧 English</strong></summary>
+
+🌐 Website: [https://smartqueue.io.vn/](https://smartqueue.io.vn/)
 
 ## A visible queue experience that starts in LINE
 
@@ -240,14 +244,16 @@ The system uses a React/Vite web UI, an Express/TypeScript API, and PostgreSQL, 
 ### Guide and contact
 
 - [English user guide](./docs/guide/guide.en.md)
-- Support: `support@smartqueue.io.vn`
-- Project lead: Nguyễn Trung Nghĩa
+- Support: [trungnghia180205@gmail.com](mailto:trungnghia180205@gmail.com)
+- Project lead: Nguyen Trung Nghia
 - Contact: [Email](mailto:trungnghia180205@gmail.com) / [LinkedIn](https://www.linkedin.com/in/nguyen-trung-nghia-366842157/)
 
 </details>
 
 <details>
 <summary><strong>🇻🇳 Tiếng Việt</strong></summary>
+
+🌐 Website: [https://smartqueue.io.vn/](https://smartqueue.io.vn/)
 
 ## Trải nghiệm xếp hàng minh bạch, bắt đầu từ LINE
 
@@ -363,7 +369,7 @@ Hệ thống dùng Web UI React/Vite, API Express/TypeScript và PostgreSQL; có
 ### Hướng dẫn và liên hệ
 
 - [Hướng dẫn sử dụng](./docs/guide/guide.vi.md)
-- Hỗ trợ: `support@smartqueue.io.vn`
+- Hỗ trợ: [trungnghia180205@gmail.com](mailto:trungnghia180205@gmail.com)
 - Người phụ trách dự án: Nguyễn Trung Nghĩa
 - Liên hệ: [Email](mailto:trungnghia180205@gmail.com) / [LinkedIn](https://www.linkedin.com/in/nguyen-trung-nghia-366842157/)
 
