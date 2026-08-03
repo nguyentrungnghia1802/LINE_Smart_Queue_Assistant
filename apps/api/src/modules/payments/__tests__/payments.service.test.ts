@@ -28,7 +28,6 @@ const queueId = '33333333-3333-4333-8333-333333333331';
 const prepaidProduct = {
   id: '44444444-4444-4444-8444-444444444441',
   organization_id: org.id,
-  branch_id: null,
   product_code: 'DV1',
   name: '前払いサービス',
   price: '1500',
@@ -40,7 +39,6 @@ const prepaidProduct = {
 const normalProduct = {
   id: '44444444-4444-4444-8444-444444444442',
   organization_id: org.id,
-  branch_id: null,
   product_code: 'SP1',
   name: '通常商品',
   price: '500',

@@ -97,20 +97,6 @@ CREATE TYPE payment_status AS ENUM (
   'cancelled'
 );
 
-CREATE TYPE notification_type AS ENUM (
-  'queue_joined',
-  'queue_near_turn',
-  'queue_called',
-  'queue_skipped',
-  'queue_cancelled',
-  'queue_serving',
-  'queue_served',
-  'queue_no_show',
-  'payment_required',
-  'payment_received',
-  'location_warning'
-);
-
 CREATE TYPE notification_channel AS ENUM (
   'line_push',
   'email',
@@ -122,7 +108,6 @@ CREATE TYPE notification_status AS ENUM (
   'pending',
   'processing',
   'sent',
-  'delivered',
   'failed',
   'cancelled'
 );
@@ -493,7 +478,6 @@ CREATE TRIGGER trg_media_assets_updated_at BEFORE UPDATE ON media_assets FOR EAC
 CREATE TABLE products (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id       UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  branch_id             UUID,
   product_code          TEXT NOT NULL,
   name                  TEXT NOT NULL,
   description           TEXT,
@@ -503,7 +487,6 @@ CREATE TABLE products (
   service_time_minutes  INT NOT NULL DEFAULT 30,
   max_wait_minutes      INT,
   requires_prepayment   BOOLEAN NOT NULL DEFAULT FALSE,
-  stock_quantity        INT,
   is_active             BOOLEAN NOT NULL DEFAULT TRUE,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -511,8 +494,6 @@ CREATE TABLE products (
   CONSTRAINT products_price_non_negative CHECK (price >= 0),
   CONSTRAINT products_service_time_positive CHECK (service_time_minutes > 0),
   CONSTRAINT products_max_wait_positive CHECK (max_wait_minutes IS NULL OR max_wait_minutes > 0),
-  CONSTRAINT products_stock_non_negative CHECK (stock_quantity IS NULL OR stock_quantity >= 0),
-  CONSTRAINT products_service_stock_rule CHECK (product_type = 'product' OR stock_quantity IS NULL),
   CONSTRAINT products_product_code_format CHECK (product_code ~ '^(DV|SP)[1-9][0-9]*$'),
   CONSTRAINT products_id_org_unique UNIQUE (id, organization_id)
 );
@@ -550,7 +531,7 @@ CREATE TABLE queues (
   notify_ahead_positions     INT NOT NULL DEFAULT 3,
   allow_skip                 BOOLEAN NOT NULL DEFAULT TRUE,
   max_skips_before_penalty   INT NOT NULL DEFAULT 2,
-  auto_no_show_minutes       INT NOT NULL DEFAULT 5,
+  auto_no_show_minutes       INT DEFAULT 5,
   absence_deferral_slots     INT NOT NULL DEFAULT 3,
   max_absence_count          INT NOT NULL DEFAULT 3,
   opens_at                   TIME,
@@ -769,7 +750,7 @@ CREATE TABLE order_items (
 CREATE TABLE inventory_reservations (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id  UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  branch_id        UUID NOT NULL REFERENCES organization_branches(id) ON DELETE RESTRICT,
+  branch_id        UUID REFERENCES organization_branches(id) ON DELETE RESTRICT,
   order_id         UUID REFERENCES orders(id) ON DELETE CASCADE,
   product_id       UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
   quantity         INT NOT NULL,
@@ -781,6 +762,10 @@ CREATE TABLE inventory_reservations (
   CONSTRAINT inventory_reservations_quantity_positive CHECK (quantity > 0),
   CONSTRAINT inventory_reservations_status_valid CHECK (status IN ('reserved', 'consumed', 'released', 'expired'))
 );
+
+ALTER TABLE inventory_reservations
+  ADD CONSTRAINT inventory_reservations_branch_required
+  CHECK (branch_id IS NOT NULL) NOT VALID;
 
 CREATE TRIGGER trg_inventory_reservations_updated_at
 BEFORE UPDATE ON inventory_reservations
@@ -875,7 +860,7 @@ CREATE TABLE wait_time_forecasts (
   features                   JSONB NOT NULL DEFAULT '{}',
   explanation                TEXT,
   generated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  expires_at                 TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 days'),
+  expires_at                 TIMESTAMPTZ NOT NULL,
 
   CONSTRAINT wait_time_forecasts_wait_non_negative CHECK (forecasted_wait_seconds >= 0),
   CONSTRAINT wait_time_forecasts_queue_depth_non_negative CHECK (queue_depth >= 0),
@@ -894,7 +879,7 @@ CREATE TABLE staffing_recommendations (
   features                   JSONB NOT NULL DEFAULT '{}',
   explanation                TEXT,
   generated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  expires_at                 TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 days'),
+  expires_at                 TIMESTAMPTZ NOT NULL,
 
   CONSTRAINT staffing_recommendations_day_range CHECK (day_of_week BETWEEN 0 AND 6),
   CONSTRAINT staffing_recommendations_hour_range CHECK (hour_of_day BETWEEN 0 AND 23),
@@ -906,17 +891,24 @@ CREATE TABLE queue_hourly_metrics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   branch_id UUID NOT NULL REFERENCES organization_branches(id) ON DELETE CASCADE,
-  day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
-  hour_of_day INT NOT NULL CHECK (hour_of_day BETWEEN 0 AND 23),
+  day_of_week INT NOT NULL,
+  hour_of_day INT NOT NULL,
   sample_start TIMESTAMPTZ NOT NULL,
   sample_end TIMESTAMPTZ NOT NULL,
-  arrival_count INT NOT NULL DEFAULT 0 CHECK (arrival_count >= 0),
-  completion_count INT NOT NULL DEFAULT 0 CHECK (completion_count >= 0),
-  average_wait_seconds INT CHECK (average_wait_seconds IS NULL OR average_wait_seconds >= 0),
-  average_service_seconds INT CHECK (average_service_seconds IS NULL OR average_service_seconds >= 0),
+  arrival_count INT NOT NULL DEFAULT 0,
+  completion_count INT NOT NULL DEFAULT 0,
+  average_wait_seconds INT,
+  average_service_seconds INT,
   generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 days'),
-  CHECK (sample_start < sample_end)
+  expires_at TIMESTAMPTZ NOT NULL,
+  CONSTRAINT queue_hourly_metrics_day CHECK (day_of_week BETWEEN 0 AND 6),
+  CONSTRAINT queue_hourly_metrics_hour CHECK (hour_of_day BETWEEN 0 AND 23),
+  CONSTRAINT queue_hourly_metrics_counts CHECK (arrival_count >= 0 AND completion_count >= 0),
+  CONSTRAINT queue_hourly_metrics_duration CHECK (
+    (average_wait_seconds IS NULL OR average_wait_seconds >= 0)
+    AND (average_service_seconds IS NULL OR average_service_seconds >= 0)
+  ),
+  CONSTRAINT queue_hourly_metrics_window CHECK (sample_start < sample_end)
 );
 
 -- -----------------------------------------------------------------------------
@@ -928,29 +920,33 @@ CREATE TABLE notifications (
   queue_entry_id   UUID REFERENCES queue_entries(id) ON DELETE SET NULL,
   user_id           UUID REFERENCES users(id) ON DELETE CASCADE,
   line_user_id      TEXT,
-  type              notification_type NOT NULL,
   event_key         TEXT NOT NULL,
   event_type        TEXT NOT NULL,
   channel           notification_channel NOT NULL DEFAULT 'line_push',
   status            notification_status NOT NULL DEFAULT 'pending',
   locale            TEXT NOT NULL DEFAULT 'ja' CHECK (locale IN ('ja','vi','en')),
   payload           JSONB NOT NULL DEFAULT '{}',
-  retry_count       INT NOT NULL DEFAULT 0,
   attempt_count     INT NOT NULL DEFAULT 0,
   max_attempts      INT NOT NULL DEFAULT 5,
   next_retry_at     TIMESTAMPTZ,
   processing_started_at TIMESTAMPTZ,
-  error_message     TEXT,
   last_error        TEXT,
+  manual_retry_count INT NOT NULL DEFAULT 0,
+  operator_note     TEXT,
   sent_at           TIMESTAMPTZ,
-  delivered_at      TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-  CONSTRAINT notifications_retry_count_non_negative CHECK (retry_count >= 0),
   CONSTRAINT notifications_attempt_count_non_negative CHECK (attempt_count >= 0),
+  CONSTRAINT notifications_manual_retry_non_negative CHECK (manual_retry_count >= 0),
   CONSTRAINT notifications_max_attempts_positive CHECK (max_attempts > 0),
   CONSTRAINT notifications_event_key_unique UNIQUE (event_key),
+  CONSTRAINT notifications_event_type_supported CHECK (
+    event_type IN (
+      'booking_created', 'eta_warning', 'called', 'serving', 'completed',
+      'cancelled', 'no_show', 'deferred', 'location_warning'
+    )
+  ),
   CONSTRAINT notifications_has_recipient CHECK (user_id IS NOT NULL OR line_user_id IS NOT NULL)
 );
 
@@ -1115,12 +1111,10 @@ CREATE INDEX idx_notif_entry_event ON notifications(queue_entry_id, event_type)
   WHERE queue_entry_id IS NOT NULL;
 CREATE INDEX idx_notif_retry_due ON notifications(next_retry_at)
   WHERE status = 'failed' AND next_retry_at IS NOT NULL;
-CREATE INDEX idx_notif_entry_type ON notifications(queue_entry_id, type, created_at DESC)
-  WHERE queue_entry_id IS NOT NULL;
 CREATE INDEX idx_notif_user_recent ON notifications(user_id, created_at DESC)
-  WHERE user_id IS NOT NULL AND status IN ('sent', 'delivered');
+  WHERE user_id IS NOT NULL AND status = 'sent';
 CREATE INDEX idx_notif_line_user_recent ON notifications(line_user_id, created_at DESC)
-  WHERE line_user_id IS NOT NULL AND status IN ('sent', 'delivered');
+  WHERE line_user_id IS NOT NULL AND status = 'sent';
 
 CREATE INDEX idx_penalty_user_recent ON penalty_records(user_id, created_at DESC)
   WHERE user_id IS NOT NULL;
@@ -1140,14 +1134,32 @@ CREATE INDEX idx_audit_org ON audit_logs(organization_id, created_at DESC)
   WHERE organization_id IS NOT NULL;
 CREATE INDEX idx_audit_resource ON audit_logs(resource_type, resource_id, created_at DESC);
 
+CREATE INDEX idx_branches_org_active
+  ON organization_branches(organization_id, created_at) WHERE is_active = TRUE;
+CREATE INDEX idx_branch_memberships_user_active
+  ON branch_memberships(user_id, branch_id) WHERE is_active = TRUE;
+CREATE INDEX idx_branch_memberships_branch_role_active
+  ON branch_memberships(branch_id, role) WHERE is_active = TRUE;
+CREATE INDEX idx_account_action_tokens_user_purpose
+  ON account_action_tokens(user_id, purpose, created_at DESC);
+CREATE INDEX idx_account_action_tokens_active
+  ON account_action_tokens(token_hash, expires_at)
+  WHERE used_at IS NULL AND revoked_at IS NULL;
+CREATE INDEX idx_email_outbox_due
+  ON email_outbox(next_retry_at, created_at) WHERE status = 'pending';
+
 -- Operational correctness additions (migration 000007)
 ALTER TABLE organizations ALTER COLUMN timezone SET DEFAULT 'Asia/Tokyo';
 
 CREATE TABLE organization_counters (
   organization_id UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
   next_order_number BIGINT NOT NULL DEFAULT 1,
+  next_product_number BIGINT NOT NULL DEFAULT 1,
+  next_service_number BIGINT NOT NULL DEFAULT 1,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT organization_counters_order_positive CHECK (next_order_number > 0)
+  CONSTRAINT organization_counters_order_positive CHECK (next_order_number > 0),
+  CONSTRAINT organization_counters_product_positive CHECK (next_product_number > 0),
+  CONSTRAINT organization_counters_service_positive CHECK (next_service_number > 0)
 );
 
 ALTER TABLE queues ADD COLUMN counter_business_date DATE;
@@ -1253,10 +1265,6 @@ CREATE TABLE line_notification_preferences (
   CONSTRAINT line_preferences_consent_source CHECK (consent_source IS NULL OR consent_source IN ('line_follow','liff_settings','legacy_link'))
 );
 CREATE TRIGGER trg_line_notification_preferences_updated_at BEFORE UPDATE ON line_notification_preferences FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-ALTER TABLE notifications
-  ADD COLUMN manual_retry_count INT NOT NULL DEFAULT 0,
-  ADD COLUMN operator_note TEXT,
-  ADD CONSTRAINT notifications_manual_retry_non_negative CHECK (manual_retry_count >= 0);
 CREATE TABLE customer_location_consents (
   user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   enabled BOOLEAN NOT NULL DEFAULT FALSE,

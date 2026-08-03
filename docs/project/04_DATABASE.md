@@ -27,6 +27,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 21. `000021_role_aware_auth_sessions.js`
 22. `000022_branch_product_inventory.js`
 23. `000023_branch_map_place.js`
+24. `000024_normalize_core_schema.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -77,6 +78,7 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 | `product_translations`        | Localized product names/descriptions                                         | Composite product/locale key; cascade delete                                |
 | `queue_translations`          | Localized queue names/descriptions                                           | Composite queue/locale key; cascade delete                                  |
 | `media_assets`                | Stored image key, URL, ownership and deletion state                          | Unique key; provider/purpose/type/size/status checks                        |
+| `organization_counters`       | Atomic order and catalog code allocation                                     | One row per tenant; positive order/product/service counters                 |
 
 ### Catalog, queue, and orders
 
@@ -97,19 +99,19 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 
 ### Location, analysis, messaging, and audit
 
-| Table                           | Key purpose                                       | Important constraints                                                                       |
-| ------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `customer_locations`            | Consent-based coordinate snapshot                 | Coordinate and nonnegative accuracy/distance checks                                         |
-| `location_alerts`               | Proximity warning intent                          | Idempotent event key, attempt/retry fields, pending/sent/skipped/failed state and due index |
-| `line_notification_preferences` | Verified LINE delivery consent and event switches | One row per linked user/LINE recipient                                                      |
-| `customer_location_consents`    | Location consent, revocation and deletion request | One row per authenticated customer                                                          |
-| `wait_time_forecasts`           | Forecast output history                           | Nonnegative wait/depth; confidence 0..1                                                     |
-| `staffing_recommendations`      | Hourly staffing output                            | weekday 0..6, hour 0..23, positive staff, confidence 0..1                                   |
-| `queue_hourly_metrics`          | Retained eight-week demand/service aggregate      | Tenant slot indexes, nonnegative counts/durations, bounded weekday/hour, expiry             |
-| `notifications`                 | Durable localized LINE outbox and delivery log    | Unique event key, resolved locale, tenant/entry/user/LINE references, delivery indexes      |
-| `penalty_records`               | No-show/late/cancel/manual policy record          | User/LINE/tenant lookup indexes                                                             |
-| `queue_histories`               | Queue transition/event history                    | Tenant/queue/entry indexes; `actor_id` stores the authenticated operator, not the customer  |
-| `audit_logs`                    | Administrative/system audit trail                 | Actor, tenant, resource indexes and JSON changes                                            |
+| Table                           | Key purpose                                       | Important constraints                                                                          |
+| ------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `customer_locations`            | Consent-based coordinate snapshot                 | Coordinate and nonnegative accuracy/distance checks                                            |
+| `location_alerts`               | Proximity warning intent                          | Idempotent event key, attempt/retry fields, pending/sent/skipped/failed state and due index    |
+| `line_notification_preferences` | Verified LINE delivery consent and event switches | One row per linked user/LINE recipient                                                         |
+| `customer_location_consents`    | Location consent, revocation and deletion request | One row per authenticated customer                                                             |
+| `wait_time_forecasts`           | Forecast output history                           | Nonnegative wait/depth; confidence 0..1                                                        |
+| `staffing_recommendations`      | Hourly staffing output                            | weekday 0..6, hour 0..23, positive staff, confidence 0..1                                      |
+| `queue_hourly_metrics`          | Retained eight-week demand/service aggregate      | Tenant slot indexes, nonnegative counts/durations, bounded weekday/hour, expiry                |
+| `notifications`                 | Durable localized LINE outbox and delivery log    | Canonical event/attempt/error fields, unique event key, locale, recipient and delivery indexes |
+| `penalty_records`               | No-show/late/cancel/manual policy record          | User/LINE/tenant lookup indexes                                                                |
+| `queue_histories`               | Queue transition/event history                    | Tenant/queue/entry indexes; `actor_id` stores the authenticated operator, not the customer     |
+| `audit_logs`                    | Administrative/system audit trail                 | Actor, tenant, resource indexes and JSON changes                                               |
 
 ## 4. Enumerated values
 
@@ -123,9 +125,12 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 | `queue_entry_status`  | `waiting`, `called`, `serving`, `served`, `skipped`, `cancelled`, `no_show`  |
 | `order_status`        | `pending`, `processing`, `completed`, `cancelled`                            |
 | `payment_status`      | `unpaid`, `pending`, `authorized`, `paid`, `refunded`, `failed`, `cancelled` |
-| `notification_status` | `pending`, `processing`, `sent`, `delivered`, `failed`, `cancelled`          |
+| `notification_status` | `pending`, `processing`, `sent`, `failed`, `cancelled`                       |
 
-`notification_type` includes queue lifecycle values used by the durable outbox, including `queue_serving` added in migration `000005`. PostgreSQL enum additions require deliberate forward/backward compatibility planning; enum values are not removed by down migrations.
+`notifications.event_type` is the canonical lifecycle event and is constrained to
+`booking_created`, `eta_warning`, `called`, `serving`, `completed`, `cancelled`, `no_show`,
+`deferred`, or `location_warning`. The former `notification_type` enum and duplicate legacy
+retry/error/delivery columns were removed by migration `000024`.
 
 ## 5. Critical constraints and indexes
 
@@ -138,6 +143,8 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 - Branch product stock cannot be negative. `NULL` remains unlimited, including services.
 - A branch inventory row is unique for each `(branch_id, product_id)` and is created when an
   organization product is assigned to a queue in that branch.
+- Organization product and service codes use separate atomic counters. Catalog creation does not
+  scan `products` with `MAX(...)`, so concurrent writers cannot allocate the same `SPn` or `DVn`.
 - Active queue names are unique within a branch. A branch may have zero queues during initial setup
   or operational reconfiguration.
 - A non-owner manager can have only one active branch membership. The organization owner may retain
@@ -244,8 +251,15 @@ Migrations `000022_branch_product_inventory` and `000023_branch_map_place` are a
 upgrades. `000022` backfills branch inventory from queue assignments and legacy catalog stock,
 backfills reservation branches from linked orders, preserves unattributable legacy orphan rows,
 and applies a not-valid check that requires a branch on every new reservation. `000023` stores the
-selected Google place identifier and formatted map address on a branch. Neither migration requires
-reseeding or resetting tenant data.
+selected Google place identifier and formatted map address on a branch.
+
+Migration `000024_normalize_core_schema` contracts fields that had already been superseded. It
+removes organization-catalog `products.branch_id` and `products.stock_quantity`, makes
+`branch_product_inventories` the only stock source, replaces catalog `MAX(...) + 1` numbering with
+tenant counters, and removes duplicate notification type/retry/error/delivery fields after a safe
+backfill. Unsupported historical notification events are cancelled and retained with their former
+event type in payload metadata. The reset schema produces the same 44 application tables, 593
+column signatures, and 184 index definitions as the ordered migration history.
 
 ## 10. Seed baseline
 
@@ -275,9 +289,9 @@ the administrator; it is blocked in production and requires
 - `organization_branches.public_qr_token` provides one stable QR per branch.
 - `branch_business_hours` and `branch_exception_days` control branch-local booking availability.
 - `queues.branch_id` is required; a branch can have multiple active queues with unique active names.
-- Migration `000020_organization_product_catalog` makes `products.branch_id` nullable compatibility
-  data, generates organization-unique `DVn`/`SPn` product codes, and changes `queue_products` to
-  reference the organization catalog while preserving queue/branch scope.
+- Migration `000020_organization_product_catalog` introduced organization-unique `DVn`/`SPn`
+  product codes and changed `queue_products` to reference the organization catalog while preserving
+  queue/branch scope. Migration `000024` removes its temporary branch/stock compatibility columns.
 - `organization_branches.payment_settings` stores non-secret accepted methods, merchant display
   information, and settlement instructions. Provider credentials remain outside this JSON field.
 - `orders.branch_id` and `orders.queue_id` preserve direct operational scope, while organization,

@@ -8,7 +8,6 @@ import { pool } from '../client';
 export interface ProductRow {
   id: string;
   organization_id: string;
-  branch_id: string | null;
   product_code: string;
   queue_ids?: string[];
   name: string;
@@ -159,6 +158,7 @@ export const productsRepository = {
   async findById(id: string): Promise<ProductRow | null> {
     const { rows } = await pool.query<ProductRow>(
       `SELECT p.*,
+              NULL::INT AS stock_quantity,
               COALESCE(
                 ARRAY_AGG(qp.queue_id ORDER BY qp.display_order, qp.queue_id)
                   FILTER (WHERE qp.is_active = TRUE),
@@ -176,6 +176,7 @@ export const productsRepository = {
   async create(
     data: {
       organizationId: string;
+      productCode: string;
       name: string;
       description?: string;
       imageUrl?: string;
@@ -191,23 +192,12 @@ export const productsRepository = {
     const { rows } = await executor.query<ProductRow>(
       `INSERT INTO products
          (organization_id, product_code, name, description, image_url, price, service_time_minutes,
-          max_wait_minutes, requires_prepayment, stock_quantity, product_type)
-       VALUES (
-         $1,
-         CASE WHEN $9 = 'service' THEN 'DV' ELSE 'SP' END || (
-           SELECT COALESCE(
-             MAX(SUBSTRING(product_code FROM 3)::INT),
-             0
-           ) + 1
-           FROM products
-           WHERE organization_id = $1
-             AND product_type = $9
-         )::TEXT,
-         $2,$3,$4,$5,$6,$7,$8,NULL,$9
-       )
-       RETURNING *`,
+          max_wait_minutes, requires_prepayment, product_type)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       RETURNING products.*, NULL::INT AS stock_quantity`,
       [
         data.organizationId,
+        data.productCode,
         data.name,
         data.description ?? null,
         data.imageUrl ?? null,
@@ -228,29 +218,41 @@ export const productsRepository = {
     return rows[0];
   },
 
-  async lockCatalogNumbering(organizationId: string, client: PoolClient): Promise<void> {
-    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [organizationId]);
-  },
-
-  async assignNextCodeForType(
-    id: string,
+  async nextCatalogCode(
     organizationId: string,
     productType: 'product' | 'service',
     client: PoolClient
+  ): Promise<string> {
+    const counterColumn = productType === 'service' ? 'next_service_number' : 'next_product_number';
+    const prefix = productType === 'service' ? 'DV' : 'SP';
+    const { rows } = await client.query<{ value: string }>(
+      `INSERT INTO organization_counters
+         (organization_id, next_product_number, next_service_number)
+       VALUES (
+         $1,
+         CASE WHEN $2 = 'product' THEN 2 ELSE 1 END,
+         CASE WHEN $2 = 'service' THEN 2 ELSE 1 END
+       )
+       ON CONFLICT (organization_id) DO UPDATE
+       SET ${counterColumn} = organization_counters.${counterColumn} + 1,
+           updated_at = NOW()
+       RETURNING (${counterColumn} - 1)::TEXT AS value`,
+      [organizationId, productType]
+    );
+    return `${prefix}${rows[0].value}`;
+  },
+
+  async assignCode(
+    id: string,
+    organizationId: string,
+    productCode: string,
+    client: PoolClient
   ): Promise<void> {
     await client.query(
-      `UPDATE products target
-       SET product_code =
-         CASE WHEN $3 = 'service' THEN 'DV' ELSE 'SP' END || (
-           SELECT COALESCE(MAX(SUBSTRING(candidate.product_code FROM 3)::INT), 0) + 1
-           FROM products candidate
-           WHERE candidate.organization_id = $2
-             AND candidate.product_type = $3
-             AND candidate.id <> $1
-         )::TEXT
-       WHERE target.id = $1
-         AND target.organization_id = $2`,
-      [id, organizationId, productType]
+      `UPDATE products
+       SET product_code = $3
+       WHERE id = $1 AND organization_id = $2`,
+      [id, organizationId, productCode]
     );
   },
 
@@ -293,7 +295,7 @@ export const productsRepository = {
     }
     if (fields.length === 0) {
       const { rows } = await (client ?? pool).query<ProductRow>(
-        'SELECT * FROM products WHERE id = $1',
+        'SELECT products.*, NULL::INT AS stock_quantity FROM products WHERE id = $1',
         [id]
       );
       return rows[0] ?? null;
@@ -302,7 +304,8 @@ export const productsRepository = {
     values.push(id);
     const executor = client ?? pool;
     const { rows } = await executor.query<ProductRow>(
-      `UPDATE products SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
+      `UPDATE products SET ${fields.join(', ')} WHERE id = $${i}
+       RETURNING products.*, NULL::INT AS stock_quantity`,
       values
     );
     const updated = rows[0] ?? null;

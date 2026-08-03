@@ -412,4 +412,18 @@ export async function seed(client: PoolClient): Promise<void> {
      WHERE q.organization_id = o.id AND q.organization_id = $1`,
     [ORG_ID]
   );
+  await client.query(
+    `INSERT INTO organization_counters (organization_id, next_order_number)
+     SELECT $1,
+            COALESCE(MAX(SUBSTRING(order_number FROM '([0-9]+)$')::BIGINT), 0) + 1
+     FROM orders
+     WHERE organization_id = $1
+     ON CONFLICT (organization_id) DO UPDATE SET
+       next_order_number = GREATEST(
+         organization_counters.next_order_number,
+         EXCLUDED.next_order_number
+       ),
+       updated_at = NOW()`,
+    [ORG_ID]
+  );
 }
