@@ -12,13 +12,13 @@ Người dùng có thể bắt đầu từ chương tương ứng với vai trò
 
 Sử dụng thông tin do quản trị viên hệ thống cung cấp cho môi trường đang vận hành.
 
-| Hạng mục                | Thông tin                                   |
-| ----------------------- | ------------------------------------------- |
-| Web URL                 | `[ĐIỀN URL ĐANG VẬN HÀNH]`                  |
-| Email hỗ trợ            | `support@smartqueue.io.vn`                  |
-| LINE Official Account   | `[ĐIỀN TÊN HOẶC LIÊN KẾT OFFICIAL ACCOUNT]` |
-| Branch QR               | `[CHÈN QR CỦA BRANCH ĐANG SỬ DỤNG]`         |
-| Ngày/phiên bản tài liệu | `[ĐIỀN YYYY-MM-DD VÀ PHIÊN BẢN]`            |
+| Hạng mục                | Thông tin                                              |
+| ----------------------- | ------------------------------------------------------ |
+| Web URL                 | [https://smartqueue.io.vn/](https://smartqueue.io.vn/) |
+| Email hỗ trợ            | `trungnghia180205@gmail.com`                           |
+| LINE Official Account   | [Smart Queue](https://line.me/R/ti/p/@081llngs)        |
+| Branch QR               | `[CHÈN QR CỦA BRANCH ĐANG SỬ DỤNG]`                    |
+| Ngày/phiên bản tài liệu | `01/08/2026`                                           |
 
 Mỗi Branch có một QR ổn định riêng. Hãy xác nhận đúng tên Branch trước khi in, trưng bày hoặc chia sẻ QR.
 
@@ -823,6 +823,6 @@ Không gửi mật khẩu, liên kết kích hoạt, token, secret hoặc thông
 
 ## 24. Liên hệ hỗ trợ
 
-- Email hỗ trợ: `support@smartqueue.io.vn`
-- LINE Official Account: `[ĐIỀN TÀI KHOẢN ĐANG VẬN HÀNH]`
+- Email hỗ trợ: [trungnghia180205@gmail.com](mailto:trungnghia180205@gmail.com)
+- LINE Official Account: [Smart Queue](https://line.me/R/ti/p/@081llngs)
 - Thời gian hỗ trợ: `[ĐIỀN THỜI GIAN HỖ TRỢ]`

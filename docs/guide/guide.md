@@ -12,13 +12,13 @@
 
 運用環境に応じて、管理者から案内された情報を使用してください。
 
-| 項目                     | 情報                                   |
-| ------------------------ | -------------------------------------- |
-| Web URL                  | `[運用URLを記入]`                      |
-| サポートメール           | `support@smartqueue.io.vn`             |
-| LINE公式アカウント       | `[LINE公式アカウント名／リンクを記入]` |
-| Branch QR                | `[利用するBranch QRを掲載]`            |
-| ガイド更新日／バージョン | `[YYYY-MM-DD／バージョンを記入]`       |
+| 項目                     | 情報                                                   |
+| ------------------------ | ------------------------------------------------------ |
+| Web URL                  | [https://smartqueue.io.vn/](https://smartqueue.io.vn/) |
+| サポートメール           | `trungnghia180205@gmail.com`                           |
+| LINE公式アカウント       | [Smart Queue](https://line.me/R/ti/p/@081llngs)        |
+| Branch QR                | `[利用するBranch QRを掲載]`                            |
+| ガイド更新日／バージョン | `01/08/2026`                                           |
 
 Branch QRは店舗ごとに異なります。正しいBranch名を確認してから掲示・共有してください。
 
@@ -821,6 +821,6 @@ token、cookie、価格、payment statusを含むURLを編集して「直そう�
 
 ## 24. サポート窓口
 
-- サポートメール：`support@smartqueue.io.vn`
-- LINE公式アカウント：`[運用中のアカウントを記入]`
+- サポートメール：[trungnghia180205@gmail.com](mailto:trungnghia180205@gmail.com)
+- LINE公式アカウント：[Smart Queue](https://line.me/R/ti/p/@081llngs)
 - 対応時間：`[対応時間を記入]`
