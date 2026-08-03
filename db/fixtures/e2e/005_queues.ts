@@ -62,4 +62,24 @@ export async function seed(client: PoolClient): Promise<void> {
        display_order = EXCLUDED.display_order`,
     [QUEUES.COUNTER_A, BRANCHES.TOKYO_MAIN, ORG_ID]
   );
+  await client.query(
+    `INSERT INTO branch_product_inventories (
+       branch_id, product_id, organization_id, stock_quantity, low_stock_threshold
+     )
+     SELECT $1, p.id, p.organization_id,
+            CASE p.product_code
+              WHEN 'SP1' THEN 100
+              WHEN 'SP2' THEN 50
+              WHEN 'SP3' THEN 500
+              ELSE NULL
+            END,
+            10
+     FROM products p
+     WHERE p.organization_id = $2 AND p.is_active = TRUE
+     ON CONFLICT (branch_id, product_id) DO UPDATE SET
+       stock_quantity = EXCLUDED.stock_quantity,
+       low_stock_threshold = EXCLUDED.low_stock_threshold,
+       updated_at = NOW()`,
+    [BRANCHES.TOKYO_MAIN, ORG_ID]
+  );
 }

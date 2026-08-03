@@ -51,7 +51,7 @@ describe('NotificationOutboxRepository', () => {
 
     const [sql, params] = mockQuery.mock.calls[0];
     expect(sql).toContain('ON CONFLICT (event_key)');
-    expect(sql).toContain("SELECT $1,$2,$3,$4,$5,$6,$7,'line_push','pending',$8,$9,NOW()");
+    expect(sql).toContain("SELECT $1,$2,$3,$4,$5,$6,'line_push','pending',$7,$8,NOW()");
     expect(sql).toContain('SELECT preferred_locale FROM users');
     expect(sql).toContain('SELECT default_locale FROM organizations');
     expect(sql).toContain('line_notification_preferences');
@@ -92,6 +92,7 @@ describe('NotificationOutboxRepository', () => {
     expect(sql).toContain('FOR UPDATE SKIP LOCKED');
     expect(sql).toContain("status = 'processing'");
     expect(sql).toContain('attempt_count = n.attempt_count + 1');
+    expect(sql).not.toContain('retry_count');
     expect(params).toEqual([20, 300]);
   });
 
