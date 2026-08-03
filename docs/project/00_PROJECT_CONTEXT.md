@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-07-28.
+Last verified against the repository on 2026-08-04.
 
 ## 1. Problem
 
@@ -68,6 +68,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Per-item payment status and full-order payment status for required-only or all-item checkout.
 - Server-side payment intent boundary with demo provider, localized payment method UI, webhook callback, return status, and reconciliation hooks.
 - Staff order details with booking name, telephone, verified LINE display name, item images, manual payment/status controls, queue actions, and receipt printing.
+- Staff product cards open a read-only detail dialog with a prominent, accessible close control.
 - LINE push for the standard customer journey at booking-created, exactly five people ahead,
   called, and completed, plus exceptional cancelled, deferred, and no-show events on queue entries
   that contain a verified linked LINE user ID.
