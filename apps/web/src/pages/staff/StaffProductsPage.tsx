@@ -100,7 +100,10 @@ export function StaffProductsPage() {
                   {formatCurrency(Number(p.price), i18n.resolvedLanguage ?? 'ja')}
                 </span>
                 <span className="text-xs text-gray-400">
-                  {t('units.minutes', { ns: 'common', count: p.service_time_minutes })}
+                  {t('units.minutes', {
+                    ns: 'common',
+                    count: p.service_time_minutes,
+                  })}
                 </span>
               </div>
               {p.requires_prepayment && (
@@ -130,9 +133,10 @@ export function StaffProductsPage() {
               type="button"
               onClick={() => setSelectedProduct(null)}
               aria-label={t('actions.close', { ns: 'common' })}
-              className="absolute right-3 top-3 rounded-full p-2 text-gray-500 hover:bg-gray-100"
+              className="absolute right-3 top-3 z-10 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-white bg-gray-950 px-3.5 py-2 text-sm font-bold text-white shadow-lg transition hover:bg-brand-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-300"
             >
-              <X className="h-5 w-5" aria-hidden="true" />
+              <X className="h-5 w-5 stroke-[2.5]" aria-hidden="true" />
+              <span>{t('actions.close', { ns: 'common' })}</span>
             </button>
             {selectedProduct.image_url ? (
               <img
