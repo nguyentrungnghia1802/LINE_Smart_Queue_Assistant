@@ -88,4 +88,12 @@ describe('production web reverse proxy configuration', () => {
     expect(apiDockerfile).toContain('mkdir -p /app/var/media');
     expect(apiDockerfile).toContain('chown appuser:appgroup /app/var/media');
   });
+
+  it('uses the canonical production domain in deployment configuration', () => {
+    const deployEnvironment = readRepoFile('deploy/.env.example');
+
+    expect(deployEnvironment).toContain('WEB_ORIGIN=https://smartqueue.io.vn');
+    expect(deployEnvironment).toContain('EMAIL_FROM_ADDRESS=no-reply@smartqueue.io.vn');
+    expect(deployEnvironment).not.toMatch(/playmcjava(?:21)?\.io\.vn/i);
+  });
 });

@@ -190,6 +190,15 @@ Developers Console, set the LIFF endpoint to the deployed HTTPS base path such a
 secrets such as `JWT_SECRET`, database credentials, LINE channel secret/access token, and provider
 webhook keys are runtime API secrets only.
 
+The canonical production origin is `https://smartqueue.io.vn`. Set
+`WEB_ORIGIN=https://smartqueue.io.vn` in the server-side deployment environment, configure the host
+TLS reverse proxy for `smartqueue.io.vn`, and set the LINE Login LIFF Endpoint URL to
+`https://smartqueue.io.vn/liff`. Public fallback QR links are then generated under
+`https://smartqueue.io.vn/qr/:publicQrToken`; LIFF-first QR links continue to use the LINE universal
+link and resolve through the configured LIFF endpoint. Retire redirects and certificates for any
+former production domain only after QR, login callback, webhook, media, and email-link smoke tests
+pass on the new origin.
+
 Configure the LIFF app view size as `Full`, link the Messaging API Official Account to the LINE
 Login channel, include the `profile` scope, and keep the Add Friend option on. `On (normal)` remains
 valid but optional on the consent screen, so customers may skip it. The LIFF shell therefore checks
