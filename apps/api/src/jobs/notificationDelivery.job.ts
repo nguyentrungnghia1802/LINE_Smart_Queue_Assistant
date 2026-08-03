@@ -30,6 +30,7 @@ const EVENT_TYPES = new Set<TicketNotificationEventType>([
   'completed',
   'cancelled',
   'no_show',
+  'deferred',
   'location_warning',
 ]);
 

@@ -102,10 +102,10 @@ export const notificationOperationsService = {
       const updated = await client.query<NotificationOutboxRow>(
         params.action === 'retry'
           ? `UPDATE notifications
-             SET status = 'pending', attempt_count = 0, retry_count = 0,
+             SET status = 'pending', attempt_count = 0,
                  manual_retry_count = manual_retry_count + 1,
                  next_retry_at = NOW(), processing_started_at = NULL,
-                 last_error = NULL, error_message = NULL, operator_note = $2
+                 last_error = NULL, operator_note = $2
              WHERE id = $1 RETURNING *`
           : `UPDATE notifications
              SET status = 'cancelled', next_retry_at = NULL,

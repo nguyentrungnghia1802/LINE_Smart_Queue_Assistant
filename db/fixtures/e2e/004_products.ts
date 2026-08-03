@@ -13,7 +13,6 @@ const products = [
     30,
     null,
     false,
-    null,
   ],
   [
     PRODUCTS.HAIR_DYE,
@@ -25,57 +24,12 @@ const products = [
     120,
     null,
     true,
-    null,
   ],
-  [
-    PRODUCTS.HAIR_WASH,
-    'DV3',
-    'シャンプー',
-    'シャンプーとブロー',
-    'service',
-    2500,
-    20,
-    null,
-    false,
-    null,
-  ],
-  [PRODUCTS.CHECKUP, 'DV4', '健康相談', '一般的な健康相談', 'service', 8000, 45, null, true, null],
-  [
-    PRODUCTS.PEACH_TEA,
-    'SP1',
-    'ピーチティー',
-    '冷たいピーチティー',
-    'product',
-    450,
-    5,
-    30,
-    false,
-    100,
-  ],
-  [
-    PRODUCTS.BUN_BO,
-    'SP2',
-    'ランチセット',
-    '本日のランチセット',
-    'product',
-    1200,
-    10,
-    30,
-    false,
-    50,
-  ],
-  [
-    PRODUCTS.WATER,
-    'SP3',
-    'ミネラルウォーター',
-    'ペットボトル飲料',
-    'product',
-    180,
-    3,
-    15,
-    false,
-    500,
-  ],
+  [PRODUCTS.HAIR_WASH, 'DV3', 'シャンプー', 'シャンプーとブロー', 'service', 2500, 20, null, false],
+  [PRODUCTS.CHECKUP, 'DV4', '健康相談', '一般的な健康相談', 'service', 8000, 45, null, true],
+  [PRODUCTS.PEACH_TEA, 'SP1', 'ピーチティー', '冷たいピーチティー', 'product', 450, 5, 30, false],
+  [PRODUCTS.BUN_BO, 'SP2', 'ランチセット', '本日のランチセット', 'product', 1200, 10, 30, false],
+  [PRODUCTS.WATER, 'SP3', 'ミネラルウォーター', 'ペットボトル飲料', 'product', 180, 3, 15, false],
 ] as const;
 
 export async function seed(client: PoolClient): Promise<void> {
@@ -89,17 +43,15 @@ export async function seed(client: PoolClient): Promise<void> {
     serviceTime,
     maxWait,
     requiresPrepayment,
-    stock,
   ] of products) {
     await client.query(
       `
         INSERT INTO products (
-          id, organization_id, branch_id, product_code, name, description, image_url, product_type, price,
-          service_time_minutes, max_wait_minutes, requires_prepayment, stock_quantity, is_active
+          id, organization_id, product_code, name, description, image_url, product_type, price,
+          service_time_minutes, max_wait_minutes, requires_prepayment, is_active
         )
-        VALUES ($1, $2, NULL, $3, $4, $5, $6, $7::product_type, $8, $9, $10, $11, $12, TRUE)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::product_type, $8, $9, $10, $11, TRUE)
         ON CONFLICT (id) DO UPDATE SET
-          branch_id = NULL,
           product_code = EXCLUDED.product_code,
           name = EXCLUDED.name,
           description = EXCLUDED.description,
@@ -109,7 +61,6 @@ export async function seed(client: PoolClient): Promise<void> {
           service_time_minutes = EXCLUDED.service_time_minutes,
           max_wait_minutes = EXCLUDED.max_wait_minutes,
           requires_prepayment = EXCLUDED.requires_prepayment,
-          stock_quantity = EXCLUDED.stock_quantity,
           is_active = TRUE,
           updated_at = NOW();
       `,
@@ -125,7 +76,6 @@ export async function seed(client: PoolClient): Promise<void> {
         serviceTime,
         maxWait,
         requiresPrepayment,
-        stock,
       ]
     );
     await client.query(
@@ -135,4 +85,35 @@ export async function seed(client: PoolClient): Promise<void> {
       [id, name, description]
     );
   }
+
+  await client.query(
+    `INSERT INTO organization_counters (
+       organization_id, next_product_number, next_service_number
+     )
+     SELECT organization_id,
+            COALESCE(MAX(SUBSTRING(product_code FROM 3)::BIGINT)
+              FILTER (
+                WHERE product_type = 'product'
+                  AND product_code ~ '^SP[1-9][0-9]*$'
+              ), 0) + 1,
+            COALESCE(MAX(SUBSTRING(product_code FROM 3)::BIGINT)
+              FILTER (
+                WHERE product_type = 'service'
+                  AND product_code ~ '^DV[1-9][0-9]*$'
+              ), 0) + 1
+     FROM products
+     WHERE organization_id = $1
+     GROUP BY organization_id
+     ON CONFLICT (organization_id) DO UPDATE SET
+       next_product_number = GREATEST(
+         organization_counters.next_product_number,
+         EXCLUDED.next_product_number
+       ),
+       next_service_number = GREATEST(
+         organization_counters.next_service_number,
+         EXCLUDED.next_service_number
+       ),
+       updated_at = NOW()`,
+    [ORG_ID]
+  );
 }

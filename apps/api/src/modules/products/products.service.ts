@@ -75,10 +75,15 @@ export const productsService = {
 
   async create(organizationId: string, dto: CreateProductDto, audit?: AuditContext) {
     const product = await withTransaction(async (client) => {
-      await productsRepository.lockCatalogNumbering(organizationId, client);
+      const productCode = await productsRepository.nextCatalogCode(
+        organizationId,
+        dto.productType,
+        client
+      );
       return productsRepository.create(
         {
           organizationId,
+          productCode,
           name: dto.name,
           description: dto.description,
           imageUrl: dto.imageUrl,
@@ -126,8 +131,12 @@ export const productsService = {
     const nextProductType = dto.productType ?? product.product_type;
     const updated = await withTransaction(async (client) => {
       if (nextProductType !== product.product_type) {
-        await productsRepository.lockCatalogNumbering(organizationId, client);
-        await productsRepository.assignNextCodeForType(id, organizationId, nextProductType, client);
+        const productCode = await productsRepository.nextCatalogCode(
+          organizationId,
+          nextProductType,
+          client
+        );
+        await productsRepository.assignCode(id, organizationId, productCode, client);
       }
       const result = await productsRepository.update(id, dto, client);
       if (!result) throw AppError.notFound('Product not found');

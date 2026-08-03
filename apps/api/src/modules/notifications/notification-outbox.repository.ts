@@ -16,22 +16,18 @@ export interface NotificationOutboxRow {
   queue_entry_id: string | null;
   user_id: string | null;
   line_user_id: string | null;
-  type: string;
   event_key: string;
   event_type: TicketNotificationEventType;
   channel: string;
   status: NotificationDeliveryStatus;
   payload: Record<string, unknown>;
   locale: SupportedLocale;
-  retry_count: number;
   attempt_count: number;
   max_attempts: number;
   next_retry_at: Date | null;
   processing_started_at: Date | null;
-  error_message: string | null;
   last_error: string | null;
   sent_at: Date | null;
-  delivered_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -46,18 +42,6 @@ export interface EnqueueNotificationParams {
   payload: Record<string, unknown>;
   maxAttempts?: number;
 }
-
-const LEGACY_TYPE_BY_EVENT: Record<TicketNotificationEventType, string> = {
-  booking_created: 'queue_joined',
-  eta_warning: 'queue_near_turn',
-  called: 'queue_called',
-  serving: 'queue_serving',
-  completed: 'queue_served',
-  cancelled: 'queue_cancelled',
-  no_show: 'queue_no_show',
-  deferred: 'queue_skipped',
-  location_warning: 'location_warning',
-};
 
 export function buildQueueNotificationEventKey(
   queueEntryId: string,
@@ -79,11 +63,11 @@ export class NotificationOutboxRepository extends BaseRepository {
     const sql = `
       INSERT INTO notifications
         (
-          organization_id, queue_entry_id, user_id, line_user_id, type,
+          organization_id, queue_entry_id, user_id, line_user_id,
           event_key, event_type, channel, status, payload, max_attempts,
           next_retry_at, locale
         )
-      SELECT $1,$2,$3,$4,$5,$6,$7,'line_push','pending',$8,$9,NOW(),
+      SELECT $1,$2,$3,$4,$5,$6,'line_push','pending',$7,$8,NOW(),
         COALESCE(
           (SELECT preferred_locale FROM users WHERE id = $3),
           (SELECT default_locale FROM organizations WHERE id = $1),
@@ -95,8 +79,8 @@ export class NotificationOutboxRepository extends BaseRepository {
           AND p.follow_state = 'followed'
           AND p.notification_enabled = TRUE
           AND CASE
-            WHEN $7 = 'eta_warning' THEN p.approaching_enabled
-            WHEN $7 = 'called' THEN p.called_enabled
+            WHEN $6 = 'eta_warning' THEN p.approaching_enabled
+            WHEN $6 = 'called' THEN p.called_enabled
             ELSE p.lifecycle_enabled
           END
       )
@@ -109,7 +93,6 @@ export class NotificationOutboxRepository extends BaseRepository {
       params.queueEntryId,
       params.userId ?? null,
       params.lineUserId,
-      LEGACY_TYPE_BY_EVENT[params.eventType],
       params.eventKey,
       params.eventType,
       JSON.stringify(params.payload),
@@ -146,9 +129,7 @@ export class NotificationOutboxRepository extends BaseRepository {
       SET status = 'processing',
           processing_started_at = NOW(),
           attempt_count = n.attempt_count + 1,
-          retry_count = n.attempt_count + 1,
           last_error = NULL,
-          error_message = NULL,
           updated_at = NOW()
       FROM due
       WHERE n.id = due.id
@@ -168,7 +149,6 @@ export class NotificationOutboxRepository extends BaseRepository {
            next_retry_at = NULL,
            processing_started_at = NULL,
            last_error = NULL,
-           error_message = NULL,
            updated_at = NOW()
        WHERE id = $1`,
       [id]
@@ -183,7 +163,6 @@ export class NotificationOutboxRepository extends BaseRepository {
            next_retry_at = $2,
            processing_started_at = NULL,
            last_error = $3,
-           error_message = $3,
            updated_at = NOW()
        WHERE id = $1`,
       [id, nextRetryAt, safeError]
@@ -198,7 +177,6 @@ export class NotificationOutboxRepository extends BaseRepository {
            next_retry_at = NULL,
            processing_started_at = NULL,
            last_error = $2,
-           error_message = $2,
            updated_at = NOW()
        WHERE id = $1`,
       [id, safeError]

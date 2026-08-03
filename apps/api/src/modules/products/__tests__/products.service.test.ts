@@ -19,11 +19,11 @@ const mockUpdate = productsRepository.update as jest.MockedFunction<
 const mockSoftDelete = productsRepository.softDelete as jest.MockedFunction<
   typeof productsRepository.softDelete
 >;
-const mockLockCatalogNumbering = productsRepository.lockCatalogNumbering as jest.MockedFunction<
-  typeof productsRepository.lockCatalogNumbering
+const mockNextCatalogCode = productsRepository.nextCatalogCode as jest.MockedFunction<
+  typeof productsRepository.nextCatalogCode
 >;
-const mockAssignNextCodeForType = productsRepository.assignNextCodeForType as jest.MockedFunction<
-  typeof productsRepository.assignNextCodeForType
+const mockAssignCode = productsRepository.assignCode as jest.MockedFunction<
+  typeof productsRepository.assignCode
 >;
 const mockAuditCreate = auditLogRepository.create as jest.MockedFunction<
   typeof auditLogRepository.create
@@ -37,7 +37,6 @@ function makeProduct(overrides: Partial<ProductRow> = {}): ProductRow {
   return {
     id: PRODUCT_ID,
     organization_id: ORG_ID,
-    branch_id: null,
     product_code: 'DV1',
     queue_ids: [],
     name: 'Haircut',
@@ -60,8 +59,8 @@ describe('productsService CRUD audit logging', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(withTransaction).mockImplementation(async (callback) => callback({} as never));
-    mockLockCatalogNumbering.mockResolvedValue(undefined);
-    mockAssignNextCodeForType.mockResolvedValue(undefined);
+    mockNextCatalogCode.mockResolvedValue('DV1');
+    mockAssignCode.mockResolvedValue(undefined);
     mockAuditCreate.mockResolvedValue({ id: '1' } as never);
   });
 
@@ -81,10 +80,11 @@ describe('productsService CRUD audit logging', () => {
       created
     );
 
-    expect(mockLockCatalogNumbering).toHaveBeenCalledWith(ORG_ID, expect.anything());
+    expect(mockNextCatalogCode).toHaveBeenCalledWith(ORG_ID, 'service', expect.anything());
     expect(mockCreate).toHaveBeenCalledWith(
       {
         organizationId: ORG_ID,
+        productCode: 'DV1',
         name: dto.name,
         description: undefined,
         imageUrl: undefined,
@@ -154,12 +154,7 @@ describe('productsService CRUD audit logging', () => {
       { productType: 'service' },
       expect.anything()
     );
-    expect(mockAssignNextCodeForType).toHaveBeenCalledWith(
-      PRODUCT_ID,
-      ORG_ID,
-      'service',
-      expect.anything()
-    );
+    expect(mockAssignCode).toHaveBeenCalledWith(PRODUCT_ID, ORG_ID, 'DV1', expect.anything());
   });
 
   it('soft deletes a product and writes an audit log', async () => {

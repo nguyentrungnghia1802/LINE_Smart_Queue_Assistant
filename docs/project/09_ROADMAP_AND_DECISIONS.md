@@ -319,16 +319,16 @@ branch manager create duplicate products makes reporting, search, pricing govern
 interpretation ambiguous.
 
 **Decision:** Organization owners exclusively manage one organization catalog. The server generates
-organization-unique sequential codes by type (`DVn` for services and `SPn` for products) under a
-PostgreSQL advisory lock. Non-owner branch managers can read the catalog and select products only
-through their assigned-branch queue configuration. `queue_products`, not `products.branch_id`, is
-the authoritative branch/queue availability relation. Staff sees only products assigned to queues
-in the staff member's branch.
+organization-unique sequential codes by type (`DVn` for services and `SPn` for products) through
+atomic tenant counters. Non-owner branch managers can read the catalog and select products only
+through their assigned-branch queue configuration. `queue_products` is the authoritative
+branch/queue availability relation, and `branch_product_inventories` is the authoritative branch
+stock relation. Staff sees only products assigned to queues in the staff member's branch.
 
 **Consequences:** Product writes require owner capability and queue writes require branch-manager
 capability. Orders, payment coverage, inventory, and public booking validate products against the
-selected queue assignment. The nullable legacy `products.branch_id` remains temporarily for
-compatibility but must not be used as an authorization boundary.
+selected queue assignment. Migration `000024` removes the former `products.branch_id` and global
+stock compatibility columns, so no duplicate authorization or inventory source remains.
 
 ## ADR-023: Role-aware revocable browser sessions
 
