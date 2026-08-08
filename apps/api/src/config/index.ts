@@ -55,6 +55,58 @@ function optionalRatio(name: string, fallback: number): number {
   return value;
 }
 
+function optionalBoolean(name: string, fallback: boolean): boolean {
+  const value = process.env[name]?.trim().toLowerCase();
+  if (!value) return fallback;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error(`${name} must be true or false`);
+}
+
+type MediaStorageProvider = 'local' | 'mock' | 's3';
+
+function mediaStorageProvider(): MediaStorageProvider {
+  const configured = (
+    process.env.MEDIA_STORAGE_PROVIDER ??
+    process.env.MEDIA_STORAGE_MODE ??
+    (process.env.NODE_ENV === 'test' ? 'mock' : 'local')
+  )
+    .trim()
+    .toLowerCase();
+
+  if (configured === 'local' || configured === 'mock' || configured === 's3') {
+    return configured;
+  }
+  throw new Error('MEDIA_STORAGE_PROVIDER must be local, mock, or s3');
+}
+
+function requiredS3Value(name: string, provider: MediaStorageProvider): string {
+  const value = process.env[name]?.trim() ?? '';
+  if (provider === 's3' && !value) throw new Error(`${name} must be set when media storage is s3`);
+  return value;
+}
+
+function s3PublicBaseUrl(provider: MediaStorageProvider): string {
+  const value = requiredS3Value('S3_PUBLIC_BASE_URL', provider);
+  if (!value) return '';
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error('S3_PUBLIC_BASE_URL must be a valid http(s) URL');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('S3_PUBLIC_BASE_URL must use http:// or https://');
+  }
+  if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:') {
+    throw new Error('S3_PUBLIC_BASE_URL must use https:// in production');
+  }
+  return value.replace(/\/$/, '');
+}
+
+const configuredMediaStorageProvider = mediaStorageProvider();
+
 export const config = {
   nodeEnv: (process.env.NODE_ENV ?? 'development') as 'development' | 'production' | 'test',
   port: Number.parseInt(process.env.API_PORT ?? '4000', 10),
@@ -251,12 +303,20 @@ export const config = {
   },
 
   media: {
-    mode: (process.env.MEDIA_STORAGE_MODE ??
-      (process.env.NODE_ENV === 'test' ? 'mock' : 'local')) as 'local' | 'mock',
+    provider: configuredMediaStorageProvider,
     localDir: path.resolve(__dirname, process.env.MEDIA_LOCAL_DIR ?? '../../../../var/media'),
     publicBaseUrl: process.env.MEDIA_PUBLIC_BASE_URL ?? '/media',
     maxOriginalBytes: Number.parseInt(process.env.MEDIA_MAX_ORIGINAL_BYTES ?? '5242880', 10),
     requestBodyLimit: process.env.MEDIA_REQUEST_BODY_LIMIT ?? '8mb',
+    s3: {
+      endpoint: process.env.S3_ENDPOINT?.trim() ?? '',
+      region: requiredS3Value('S3_REGION', configuredMediaStorageProvider),
+      bucket: requiredS3Value('S3_BUCKET', configuredMediaStorageProvider),
+      accessKeyId: requiredS3Value('S3_ACCESS_KEY_ID', configuredMediaStorageProvider),
+      secretAccessKey: requiredS3Value('S3_SECRET_ACCESS_KEY', configuredMediaStorageProvider),
+      publicBaseUrl: s3PublicBaseUrl(configuredMediaStorageProvider),
+      forcePathStyle: optionalBoolean('S3_FORCE_PATH_STYLE', false),
+    },
   },
 
   cors: {

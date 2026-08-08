@@ -271,6 +271,9 @@ Critical regression scenarios:
   idempotency, and process restart/backlog semantics.
 - LINE Flex Message payload, text fallback, deeplink URL, and no-rollback behavior for queue/order notifications.
 - LIFF Home authentication, active-ticket/no-ticket states, Rich Menu route resolution, and Rich Menu sync idempotency/mock behavior.
+- Media validation/compression, local/mock providers, S3/R2 command mapping, generated-key collision
+  retry, tenant authorization, database registration failure cleanup, missing-object idempotency,
+  and provider failure recovery.
 - Organization registration transaction and duplicate email/slug.
 - Mobile staff rail/detail layout, Staff/Manager QR parity, LIFF booking availability states, and
   the body-portal QR camera dialog.

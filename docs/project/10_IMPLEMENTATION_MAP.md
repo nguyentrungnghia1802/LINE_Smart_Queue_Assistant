@@ -1,6 +1,6 @@
 # Current Implementation Map
 
-Last verified against the TASK-08 working tree on 2026-08-09.
+Last verified against the TASK-09 working tree on 2026-08-09.
 
 This document is the maintenance index for the current repository. It connects product roles and
 flows to source modules, routes, database history, runtime configuration, scheduled jobs, and
@@ -46,41 +46,42 @@ a source of current behavior.
 | LINE messaging          | Durable PostgreSQL outbox, localized Flex/text fallback, event-key deduplication, retry/backoff                      | Real Official Account delivery and physical-device verification remain pending      |
 | Browser realtime        | Shared authenticated SSE, query invalidation, bounded reconnect, lifecycle cleanup, retained REST polling fallback   | Production device/proxy capacity acceptance remains pending                         |
 | Forecasting             | PostgreSQL measured heuristic for wait and staffing recommendations                                                  | It is not a generative-AI or trained ML model                                       |
-| Media                   | Local/mock media adapter, WebP compression, same-origin `/media` URLs                                                | Durable object storage and orphan reconciliation remain future hardening            |
+| Media                   | Local/mock plus S3/R2-compatible server-mediated storage; WebP compression and stable URLs                           | Signed delivery/upload and automated orphan cleanup remain future hardening         |
 
 ## 3. Repository and runtime map
 
-| Path                                                                    | Responsibility                                                         | Change with                            |
-| ----------------------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------- |
-| `apps/api/src/app.ts`                                                   | Express middleware, health, docs, and API composition                  | `02`, `05`, security tests             |
-| `apps/api/src/server.ts`                                                | API startup/shutdown and scheduler lifecycle                           | `02`, `07`, `08`                       |
-| `apps/api/src/worker.ts`                                                | Dedicated BullMQ worker startup, heartbeat, and graceful shutdown      | `02`, `07`, `08`, ADR-030              |
-| `apps/api/src/config/index.ts`                                          | Backend environment parsing and defaults                               | env examples, `08`                     |
-| `apps/api/src/infrastructure/redis`                                     | Shared Redis lifecycle and resilient distributed rate-limit store      | `02`, `07`, `08`, ADR-028              |
-| `apps/api/src/infrastructure/bullmq`                                    | Versioned LINE dispatcher/delivery contracts and BullMQ runtime        | `02`, `07`, `08`, ADR-030/031          |
-| `apps/api/src/observability`                                            | OTel/Sentry lifecycle, trace helpers, and sensitive-data sanitization  | `02`, `06`, `07`, `08`, ADR-033        |
-| `apps/api/src/modules/notifications/notification-dispatcher.service.ts` | PostgreSQL-to-BullMQ deterministic outbox dispatch                     | `02`, `04`, `08`, ADR-031              |
-| `apps/api/src/modules/realtime`                                         | Authorized SSE streams and transient Redis Pub/Sub event fan-out       | `02`, `05`, `07`, `08`, ADR-032        |
-| `apps/api/src/routes/v1.routes.ts`                                      | `/api/v1` module mounting and ordering                                 | route modules, `05`, OpenAPI test      |
-| `apps/api/src/modules/*`                                                | Domain route/controller/validator/service/repository code              | relevant `01`, `03`, `04`, `05`, tests |
-| `apps/api/src/db/repositories`                                          | Parameterized SQL and row mapping                                      | `04`, service tests, migrations        |
-| `apps/api/src/jobs`                                                     | API-owned recurring jobs and shared LINE outbox delivery service       | `02`, `03`, `07`, `08`                 |
-| `apps/api/src/docs/api-endpoint-catalog.ts`                             | Runtime API catalog and OpenAPI metadata                               | routes, validators, `05`               |
-| `apps/web/src/router.tsx`                                               | All SPA route paths and compatibility redirects                        | `02`, `05`, UI tests                   |
-| `apps/web/src/pages`                                                    | Role and customer page orchestration                                   | `01`, `03`, `06`, UI tests             |
-| `apps/web/src/services`                                                 | API clients, auth interceptor, LIFF and payment adapters               | `02`, `05`, tests                      |
-| `apps/web/src/observability`                                            | Sanitized browser Sentry initialization and runtime error capture      | `06`, `07`, `08`, ADR-033              |
-| `apps/web/src/services/realtime`, `apps/web/src/hooks/useRealtime.ts`   | Shared SSE streams and authoritative REST-query reconciliation         | `02`, `06`, `07`, `08`, ADR-032        |
-| `apps/web/src/store` and `contexts`                                     | Auth state, session bootstrap, LIFF runtime state                      | `02`, `06`, auth/LIFF tests            |
-| `apps/web/src/i18n/locales`                                             | `ja`, `vi`, `en` visible UI resources by domain                        | `01`, `06`, locale tests               |
-| `db/migrations/node-pg-migrate`                                         | Ordered executable schema history                                      | `04`, repository/service tests         |
-| `db/schema/reset_line_queue_schema.sql`                                 | Destructive local/dev schema snapshot                                  | every schema migration                 |
-| `db/seeds`                                                              | Administrator-only baseline seed                                       | `07`, `08`                             |
-| `db/fixtures/e2e`                                                       | Explicit isolated tenant and operational test data                     | E2E tests only                         |
-| `docker/nginx/default.conf`                                             | SPA fallback, same-origin API/media proxy, health and security headers | `02`, `08`, Docker tests               |
-| `docker/api/Dockerfile`, `docker/web/Dockerfile`                        | Immutable API/Web build and runtime images                             | `07`, `08`, deployment scripts         |
-| `docker-compose.dev.yml`                                                | Hot-reload local stack                                                 | `07`                                   |
-| `docker-compose.prod.yml`, `deploy/docker-compose.yml`                  | Image-based production-like stack                                      | `08`, Compose sync test                |
+| Path                                                                    | Responsibility                                                         | Change with                                 |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------- |
+| `apps/api/src/app.ts`                                                   | Express middleware, health, docs, and API composition                  | `02`, `05`, security tests                  |
+| `apps/api/src/server.ts`                                                | API startup/shutdown and scheduler lifecycle                           | `02`, `07`, `08`                            |
+| `apps/api/src/worker.ts`                                                | Dedicated BullMQ worker startup, heartbeat, and graceful shutdown      | `02`, `07`, `08`, ADR-030                   |
+| `apps/api/src/config/index.ts`                                          | Backend environment parsing and defaults                               | env examples, `08`                          |
+| `apps/api/src/infrastructure/redis`                                     | Shared Redis lifecycle and resilient distributed rate-limit store      | `02`, `07`, `08`, ADR-028                   |
+| `apps/api/src/infrastructure/bullmq`                                    | Versioned LINE dispatcher/delivery contracts and BullMQ runtime        | `02`, `07`, `08`, ADR-030/031               |
+| `apps/api/src/observability`                                            | OTel/Sentry lifecycle, trace helpers, and sensitive-data sanitization  | `02`, `06`, `07`, `08`, ADR-033             |
+| `apps/api/src/modules/media`                                            | Image validation/compression, storage adapters, metadata cleanup       | `02`, `04`, `05`, `06`, `07`, `08`, ADR-034 |
+| `apps/api/src/modules/notifications/notification-dispatcher.service.ts` | PostgreSQL-to-BullMQ deterministic outbox dispatch                     | `02`, `04`, `08`, ADR-031                   |
+| `apps/api/src/modules/realtime`                                         | Authorized SSE streams and transient Redis Pub/Sub event fan-out       | `02`, `05`, `07`, `08`, ADR-032             |
+| `apps/api/src/routes/v1.routes.ts`                                      | `/api/v1` module mounting and ordering                                 | route modules, `05`, OpenAPI test           |
+| `apps/api/src/modules/*`                                                | Domain route/controller/validator/service/repository code              | relevant `01`, `03`, `04`, `05`, tests      |
+| `apps/api/src/db/repositories`                                          | Parameterized SQL and row mapping                                      | `04`, service tests, migrations             |
+| `apps/api/src/jobs`                                                     | API-owned recurring jobs and shared LINE outbox delivery service       | `02`, `03`, `07`, `08`                      |
+| `apps/api/src/docs/api-endpoint-catalog.ts`                             | Runtime API catalog and OpenAPI metadata                               | routes, validators, `05`                    |
+| `apps/web/src/router.tsx`                                               | All SPA route paths and compatibility redirects                        | `02`, `05`, UI tests                        |
+| `apps/web/src/pages`                                                    | Role and customer page orchestration                                   | `01`, `03`, `06`, UI tests                  |
+| `apps/web/src/services`                                                 | API clients, auth interceptor, LIFF and payment adapters               | `02`, `05`, tests                           |
+| `apps/web/src/observability`                                            | Sanitized browser Sentry initialization and runtime error capture      | `06`, `07`, `08`, ADR-033                   |
+| `apps/web/src/services/realtime`, `apps/web/src/hooks/useRealtime.ts`   | Shared SSE streams and authoritative REST-query reconciliation         | `02`, `06`, `07`, `08`, ADR-032             |
+| `apps/web/src/store` and `contexts`                                     | Auth state, session bootstrap, LIFF runtime state                      | `02`, `06`, auth/LIFF tests                 |
+| `apps/web/src/i18n/locales`                                             | `ja`, `vi`, `en` visible UI resources by domain                        | `01`, `06`, locale tests                    |
+| `db/migrations/node-pg-migrate`                                         | Ordered executable schema history                                      | `04`, repository/service tests              |
+| `db/schema/reset_line_queue_schema.sql`                                 | Destructive local/dev schema snapshot                                  | every schema migration                      |
+| `db/seeds`                                                              | Administrator-only baseline seed                                       | `07`, `08`                                  |
+| `db/fixtures/e2e`                                                       | Explicit isolated tenant and operational test data                     | E2E tests only                              |
+| `docker/nginx/default.conf`                                             | SPA fallback, same-origin API/media proxy, health and security headers | `02`, `08`, Docker tests                    |
+| `docker/api/Dockerfile`, `docker/web/Dockerfile`                        | Immutable API/Web build and runtime images                             | `07`, `08`, deployment scripts              |
+| `docker-compose.dev.yml`                                                | Hot-reload local stack                                                 | `07`                                        |
+| `docker-compose.prod.yml`, `deploy/docker-compose.yml`                  | Image-based production-like stack                                      | `08`, Compose sync test                     |
 
 ## 4. Role and scope map
 
@@ -205,21 +206,21 @@ the destructive reset schema or E2E fixtures against shared data.
 
 ## 8. Runtime configuration map
 
-| Family          | Important variables                                                                                                                                                 | Exposure                                                 |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Database/API    | `DATABASE_URL`, `DB_*`, `API_*`, `CORS_ORIGIN`, `WEB_ORIGIN`                                                                                                        | API/server only                                          |
-| Redis/BullMQ    | `REDIS_URL`, `REDIS_CONNECT_TIMEOUT_MS`, `REDIS_COMMAND_TIMEOUT_MS`, `REDIS_KEY_PREFIX`, `LINE_NOTIFICATION_DELIVERY_OWNER`, `BULLMQ_*`, `WORKER_*`                 | API/worker only; URL may contain credentials             |
-| Auth            | `JWT_SECRET`, `JWT_ACCESS_EXPIRES_IN`, `AUTH_*`                                                                                                                     | Secret plus server-only policy                           |
-| LINE Login/LIFF | `LINE_LOGIN_CHANNEL_ID`, `LINE_LOGIN_LIFF_ID`, `LINE_ID_TOKEN_VERIFICATION_MODE`, `LINE_LIFF_ENDPOINT_PATH`                                                         | IDs/path are public; verification mode is server runtime |
-| LINE Messaging  | `LINE_MESSAGING_CHANNEL_SECRET`, `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`, `LINE_NOTIFICATION_*`, `LINE_RICH_MENU_IMAGE_PATH`                                          | Server-only except non-secret tuning                     |
-| Local LIFF mock | `VITE_LIFF_MOCK_*`, `LINE_ID_TOKEN_MOCK_*`                                                                                                                          | Local/test browser/API configuration                     |
-| Email           | `EMAIL_*`, `SMTP_*`                                                                                                                                                 | API/server only; SMTP password and token key are secrets |
-| Payment         | `PAYMENT_*`, `DEMO_PAYMENT_WEBHOOK_SECRET`, `PAYOS_*`                                                                                                               | API/server only; never `VITE_*`                          |
-| Location        | `LOCATION_*`, `GOOGLE_ROUTES_API_KEY`                                                                                                                               | API/server only; provider key is secret                  |
-| Forecasting     | `FORECAST_*`                                                                                                                                                        | Non-secret server tuning                                 |
-| Media           | `MEDIA_*`                                                                                                                                                           | API/server runtime                                       |
-| Frontend build  | `VITE_API_URL`, `VITE_APP_NAME`, `VITE_LIFF_ID`, `VITE_LIFF_ENDPOINT_PATH`, `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_PAYMENT_MODE`, `VITE_PAYMENT_REDIRECT_BASE_URL` | Public build-time data                                   |
-| Observability   | `OTEL_*`, `SENTRY_*`, `VITE_SENTRY_DSN`, `VITE_SENTRY_ENVIRONMENT`, `VITE_SENTRY_RELEASE`                                                                           | OTLP headers/server DSN stay backend; VITE values public |
+| Family          | Important variables                                                                                                                                                   | Exposure                                                 |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Database/API    | `DATABASE_URL`, `DB_*`, `API_*`, `CORS_ORIGIN`, `WEB_ORIGIN`                                                                                                          | API/server only                                          |
+| Redis/BullMQ    | `REDIS_URL`, `REDIS_CONNECT_TIMEOUT_MS`, `REDIS_COMMAND_TIMEOUT_MS`, `REDIS_KEY_PREFIX`, `LINE_NOTIFICATION_DELIVERY_OWNER`, `BULLMQ_*`, `WORKER_*`                   | API/worker only; URL may contain credentials             |
+| Auth            | `JWT_SECRET`, `JWT_ACCESS_EXPIRES_IN`, `AUTH_*`                                                                                                                       | Secret plus server-only policy                           |
+| LINE Login/LIFF | `LINE_LOGIN_CHANNEL_ID`, `LINE_LOGIN_LIFF_ID`, `LINE_ID_TOKEN_VERIFICATION_MODE`, `LINE_LIFF_ENDPOINT_PATH`                                                           | IDs/path are public; verification mode is server runtime |
+| LINE Messaging  | `LINE_MESSAGING_CHANNEL_SECRET`, `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`, `LINE_NOTIFICATION_*`, `LINE_RICH_MENU_IMAGE_PATH`                                            | Server-only except non-secret tuning                     |
+| Local LIFF mock | `VITE_LIFF_MOCK_*`, `LINE_ID_TOKEN_MOCK_*`                                                                                                                            | Local/test browser/API configuration                     |
+| Email           | `EMAIL_*`, `SMTP_*`                                                                                                                                                   | API/server only; SMTP password and token key are secrets |
+| Payment         | `PAYMENT_*`, `DEMO_PAYMENT_WEBHOOK_SECRET`, `PAYOS_*`                                                                                                                 | API/server only; never `VITE_*`                          |
+| Location        | `LOCATION_*`, `GOOGLE_ROUTES_API_KEY`                                                                                                                                 | API/server only; provider key is secret                  |
+| Forecasting     | `FORECAST_*`                                                                                                                                                          | Non-secret server tuning                                 |
+| Media           | `MEDIA_STORAGE_PROVIDER`, `MEDIA_*`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL`, `S3_FORCE_PATH_STYLE` | API/server runtime; access/secret values are secrets     |
+| Frontend build  | `VITE_API_URL`, `VITE_APP_NAME`, `VITE_LIFF_ID`, `VITE_LIFF_ENDPOINT_PATH`, `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_PAYMENT_MODE`, `VITE_PAYMENT_REDIRECT_BASE_URL`   | Public build-time data                                   |
+| Observability   | `OTEL_*`, `SENTRY_*`, `VITE_SENTRY_DSN`, `VITE_SENTRY_ENVIRONMENT`, `VITE_SENTRY_RELEASE`                                                                             | OTLP headers/server DSN stay backend; VITE values public |
 
 The root `.env.example` is the superset for native development. `deploy/.env.example` contains
 API runtime and Compose values and intentionally omits `VITE_*` because those values are compiled

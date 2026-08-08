@@ -4,6 +4,7 @@ import sharp from 'sharp';
 
 import type { AuthUser } from '../../types/auth.types';
 import { AppError } from '../../utils/AppError';
+import { logger } from '../../utils/logger';
 
 import { mediaRepository } from './media.repository';
 import type { MediaStorage } from './media-storage';
@@ -20,7 +21,8 @@ export class MediaService {
   constructor(
     private readonly storage: MediaStorage,
     private readonly repository: MediaRepositoryBoundary,
-    private readonly maxOriginalBytes: number
+    private readonly maxOriginalBytes: number,
+    private readonly generateKey: () => string = randomUUID
   ) {}
 
   async upload(
@@ -67,8 +69,7 @@ export class MediaService {
       throw AppError.badRequest('The image could not be converted');
     }
     const date = new Date().toISOString().slice(0, 10);
-    const key = `${input.purpose}/${date}/${randomUUID()}.webp`;
-    const stored = await this.storage.put({ key, body, contentType: 'image/webp' });
+    const stored = await this.putWithCollisionRetry(input.purpose, date, body);
     try {
       return await this.repository.create({
         organization_id: organizationId,
@@ -81,7 +82,18 @@ export class MediaService {
         byte_size: body.length,
       });
     } catch (error) {
-      await this.storage.delete(stored.key).catch(() => undefined);
+      try {
+        await this.storage.delete(stored.key);
+      } catch {
+        logger.error(
+          {
+            storageProvider: this.storage.provider,
+            storageKey: stored.key,
+            operation: 'media.upload.cleanup',
+          },
+          'Media object cleanup failed after database registration failure'
+        );
+      }
       throw error;
     }
   }
@@ -93,8 +105,50 @@ export class MediaService {
       throw AppError.forbidden('Images owned by another organization cannot be deleted');
     }
     if (asset.status === 'deleted') return;
-    await this.storage.delete(asset.storage_key);
-    await this.repository.markDeleted(asset.id);
+    try {
+      await this.storage.delete(asset.storage_key);
+    } catch (error) {
+      if (!isMissingObjectError(error)) {
+        logger.warn(
+          {
+            storageProvider: this.storage.provider,
+            storageKey: asset.storage_key,
+            operation: 'media.delete',
+          },
+          'Media object deletion failed; database state remains active for retry'
+        );
+        throw error;
+      }
+    }
+    try {
+      await this.repository.markDeleted(asset.id);
+    } catch (error) {
+      logger.error(
+        {
+          storageProvider: this.storage.provider,
+          storageKey: asset.storage_key,
+          operation: 'media.delete.metadata',
+        },
+        'Media metadata could not be marked deleted after object deletion'
+      );
+      throw error;
+    }
+  }
+
+  private async putWithCollisionRetry(
+    purpose: 'organization_logo' | 'product_image',
+    date: string,
+    body: Buffer
+  ) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const key = `${purpose}/${date}/${this.generateKey()}.webp`;
+      try {
+        return await this.storage.put({ key, body, contentType: 'image/webp' });
+      } catch (error) {
+        if (!isObjectKeyCollisionError(error) || attempt === 2) throw error;
+      }
+    }
+    throw new Error('Media object key could not be generated');
   }
 
   private resolveOrganization(requested: string | null | undefined, actor: AuthUser) {
@@ -105,4 +159,29 @@ export class MediaService {
     }
     return actor.organizationId;
   }
+}
+
+function errorCode(error: unknown): string {
+  if (!error || typeof error !== 'object') return '';
+  const value = error as {
+    code?: unknown;
+    name?: unknown;
+    $metadata?: { httpStatusCode?: unknown };
+  };
+  return String(value.code ?? value.name ?? value.$metadata?.httpStatusCode ?? '');
+}
+
+function isObjectKeyCollisionError(error: unknown): boolean {
+  const code = errorCode(error);
+  return (
+    code === 'EEXIST' ||
+    code === 'PreconditionFailed' ||
+    code === 'ConditionalRequestConflict' ||
+    code === '412'
+  );
+}
+
+function isMissingObjectError(error: unknown): boolean {
+  const code = errorCode(error);
+  return code === 'NoSuchKey' || code === 'NotFound' || code === '404';
 }

@@ -363,7 +363,13 @@ Booking-group requests never accept a customer or LINE user ID as authority. Cus
 | POST   | `/api/v1/media`     | Manager/admin | Validate, compress to WebP, store, and register an image asset |
 | DELETE | `/api/v1/media/:id` | Tenant/admin  | Delete storage object and mark its metadata deleted            |
 
-The upload request currently carries a browser-compressed data URL for compatibility, but the service validates decoded bytes and image metadata, caps input pixels/bytes, creates a safe generated key, and stores only the returned URL in organization/product records. The returned same-origin path is a valid persisted image reference. Existing oversized data URLs are preview-only and are omitted from organization updates until replaced through the media endpoint. The local and mock providers are implemented; a real object-storage client remains external configuration.
+The upload request currently carries a browser-compressed data URL for compatibility, but the service validates decoded bytes and image metadata, caps input pixels/bytes, creates a server-generated key, and stores only the returned URL in organization/product records. The returned same-origin path is a valid persisted image reference for local/mock providers; the S3-compatible provider returns a stable absolute public/CDN URL. Existing oversized data URLs are preview-only and are omitted from organization updates until replaced through the media endpoint. Production S3/R2 credentials are API-only configuration and the browser never performs a direct upload.
+
+The service treats provider operations as recoverable boundaries: database registration failure triggers
+best-effort object cleanup, provider delete failure leaves metadata active for retry, missing objects
+are idempotent, and a database failure after a successful delete can be repaired by retrying the
+metadata transition. Orphan reconciliation is an operations task using provider inventory and
+active `media_assets.storage_key` values; automatic destructive cleanup is intentionally not enabled.
 
 ### Users and staff management
 

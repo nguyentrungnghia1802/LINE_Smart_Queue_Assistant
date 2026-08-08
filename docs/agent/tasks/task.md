@@ -1570,7 +1570,7 @@ Remove production dependence on API-container local storage for uploaded media.
 
 # TASK-09 — S3 / Cloudflare R2-Compatible Media Storage
 
-**Status:** [ ] Not started
+**Status:** [x] Completed (2026-08-09)
 **Priority:** P1
 
 ## Objective
@@ -1738,11 +1738,11 @@ Document:
 
 ## Acceptance criteria
 
-- [ ] Production media no longer depends on container filesystem.
-- [ ] Existing local development remains simple.
-- [ ] Provider secrets stay server-side.
-- [ ] Partial failures have safe/recoverable behavior.
-- [ ] Organization/product media contracts remain compatible.
+- [x] Production media no longer depends on container filesystem.
+- [x] Existing local development remains simple.
+- [x] Provider secrets stay server-side.
+- [x] Partial failures have safe/recoverable behavior.
+- [x] Organization/product media contracts remain compatible.
 
 ---
 
@@ -2099,7 +2099,7 @@ Major architectural decisions must be added/superseded through ADRs instead of s
 | Phase 2 | BullMQ & Workers             | [ ]    |
 | Phase 3 | SSE                          | [ ]    |
 | Phase 4 | OpenTelemetry & Sentry       | [x]    |
-| Phase 5 | S3/R2 Object Storage         | [ ]    |
+| Phase 5 | S3/R2 Object Storage         | [x]    |
 | Phase 6 | Storybook                    | [ ]    |
 | Phase 7 | Integrated Validation        | [ ]    |
 

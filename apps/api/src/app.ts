@@ -60,7 +60,7 @@ export function createApp(): Application {
     })
   );
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-  if (config.media.mode === 'local') {
+  if (config.media.provider === 'local') {
     app.use('/media', express.static(config.media.localDir, { immutable: true, maxAge: '30d' }));
   }
 

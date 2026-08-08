@@ -220,6 +220,13 @@ Queue capacity, call-next, daily ticket numbering, and organization order number
 - Orders/payment/audit/history should use retention rather than casual hard deletion.
 - Location snapshots and raw provider payloads need explicit production retention and erasure rules.
 - LINE profile data should be minimized and refreshed/deleted according to account unlink/consent policy.
+- `media_assets` keeps ownership, provider, generated key, stable public URL, content type, byte
+  size, and active/deleted metadata. Media deletion removes the object before marking metadata
+  deleted; a missing object is treated as an idempotent success. If the provider fails, metadata
+  stays active so the operation can be retried. If the database fails after an object upload, the
+  service attempts cleanup and logs only the safe generated key/provider; unresolved objects are
+  reconciled by comparing provider inventory with active `media_assets` keys under the dated
+  purpose prefixes before lifecycle deletion.
 
 ## 8. Sensitive data
 
