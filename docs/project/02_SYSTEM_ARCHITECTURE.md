@@ -71,6 +71,14 @@ Queue/order state is committed before publication, and publication failure is lo
 rolling back business work. Reconnecting clients must reload the authoritative REST snapshot from
 PostgreSQL because events are not replayed.
 
+The React SPA consumes these streams through one authenticated fetch-stream connection manager,
+not component-owned `EventSource` instances. Subscribers to the same endpoint share a connection.
+Minimal events trigger TanStack Query invalidation and REST reconciliation; event payloads never
+directly replace ticket or queue state. The client suppresses duplicate IDs, reconnects with
+bounded backoff and a `Last-Event-ID` hint, pauses while the document is hidden or offline, closes
+unused/logout streams, and performs one normal auth-session refresh on `401`. Polling remains the
+degraded and missed-event recovery path, running less frequently only while SSE is connected.
+
 BullMQ uses a separate queue and worker connection lifecycle because a worker requires blocking,
 reconnecting Redis behavior. The versioned `line.notification-outbox.dispatch.v1` scheduler job
 contains only `{ version: 1 }`. It claims committed PostgreSQL rows with `SKIP LOCKED` and adds

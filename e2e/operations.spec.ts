@@ -59,7 +59,7 @@ test('staff transitions a ticket and the durable mock outbox remains observable'
   });
   expect(deliveries.ok()).toBeTruthy();
   const body = (await deliveries.json()) as { data: { items: Array<{ eventType: string }> } };
-  expect(body.data.items.some((item) => item.eventType === 'queue_called')).toBeTruthy();
+  expect(body.data.items.some((item) => item.eventType === 'called')).toBeTruthy();
 });
 
 test('a public business application is provisioned only after admin approval', async ({ page }) => {

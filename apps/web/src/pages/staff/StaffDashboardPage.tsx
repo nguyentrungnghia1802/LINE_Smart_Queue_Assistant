@@ -2,9 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { CheckCircle2, ExternalLink, Printer, QrCode, ReceiptText, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useQueueRealtime } from '../../hooks/useRealtime';
 import { i18n } from '../../i18n';
 import { formatCurrency as formatLocalizedCurrency, formatDateTime } from '../../i18n/format';
 import { get, patch, post } from '../../services/apiClient';
@@ -249,14 +250,21 @@ export function StaffDashboardPage() {
     ticketCode: string;
   } | null>(null);
   const [counterPayment, setCounterPayment] = useState<CounterPayment | null>(null);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
 
   // Unified queue + orders endpoint
   const { data: queueData, isLoading: queueLoading } = useQuery<MyQueueOverview>({
     queryKey: ['staff-my-queue', orgId],
     queryFn: () => get<MyQueueOverview>('/api/v1/staff/my-queue'),
     enabled: !!orgId,
-    refetchInterval: lastCompletedReceipt ? false : 10_000,
+    refetchInterval: lastCompletedReceipt ? false : realtimeConnected ? 60_000 : 10_000,
   });
+  const realtimeState = useQueueRealtime(
+    queueData?.queueId ?? '',
+    [['staff-my-queue', orgId]],
+    Boolean(orgId && queueData?.queueId && !lastCompletedReceipt)
+  );
+  useEffect(() => setRealtimeConnected(realtimeState === 'connected'), [realtimeState]);
 
   // Build combined list: serving → called → waiting
   const allEntries: QueueEntry[] = [
