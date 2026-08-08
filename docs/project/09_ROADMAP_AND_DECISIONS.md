@@ -496,3 +496,27 @@ outbox backlog as the expected degraded mode. Multiple workers safely upsert one
 scheduler and PostgreSQL row claims prevent duplicate row ownership. BullMQ-level retries cover
 sweep infrastructure failure, while row-level LINE retry/backoff remains in PostgreSQL. TASK-05
 may later introduce per-notification dispatch without changing this authority boundary.
+
+## ADR-031: Dispatch committed LINE outbox rows into deterministic BullMQ jobs
+
+**Status:** accepted (2026-08-08)
+
+**Context:** ADR-030 isolated the existing batch sweep from HTTP serving, but one BullMQ job still
+claimed and delivered a PostgreSQL batch. Scaling workers independently requires a job per durable
+notification without making Redis an alternative source of truth. Two crash windows must remain
+safe: process loss before enqueue and process loss after enqueue but before database acknowledgement.
+
+**Decision:** Keep domain-event enqueue transactional in PostgreSQL. A versioned dispatcher claims
+only committed rows with `FOR UPDATE SKIP LOCKED`, persists a recoverable `dispatching` lease, and
+adds a delivery job whose deterministic ID is derived from the notification UUID. The job payload
+contains only contract version and notification UUID. The worker reloads recipient, locale,
+preferences, template data, and status from PostgreSQL, sends through `LineNotificationService`,
+and persists the actual provider outcome. The notification UUID is also the LINE
+`X-Line-Retry-Key`. Timeouts, `429`, and `5xx` use bounded exponential retry with jitter and
+`Retry-After`; provider validation `4xx` is permanent after Flex/text fallback.
+
+**Consequences:** A Redis outage leaves durable rows undispatched and recoverable. A dispatcher
+crash before enqueue is recovered after the dispatch-claim timeout; a crash after enqueue repeats
+the same BullMQ job ID harmlessly. BullMQ waiting/active/delayed/failed state is operational, while
+PostgreSQL dispatch and sent/retry/failed state remains authoritative. API queue/order transactions
+never call LINE or Redis and therefore do not roll back when either service fails.

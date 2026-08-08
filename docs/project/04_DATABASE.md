@@ -164,7 +164,11 @@ retry/error/delivery columns were removed by migration `000024`.
 - `payment_webhook_events(provider,event_id)` is unique so provider retries are idempotent.
 - Pending notification/location-alert indexes support worker scans.
 - `notifications.event_key` is unique, so the same domain event can be enqueued repeatedly without creating duplicate sends.
-- `idx_notif_due_line_outbox` supports due pending LINE delivery scans, and workers claim rows with `FOR UPDATE SKIP LOCKED`.
+- `idx_notifications_dispatch_due` and `idx_notifications_dispatch_claim_recovery` support new and
+  abandoned dispatcher claims; dispatch state is independent from delivery state.
+- `notifications.dispatch_job_id` is deterministic, while `processing_job_id` identifies the
+  current BullMQ delivery attempt. `sent_at` is written only after the LINE provider accepts Flex
+  or text fallback delivery.
 - Tenant/recent indexes support orders, payment, history, location, forecast, and audit dashboards.
 - `orders.order_number` is the persisted receipt identifier and is unique inside an organization;
   `queue_entries.ticket_code` remains the separate daily queue-position identifier.

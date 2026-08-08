@@ -96,6 +96,43 @@ describe('NotificationOutboxRepository', () => {
     expect(params).toEqual([20, 300]);
   });
 
+  it('claims only undispatched or abandoned dispatch rows with SKIP LOCKED', async () => {
+    const repository = new NotificationOutboxRepository();
+
+    await repository.claimForDispatch(20);
+
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain("dispatch_status = 'pending'");
+    expect(sql).toContain("dispatch_status = 'dispatching'");
+    expect(sql).toContain('dispatch_started_at < NOW()');
+    expect(sql).toContain('FOR UPDATE SKIP LOCKED');
+    expect(sql).toContain("'line-notification-' || n.id::text");
+    expect(params).toEqual([20, 60]);
+  });
+
+  it('lets a delivery job acknowledge dispatch and claim one durable row atomically', async () => {
+    const repository = new NotificationOutboxRepository();
+
+    await repository.claimForDelivery('notification-001', 'line-notification-notification-001');
+
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain("dispatch_status IN ('dispatching', 'dispatched')");
+    expect(sql).toContain("dispatch_status = 'dispatched'");
+    expect(sql).toContain('attempt_count = attempt_count + 1');
+    expect(sql).toContain('attempt_count < max_attempts');
+    expect(params).toEqual(['notification-001', 'line-notification-notification-001']);
+  });
+
+  it('calculates dispatch backlog age with FILTER attached to the aggregate', async () => {
+    const repository = new NotificationOutboxRepository();
+
+    await repository.dispatchMetrics();
+
+    const [sql] = mockQuery.mock.calls[0];
+    expect(sql).toContain('(MIN(created_at) FILTER (');
+    expect(sql).not.toContain('MIN(created_at))) FILTER (');
+  });
+
   it('sanitizes bearer tokens before storing retry errors', async () => {
     const repository = new NotificationOutboxRepository();
 

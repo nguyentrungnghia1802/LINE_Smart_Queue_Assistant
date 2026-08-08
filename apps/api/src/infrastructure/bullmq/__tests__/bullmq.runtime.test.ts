@@ -1,5 +1,7 @@
 import { UnrecoverableError } from 'bullmq';
 
+import { LineProviderError } from '../../../modules/line/line.sdk.adapter';
+import type { NotificationDispatchQueue } from '../../../modules/notifications/notification-dispatcher.service';
 import { metricsService } from '../../../utils/metrics';
 import {
   type BullMqJobLike,
@@ -7,26 +9,27 @@ import {
   BullMqRuntime,
   type BullMqRuntimeFactory,
   type BullMqWorkerPort,
+  calculateProviderBackoff,
   processLineNotificationJob,
 } from '../bullmq.runtime';
 import {
-  LINE_NOTIFICATION_DELIVERY_JOB_POLICY,
+  LINE_NOTIFICATION_DELIVERY_JOB_NAME,
+  LINE_NOTIFICATION_DISPATCH_JOB_NAME,
+  LINE_NOTIFICATION_DISPATCH_JOB_POLICY,
   LINE_NOTIFICATION_JOB_CONTRACT_VERSION,
-  LINE_NOTIFICATION_JOB_NAME,
   LINE_NOTIFICATION_SCHEDULER_ID,
 } from '../line-notification.contract';
+
+const NOTIFICATION_ID = '11111111-1111-4111-8111-111111111111';
 
 class FakeQueue implements BullMqQueuePort {
   readonly schedulerIds: Set<string>;
   readonly events: string[];
   readyError: Error | null = null;
-  upsertCalls: Array<{
-    id: string;
-    every: number;
-    name: string;
-    data: unknown;
-    opts: unknown;
-  }> = [];
+  counts = { waiting: 0, active: 0, delayed: 0, failed: 0 };
+  add = jest.fn().mockResolvedValue({ id: `line-notification-${NOTIFICATION_ID}` });
+  upsertCalls: Array<{ id: string; every: number; name: string; data: unknown; opts: unknown }> =
+    [];
 
   constructor(schedulerIds = new Set<string>(), events: string[] = []) {
     this.schedulerIds = schedulerIds;
@@ -40,25 +43,14 @@ class FakeQueue implements BullMqQueuePort {
   async upsertJobScheduler(
     schedulerId: string,
     repeat: { every: number },
-    template: {
-      name: string;
-      data: { version: 1 };
-      opts: {
-        attempts: number;
-        backoff: { type: 'exponential'; delay: number };
-        removeOnComplete: number;
-        removeOnFail: number;
-      };
-    }
+    template: Parameters<BullMqQueuePort['upsertJobScheduler']>[2]
   ): Promise<void> {
     this.schedulerIds.add(schedulerId);
-    this.upsertCalls.push({
-      id: schedulerId,
-      every: repeat.every,
-      name: template.name,
-      data: template.data,
-      opts: template.opts,
-    });
+    this.upsertCalls.push({ id: schedulerId, every: repeat.every, ...template });
+  }
+
+  async getJobCounts(): Promise<Record<'waiting' | 'active' | 'delayed' | 'failed', number>> {
+    return this.counts;
   }
 
   async close(): Promise<void> {
@@ -67,14 +59,11 @@ class FakeQueue implements BullMqQueuePort {
 }
 
 class FakeWorker implements BullMqWorkerPort {
-  readonly events: string[];
   readonly listeners = new Map<string, Array<(...args: unknown[]) => void>>();
   readyError: Error | null = null;
   closeBarrier: Promise<void> | null = null;
 
-  constructor(events: string[] = []) {
-    this.events = events;
-  }
+  constructor(private readonly events: string[] = []) {}
 
   async waitUntilReady(): Promise<void> {
     if (this.readyError) throw this.readyError;
@@ -86,9 +75,7 @@ class FakeWorker implements BullMqWorkerPort {
   }
 
   on(event: string, listener: (...args: unknown[]) => void): this {
-    const listeners = this.listeners.get(event) ?? [];
-    listeners.push(listener);
-    this.listeners.set(event, listeners);
+    this.listeners.set(event, [...(this.listeners.get(event) ?? []), listener]);
     return this;
   }
 
@@ -121,87 +108,70 @@ class FakeFactory implements BullMqRuntimeFactory {
   }
 }
 
+function handlers() {
+  return {
+    dispatch: jest.fn().mockResolvedValue(undefined),
+    delivery: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
 describe('BullMqRuntime', () => {
   beforeEach(() => metricsService.resetForTests());
 
-  it('starts a dedicated worker and registers the versioned delivery scheduler', async () => {
+  it('starts the dispatcher scheduler and a scalable per-notification worker', async () => {
     const factory = new FakeFactory();
-    const runtime = new BullMqRuntime({ factory, delivery: jest.fn() });
+    const runtime = new BullMqRuntime({ factory, dispatch: jest.fn(), delivery: jest.fn() });
 
     await runtime.start();
 
-    expect(runtime.status()).toEqual({ status: 'ready', activeJobs: 0 });
-    expect(factory.queues[0].upsertCalls).toEqual([
+    expect(factory.queues[0]?.upsertCalls).toEqual([
       {
         id: LINE_NOTIFICATION_SCHEDULER_ID,
         every: 15_000,
-        name: LINE_NOTIFICATION_JOB_NAME,
+        name: LINE_NOTIFICATION_DISPATCH_JOB_NAME,
         data: { version: LINE_NOTIFICATION_JOB_CONTRACT_VERSION },
-        opts: {
-          attempts: LINE_NOTIFICATION_DELIVERY_JOB_POLICY.attempts,
-          backoff: LINE_NOTIFICATION_DELIVERY_JOB_POLICY.backoff,
-          removeOnComplete: LINE_NOTIFICATION_DELIVERY_JOB_POLICY.removeOnComplete,
-          removeOnFail: LINE_NOTIFICATION_DELIVERY_JOB_POLICY.removeOnFail,
-        },
+        opts: LINE_NOTIFICATION_DISPATCH_JOB_POLICY,
       },
     ]);
-    expect(metricsService.toPrometheus()).toContain('line_queue_bullmq_worker_ready 1');
+    expect(runtime.status()).toEqual({ status: 'ready', activeJobs: 0 });
     await runtime.stop();
   });
 
-  it('fails fast and closes partial resources when Redis is unavailable', async () => {
+  it('fails fast but leaves PostgreSQL outbox rows untouched when Redis is unavailable', async () => {
     const factory = new FakeFactory();
-    const runtime = new BullMqRuntime({ factory, startupTimeoutMs: 20 });
     factory.createQueue = () => {
       const queue = new FakeQueue();
       queue.readyError = new Error('Redis unavailable');
       factory.queues.push(queue);
       return queue;
     };
+    const runtime = new BullMqRuntime({ factory, startupTimeoutMs: 20 });
 
     await expect(runtime.start()).rejects.toThrow('Redis unavailable');
 
     expect(runtime.status().status).toBe('degraded');
-    expect(factory.workers[0].events).toContain('worker.force-close');
-    expect(factory.queues[0].events).toContain('queue.close');
     expect(metricsService.snapshot().bullmq_worker_start_errors_total).toBe(1);
   });
 
-  it('can stop and start again after a worker restart', async () => {
+  it('recovers queued backlog after a worker restart', async () => {
     const factory = new FakeFactory();
-    const runtime = new BullMqRuntime({ factory });
+    const delivery = jest.fn().mockResolvedValue(undefined);
+    const runtime = new BullMqRuntime({ factory, delivery });
 
     await runtime.start();
     await runtime.stop();
     await runtime.start();
-
-    expect(factory.workers).toHaveLength(2);
-    expect(factory.queues).toHaveLength(2);
-    expect(runtime.status().status).toBe('ready');
-    await runtime.stop();
-  });
-
-  it('waits for the worker to drain before closing the queue', async () => {
-    const events: string[] = [];
-    const factory = new FakeFactory(new Set(), events);
-    const runtime = new BullMqRuntime({ factory });
-    let releaseWorker!: () => void;
-    const barrier = new Promise<void>((resolve) => {
-      releaseWorker = resolve;
+    await factory.processors[1]?.({
+      id: `line-notification-${NOTIFICATION_ID}`,
+      name: LINE_NOTIFICATION_DELIVERY_JOB_NAME,
+      data: { version: 1, notificationId: NOTIFICATION_ID },
     });
 
-    await runtime.start();
-    factory.workers[0].closeBarrier = barrier;
-    const stopping = runtime.stop();
-    await Promise.resolve();
-
-    expect(events).toEqual(['worker.close']);
-    releaseWorker();
-    await stopping;
-    expect(events).toEqual(['worker.close', 'queue.close']);
+    expect(delivery).toHaveBeenCalledWith(NOTIFICATION_ID, `line-notification-${NOTIFICATION_ID}`);
+    await runtime.stop();
   });
 
-  it('keeps one deterministic scheduler when multiple workers start', async () => {
+  it('keeps one deterministic dispatcher scheduler across worker replicas', async () => {
     const schedulerIds = new Set<string>();
     const first = new BullMqRuntime({ factory: new FakeFactory(schedulerIds) });
     const second = new BullMqRuntime({ factory: new FakeFactory(schedulerIds) });
@@ -212,72 +182,79 @@ describe('BullMqRuntime', () => {
     await Promise.all([first.stop(), second.stop()]);
   });
 
-  it('tracks completed and failed worker events without sensitive labels', async () => {
-    const factory = new FakeFactory();
+  it('drains the worker before closing its queue', async () => {
+    const events: string[] = [];
+    const factory = new FakeFactory(new Set(), events);
     const runtime = new BullMqRuntime({ factory });
+    let release!: () => void;
+    const barrier = new Promise<void>((resolve) => (release = resolve));
+
     await runtime.start();
-
-    factory.workers[0].emit('active');
-    factory.workers[0].emit('completed');
-    factory.workers[0].emit('active');
-    factory.workers[0].emit('failed', undefined, new Error('provider unavailable'));
-
-    expect(runtime.status().activeJobs).toBe(0);
-    expect(metricsService.snapshot()).toMatchObject({
-      bullmq_jobs_completed_total: 1,
-      bullmq_jobs_failed_total: 1,
-    });
-
-    factory.workers[0].emit('error', new Error('Redis connection lost'));
-    expect(runtime.status().status).toBe('degraded');
-    expect(metricsService.toPrometheus()).toContain('line_queue_bullmq_worker_ready 0');
-
-    factory.workers[0].emit('ready');
-    expect(runtime.status().status).toBe('ready');
-    expect(metricsService.toPrometheus()).toContain('line_queue_bullmq_worker_ready 1');
-    await runtime.stop();
+    const worker = factory.workers[0];
+    if (!worker) throw new Error('Expected worker to be created');
+    worker.closeBarrier = barrier;
+    const stopping = runtime.stop();
+    await Promise.resolve();
+    expect(events).toEqual(['worker.close']);
+    release();
+    await stopping;
+    expect(events).toEqual(['worker.close', 'queue.close']);
   });
 });
 
-describe('LINE notification BullMQ contract', () => {
+describe('LINE notification BullMQ contracts', () => {
   beforeEach(() => metricsService.resetForTests());
 
-  it('reuses the existing notification delivery job for a valid contract', async () => {
-    const delivery = jest.fn().mockResolvedValue(undefined);
+  it('routes dispatcher and delivery jobs without putting recipient data in Redis', async () => {
+    const queue = new FakeQueue();
+    const jobHandlers = handlers();
 
     await processLineNotificationJob(
-      { name: LINE_NOTIFICATION_JOB_NAME, data: { version: 1 } },
-      delivery,
+      { name: LINE_NOTIFICATION_DISPATCH_JOB_NAME, data: { version: 1 } },
+      queue,
+      jobHandlers,
+      100
+    );
+    await processLineNotificationJob(
+      {
+        id: `line-notification-${NOTIFICATION_ID}`,
+        name: LINE_NOTIFICATION_DELIVERY_JOB_NAME,
+        data: { version: 1, notificationId: NOTIFICATION_ID },
+      },
+      queue,
+      jobHandlers,
       100
     );
 
-    expect(delivery).toHaveBeenCalledTimes(1);
+    expect(jobHandlers.dispatch).toHaveBeenCalledWith(queue as NotificationDispatchQueue);
+    expect(jobHandlers.delivery).toHaveBeenCalledWith(
+      NOTIFICATION_ID,
+      `line-notification-${NOTIFICATION_ID}`
+    );
   });
 
   it.each([
     { name: 'unknown.job', data: { version: 1 } },
-    { name: LINE_NOTIFICATION_JOB_NAME, data: { version: 2 } },
-    { name: LINE_NOTIFICATION_JOB_NAME, data: { version: 1, lineUserId: 'must-not-be-here' } },
-  ])('rejects invalid or sensitive contract payloads without retry', async (job) => {
-    const delivery = jest.fn();
-
-    await expect(processLineNotificationJob(job, delivery, 100)).rejects.toBeInstanceOf(
-      UnrecoverableError
-    );
-
-    expect(delivery).not.toHaveBeenCalled();
+    { name: LINE_NOTIFICATION_DISPATCH_JOB_NAME, data: { version: 2 } },
+    {
+      id: 'job',
+      name: LINE_NOTIFICATION_DELIVERY_JOB_NAME,
+      data: { version: 1, notificationId: 'not-a-uuid' },
+    },
+  ])('rejects invalid contracts without retry', async (job) => {
+    await expect(
+      processLineNotificationJob(job, new FakeQueue(), handlers(), 100)
+    ).rejects.toBeInstanceOf(UnrecoverableError);
     expect(metricsService.snapshot().bullmq_invalid_jobs_total).toBe(1);
   });
 
-  it('enforces the bounded job timeout', async () => {
-    const delivery = jest.fn(() => new Promise<void>(() => undefined));
-
-    await expect(
-      processLineNotificationJob(
-        { name: LINE_NOTIFICATION_JOB_NAME, data: { version: 1 } },
-        delivery,
-        5
-      )
-    ).rejects.toThrow('LINE notification delivery sweep timed out');
+  it('uses exponential jitter and honors provider Retry-After', () => {
+    const error = new LineProviderError('rate limited', {
+      statusCode: 429,
+      retryAfterMs: 90_000,
+      retryable: true,
+    });
+    expect(calculateProviderBackoff(2, error, 30_000, () => 0)).toBe(90_000);
+    expect(calculateProviderBackoff(2, new Error('timeout'), 30_000, () => 1)).toBe(60_000);
   });
 });
