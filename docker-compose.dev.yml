@@ -64,6 +64,7 @@ services:
       API_PORT: 4000
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-dev_password}@postgres:5432/${DB_NAME:-line_queue_dev}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      LINE_NOTIFICATION_DELIVERY_OWNER: bullmq
       CORS_ORIGIN: http://localhost:5173
       LINE_ID_TOKEN_VERIFICATION_MODE: mock
       LINE_ID_TOKEN_MOCK_VALUE: mock-liff-id-token
@@ -91,6 +92,50 @@ services:
         condition: service_healthy
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/health >/dev/null || exit 1']
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  # ── Dedicated worker dev (ts-node-dev hot-reload) ──────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+      target: dev
+    container_name: lq-dev-worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-dev_password}@postgres:5432/${DB_NAME:-line_queue_dev}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      LINE_NOTIFICATION_DELIVERY_OWNER: bullmq
+      WORKER_HEALTH_FILE: /tmp/sqa-worker-health
+      LINE_ID_TOKEN_VERIFICATION_MODE: mock
+    command:
+      [
+        'sh',
+        '-c',
+        'npm run build --workspace=packages/shared && npm run dev:worker --workspace=apps/api',
+      ]
+    volumes:
+      - ./apps/api/src:/app/apps/api/src
+      - ./apps/api/tsconfig.json:/app/apps/api/tsconfig.json
+      - ./packages/shared/src:/app/packages/shared/src
+      - ./packages/shared/tsconfig.json:/app/packages/shared/tsconfig.json
+      - ./packages/config:/app/packages/config
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "const f=''/tmp/sqa-worker-health'',s=require(''fs'').statSync(f),h=JSON.parse(require(''fs'').readFileSync(f));process.exit(h.status===''ready''&&Date.now()-s.mtimeMs<60000?0:1)"',
+        ]
       interval: 30s
       timeout: 5s
       start_period: 20s

@@ -39,6 +39,14 @@ function redisKeyPrefix(): string {
   return value;
 }
 
+function notificationDeliveryOwner(): 'api' | 'bullmq' {
+  const value = process.env.LINE_NOTIFICATION_DELIVERY_OWNER?.trim() || 'api';
+  if (value !== 'api' && value !== 'bullmq') {
+    throw new Error('LINE_NOTIFICATION_DELIVERY_OWNER must be api or bullmq');
+  }
+  return value;
+}
+
 export const config = {
   nodeEnv: (process.env.NODE_ENV ?? 'development') as 'development' | 'production' | 'test',
   port: Number.parseInt(process.env.API_PORT ?? '4000', 10),
@@ -60,6 +68,15 @@ export const config = {
     keyPrefix: redisKeyPrefix(),
     publicBranchCacheTtlMs: positiveInteger('REDIS_PUBLIC_BRANCH_CACHE_TTL_MS', 5_000),
     publicQueueCacheTtlMs: positiveInteger('REDIS_PUBLIC_QUEUE_CACHE_TTL_MS', 3_000),
+  },
+
+  bullmq: {
+    notificationDeliveryOwner: notificationDeliveryOwner(),
+    startupTimeoutMs: positiveInteger('BULLMQ_STARTUP_TIMEOUT_MS', 10_000),
+    jobTimeoutMs: positiveInteger('BULLMQ_JOB_TIMEOUT_MS', 300_000),
+    workerConcurrency: positiveInteger('BULLMQ_WORKER_CONCURRENCY', 1),
+    heartbeatFile: process.env.WORKER_HEALTH_FILE ?? '/tmp/sqa-worker-health',
+    heartbeatIntervalMs: positiveInteger('WORKER_HEARTBEAT_INTERVAL_MS', 10_000),
   },
 
   jwt: {
@@ -125,9 +142,7 @@ export const config = {
   email: {
     mode: (process.env.EMAIL_TRANSPORT ??
       (process.env.NODE_ENV === 'production' ? 'disabled' : 'mock')) as
-      | 'disabled'
-      | 'mock'
-      | 'smtp',
+      'disabled' | 'mock' | 'smtp',
     fromName: process.env.EMAIL_FROM_NAME ?? 'LINE Smart Queue Assistant',
     fromAddress: process.env.EMAIL_FROM_ADDRESS ?? 'no-reply@example.invalid',
     smtp: {

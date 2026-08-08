@@ -88,6 +88,12 @@ Compose service, plus bounded connect/command timeouts and a deployment-specific
 multiple environments share one managed Redis. Do not expose Redis port `6379` publicly and do not
 place Redis credentials in frontend build arguments.
 
+Set `LINE_NOTIFICATION_DELIVERY_OWNER=bullmq` when the dedicated worker service is deployed. The
+API then stops scheduling LINE delivery while the worker maintains the versioned BullMQ sweep
+scheduler. `api` remains available if Redis or the worker is unavailable because queue/order
+transactions commit their notification intent to the PostgreSQL outbox only. Use `api` ownership
+only for native development without a worker, never concurrently with the BullMQ owner.
+
 `REDIS_PUBLIC_BRANCH_CACHE_TTL_MS` defaults to `5000`, and
 `REDIS_PUBLIC_QUEUE_CACHE_TTL_MS` defaults to `3000`. These entries are performance-only and may be
 deleted at any time. Keep TTLs short unless staging measurements justify a change; a longer value
@@ -171,6 +177,7 @@ The stack builds:
 - PostgreSQL 16 with persistent `postgres_data`;
 - Redis 7.4 with AOF-backed `redis_data`, private to the Compose network;
 - API TypeScript build/Node runner reachable inside the Compose network as `api:4000`;
+- a dedicated worker from the same API image, with no published port, for BullMQ-owned LINE delivery;
 - Vite static bundle served by nginx on `WEB_PORT`, including same-origin `/api/*` proxying to the API service.
 
 Image-based production Compose:
@@ -206,6 +213,10 @@ Developers Console, set the LIFF endpoint to the deployed HTTPS base path such a
 `/qr/:token`; do not include another `/liff`, which would resolve to `/liff/liff/...`. Backend-only
 secrets such as `JWT_SECRET`, database credentials, LINE channel secret/access token, and provider
 webhook keys are runtime API secrets only.
+
+The API runner image copies both root and `apps/api` production `node_modules`. npm workspaces may
+retain compatible packages in the workspace directory instead of hoisting them; omitting that
+directory can pass compilation but fail container startup with `MODULE_NOT_FOUND`.
 
 The canonical production origin is `https://smartqueue.io.vn`. Set
 `WEB_ORIGIN=https://smartqueue.io.vn` in the server-side deployment environment, configure the host
@@ -275,13 +286,14 @@ Use expand/backfill/contract deployment for schema changes that cannot be comple
 
 ## 5. Health and observability
 
-| Endpoint/signal | Meaning                                                                 |
-| --------------- | ----------------------------------------------------------------------- |
-| `/health`       | API/DB status, safe Redis lifecycle state, scheduler, and LINE summary  |
-| `/ready`        | Database accepts connections; Redis state is reported but is not a gate |
-| `/metrics`      | In-memory Prometheus-format counters; restrict from public internet     |
-| Pino HTTP logs  | Structured requests/errors with request ID                              |
-| Audit logs      | Administrative/resource changes in PostgreSQL                           |
+| Endpoint/signal       | Meaning                                                                 |
+| --------------------- | ----------------------------------------------------------------------- |
+| `/health`             | API/DB status, safe Redis lifecycle state, scheduler, and LINE summary  |
+| `/ready`              | Database accepts connections; Redis state is reported but is not a gate |
+| `/metrics`            | In-memory Prometheus-format counters; restrict from public internet     |
+| Worker heartbeat file | BullMQ worker startup/readiness refreshed without publishing HTTP       |
+| Pino HTTP logs        | Structured requests/errors with request ID                              |
+| Audit logs            | Administrative/resource changes in PostgreSQL                           |
 
 Current metrics are process-local and reset on restart. Notification delivery counters include sent, retry-scheduled, and failed outbox outcomes, while the durable row state remains in PostgreSQL. Production should scrape frequently and add latency histograms, DB pool saturation, queue depth, job duration/failure, notification/payment states, stock conflicts, and webhook lag.
 
@@ -301,13 +313,19 @@ PostgreSQL.
 
 ## 6. Scheduled jobs operations
 
-Jobs run inside each API process. Notification delivery claims due rows with PostgreSQL row locks, and stale `processing` rows are reclaimable after `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS`. Other logical jobs, including forecasting, use session-level PostgreSQL advisory locks and record safe scheduler health. A dedicated worker may still be useful at larger scale, but is not required for correctness of the current job set.
+LINE notification delivery is the only BullMQ-owned workload. The dedicated worker registers the
+deterministic `line-notification-delivery-sweep-v1` scheduler on queue `line-notifications`, validates
+the versioned no-PII payload, and invokes the existing PostgreSQL outbox delivery service. The
+worker uses bounded attempts, exponential backoff, one concurrent sweep, provider-oriented
+throttling, and graceful drain before closing Redis. BullMQ records orchestration state; PostgreSQL
+`notifications` rows and their event keys remain the authoritative delivery record. Stale
+`processing` rows remain reclaimable after `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS`.
 
-Before scaling horizontally, use one of:
-
-- dedicated worker process;
-- PostgreSQL advisory locks/leader election;
-- durable queue such as BullMQ with Redis when justified.
+The API scheduler retains ETA updates/warnings, called-reminder backfill, email delivery, inventory
+expiry, location work, forecasting, session cleanup, and counter reset. Those logical jobs continue
+to use session-level PostgreSQL advisory locks and safe `scheduler_job_runs` status. Do not enable
+API and BullMQ ownership for LINE delivery at the same time. A worker or Redis outage grows the
+durable outbox backlog but does not roll back or reject queue/order transactions.
 
 Daily counters are checked hourly and reset when the organization-local date changes. Keep organization timezone configuration accurate and monitor `scheduler_job_runs` for missed cycles.
 
@@ -404,8 +422,8 @@ production dependencies and keeps its single narrow, reviewed exception in
 `.github/workflows/deploy.yml` starts only after `CI Quality Gates` succeeds for
 `main`. It checks out the exact tested commit, publishes API and Web images with
 both `latest` and `sha-<full-commit>` tags, then connects to the production host,
-pulls images, applies migrations, recreates API/Web, and verifies container
-health. Configure a GitHub Environment named `production`; use required
+pulls images, applies migrations, recreates API/worker/Web, and verifies API,
+worker-heartbeat, and Web health. Configure a GitHub Environment named `production`; use required
 reviewers there when manual approval is desired.
 
 Production GitHub Actions variables:
@@ -451,7 +469,7 @@ The canonical executable release gate is `docs/checklists/PRODUCTION_READINESS.m
 - Stock release/consume lifecycle and concurrency tests.
 - Location consent, retention, deletion, and alert worker.
 - Japan timezone/currency/seed/localization configuration.
-- Multi-replica scheduler ownership or single-worker guarantee.
+- Verified BullMQ worker heartbeat/backlog alerts and explicit ownership for every remaining scheduler.
 - End-to-end and load tests against the scenarios and SLOs in
   [`11_SCALABILITY_BASELINE.md`](11_SCALABILITY_BASELINE.md).
 - On-call ownership, dashboards, alerts, and incident communication.

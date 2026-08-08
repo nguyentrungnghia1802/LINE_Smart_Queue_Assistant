@@ -90,6 +90,8 @@ describe('production web reverse proxy configuration', () => {
     expect(canonicalCompose).toContain('redis_data:/data');
     expect(apiDockerfile).toContain('mkdir -p /app/var/media');
     expect(apiDockerfile).toContain('chown appuser:appgroup /app/var/media');
+    expect(apiDockerfile).toContain('/app/apps/api/node_modules');
+    expect(apiDockerfile).toContain('./apps/api/node_modules');
   });
 
   it('uses the canonical production domain in deployment configuration', () => {

@@ -20,7 +20,8 @@
  *   if a prior enqueue was missed. Delivery retry is owned by the outbox worker.
  *
  * notificationDelivery (configurable, default 15 s)
- *   Claims due LINE notification outbox records and sends them after commit.
+ *   Legacy/local ownership only. Production assigns this sweep to the dedicated
+ *   BullMQ worker through LINE_NOTIFICATION_DELIVERY_OWNER=bullmq.
  *
  * counterReset  (hourly)
  *   Resets counters whose organization-local business date changed.
@@ -68,6 +69,10 @@ const COUNTER_RESET_CHECK_INTERVAL_MS = 60 * 60_000; // 1 h
 
 const runner = new JobRunner();
 let running = false;
+
+export function apiOwnsNotificationDelivery(owner: 'api' | 'bullmq'): boolean {
+  return owner === 'api';
+}
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -125,11 +130,6 @@ export const scheduler = {
         run: async () => void (await withAdvisoryJobLock('locationCleanup', runLocationCleanup)),
       })
       .schedule({
-        name: 'notificationDelivery',
-        intervalMs: config.notifications.workerIntervalMs,
-        run: runNotificationDelivery,
-      })
-      .schedule({
         name: 'counterReset',
         intervalMs: COUNTER_RESET_CHECK_INTERVAL_MS,
         run: async () => void (await withAdvisoryJobLock('counterReset', runCounterReset)),
@@ -139,6 +139,16 @@ export const scheduler = {
         intervalMs: config.forecasts.intervalMs,
         run: async () => void (await withAdvisoryJobLock('forecasting', runForecasting)),
       });
+
+    if (apiOwnsNotificationDelivery(config.bullmq.notificationDeliveryOwner)) {
+      runner.schedule({
+        name: 'notificationDelivery',
+        intervalMs: config.notifications.workerIntervalMs,
+        run: runNotificationDelivery,
+      });
+    } else {
+      logger.info('scheduler: LINE notification delivery is owned by BullMQ worker');
+    }
 
     if (config.email.mode !== 'disabled') {
       runner.schedule({
@@ -167,10 +177,15 @@ export const scheduler = {
     logger.info('scheduler: stopped');
   },
 
-  status(): { running: boolean; registeredJobs: number } {
+  status(): {
+    running: boolean;
+    registeredJobs: number;
+    notificationDeliveryOwner: 'api' | 'bullmq';
+  } {
     return {
       running,
       registeredJobs: runner.count,
+      notificationDeliveryOwner: config.bullmq.notificationDeliveryOwner,
     };
   },
 

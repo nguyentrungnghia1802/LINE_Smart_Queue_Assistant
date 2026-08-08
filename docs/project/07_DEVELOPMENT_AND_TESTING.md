@@ -36,7 +36,11 @@ Redis configuration is backend-only: `REDIS_URL`, `REDIS_CONNECT_TIMEOUT_MS`,
 then use PostgreSQL directly and protected policies use bounded local rate-limit counters. Compose
 supplies `redis://redis:6379`. Never put a Redis URL or password in a `VITE_*` variable.
 
-LINE notification delivery is durable by default. Local defaults are usually enough, but the worker can be tuned with `LINE_NOTIFICATION_BATCH_SIZE`, `LINE_NOTIFICATION_WORKER_INTERVAL_MS`, `LINE_NOTIFICATION_MAX_ATTEMPTS`, `LINE_NOTIFICATION_RETRY_BASE_SECONDS`, and `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS`.
+LINE notification delivery is durable by default. Compose sets
+`LINE_NOTIFICATION_DELIVERY_OWNER=bullmq` and starts a separate worker. Bare native development may
+keep `api` ownership when no worker process is running. BullMQ startup, sweep timeout, concurrency,
+and heartbeat use `BULLMQ_*`/`WORKER_*`; outbox batch/retry policy remains under
+`LINE_NOTIFICATION_*`. Never start API and BullMQ ownership for the same recurring sweep.
 
 For ordinary UI/backend work without LINE credentials:
 
@@ -70,6 +74,7 @@ npm run docker:dev
 | -------------- | ----------------------- |
 | Web/Vite       | `http://localhost:5173` |
 | API            | `http://localhost:4000` |
+| BullMQ worker  | no published port       |
 | PostgreSQL     | `localhost:5432`        |
 | Redis          | `localhost:6379`        |
 | Node inspector | `localhost:9229`        |
@@ -122,7 +127,13 @@ npm run dev
 ```bash
 npm run dev -w apps/api
 npm run dev -w apps/web
+npm run dev:worker
 ```
+
+When running the worker natively, set `REDIS_URL` and
+`LINE_NOTIFICATION_DELIVERY_OWNER=bullmq`; set the same owner on the API so its in-process scheduler
+does not deliver the same outbox. If Redis is unavailable, the worker exits startup and the process
+supervisor restarts it; the API continues committing notification outbox rows.
 
 The web API client/proxy expects the API on port `4000`. Vite proxies both `/api/*` and persisted `/media/*` URLs to that API, so uploaded organization and product images work through the same local origin. Native Vite defaults its server-only `API_PROXY_TARGET` to `http://127.0.0.1:4000`; Docker Compose sets it to `http://api:4000` and mounts `apps/web/public` so static brand assets are available too. `API_PROXY_TARGET` is not a `VITE_*` value and is never compiled into browser code. Start the API and database before diagnosing frontend `/api` or `/media` failures.
 
@@ -232,7 +243,7 @@ npm run test:ui -w apps/web
 | Pure unit                      | Jest/Vitest                                      | ETA, policy, helpers, adapters, validators                                                  |
 | Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB     | Transactions, tenant checks, state transitions, stock/payment behavior                      |
 | Route/API                      | Supertest                                        | Middleware, status/envelope, request validation                                             |
-| Infrastructure lifecycle       | Jest plus Compose smoke tests                    | Redis lifecycle, shared counters, cache hit/miss/TTL, invalidation, corruption, outage      |
+| Infrastructure lifecycle       | Jest plus Compose smoke tests                    | Redis lifecycle/cache/limits and BullMQ startup, contract, restart, shutdown, outage        |
 | Component                      | Testing Library/Vitest                           | Render states and critical interactions                                                     |
 | Browser E2E                    | Playwright + isolated mock LINE/API ports        | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows |
 | Load                           | Scenario definitions and a small Docker baseline | Use `11_SCALABILITY_BASELINE.md`; recreate against isolated staging before capacity claims  |
@@ -246,7 +257,8 @@ Critical regression scenarios:
 - Finite stock race/rollback and unlimited stock behavior.
 - Cross-organization access attempts for every staff/manager command.
 - Ticket transition races and duplicate call-next requests.
-- LINE token absent, success, failure, duplicate scan, durable outbox retry, and process restart semantics.
+- LINE token absent, success, failure, duplicate scan, durable outbox retry, BullMQ ownership,
+  multi-worker scheduler idempotency, and process restart semantics.
 - LINE Flex Message payload, text fallback, deeplink URL, and no-rollback behavior for queue/order notifications.
 - LIFF Home authentication, active-ticket/no-ticket states, Rich Menu route resolution, and Rich Menu sync idempotency/mock behavior.
 - Organization registration transaction and duplicate email/slug.
