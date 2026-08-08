@@ -4,6 +4,7 @@ import {
   LINE_NOTIFICATION_DELIVERY_JOB_NAME,
   LINE_NOTIFICATION_JOB_CONTRACT_VERSION,
 } from '../../infrastructure/bullmq/line-notification.contract';
+import { injectTraceContext, type TraceCarrier, withSpan } from '../../observability/tracing';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
 
@@ -16,7 +17,7 @@ import {
 export interface NotificationDispatchQueue {
   add(
     name: typeof LINE_NOTIFICATION_DELIVERY_JOB_NAME,
-    data: { version: 1; notificationId: string },
+    data: { version: 1; notificationId: string; traceContext?: TraceCarrier },
     options: {
       jobId: string;
       attempts: number;
@@ -54,18 +55,34 @@ async function dispatchRow(
 ): Promise<void> {
   const jobId = row.dispatch_job_id ?? buildLineNotificationJobId(row.id);
   try {
-    await queue.add(
-      LINE_NOTIFICATION_DELIVERY_JOB_NAME,
-      { version: LINE_NOTIFICATION_JOB_CONTRACT_VERSION, notificationId: row.id },
+    await withSpan(
+      'notification.dispatch',
+      async () => {
+        const traceContext = injectTraceContext();
+        await queue.add(
+          LINE_NOTIFICATION_DELIVERY_JOB_NAME,
+          {
+            version: LINE_NOTIFICATION_JOB_CONTRACT_VERSION,
+            notificationId: row.id,
+            ...(traceContext ? { traceContext } : {}),
+          },
+          {
+            jobId,
+            attempts: row.max_attempts,
+            backoff: {
+              type: 'line-provider',
+              delay: config.notifications.retryBaseSeconds * 1_000,
+            },
+            removeOnComplete: 1_000,
+            removeOnFail: 5_000,
+          }
+        );
+      },
       {
-        jobId,
-        attempts: row.max_attempts,
-        backoff: {
-          type: 'line-provider',
-          delay: config.notifications.retryBaseSeconds * 1_000,
+        attributes: {
+          'messaging.system': 'bullmq',
+          'messaging.destination.name': 'line-notifications',
         },
-        removeOnComplete: 1_000,
-        removeOnFail: 5_000,
       }
     );
     await repository.markDispatched(row.id, jobId);

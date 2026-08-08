@@ -306,16 +306,37 @@ Use expand/backfill/contract deployment for schema changes that cannot be comple
 
 ## 5. Health and observability
 
-| Endpoint/signal       | Meaning                                                                 |
-| --------------------- | ----------------------------------------------------------------------- |
-| `/health`             | API/DB status, safe Redis lifecycle state, scheduler, and LINE summary  |
-| `/ready`              | Database accepts connections; Redis state is reported but is not a gate |
-| `/metrics`            | In-memory Prometheus-format counters; restrict from public internet     |
-| Worker heartbeat file | BullMQ worker startup/readiness refreshed without publishing HTTP       |
-| Pino HTTP logs        | Structured requests/errors with request ID                              |
-| Audit logs            | Administrative/resource changes in PostgreSQL                           |
+| Endpoint/signal       | Meaning                                                                  |
+| --------------------- | ------------------------------------------------------------------------ |
+| `/health`             | API/DB status, safe Redis lifecycle state, scheduler, and LINE summary   |
+| `/ready`              | Database accepts connections; Redis state is reported but is not a gate  |
+| `/metrics`            | In-memory Prometheus-format counters; restrict from public internet      |
+| Worker heartbeat file | BullMQ worker startup/readiness refreshed without publishing HTTP        |
+| Pino HTTP logs        | Structured requests/errors with request ID                               |
+| Audit logs            | Administrative/resource changes in PostgreSQL                            |
+| OpenTelemetry traces  | Optional OTLP correlation across API, PostgreSQL, Redis, jobs, providers |
+| Sentry events         | Optional sanitized browser, API, and worker exception reporting          |
 
-Current metrics are process-local and reset on restart. Notification delivery counters include sent, retry-scheduled, and failed outbox outcomes, while the durable row state remains in PostgreSQL. Production should scrape frequently and add latency histograms, DB pool saturation, queue depth, job duration/failure, notification/payment states, stock conflicts, and webhook lag.
+Current metrics are process-local and reset on restart. They include the latest HTTP latency,
+PostgreSQL pool total/idle/waiting counts, Redis/cache, BullMQ, notification, provider, and SSE
+signals. Notification delivery counters include sent, retry-scheduled, and failed outbox outcomes,
+while the durable row state remains in PostgreSQL. Production should scrape frequently and use the
+OTel backend for latency distributions rather than treating process-local latest-value gauges as
+histograms.
+
+Set `OTEL_SDK_DISABLED=false`, `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, a private
+`OTEL_EXPORTER_OTLP_HEADERS` value when required, `OTEL_SERVICE_NAME`, and a bounded
+`OTEL_TRACES_SAMPLER_ARG` to export traces. The API service name is suffixed as `-worker` in the
+dedicated worker when the configured name ends in `-api`. Set backend `SENTRY_DSN`,
+`SENTRY_ENVIRONMENT`, and immutable `SENTRY_RELEASE` for error reporting. Telemetry endpoints and
+Sentry outages are degraded observability only and must not fail startup or business work.
+
+Browser Sentry uses public build-time `VITE_SENTRY_DSN`, `VITE_SENTRY_ENVIRONMENT`, and
+`VITE_SENTRY_RELEASE`. Never place a Sentry auth token in `VITE_*`. Production source maps are not
+included in the static image; a future trusted CI upload may use a server-side auth token and must
+delete maps before publication. The sanitizer removes credentials, auth/session material, customer
+contact/LINE identity, exact coordinates, and raw provider/payment payloads. Request-body capture
+is disabled.
 
 SSE exports active/opened/closed connections, sent events, send failures, reconnect hints, and the
 latest connection duration. Redis Pub/Sub exports publish/parse/connection/reconnect failures.

@@ -9,7 +9,7 @@ import { liffCspPlugin } from './vite-plugins/liffCspPlugin';
 const apiProxyTarget = process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:4000';
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [liffCspPlugin(), react(), tailwindcss()],
   // Share the repository-root .env with the API during native local development.
   // Vite only exposes variables prefixed with VITE_ to browser code.
@@ -44,7 +44,9 @@ export default defineConfig({
 
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // Production source maps are not published with the static image. Uploading
+    // hidden maps must happen in trusted CI when a private Sentry token exists.
+    sourcemap: mode !== 'production',
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -56,4 +58,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

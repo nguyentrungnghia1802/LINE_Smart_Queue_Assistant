@@ -4,6 +4,10 @@ interface ImportMetaEnv {
   // ── App ────────────────────────────────────────────────────────────────────
   readonly VITE_API_URL: string;
   readonly VITE_APP_NAME: string;
+  /** Public Sentry ingestion DSN. Never place auth tokens or server secrets in VITE_* variables. */
+  readonly VITE_SENTRY_DSN: string;
+  readonly VITE_SENTRY_ENVIRONMENT: string;
+  readonly VITE_SENTRY_RELEASE: string;
   readonly VITE_LIFF_DEFAULT_BOOKING_PATH: string;
   /** Path configured as the LIFF Endpoint URL, usually `/liff`. */
   readonly VITE_LIFF_ENDPOINT_PATH: string;

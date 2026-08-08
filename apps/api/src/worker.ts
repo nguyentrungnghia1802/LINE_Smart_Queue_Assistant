@@ -1,7 +1,10 @@
+import './observability/worker-bootstrap';
+
 import { config } from './config';
 import { closePool } from './db/client';
 import { bullMqRuntime } from './infrastructure/bullmq';
 import { WorkerHeartbeat } from './infrastructure/bullmq/worker-heartbeat';
+import { captureException, shutdownObservability } from './observability/runtime';
 import { logger } from './utils/logger';
 
 const heartbeat = new WorkerHeartbeat(
@@ -19,6 +22,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   await bullMqRuntime.stop();
   await heartbeat.stop();
   await closePool();
+  await shutdownObservability();
   logger.info('Worker shutdown complete');
   process.exit(exitCode);
 }
@@ -36,10 +40,12 @@ if (require.main === module) {
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('uncaughtException', (error) => {
+    captureException(error, { processEvent: 'uncaughtException', runtimeRole: 'worker' });
     logger.fatal({ errorType: error.name }, 'Worker uncaught exception');
     void shutdown('uncaughtException', 1);
   });
   process.on('unhandledRejection', (reason) => {
+    captureException(reason, { processEvent: 'unhandledRejection', runtimeRole: 'worker' });
     logger.fatal(
       { errorType: reason instanceof Error ? reason.name : 'UnknownError' },
       'Worker unhandled rejection'
@@ -47,6 +53,7 @@ if (require.main === module) {
     void shutdown('unhandledRejection', 1);
   });
   void startWorkerProcess().catch((error: unknown) => {
+    captureException(error, { processEvent: 'startupFailure', runtimeRole: 'worker' });
     logger.fatal(
       { errorType: error instanceof Error ? error.name : 'UnknownError' },
       'Dedicated worker failed to start'

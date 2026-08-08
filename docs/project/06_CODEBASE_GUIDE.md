@@ -41,6 +41,7 @@ apps/api/src/
 |-- infrastructure/redis/   Shared Redis lifecycle, rate limits, and public read-model cache
 |-- middlewares/             Auth, role, validation, rate, idempotency, logs, metrics
 |-- modules/<domain>/        Route/controller/service/validator and tests
+|-- observability/           OpenTelemetry, Sentry, trace propagation, sanitization
 |-- routes/                  Health and router composition
 |-- types/                   Express/auth-local types
 |-- utils/                   Errors, response, JWT, cache, logs, metrics
@@ -77,6 +78,7 @@ apps/web/src/
 |   \-- liff/                LINE LIFF customer flow
 |-- scripts/                 Post-build checks, including CSP bundle validation
 |-- services/                API clients and LIFF real/mock adapters
+|-- observability/           Browser Sentry initialization and PII scrubbing
 |-- store/                   Zustand authentication state
 |-- contexts/                Runtime providers such as LIFF initialization state
 |-- types/                   Frontend-only contracts

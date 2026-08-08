@@ -1,6 +1,6 @@
 # Current Implementation Map
 
-Last verified against the TASK-07 working tree on 2026-08-08.
+Last verified against the TASK-08 working tree on 2026-08-09.
 
 This document is the maintenance index for the current repository. It connects product roles and
 flows to source modules, routes, database history, runtime configuration, scheduled jobs, and
@@ -58,6 +58,7 @@ a source of current behavior.
 | `apps/api/src/config/index.ts`                                          | Backend environment parsing and defaults                               | env examples, `08`                     |
 | `apps/api/src/infrastructure/redis`                                     | Shared Redis lifecycle and resilient distributed rate-limit store      | `02`, `07`, `08`, ADR-028              |
 | `apps/api/src/infrastructure/bullmq`                                    | Versioned LINE dispatcher/delivery contracts and BullMQ runtime        | `02`, `07`, `08`, ADR-030/031          |
+| `apps/api/src/observability`                                            | OTel/Sentry lifecycle, trace helpers, and sensitive-data sanitization  | `02`, `06`, `07`, `08`, ADR-033        |
 | `apps/api/src/modules/notifications/notification-dispatcher.service.ts` | PostgreSQL-to-BullMQ deterministic outbox dispatch                     | `02`, `04`, `08`, ADR-031              |
 | `apps/api/src/modules/realtime`                                         | Authorized SSE streams and transient Redis Pub/Sub event fan-out       | `02`, `05`, `07`, `08`, ADR-032        |
 | `apps/api/src/routes/v1.routes.ts`                                      | `/api/v1` module mounting and ordering                                 | route modules, `05`, OpenAPI test      |
@@ -68,6 +69,7 @@ a source of current behavior.
 | `apps/web/src/router.tsx`                                               | All SPA route paths and compatibility redirects                        | `02`, `05`, UI tests                   |
 | `apps/web/src/pages`                                                    | Role and customer page orchestration                                   | `01`, `03`, `06`, UI tests             |
 | `apps/web/src/services`                                                 | API clients, auth interceptor, LIFF and payment adapters               | `02`, `05`, tests                      |
+| `apps/web/src/observability`                                            | Sanitized browser Sentry initialization and runtime error capture      | `06`, `07`, `08`, ADR-033              |
 | `apps/web/src/services/realtime`, `apps/web/src/hooks/useRealtime.ts`   | Shared SSE streams and authoritative REST-query reconciliation         | `02`, `06`, `07`, `08`, ADR-032        |
 | `apps/web/src/store` and `contexts`                                     | Auth state, session bootstrap, LIFF runtime state                      | `02`, `06`, auth/LIFF tests            |
 | `apps/web/src/i18n/locales`                                             | `ja`, `vi`, `en` visible UI resources by domain                        | `01`, `06`, locale tests               |
@@ -217,6 +219,7 @@ the destructive reset schema or E2E fixtures against shared data.
 | Forecasting     | `FORECAST_*`                                                                                                                                                        | Non-secret server tuning                                 |
 | Media           | `MEDIA_*`                                                                                                                                                           | API/server runtime                                       |
 | Frontend build  | `VITE_API_URL`, `VITE_APP_NAME`, `VITE_LIFF_ID`, `VITE_LIFF_ENDPOINT_PATH`, `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_PAYMENT_MODE`, `VITE_PAYMENT_REDIRECT_BASE_URL` | Public build-time data                                   |
+| Observability   | `OTEL_*`, `SENTRY_*`, `VITE_SENTRY_DSN`, `VITE_SENTRY_ENVIRONMENT`, `VITE_SENTRY_RELEASE`                                                                           | OTLP headers/server DSN stay backend; VITE values public |
 
 The root `.env.example` is the superset for native development. `deploy/.env.example` contains
 API runtime and Compose values and intentionally omits `VITE_*` because those values are compiled

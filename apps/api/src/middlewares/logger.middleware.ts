@@ -34,7 +34,7 @@ export const httpLoggerMiddleware = pinoHttp({
     req: (req) => ({
       id: req.id,
       method: req.method,
-      url: req.url,
+      url: req.url?.split('?')[0],
       remoteAddress: req.remoteAddress,
     }),
     res: (res) => ({ statusCode: res.statusCode }),

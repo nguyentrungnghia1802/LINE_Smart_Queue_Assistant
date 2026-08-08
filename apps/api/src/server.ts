@@ -1,9 +1,13 @@
+import './observability/api-bootstrap';
+
 import { createApp } from './app';
 import { config } from './config';
 import { closePool } from './db/client';
 import { redisService } from './infrastructure/redis';
 import { scheduler } from './jobs/scheduler';
 import { realtimeService } from './modules/realtime';
+import { captureException, shutdownObservability } from './observability/runtime';
+import { logger } from './utils/logger';
 
 const app = createApp();
 
@@ -14,8 +18,7 @@ async function startServer(): Promise<void> {
   await realtimeService.start();
 
   const server = app.listen(config.port, config.host, () => {
-    console.info(`🚀  API ready → http://${config.host}:${config.port}`);
-    console.info(`📋  Environment: ${config.nodeEnv}`);
+    logger.info({ host: config.host, port: config.port, environment: config.nodeEnv }, 'API ready');
     scheduler.start();
   });
 
@@ -23,13 +26,12 @@ async function startServer(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     if (shuttingDown) return;
     shuttingDown = true;
-    console.info(`\n${signal} received — shutting down gracefully…`);
+    logger.info({ signal }, 'API shutdown started');
     scheduler.stop();
     await realtimeService.stop();
     server.close(async () => {
-      console.info('HTTP server closed.');
-      await Promise.all([closePool(), redisService.stop()]);
-      console.info('DB pool and Redis client closed.');
+      await Promise.all([closePool(), redisService.stop(), shutdownObservability()]);
+      logger.info('API shutdown complete');
       process.exit(0);
     });
   };
@@ -41,11 +43,16 @@ async function startServer(): Promise<void> {
 void startServer();
 
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  process.exit(1);
+  captureException(err, { processEvent: 'uncaughtException' });
+  logger.fatal({ errorType: err.name }, 'API uncaught exception');
+  void shutdownObservability().finally(() => process.exit(1));
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Rejection:', reason);
-  process.exit(1);
+  captureException(reason, { processEvent: 'unhandledRejection' });
+  logger.fatal(
+    { errorType: reason instanceof Error ? reason.name : 'UnknownError' },
+    'API unhandled rejection'
+  );
+  void shutdownObservability().finally(() => process.exit(1));
 });
