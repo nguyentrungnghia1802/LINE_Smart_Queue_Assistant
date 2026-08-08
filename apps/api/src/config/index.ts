@@ -70,6 +70,14 @@ export const config = {
     publicQueueCacheTtlMs: positiveInteger('REDIS_PUBLIC_QUEUE_CACHE_TTL_MS', 3_000),
   },
 
+  realtime: {
+    keepAliveMs: positiveInteger('SSE_KEEP_ALIVE_MS', 15_000),
+    retryMs: positiveInteger('SSE_RETRY_MS', 3_000),
+    maxConnectionDurationMs: positiveInteger('SSE_MAX_CONNECTION_DURATION_MS', 300_000),
+    maxConnections: positiveInteger('SSE_MAX_CONNECTIONS', 1_000),
+    maxConnectionsPerUser: positiveInteger('SSE_MAX_CONNECTIONS_PER_USER', 3),
+  },
+
   bullmq: {
     notificationDeliveryOwner: notificationDeliveryOwner(),
     startupTimeoutMs: positiveInteger('BULLMQ_STARTUP_TIMEOUT_MS', 10_000),

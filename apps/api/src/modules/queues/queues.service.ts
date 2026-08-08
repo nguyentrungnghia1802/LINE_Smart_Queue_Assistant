@@ -10,8 +10,10 @@ import { withTransaction } from '../../db/transaction';
 import { publicReadModelCache } from '../../infrastructure/redis/redis-json.cache';
 import { AppError } from '../../utils/AppError';
 import { queueConfigCache } from '../../utils/cache';
+import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
 import type { BranchManagerScope } from '../branches/branch-scope';
+import { realtimeService } from '../realtime';
 
 import { CreateQueueDto, UpdateQueueDto, UpdateQueueStatusDto } from './queues.validator';
 
@@ -53,6 +55,17 @@ function toQueueSummary(
 
 async function getLiveCounts(queueIds: string[]) {
   return queueEntriesRepository.countLiveByQueueIds(queueIds);
+}
+
+async function publishQueueSummary(queue: QueueRow, reason: string): Promise<void> {
+  try {
+    await realtimeService.publishQueueSummary({ queue, reason });
+  } catch (error) {
+    logger.warn(
+      { reason, errorType: error instanceof Error ? error.name : 'UnknownError' },
+      'Realtime publication failed after committed queue configuration mutation'
+    );
+  }
 }
 
 export const queuesService = {
@@ -113,6 +126,7 @@ export const queuesService = {
       queueId: queue.id,
     });
     metricsService.increment('queue_created_total');
+    await publishQueueSummary(queue, 'queue_created');
     return toQueueSummary(queue, EMPTY_LIVE_COUNTS, dto.productIds);
   },
 
@@ -161,6 +175,7 @@ export const queuesService = {
       queueId: updated.id,
     });
     const liveCounts = await getLiveCounts([updated.id]);
+    await publishQueueSummary(updated, 'queue_updated');
     return toQueueSummary(
       updated,
       liveCounts[updated.id],
@@ -182,6 +197,7 @@ export const queuesService = {
       queueId: updated.id,
     });
     const liveCounts = await getLiveCounts([updated.id]);
+    await publishQueueSummary(updated, 'queue_status_updated');
     return toQueueSummary(updated, liveCounts[updated.id]);
   },
 
@@ -201,5 +217,6 @@ export const queuesService = {
       branchId: scope.branchId,
       queueId: id,
     });
+    await publishQueueSummary(existing, 'queue_deleted');
   },
 };

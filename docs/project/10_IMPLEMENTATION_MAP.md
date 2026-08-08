@@ -1,6 +1,6 @@
 # Current Implementation Map
 
-Last verified against the TASK-04 working tree on 2026-08-08.
+Last verified against the TASK-06 working tree on 2026-08-08.
 
 This document is the maintenance index for the current repository. It connects product roles and
 flows to source modules, routes, database history, runtime configuration, scheduled jobs, and
@@ -58,6 +58,7 @@ a source of current behavior.
 | `apps/api/src/infrastructure/redis`                                     | Shared Redis lifecycle and resilient distributed rate-limit store      | `02`, `07`, `08`, ADR-028              |
 | `apps/api/src/infrastructure/bullmq`                                    | Versioned LINE dispatcher/delivery contracts and BullMQ runtime        | `02`, `07`, `08`, ADR-030/031          |
 | `apps/api/src/modules/notifications/notification-dispatcher.service.ts` | PostgreSQL-to-BullMQ deterministic outbox dispatch                     | `02`, `04`, `08`, ADR-031              |
+| `apps/api/src/modules/realtime`                                         | Authorized SSE streams and transient Redis Pub/Sub event fan-out       | `02`, `05`, `07`, `08`, ADR-032        |
 | `apps/api/src/routes/v1.routes.ts`                                      | `/api/v1` module mounting and ordering                                 | route modules, `05`, OpenAPI test      |
 | `apps/api/src/modules/*`                                                | Domain route/controller/validator/service/repository code              | relevant `01`, `03`, `04`, `05`, tests |
 | `apps/api/src/db/repositories`                                          | Parameterized SQL and row mapping                                      | `04`, service tests, migrations        |

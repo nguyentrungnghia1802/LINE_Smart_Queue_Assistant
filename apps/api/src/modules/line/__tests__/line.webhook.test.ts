@@ -63,6 +63,13 @@ jest.mock('../../../config', () => ({
       commandTimeoutMs: 1000,
       keyPrefix: 'sqa-test',
     },
+    realtime: {
+      keepAliveMs: 15000,
+      retryMs: 3000,
+      maxConnectionDurationMs: 300000,
+      maxConnections: 1000,
+      maxConnectionsPerUser: 3,
+    },
     media: {
       mode: 'mock',
       localDir: '',

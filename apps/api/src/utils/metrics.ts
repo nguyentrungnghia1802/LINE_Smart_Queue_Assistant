@@ -24,7 +24,16 @@ type CounterName =
   | 'bullmq_invalid_jobs_total'
   | 'notifications_dispatched_total'
   | 'notifications_dispatch_failed_total'
-  | 'line_provider_failures_total';
+  | 'line_provider_failures_total'
+  | 'sse_connections_opened_total'
+  | 'sse_connections_closed_total'
+  | 'sse_events_sent_total'
+  | 'sse_send_failures_total'
+  | 'sse_reconnects_total'
+  | 'realtime_events_published_total'
+  | 'realtime_invalid_events_total'
+  | 'redis_pubsub_errors_total'
+  | 'redis_pubsub_reconnects_total';
 
 const counters: Record<CounterName, number> = {
   requests_total: 0,
@@ -53,6 +62,15 @@ const counters: Record<CounterName, number> = {
   notifications_dispatched_total: 0,
   notifications_dispatch_failed_total: 0,
   line_provider_failures_total: 0,
+  sse_connections_opened_total: 0,
+  sse_connections_closed_total: 0,
+  sse_events_sent_total: 0,
+  sse_send_failures_total: 0,
+  sse_reconnects_total: 0,
+  realtime_events_published_total: 0,
+  realtime_invalid_events_total: 0,
+  redis_pubsub_errors_total: 0,
+  redis_pubsub_reconnects_total: 0,
 };
 
 type GaugeName =
@@ -70,7 +88,9 @@ type GaugeName =
   | 'bullmq_jobs_delayed'
   | 'bullmq_jobs_failed'
   | 'notification_worker_processing_seconds'
-  | 'line_provider_latency_seconds';
+  | 'line_provider_latency_seconds'
+  | 'sse_active_connections'
+  | 'sse_connection_duration_seconds';
 
 const gauges: Record<GaugeName, number> = {
   notifications_outbox_backlog: 0,
@@ -88,6 +108,8 @@ const gauges: Record<GaugeName, number> = {
   bullmq_jobs_failed: 0,
   notification_worker_processing_seconds: 0,
   line_provider_latency_seconds: 0,
+  sse_active_connections: 0,
+  sse_connection_duration_seconds: 0,
 };
 
 export const metricsService = {

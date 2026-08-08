@@ -48,6 +48,8 @@ export interface QueueLiveCounts {
   servingCount: number;
 }
 
+export type EtaUpdatedEntry = Pick<QueueEntryRow, 'id' | 'status' | 'estimated_wait_seconds'>;
+
 // ── Repository ─────────────────────────────────────────────────────────────────
 
 export class QueueEntriesRepository extends BaseRepository {
@@ -330,15 +332,18 @@ export class QueueEntriesRepository extends BaseRepository {
   /**
    * Bulk-update estimated_wait_seconds for all waiting entries in a queue.
    */
-  async bulkUpdateEta(queueId: string, avgServiceSeconds: number): Promise<void> {
-    await this.query(
+  async bulkUpdateEta(queueId: string, avgServiceSeconds: number): Promise<EtaUpdatedEntry[]> {
+    return this.query<EtaUpdatedEntry>(
       `WITH ranked AS (
          SELECT id, (ROW_NUMBER() OVER (ORDER BY priority DESC, ticket_number ASC) - 1) AS pos
          FROM queue_entries WHERE queue_id = $1 AND status = 'waiting'
        )
        UPDATE queue_entries
        SET estimated_wait_seconds = (ranked.pos * $2)::int
-       FROM ranked WHERE queue_entries.id = ranked.id`,
+       FROM ranked
+       WHERE queue_entries.id = ranked.id
+         AND queue_entries.estimated_wait_seconds IS DISTINCT FROM (ranked.pos * $2)::int
+       RETURNING queue_entries.id, queue_entries.status, queue_entries.estimated_wait_seconds`,
       [queueId, avgServiceSeconds]
     );
   }

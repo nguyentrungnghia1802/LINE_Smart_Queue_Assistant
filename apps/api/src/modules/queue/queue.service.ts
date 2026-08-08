@@ -21,6 +21,7 @@ import { inventoryService } from '../inventory/inventory.service';
 import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { paymentsService } from '../payments/payments.service';
+import { type RealtimeEventName, realtimeService } from '../realtime';
 import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
 import {
@@ -107,6 +108,28 @@ async function invalidateQueueReadModels(queue: {
     branchId: queue.branch_id,
     queueId: queue.id,
   });
+}
+
+async function publishQueueMutation(
+  queue: Parameters<typeof realtimeService.publishQueueSummary>[0]['queue'],
+  reason: string,
+  ticketEvents: Array<{
+    name: Exclude<RealtimeEventName, 'queue.summary_updated'>;
+    entry: QueueEntryRow;
+    aheadCount?: number;
+  }> = []
+): Promise<void> {
+  try {
+    for (const event of ticketEvents) {
+      await realtimeService.publishTicketEvent({ ...event, queue });
+    }
+    await realtimeService.publishQueueSummary({ queue, reason });
+  } catch (error) {
+    logger.warn(
+      { reason, errorType: error instanceof Error ? error.name : 'UnknownError' },
+      'Realtime publication failed after committed queue mutation'
+    );
+  }
 }
 
 async function assertEntryBelongsToOrg(
@@ -240,11 +263,19 @@ export const queueService = {
       const autoCalled = await tryAutoCallNextWaiting(lockedQueue, client);
       return {
         entry: autoCalled?.id === entry.id ? autoCalled : entry,
+        createdEntry: entry,
+        autoCalled,
         aheadCount: autoCalled?.id === entry.id ? 0 : aheadCount,
         estimatedWaitSeconds: autoCalled?.id === entry.id ? 0 : estimatedWaitSeconds,
       };
     });
     await invalidateQueueReadModels(queue);
+    await publishQueueMutation(queue, 'ticket_created', [
+      { name: 'ticket.created', entry: created.createdEntry, aheadCount: created.aheadCount },
+      ...(created.autoCalled
+        ? [{ name: 'ticket.called' as const, entry: created.autoCalled, aheadCount: 0 }]
+        : []),
+    ]);
 
     return {
       entry: created.entry,
@@ -388,7 +419,7 @@ export const queueService = {
     const queue = await queuesRepository.findById(entry.queue_id);
     if (!queue) throw AppError.notFound('Queue');
 
-    await withTransaction(async (client) => {
+    const result = await withTransaction(async (client) => {
       const lockedQueue = await queuesRepository.lockById(queue.id, client);
       if (!lockedQueue) throw AppError.notFound('Queue');
       const cancelled = await queueEntriesRepository.markCancelled(entryId, client);
@@ -417,9 +448,16 @@ export const queueService = {
         notificationOutboxRepository,
         client
       );
-      await tryAutoCallNextWaiting(lockedQueue, client);
+      const autoCalled = await tryAutoCallNextWaiting(lockedQueue, client);
+      return { cancelled, autoCalled };
     });
     await invalidateQueueReadModels(queue);
+    await publishQueueMutation(queue, 'ticket_cancelled', [
+      { name: 'ticket.cancelled', entry: result.cancelled },
+      ...(result.autoCalled
+        ? [{ name: 'ticket.called' as const, entry: result.autoCalled, aheadCount: 0 }]
+        : []),
+    ]);
     metricsService.increment('queue_cancelled_total');
   },
 
@@ -459,6 +497,9 @@ export const queueService = {
 
     const updated = await queueEntriesRepository.deprioritize(entryId);
     await invalidateQueueReadModels(queue);
+    await publishQueueMutation(queue, 'ticket_deferred', [
+      { name: 'ticket.deferred', entry: updated },
+    ]);
 
     // Record a skip penalty when the customer reaches the skip limit.
     // Fire-and-forget — a penalty-write failure must not block the queue operation.
@@ -532,6 +573,9 @@ export const queueService = {
       return called;
     });
     await invalidateQueueReadModels(queue);
+    await publishQueueMutation(queue, 'ticket_called', [
+      { name: 'ticket.called', entry: called, aheadCount: 0 },
+    ]);
     return called;
   },
 
@@ -562,6 +606,9 @@ export const queueService = {
       return serving;
     });
     await invalidateQueueReadModels(queue);
+    await publishQueueMutation(queue, 'ticket_serving', [
+      { name: 'ticket.serving', entry: serving, aheadCount: 0 },
+    ]);
     return serving;
   },
 
@@ -587,7 +634,7 @@ export const queueService = {
       );
     }
 
-    const served = await withTransaction(async (client) => {
+    const result = await withTransaction(async (client) => {
       const lockedQueue = await queuesRepository.lockById(queue.id, client);
       if (!lockedQueue) throw AppError.notFound('Queue');
       const updated = await queueEntriesRepository.markServed(entryId, client);
@@ -622,12 +669,18 @@ export const queueService = {
         client,
         params.actorUserId
       );
-      await tryAutoCallNextWaiting(lockedQueue, client);
-      return updated;
+      const autoCalled = await tryAutoCallNextWaiting(lockedQueue, client);
+      return { served: updated, autoCalled };
     });
     await invalidateQueueReadModels(queue);
+    await publishQueueMutation(queue, 'ticket_completed', [
+      { name: 'ticket.completed', entry: result.served, aheadCount: 0 },
+      ...(result.autoCalled
+        ? [{ name: 'ticket.called' as const, entry: result.autoCalled, aheadCount: 0 }]
+        : []),
+    ]);
     metricsService.increment('queue_served_total');
-    return served;
+    return result.served;
   },
 
   /**
@@ -646,7 +699,7 @@ export const queueService = {
       throw AppError.conflict(`Ticket must be in 'called' status to defer (was '${entry.status}')`);
     }
 
-    const deferred = await withTransaction(async (client) => {
+    const result = await withTransaction(async (client) => {
       const lockedQueue = await queuesRepository.lockById(queue.id, client);
       if (!lockedQueue) throw AppError.notFound('Queue');
       const waitingBeforeDefer = await queueEntriesRepository.listWaiting(queue.id, client);
@@ -688,8 +741,8 @@ export const queueService = {
           client,
           params.actorUserId
         );
-        await tryAutoCallNextWaiting(lockedQueue, client);
-        return noShow;
+        const autoCalled = await tryAutoCallNextWaiting(lockedQueue, client);
+        return { entry: noShow, eventName: 'ticket.no_show' as const, autoCalled };
       }
 
       const deferred = await queueEntriesRepository.deferCalledBySlots(
@@ -712,13 +765,22 @@ export const queueService = {
         client,
         params.actorUserId
       );
-      if (waitingBeforeDefer.length > 0) {
-        await tryAutoCallNextWaiting(lockedQueue, client);
-      }
-      return deferred;
+      const autoCalled =
+        waitingBeforeDefer.length > 0 ? await tryAutoCallNextWaiting(lockedQueue, client) : null;
+      return { entry: deferred, eventName: 'ticket.deferred' as const, autoCalled };
     });
     await invalidateQueueReadModels(queue);
-    return deferred;
+    await publishQueueMutation(
+      queue,
+      result.eventName === 'ticket.no_show' ? 'ticket_no_show' : 'ticket_deferred',
+      [
+        { name: result.eventName, entry: result.entry },
+        ...(result.autoCalled
+          ? [{ name: 'ticket.called' as const, entry: result.autoCalled, aheadCount: 0 }]
+          : []),
+      ]
+    );
+    return result.entry;
   },
 
   /**
@@ -742,7 +804,7 @@ export const queueService = {
       );
     }
 
-    const noShow = await withTransaction(async (client) => {
+    const result = await withTransaction(async (client) => {
       const lockedQueue = await queuesRepository.lockById(queue.id, client);
       if (!lockedQueue) throw AppError.notFound('Queue');
       const noShow = await queueEntriesRepository.markNoShow(entryId, client);
@@ -779,11 +841,17 @@ export const queueService = {
         client,
         params.actorUserId
       );
-      await tryAutoCallNextWaiting(lockedQueue, client);
-      return noShow;
+      const autoCalled = await tryAutoCallNextWaiting(lockedQueue, client);
+      return { noShow, autoCalled };
     });
     await invalidateQueueReadModels(queue);
-    return noShow;
+    await publishQueueMutation(queue, 'ticket_no_show', [
+      { name: 'ticket.no_show', entry: result.noShow },
+      ...(result.autoCalled
+        ? [{ name: 'ticket.called' as const, entry: result.autoCalled, aheadCount: 0 }]
+        : []),
+    ]);
+    return result.noShow;
   },
 
   /** Customer-owned ticket status used by authenticated LIFF deep links. */
