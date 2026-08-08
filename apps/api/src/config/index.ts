@@ -58,6 +58,8 @@ export const config = {
     connectTimeoutMs: positiveInteger('REDIS_CONNECT_TIMEOUT_MS', 5_000),
     commandTimeoutMs: positiveInteger('REDIS_COMMAND_TIMEOUT_MS', 1_000),
     keyPrefix: redisKeyPrefix(),
+    publicBranchCacheTtlMs: positiveInteger('REDIS_PUBLIC_BRANCH_CACHE_TTL_MS', 5_000),
+    publicQueueCacheTtlMs: positiveInteger('REDIS_PUBLIC_QUEUE_CACHE_TTL_MS', 3_000),
   },
 
   jwt: {
@@ -123,7 +125,9 @@ export const config = {
   email: {
     mode: (process.env.EMAIL_TRANSPORT ??
       (process.env.NODE_ENV === 'production' ? 'disabled' : 'mock')) as
-      'disabled' | 'mock' | 'smtp',
+      | 'disabled'
+      | 'mock'
+      | 'smtp',
     fromName: process.env.EMAIL_FROM_NAME ?? 'LINE Smart Queue Assistant',
     fromAddress: process.env.EMAIL_FROM_ADDRESS ?? 'no-reply@example.invalid',
     smtp: {

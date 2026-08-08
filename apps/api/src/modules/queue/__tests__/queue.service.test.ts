@@ -5,6 +5,7 @@ import {
 } from '../../../db/repositories/queue-entries.repository';
 import { QueueRow, queuesRepository } from '../../../db/repositories/queues.repository';
 import { withTransaction } from '../../../db/transaction';
+import { publicReadModelCache } from '../../../infrastructure/redis/redis-json.cache';
 import { inventoryService } from '../../inventory/inventory.service';
 import { queueNotificationService } from '../../notifications/queue-notification.service';
 import { paymentsService } from '../../payments/payments.service';
@@ -16,6 +17,14 @@ import { queueService } from '../queue.service';
 jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
+jest.mock('../../../infrastructure/redis/redis-json.cache', () => ({
+  publicReadModelCache: {
+    getQueueSummary: jest.fn(
+      async (params: { load: () => Promise<unknown> }) => await params.load()
+    ),
+    invalidateQueue: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 jest.mock('../../inventory/inventory.service');
 jest.mock('../../notifications/queue-notification.service', () => ({
   ETA_WARNING_POSITIONS: [5],
@@ -137,6 +146,7 @@ const mockOnSkipExhausted = skipPenaltyService.onSkipExhausted as jest.MockedFun
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 const QUEUE_ID = 'queue-uuid-0001';
+const BRANCH_ID = 'branch-uuid-0001';
 const ENTRY_ID = 'entry-uuid-0001';
 const USER_ID = 'user-uuid-0001';
 const LINE_USER_ID = 'Uf0000000000000000000000000000001';
@@ -144,6 +154,7 @@ const LINE_USER_ID = 'Uf0000000000000000000000000000001';
 const openQueue: QueueRow = {
   id: QUEUE_ID,
   organization_id: 'org-uuid-0001',
+  branch_id: BRANCH_ID,
   name: 'Test Queue',
   description: null,
   status: 'open',
@@ -322,6 +333,13 @@ describe('queueService.getQueueStatus', () => {
     expect(result.queue).toBe(openQueue);
     expect(result.waitingCount).toBe(4);
     expect(result.estimatedWaitSeconds).toBe(4 * openQueue.avg_service_seconds);
+    expect(publicReadModelCache.getQueueSummary).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: openQueue.organization_id,
+        branchId: BRANCH_ID,
+        queueId: QUEUE_ID,
+      })
+    );
   });
 
   it('throws 404 when the queue does not exist', async () => {

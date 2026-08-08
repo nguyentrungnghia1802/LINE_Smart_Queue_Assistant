@@ -37,6 +37,7 @@ apps/api/src/
 |   \-- transaction.ts       Transaction helper
 |-- docs/                    Programmatic Swagger fragments
 |-- jobs/                    In-process scheduler and job functions
+|-- infrastructure/redis/   Shared Redis lifecycle, rate limits, and public read-model cache
 |-- middlewares/             Auth, role, validation, rate, idempotency, logs, metrics
 |-- modules/<domain>/        Route/controller/service/validator and tests
 |-- routes/                  Health and router composition
@@ -193,6 +194,10 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 - Keep third-party failure after-commit when failure must not roll back domain state, such as LINE delivery.
 - Keep commercial/stock writes inside one transaction when partial state would be invalid.
 - Invalidate caches only after commit.
+- Keep Redis read-model keys versioned and tenant-scoped. Cache parsing must validate the expected
+  organization/branch/queue identity, and cache failures must fall back to PostgreSQL.
+- Never use cached public openness, capacity, inventory, payment, or tenant data to authorize a
+  write or domain transition.
 - Keep customer-facing LINE copy, Flex payloads, text fallback, and ticket deeplink construction inside `line-notification.templates.ts` and `lineNotificationService`; business services must not call the LINE SDK or adapter directly.
 - Keep Rich Menu definition, image loading, LINE transport, and sync orchestration separated in `apps/api/src/modules/line/rich-menu.*`. Do not create or replace Rich Menus during API startup; use the explicit script command.
 

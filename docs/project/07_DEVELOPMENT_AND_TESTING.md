@@ -31,9 +31,10 @@ production automatically adds `Secure`. Do not restore the removed `JWT_EXPIRES_
 store access/refresh tokens in local storage.
 
 Redis configuration is backend-only: `REDIS_URL`, `REDIS_CONNECT_TIMEOUT_MS`,
-`REDIS_COMMAND_TIMEOUT_MS`, and `REDIS_KEY_PREFIX`. Native development may leave `REDIS_URL`
-empty and uses bounded local rate-limit counters. Compose supplies `redis://redis:6379`. Never put
-a Redis URL or password in a `VITE_*` variable.
+`REDIS_COMMAND_TIMEOUT_MS`, `REDIS_KEY_PREFIX`, `REDIS_PUBLIC_BRANCH_CACHE_TTL_MS`, and
+`REDIS_PUBLIC_QUEUE_CACHE_TTL_MS`. Native development may leave `REDIS_URL` empty; public reads
+then use PostgreSQL directly and protected policies use bounded local rate-limit counters. Compose
+supplies `redis://redis:6379`. Never put a Redis URL or password in a `VITE_*` variable.
 
 LINE notification delivery is durable by default. Local defaults are usually enough, but the worker can be tuned with `LINE_NOTIFICATION_BATCH_SIZE`, `LINE_NOTIFICATION_WORKER_INTERVAL_MS`, `LINE_NOTIFICATION_MAX_ATTEMPTS`, `LINE_NOTIFICATION_RETRY_BASE_SECONDS`, and `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS`.
 
@@ -231,7 +232,7 @@ npm run test:ui -w apps/web
 | Pure unit                      | Jest/Vitest                                      | ETA, policy, helpers, adapters, validators                                                  |
 | Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB     | Transactions, tenant checks, state transitions, stock/payment behavior                      |
 | Route/API                      | Supertest                                        | Middleware, status/envelope, request validation                                             |
-| Infrastructure lifecycle       | Jest plus Compose smoke tests                    | Redis startup outage, reconnect, timeout, shutdown, fallback, shared counters               |
+| Infrastructure lifecycle       | Jest plus Compose smoke tests                    | Redis lifecycle, shared counters, cache hit/miss/TTL, invalidation, corruption, outage      |
 | Component                      | Testing Library/Vitest                           | Render states and critical interactions                                                     |
 | Browser E2E                    | Playwright + isolated mock LINE/API ports        | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows |
 | Load                           | Scenario definitions and a small Docker baseline | Use `11_SCALABILITY_BASELINE.md`; recreate against isolated staging before capacity claims  |

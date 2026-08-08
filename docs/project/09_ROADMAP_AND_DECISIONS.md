@@ -451,4 +451,27 @@ PostgreSQL gate; health reports Redis status without credentials.
 **Consequences:** Multiple healthy API processes enforce one counter namespace. A Redis outage can
 temporarily multiply the bounded limit by replica count, but never removes authentication
 protection or blocks durable queue/order correctness. Redis must remain private, monitored, and
-restored promptly. Cache, BullMQ, Pub/Sub, and process-local idempotency remain separate later tasks.
+restored promptly. Public read-model caching is handled separately by ADR-029; BullMQ, Pub/Sub, and
+process-local idempotency remain later tasks.
+
+## ADR-029: Redis caches only bounded public read models
+
+**Status:** accepted (2026-08-08)
+
+**Context:** TASK-01 measured the public branch QR catalog as a high-frequency read path and found
+per-queue waiting/product query fan-out. Public queue summaries also repeat a waiting-count query.
+These display snapshots tolerate a few seconds of staleness, while booking, inventory, payment,
+authorization, and queue transitions do not.
+
+**Decision:** Cache the complete public branch booking read model for five seconds and the public
+queue count/ETA summary for three seconds. Use cache-aside Redis JSON envelopes, versioned keys that
+contain organization and branch scope, exact-key invalidation after successful database commit,
+and safe PostgreSQL fallback for misses, outages, timeouts, and malformed values. Invalidation is
+best-effort; TTL bounds any remaining display staleness. PostgreSQL remains authoritative for every
+write and correctness-sensitive read.
+
+**Consequences:** Warm public QR reads avoid localized catalog and per-queue fan-out, and warm queue
+summary reads avoid repeated count queries across API replicas. Redis loss increases PostgreSQL
+load but does not change behavior or availability. Cache hit/miss/error, hit ratio, and command
+latency metrics are process-local and must be aggregated by the monitoring system. Cache keys may
+be discarded during deployment or schema evolution because version `v1` is explicit.
