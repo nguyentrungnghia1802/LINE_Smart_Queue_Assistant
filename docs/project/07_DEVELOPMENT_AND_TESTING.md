@@ -95,6 +95,20 @@ npm run docker:dev:ps
 npm run docker:dev:down
 ```
 
+For isolated frontend component review, Storybook uses the same Vite aliases, Tailwind design
+tokens, i18n resources, and local component fixtures without starting the API or contacting any
+external provider:
+
+```bash
+npm run storybook
+npm run storybook:build
+```
+
+The toolbar provides Japanese, Vietnamese, and English locale selection plus phone and desktop
+viewports. Stories are colocated with reusable components as `*.stories.tsx`; shared deterministic
+fixtures are tested under `apps/web/src/storybook`. A Storybook static build is a development/CI
+review artifact and is not copied into the production web image.
+
 `npm run docker:clean` also removes development database volumes and is destructive.
 
 ### Workspace hygiene
@@ -214,6 +228,7 @@ npm run typecheck
 npm run test
 npm run test:coverage
 npm run build
+npm run storybook:build
 npm run format:check
 npm run openapi:check
 npm run spell:check
@@ -245,6 +260,7 @@ npm run test:ui -w apps/web
 | Route/API                      | Supertest                                        | Middleware, status/envelope, request validation                                              |
 | Infrastructure lifecycle       | Jest plus Compose smoke tests                    | Redis lifecycle/cache/limits/Pub/Sub, SSE cleanup/fan-out, and BullMQ startup/restart/outage |
 | Component                      | Testing Library/Vitest                           | Render states and critical interactions                                                      |
+| Isolated component review      | Storybook 10 + React/Vite                        | Locale, phone/desktop viewport, and deterministic reusable-component states                  |
 | Browser E2E                    | Playwright + isolated mock LINE/API ports        | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows  |
 | Load                           | Scenario definitions and a small Docker baseline | Use `11_SCALABILITY_BASELINE.md`; recreate against isolated staging before capacity claims   |
 

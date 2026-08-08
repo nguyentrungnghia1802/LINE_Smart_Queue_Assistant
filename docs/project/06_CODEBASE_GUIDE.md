@@ -93,6 +93,13 @@ apps/web/src/
 
 Pages orchestrate data and interactions. Reusable visual patterns belong in components, server calls in services/hooks, and non-React transformations in utils. Browser storage is for drafts and convenience, never authorization/payment truth.
 
+The isolated component-review environment is `apps/web/.storybook/main.ts` and
+`apps/web/.storybook/preview.tsx`. Reusable stories use the `*.stories.tsx` convention beside the
+component, while deterministic shared fixtures live in `apps/web/src/storybook/fixtures.ts` and
+its tests. The preview owns the i18n locale toolbar (`ja`, `vi`, `en`), global CSS, TanStack Query
+provider, MemoryRouter, and phone/desktop viewport options. Story fixtures must not call real API,
+LINE, payment, maps, or object-storage services.
+
 Persisted product and organization image fields use the shared `StoredImageUrlSchema` from
 `modules/shared/shared.validator.ts`. It accepts only HTTP(S) URLs or generated same-origin
 `/media/...` and `/mock-media/...` paths. Upload request data URLs terminate at the media service

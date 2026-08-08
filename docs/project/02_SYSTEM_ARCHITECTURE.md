@@ -172,6 +172,12 @@ customer functionality remains LINE/LIFF-only.
 
 Frontend responsibilities are split into route pages, reusable components/layouts, API services, LIFF adapters, hooks, Zustand auth state, and browser checkout helpers. TanStack Query owns server-state fetching/caching. Browser storage currently preserves checkout drafts and local booking-group history; it is not authoritative business storage.
 
+Storybook lives under `apps/web/.storybook` and is a development-only review boundary for selected
+reusable components. Its preview supplies the same global CSS/design tokens, i18n resources,
+TanStack Query provider, and MemoryRouter context used by stories. Stories use deterministic local
+fixtures and never call LINE, payment, Google Routes, or the production API; Storybook is not part
+of the production SPA bundle.
+
 ## 5. Data ownership
 
 - PostgreSQL owns organization applications, organizations, branches, identities, organization
