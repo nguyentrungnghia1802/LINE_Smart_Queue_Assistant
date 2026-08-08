@@ -38,9 +38,9 @@ supplies `redis://redis:6379`. Never put a Redis URL or password in a `VITE_*` v
 
 LINE notification delivery is durable by default. Compose sets
 `LINE_NOTIFICATION_DELIVERY_OWNER=bullmq` and starts a separate worker. Bare native development may
-keep `api` ownership when no worker process is running. BullMQ startup, sweep timeout, concurrency,
-and heartbeat use `BULLMQ_*`/`WORKER_*`; outbox batch/retry policy remains under
-`LINE_NOTIFICATION_*`. Never start API and BullMQ ownership for the same recurring sweep.
+keep `api` ownership when no worker process is running. BullMQ startup, job timeout, concurrency,
+provider rate limits, and heartbeat use `BULLMQ_*`/`WORKER_*`; outbox dispatch claims and delivery
+retry policy remain under `LINE_NOTIFICATION_*`. Never start API and BullMQ ownership together.
 
 For ordinary UI/backend work without LINE credentials:
 
@@ -257,8 +257,9 @@ Critical regression scenarios:
 - Finite stock race/rollback and unlimited stock behavior.
 - Cross-organization access attempts for every staff/manager command.
 - Ticket transition races and duplicate call-next requests.
-- LINE token absent, success, failure, duplicate scan, durable outbox retry, BullMQ ownership,
-  multi-worker scheduler idempotency, and process restart semantics.
+- LINE token absent, success, failure, duplicate dispatch/job/worker execution, crash before/after
+  enqueue, Redis outage, provider timeout/429/5xx/4xx, exhausted retry, multi-worker scheduler
+  idempotency, and process restart/backlog semantics.
 - LINE Flex Message payload, text fallback, deeplink URL, and no-rollback behavior for queue/order notifications.
 - LIFF Home authentication, active-ticket/no-ticket states, Rich Menu route resolution, and Rich Menu sync idempotency/mock behavior.
 - Organization registration transaction and duplicate email/slug.

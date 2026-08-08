@@ -200,6 +200,10 @@ export const scheduler = {
    * they modify DB rows and are not safe to trigger ad-hoc in tests.
    */
   async runOnce(): Promise<void> {
-    await Promise.allSettled([scanEtaWarnings(), scanCalledRenotify(), runNotificationDelivery()]);
+    const jobs = [scanEtaWarnings(), scanCalledRenotify()];
+    if (apiOwnsNotificationDelivery(config.bullmq.notificationDeliveryOwner)) {
+      jobs.push(runNotificationDelivery());
+    }
+    await Promise.allSettled(jobs);
   },
 };

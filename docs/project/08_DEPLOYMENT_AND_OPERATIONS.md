@@ -89,8 +89,8 @@ multiple environments share one managed Redis. Do not expose Redis port `6379` p
 place Redis credentials in frontend build arguments.
 
 Set `LINE_NOTIFICATION_DELIVERY_OWNER=bullmq` when the dedicated worker service is deployed. The
-API then stops scheduling LINE delivery while the worker maintains the versioned BullMQ sweep
-scheduler. `api` remains available if Redis or the worker is unavailable because queue/order
+API then stops scheduling LINE delivery while the worker maintains the versioned BullMQ dispatcher
+scheduler and per-notification jobs. `api` remains available if Redis or the worker is unavailable because queue/order
 transactions commit their notification intent to the PostgreSQL outbox only. Use `api` ownership
 only for native development without a worker, never concurrently with the BullMQ owner.
 
@@ -314,12 +314,19 @@ PostgreSQL.
 ## 6. Scheduled jobs operations
 
 LINE notification delivery is the only BullMQ-owned workload. The dedicated worker registers the
-deterministic `line-notification-delivery-sweep-v1` scheduler on queue `line-notifications`, validates
-the versioned no-PII payload, and invokes the existing PostgreSQL outbox delivery service. The
-worker uses bounded attempts, exponential backoff, one concurrent sweep, provider-oriented
-throttling, and graceful drain before closing Redis. BullMQ records orchestration state; PostgreSQL
-`notifications` rows and their event keys remain the authoritative delivery record. Stale
-`processing` rows remain reclaimable after `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS`.
+deterministic `line-notification-delivery-sweep-v1` scheduler on queue `line-notifications`; the
+scheduler now runs `line.notification-outbox.dispatch.v1`. Dispatcher claims contain no PII and
+produce deterministic `line.notification-delivery.v1` jobs with only a notification UUID. The
+worker uses bounded attempts, exponential backoff with jitter, provider `Retry-After`, configurable
+throttling, and graceful drain before closing Redis. PostgreSQL `notifications` rows and event keys
+remain authoritative. Stale dispatch claims recover after
+`LINE_NOTIFICATION_DISPATCH_CLAIM_TIMEOUT_SECONDS`; LINE requests time out after
+`LINE_MESSAGING_REQUEST_TIMEOUT_MS` and use provider retry keys for duplicate safety.
+
+Monitor `notifications_undispatched`, oldest undispatched age, BullMQ waiting/active/delayed/failed,
+outbox retry/failure totals, worker processing time, and LINE provider latency/failures. A rising
+undispatched age with a healthy database indicates Redis/dispatcher trouble; rising delayed jobs
+with `429` indicates provider throttling.
 
 The API scheduler retains ETA updates/warnings, called-reminder backfill, email delivery, inventory
 expiry, location work, forecasting, session cleanup, and counter reset. Those logical jobs continue

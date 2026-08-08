@@ -9,6 +9,7 @@ import type { TicketNotificationEventType } from './line-notification.templates'
 import { notificationPreferencesRepository } from './notification-preferences.repository';
 
 export type NotificationDeliveryStatus = 'pending' | 'processing' | 'sent' | 'failed' | 'cancelled';
+export type NotificationDispatchStatus = 'pending' | 'dispatching' | 'dispatched';
 
 export interface NotificationOutboxRow {
   id: string;
@@ -26,7 +27,15 @@ export interface NotificationOutboxRow {
   max_attempts: number;
   next_retry_at: Date | null;
   processing_started_at: Date | null;
+  processing_job_id: string | null;
   last_error: string | null;
+  dispatch_status: NotificationDispatchStatus;
+  dispatch_attempt_count: number;
+  dispatch_next_retry_at: Date | null;
+  dispatch_started_at: Date | null;
+  dispatch_job_id: string | null;
+  dispatched_at: Date | null;
+  dispatch_last_error: string | null;
   sent_at: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -141,6 +150,98 @@ export class NotificationOutboxRepository extends BaseRepository {
       : this.query<NotificationOutboxRow>(sql, args);
   }
 
+  async claimForDispatch(limit: number): Promise<NotificationOutboxRow[]> {
+    return this.query<NotificationOutboxRow>(
+      `WITH due AS (
+         SELECT id
+         FROM notifications
+         WHERE channel = 'line_push'
+           AND line_user_id IS NOT NULL
+           AND status = 'pending'
+           AND (
+             (
+               dispatch_status = 'pending'
+               AND dispatch_next_retry_at <= NOW()
+             )
+             OR (
+               dispatch_status = 'dispatching'
+               AND dispatch_started_at < NOW() - ($2 * INTERVAL '1 second')
+             )
+           )
+         ORDER BY dispatch_next_retry_at, created_at
+         LIMIT $1
+         FOR UPDATE SKIP LOCKED
+       )
+       UPDATE notifications n
+       SET dispatch_status = 'dispatching',
+           dispatch_started_at = NOW(),
+           dispatch_attempt_count = n.dispatch_attempt_count + 1,
+           dispatch_job_id = COALESCE(n.dispatch_job_id, 'line-notification-' || n.id::text),
+           dispatch_last_error = NULL,
+           updated_at = NOW()
+       FROM due
+       WHERE n.id = due.id
+       RETURNING n.*`,
+      [limit, config.notifications.dispatchClaimTimeoutSeconds]
+    );
+  }
+
+  async markDispatched(id: string, jobId: string): Promise<void> {
+    await this.query(
+      `UPDATE notifications
+       SET dispatch_status = 'dispatched',
+           dispatch_job_id = $2,
+           dispatched_at = NOW(),
+           dispatch_started_at = NULL,
+           dispatch_next_retry_at = NULL,
+           dispatch_last_error = NULL,
+           updated_at = NOW()
+       WHERE id = $1
+         AND dispatch_status IN ('dispatching', 'dispatched')`,
+      [id, jobId]
+    );
+  }
+
+  async markDispatchRetry(id: string, nextRetryAt: Date, error: unknown): Promise<void> {
+    await this.query(
+      `UPDATE notifications
+       SET dispatch_status = 'pending',
+           dispatch_next_retry_at = $2,
+           dispatch_started_at = NULL,
+           dispatch_last_error = $3,
+           updated_at = NOW()
+       WHERE id = $1
+         AND status = 'pending'`,
+      [id, nextRetryAt, sanitizeNotificationError(error)]
+    );
+  }
+
+  async claimForDelivery(id: string, jobId: string): Promise<NotificationOutboxRow | null> {
+    const rows = await this.query<NotificationOutboxRow>(
+      `UPDATE notifications
+       SET status = 'processing',
+           dispatch_status = 'dispatched',
+           dispatched_at = COALESCE(dispatched_at, NOW()),
+           dispatch_started_at = NULL,
+           processing_started_at = NOW(),
+           processing_job_id = $2,
+           attempt_count = attempt_count + 1,
+           last_error = NULL,
+           updated_at = NOW()
+       WHERE id = $1
+         AND channel = 'line_push'
+         AND dispatch_status IN ('dispatching', 'dispatched')
+         AND attempt_count < max_attempts
+         AND (
+           status = 'pending'
+           OR (status = 'processing' AND processing_job_id = $2)
+         )
+       RETURNING *`,
+      [id, jobId]
+    );
+    return rows[0] ?? null;
+  }
+
   async markSent(id: string): Promise<void> {
     await this.query(
       `UPDATE notifications
@@ -148,6 +249,7 @@ export class NotificationOutboxRepository extends BaseRepository {
            sent_at = NOW(),
            next_retry_at = NULL,
            processing_started_at = NULL,
+           processing_job_id = NULL,
            last_error = NULL,
            updated_at = NOW()
        WHERE id = $1`,
@@ -162,6 +264,7 @@ export class NotificationOutboxRepository extends BaseRepository {
        SET status = 'pending',
            next_retry_at = $2,
            processing_started_at = NULL,
+           processing_job_id = NULL,
            last_error = $3,
            updated_at = NOW()
        WHERE id = $1`,
@@ -176,6 +279,7 @@ export class NotificationOutboxRepository extends BaseRepository {
        SET status = 'failed',
            next_retry_at = NULL,
            processing_started_at = NULL,
+           processing_job_id = NULL,
            last_error = $2,
            updated_at = NOW()
        WHERE id = $1`,
@@ -231,6 +335,26 @@ export class NotificationOutboxRepository extends BaseRepository {
        FROM notifications`
     );
     return rows[0];
+  }
+
+  async dispatchMetrics(): Promise<{ undispatched: string; oldest_seconds: string }> {
+    const rows = await this.query<{ undispatched: string; oldest_seconds: string }>(
+      `SELECT
+         COUNT(*) FILTER (
+           WHERE status = 'pending' AND dispatch_status <> 'dispatched'
+         ) AS undispatched,
+         COALESCE(
+           EXTRACT(EPOCH FROM (
+             NOW() - (MIN(created_at) FILTER (
+               WHERE status = 'pending' AND dispatch_status <> 'dispatched'
+             ))
+           )),
+           0
+         ) AS oldest_seconds
+       FROM notifications
+       WHERE channel = 'line_push'`
+    );
+    return rows[0] ?? { undispatched: '0', oldest_seconds: '0' };
   }
 }
 

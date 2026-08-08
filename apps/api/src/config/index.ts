@@ -75,6 +75,8 @@ export const config = {
     startupTimeoutMs: positiveInteger('BULLMQ_STARTUP_TIMEOUT_MS', 10_000),
     jobTimeoutMs: positiveInteger('BULLMQ_JOB_TIMEOUT_MS', 300_000),
     workerConcurrency: positiveInteger('BULLMQ_WORKER_CONCURRENCY', 1),
+    providerRateLimitMax: positiveInteger('BULLMQ_PROVIDER_RATE_LIMIT_MAX', 20),
+    providerRateLimitDurationMs: positiveInteger('BULLMQ_PROVIDER_RATE_LIMIT_DURATION_MS', 1_000),
     heartbeatFile: process.env.WORKER_HEALTH_FILE ?? '/tmp/sqa-worker-health',
     heartbeatIntervalMs: positiveInteger('WORKER_HEARTBEAT_INTERVAL_MS', 10_000),
   },
@@ -123,6 +125,7 @@ export const config = {
     mockIdToken: process.env.LINE_ID_TOKEN_MOCK_VALUE ?? 'mock-liff-id-token',
     mockUserId: process.env.LINE_ID_TOKEN_MOCK_USER_ID ?? 'mock-user-001',
     mockDisplayName: process.env.LINE_ID_TOKEN_MOCK_DISPLAY_NAME ?? 'ローカルテストユーザー',
+    messagingRequestTimeoutMs: positiveInteger('LINE_MESSAGING_REQUEST_TIMEOUT_MS', 10_000),
   },
 
   notifications: {
@@ -136,6 +139,10 @@ export const config = {
     processingTimeoutSeconds: Number.parseInt(
       process.env.LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS ?? '300',
       10
+    ),
+    dispatchClaimTimeoutSeconds: positiveInteger(
+      'LINE_NOTIFICATION_DISPATCH_CLAIM_TIMEOUT_SECONDS',
+      60
     ),
   },
 

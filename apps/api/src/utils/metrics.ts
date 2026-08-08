@@ -21,7 +21,10 @@ type CounterName =
   | 'bullmq_worker_start_errors_total'
   | 'bullmq_jobs_completed_total'
   | 'bullmq_jobs_failed_total'
-  | 'bullmq_invalid_jobs_total';
+  | 'bullmq_invalid_jobs_total'
+  | 'notifications_dispatched_total'
+  | 'notifications_dispatch_failed_total'
+  | 'line_provider_failures_total';
 
 const counters: Record<CounterName, number> = {
   requests_total: 0,
@@ -47,6 +50,9 @@ const counters: Record<CounterName, number> = {
   bullmq_jobs_completed_total: 0,
   bullmq_jobs_failed_total: 0,
   bullmq_invalid_jobs_total: 0,
+  notifications_dispatched_total: 0,
+  notifications_dispatch_failed_total: 0,
+  line_provider_failures_total: 0,
 };
 
 type GaugeName =
@@ -57,7 +63,14 @@ type GaugeName =
   | 'redis_cache_hit_ratio'
   | 'redis_cache_latency_seconds'
   | 'bullmq_worker_ready'
-  | 'bullmq_worker_active_jobs';
+  | 'bullmq_worker_active_jobs'
+  | 'notifications_undispatched'
+  | 'notifications_oldest_undispatched_seconds'
+  | 'bullmq_jobs_waiting'
+  | 'bullmq_jobs_delayed'
+  | 'bullmq_jobs_failed'
+  | 'notification_worker_processing_seconds'
+  | 'line_provider_latency_seconds';
 
 const gauges: Record<GaugeName, number> = {
   notifications_outbox_backlog: 0,
@@ -68,6 +81,13 @@ const gauges: Record<GaugeName, number> = {
   redis_cache_latency_seconds: 0,
   bullmq_worker_ready: 0,
   bullmq_worker_active_jobs: 0,
+  notifications_undispatched: 0,
+  notifications_oldest_undispatched_seconds: 0,
+  bullmq_jobs_waiting: 0,
+  bullmq_jobs_delayed: 0,
+  bullmq_jobs_failed: 0,
+  notification_worker_processing_seconds: 0,
+  line_provider_latency_seconds: 0,
 };
 
 export const metricsService = {

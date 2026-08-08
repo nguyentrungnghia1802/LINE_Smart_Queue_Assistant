@@ -17,13 +17,15 @@ async function tryPushMessages(
   context: LineNotificationContext,
   adapter: ILineMessagingAdapter,
   options: { countFailure: boolean; failureMessage: string }
-): Promise<boolean> {
+): Promise<{ sent: boolean; error?: unknown }> {
+  const startedAt = Date.now();
   try {
     await adapter.pushMessage(lineUserId, messages, {
       notificationDisabled: false,
       retryKey: context.retryKey,
     });
     metricsService.increment('notifications_sent_total');
+    metricsService.setGauge('line_provider_latency_seconds', (Date.now() - startedAt) / 1_000);
     logger.info(
       {
         entryId: context.entryId,
@@ -33,8 +35,10 @@ async function tryPushMessages(
       },
       'LINE notification sent'
     );
-    return true;
+    return { sent: true };
   } catch (err) {
+    metricsService.increment('line_provider_failures_total');
+    metricsService.setGauge('line_provider_latency_seconds', (Date.now() - startedAt) / 1_000);
     if (options.countFailure) {
       metricsService.increment('notifications_failed_total');
     }
@@ -47,7 +51,7 @@ async function tryPushMessages(
       },
       options.failureMessage
     );
-    return false;
+    return { sent: false, error: err };
   }
 }
 
@@ -67,10 +71,11 @@ export const lineNotificationService = {
     context: LineNotificationContext = {},
     adapter: ILineMessagingAdapter = lineMessagingAdapter
   ): Promise<boolean> {
-    return tryPushMessages(lineUserId, messages, context, adapter, {
+    const result = await tryPushMessages(lineUserId, messages, context, adapter, {
       countFailure: true,
       failureMessage: 'Failed to send LINE notification',
     });
+    return result.sent;
   },
 
   async pushTicketNotification(
@@ -79,7 +84,21 @@ export const lineNotificationService = {
     context: LineNotificationContext = {},
     adapter: ILineMessagingAdapter = lineMessagingAdapter
   ): Promise<boolean> {
-    const flexSent = await tryPushMessages(
+    try {
+      await this.pushTicketNotificationOrThrow(lineUserId, notification, context, adapter);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  async pushTicketNotificationOrThrow(
+    lineUserId: string,
+    notification: TicketNotificationTemplate,
+    context: LineNotificationContext = {},
+    adapter: ILineMessagingAdapter = lineMessagingAdapter
+  ): Promise<void> {
+    const flexResult = await tryPushMessages(
       lineUserId,
       [notification.flexMessage],
       context,
@@ -90,12 +109,12 @@ export const lineNotificationService = {
       }
     );
 
-    if (flexSent) return true;
+    if (flexResult.sent) return;
 
     const textContext = context.retryKey
       ? { ...context, retryKey: alternateRetryKey(context.retryKey) }
       : context;
-    return tryPushMessages(
+    const textResult = await tryPushMessages(
       lineUserId,
       [{ type: 'text', text: notification.textMessage }],
       textContext,
@@ -105,6 +124,9 @@ export const lineNotificationService = {
         failureMessage: 'Failed to send LINE text fallback notification',
       }
     );
+    if (textResult.sent) return;
+
+    throw textResult.error ?? flexResult.error ?? new Error('LINE notification delivery failed');
   },
 };
 

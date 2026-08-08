@@ -2,35 +2,45 @@ import type { ConnectionOptions } from 'bullmq';
 import { Job, Queue, UnrecoverableError, Worker } from 'bullmq';
 
 import { config } from '../../config';
-import { runNotificationDelivery } from '../../jobs/notificationDelivery.job';
+import { processOutboxNotificationJob } from '../../jobs/notificationDelivery.job';
+import { LineProviderError } from '../../modules/line/line.sdk.adapter';
+import {
+  dispatchNotificationOutbox,
+  type NotificationDispatchQueue,
+} from '../../modules/notifications/notification-dispatcher.service';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
 
 import {
-  LINE_NOTIFICATION_DELIVERY_JOB_DATA,
-  LINE_NOTIFICATION_DELIVERY_JOB_POLICY,
-  LINE_NOTIFICATION_JOB_NAME,
+  LINE_NOTIFICATION_DELIVERY_JOB_NAME,
+  LINE_NOTIFICATION_DISPATCH_JOB_DATA,
+  LINE_NOTIFICATION_DISPATCH_JOB_NAME,
+  LINE_NOTIFICATION_DISPATCH_JOB_POLICY,
   LINE_NOTIFICATION_QUEUE_NAME,
   LINE_NOTIFICATION_SCHEDULER_ID,
-  type LineNotificationDeliveryJobData,
+  LINE_NOTIFICATION_WORKER_POLICY,
   lineNotificationDeliveryJobSchema,
+  type LineNotificationDispatchJobData,
+  lineNotificationDispatchJobSchema,
+  type LineNotificationJobData,
 } from './line-notification.contract';
 
 export type BullMqRuntimeStatus = 'idle' | 'starting' | 'ready' | 'degraded' | 'closing';
 
 export interface BullMqJobLike {
+  id?: string;
   name: string;
   data: unknown;
 }
 
-export interface BullMqQueuePort {
+export interface BullMqQueuePort extends NotificationDispatchQueue {
   waitUntilReady(): Promise<unknown>;
   upsertJobScheduler(
     schedulerId: string,
     repeat: { every: number },
     template: {
-      name: string;
-      data: LineNotificationDeliveryJobData;
+      name: typeof LINE_NOTIFICATION_DISPATCH_JOB_NAME;
+      data: LineNotificationDispatchJobData;
       opts: {
         attempts: number;
         backoff: { type: 'exponential'; delay: number };
@@ -39,6 +49,9 @@ export interface BullMqQueuePort {
       };
     }
   ): Promise<unknown>;
+  getJobCounts(
+    ...types: Array<'waiting' | 'active' | 'delayed' | 'failed'>
+  ): Promise<Record<'waiting' | 'active' | 'delayed' | 'failed', number>>;
   close(): Promise<void>;
 }
 
@@ -55,13 +68,26 @@ export interface BullMqRuntimeFactory {
 
 interface BullMqRuntimeOptions {
   factory?: BullMqRuntimeFactory;
-  delivery?: () => Promise<void>;
+  dispatch?: (queue: NotificationDispatchQueue) => Promise<void>;
+  delivery?: (notificationId: string, jobId: string) => Promise<void>;
   startupTimeoutMs?: number;
   jobTimeoutMs?: number;
 }
 
 function errorType(error: unknown): string {
   return error instanceof Error ? error.name : 'UnknownError';
+}
+
+export function calculateProviderBackoff(
+  attemptsMade: number,
+  error: unknown,
+  baseDelayMs: number,
+  random = Math.random
+): number {
+  const exponential = Math.min(baseDelayMs * 2 ** Math.max(0, attemptsMade - 1), 60 * 60_000);
+  const jittered = Math.round(exponential * (0.5 + Math.max(0, Math.min(1, random())) * 0.5));
+  const retryAfter = error instanceof LineProviderError ? (error.retryAfterMs ?? 0) : 0;
+  return Math.max(jittered, retryAfter);
 }
 
 function redisConnectionOptions(worker: boolean): ConnectionOptions {
@@ -85,24 +111,30 @@ function createDefaultFactory(): BullMqRuntimeFactory {
   const prefix = `${config.redis.keyPrefix}:bullmq`;
   return {
     createQueue: () =>
-      new Queue<LineNotificationDeliveryJobData, void, typeof LINE_NOTIFICATION_JOB_NAME>(
-        LINE_NOTIFICATION_QUEUE_NAME,
-        {
-          connection: redisConnectionOptions(false),
-          prefix,
-        }
-      ) as unknown as BullMqQueuePort,
+      new Queue<LineNotificationJobData, void, string>(LINE_NOTIFICATION_QUEUE_NAME, {
+        connection: redisConnectionOptions(false),
+        prefix,
+      }) as unknown as BullMqQueuePort,
     createWorker: (processor) =>
-      new Worker<LineNotificationDeliveryJobData, void, typeof LINE_NOTIFICATION_JOB_NAME>(
+      new Worker<LineNotificationJobData, void, string>(
         LINE_NOTIFICATION_QUEUE_NAME,
-        (job: Job<LineNotificationDeliveryJobData, void, typeof LINE_NOTIFICATION_JOB_NAME>) =>
-          processor(job),
+        (job: Job<LineNotificationJobData, void, string>) => processor(job),
         {
           connection: redisConnectionOptions(true),
           prefix,
-          concurrency: LINE_NOTIFICATION_DELIVERY_JOB_POLICY.concurrency,
-          limiter: LINE_NOTIFICATION_DELIVERY_JOB_POLICY.providerThrottle,
-          lockDuration: LINE_NOTIFICATION_DELIVERY_JOB_POLICY.timeoutMs,
+          concurrency: LINE_NOTIFICATION_WORKER_POLICY.concurrency,
+          limiter: LINE_NOTIFICATION_WORKER_POLICY.providerThrottle,
+          lockDuration: LINE_NOTIFICATION_WORKER_POLICY.timeoutMs,
+          settings: {
+            backoffStrategy: (attemptsMade, type, error) => {
+              if (type !== 'line-provider') return -1;
+              return calculateProviderBackoff(
+                attemptsMade,
+                error,
+                config.notifications.retryBaseSeconds * 1_000
+              );
+            },
+          },
           autorun: true,
         }
       ) as unknown as BullMqWorkerPort,
@@ -128,21 +160,45 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
 
 export async function processLineNotificationJob(
   job: BullMqJobLike,
-  delivery: () => Promise<void> = runNotificationDelivery,
+  queue: NotificationDispatchQueue,
+  handlers: {
+    dispatch: (queue: NotificationDispatchQueue) => Promise<void>;
+    delivery: (notificationId: string, jobId: string) => Promise<void>;
+  },
   timeoutMs = config.bullmq.jobTimeoutMs
 ): Promise<void> {
-  const parsed = lineNotificationDeliveryJobSchema.safeParse(job.data);
-  if (job.name !== LINE_NOTIFICATION_JOB_NAME || !parsed.success) {
-    metricsService.increment('bullmq_invalid_jobs_total');
-    throw new UnrecoverableError('Invalid LINE notification job contract');
+  if (job.name === LINE_NOTIFICATION_DISPATCH_JOB_NAME) {
+    const parsed = lineNotificationDispatchJobSchema.safeParse(job.data);
+    if (!parsed.success) {
+      metricsService.increment('bullmq_invalid_jobs_total');
+      throw new UnrecoverableError('Invalid LINE notification dispatcher contract');
+    }
+    await withTimeout(handlers.dispatch(queue), timeoutMs, 'LINE outbox dispatch timed out');
+    return;
   }
 
-  await withTimeout(delivery(), timeoutMs, 'LINE notification delivery sweep timed out');
+  if (job.name === LINE_NOTIFICATION_DELIVERY_JOB_NAME) {
+    const parsed = lineNotificationDeliveryJobSchema.safeParse(job.data);
+    if (!parsed.success || !job.id) {
+      metricsService.increment('bullmq_invalid_jobs_total');
+      throw new UnrecoverableError('Invalid LINE notification delivery contract');
+    }
+    await withTimeout(
+      handlers.delivery(parsed.data.notificationId, job.id),
+      timeoutMs,
+      'LINE notification delivery timed out'
+    );
+    return;
+  }
+
+  metricsService.increment('bullmq_invalid_jobs_total');
+  throw new UnrecoverableError('Unknown LINE notification job');
 }
 
 export class BullMqRuntime {
   private readonly factory: BullMqRuntimeFactory;
-  private readonly delivery: () => Promise<void>;
+  private readonly dispatch: (queue: NotificationDispatchQueue) => Promise<void>;
+  private readonly delivery: (notificationId: string, jobId: string) => Promise<void>;
   private readonly startupTimeoutMs: number;
   private readonly jobTimeoutMs: number;
   private queue: BullMqQueuePort | null = null;
@@ -152,7 +208,8 @@ export class BullMqRuntime {
 
   constructor(options: BullMqRuntimeOptions = {}) {
     this.factory = options.factory ?? createDefaultFactory();
-    this.delivery = options.delivery ?? runNotificationDelivery;
+    this.dispatch = options.dispatch ?? dispatchNotificationOutbox;
+    this.delivery = options.delivery ?? processOutboxNotificationJob;
     this.startupTimeoutMs = options.startupTimeoutMs ?? config.bullmq.startupTimeoutMs;
     this.jobTimeoutMs = options.jobTimeoutMs ?? config.bullmq.jobTimeoutMs;
   }
@@ -167,40 +224,43 @@ export class BullMqRuntime {
 
     try {
       this.queue = this.factory.createQueue();
+      const queue = this.queue;
       this.worker = this.factory.createWorker((job) =>
-        processLineNotificationJob(job, this.delivery, this.jobTimeoutMs)
+        processLineNotificationJob(
+          job,
+          queue,
+          { dispatch: this.dispatch, delivery: this.delivery },
+          this.jobTimeoutMs
+        )
       );
       this.bindWorkerEvents(this.worker);
 
       await withTimeout(
-        Promise.all([this.queue.waitUntilReady(), this.worker.waitUntilReady()]),
+        Promise.all([queue.waitUntilReady(), this.worker.waitUntilReady()]),
         this.startupTimeoutMs,
         'BullMQ startup timed out'
       );
-      await this.queue.upsertJobScheduler(
+      await queue.upsertJobScheduler(
         LINE_NOTIFICATION_SCHEDULER_ID,
         { every: config.notifications.workerIntervalMs },
         {
-          name: LINE_NOTIFICATION_JOB_NAME,
-          data: LINE_NOTIFICATION_DELIVERY_JOB_DATA,
-          opts: {
-            attempts: LINE_NOTIFICATION_DELIVERY_JOB_POLICY.attempts,
-            backoff: LINE_NOTIFICATION_DELIVERY_JOB_POLICY.backoff,
-            removeOnComplete: LINE_NOTIFICATION_DELIVERY_JOB_POLICY.removeOnComplete,
-            removeOnFail: LINE_NOTIFICATION_DELIVERY_JOB_POLICY.removeOnFail,
-          },
+          name: LINE_NOTIFICATION_DISPATCH_JOB_NAME,
+          data: LINE_NOTIFICATION_DISPATCH_JOB_DATA,
+          opts: LINE_NOTIFICATION_DISPATCH_JOB_POLICY,
         }
       );
 
       this.state = 'ready';
       metricsService.setGauge('bullmq_worker_ready', 1);
+      await this.refreshQueueMetrics();
       logger.info(
         {
           queue: LINE_NOTIFICATION_QUEUE_NAME,
-          job: LINE_NOTIFICATION_JOB_NAME,
-          concurrency: LINE_NOTIFICATION_DELIVERY_JOB_POLICY.concurrency,
+          dispatcher: LINE_NOTIFICATION_DISPATCH_JOB_NAME,
+          delivery: LINE_NOTIFICATION_DELIVERY_JOB_NAME,
+          concurrency: LINE_NOTIFICATION_WORKER_POLICY.concurrency,
         },
-        'BullMQ worker ready'
+        'BullMQ LINE notification worker ready'
       );
     } catch (error) {
       this.state = 'degraded';
@@ -227,16 +287,19 @@ export class BullMqRuntime {
     worker.on('active', () => {
       this.activeJobs += 1;
       metricsService.setGauge('bullmq_worker_active_jobs', this.activeJobs);
+      void this.refreshQueueMetrics();
     });
     worker.on('completed', () => {
       this.activeJobs = Math.max(0, this.activeJobs - 1);
       metricsService.increment('bullmq_jobs_completed_total');
       metricsService.setGauge('bullmq_worker_active_jobs', this.activeJobs);
+      void this.refreshQueueMetrics();
     });
     worker.on('failed', (_job, error) => {
       this.activeJobs = Math.max(0, this.activeJobs - 1);
       metricsService.increment('bullmq_jobs_failed_total');
       metricsService.setGauge('bullmq_worker_active_jobs', this.activeJobs);
+      void this.refreshQueueMetrics();
       logger.warn({ errorType: errorType(error) }, 'BullMQ job failed');
     });
     worker.on('error', (error) => {
@@ -251,7 +314,21 @@ export class BullMqRuntime {
         this.state = 'ready';
         metricsService.setGauge('bullmq_worker_ready', 1);
       }
+      void this.refreshQueueMetrics();
     });
+  }
+
+  private async refreshQueueMetrics(): Promise<void> {
+    if (!this.queue) return;
+    try {
+      const counts = await this.queue.getJobCounts('waiting', 'active', 'delayed', 'failed');
+      metricsService.setGauge('bullmq_jobs_waiting', counts.waiting);
+      metricsService.setGauge('bullmq_worker_active_jobs', counts.active);
+      metricsService.setGauge('bullmq_jobs_delayed', counts.delayed);
+      metricsService.setGauge('bullmq_jobs_failed', counts.failed);
+    } catch (error) {
+      logger.debug({ errorType: errorType(error) }, 'BullMQ queue metrics unavailable');
+    }
   }
 
   private async closeResources(force: boolean): Promise<void> {
