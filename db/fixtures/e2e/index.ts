@@ -27,10 +27,10 @@ async function main(): Promise<void> {
   try {
     await client.query('BEGIN');
     await seedOrganizations(client);
-    await seedUsers(client, true);
-    await seedLineAccounts(client);
     await seedProducts(client);
     await seedQueues(client);
+    await seedUsers(client, true);
+    await seedLineAccounts(client);
     await seedOrdersAndQueueEntries(client);
     await seedNotifications(client);
     await seedPenalties(client);

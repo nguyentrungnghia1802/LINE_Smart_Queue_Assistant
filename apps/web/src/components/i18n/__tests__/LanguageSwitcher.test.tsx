@@ -7,7 +7,10 @@ describe('LanguageSwitcher', () => {
   it('changes language and persists the anonymous choice', async () => {
     render(<LanguageSwitcher />);
 
-    fireEvent.change(screen.getByRole('combobox', { name: '言語' }), {
+    const switcher = screen.getByRole('combobox', { name: '言語' });
+    expect(switcher).toHaveAttribute('name', 'preferredLocale');
+
+    fireEvent.change(switcher, {
       target: { value: 'vi' },
     });
 

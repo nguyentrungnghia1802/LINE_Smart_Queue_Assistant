@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { Pagination } from '../../components/ui/Pagination';
+import { useQueues } from '../../hooks/useQueues';
 import { del, get, post } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { type ApiFieldErrors, getApiFieldErrors, INPUT_LIMITS } from '../../utils/formValidation';
@@ -20,6 +21,8 @@ interface UserRow {
   address_line1: string | null;
   job_title: string | null;
   employee_code: string | null;
+  assigned_queue_id: string | null;
+  assigned_queue_name: string | null;
 }
 export function ManagerUsersPage() {
   const { t } = useTranslation(['manager', 'common']);
@@ -37,6 +40,7 @@ export function ManagerUsersPage() {
     currentAddress: '',
     jobTitle: '',
     employeeCode: '',
+    queueId: '',
   };
   const [form, setForm] = useState(emptyForm);
   const [addError, setAddError] = useState('');
@@ -47,6 +51,8 @@ export function ManagerUsersPage() {
     queryFn: () => get<UserRow[]>('/api/v1/users?role=staff'),
     enabled: !!orgId && !user?.isOrganizationOwner,
   });
+  const queuesQuery = useQueues();
+  const queues = queuesQuery.data ?? [];
   const staffUsers = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return users.filter(
@@ -89,11 +95,17 @@ export function ManagerUsersPage() {
         <h1 className="text-xl font-bold text-gray-900">{t('users.title')}</h1>
         <button
           onClick={() => setShowAdd(true)}
+          disabled={queues.length === 0}
           className="bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700"
         >
           + {t('users.add')}
         </button>
       </div>
+      {queues.length === 0 && !queuesQuery.isLoading && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {t('users.noQueues')}
+        </p>
+      )}
       <label className="flex max-w-xl items-center gap-2 rounded-lg border border-gray-300 bg-white px-3">
         <Search className="h-4 w-4 text-gray-400" aria-hidden="true" />
         <span className="sr-only">{t('users.search')}</span>
@@ -127,10 +139,7 @@ export function ManagerUsersPage() {
                       {staffUser.email ?? '—'}
                     </p>
                     <p className="mt-1 text-xs font-medium text-brand-700">
-                      {t(`nav.${staffUser.role}`, {
-                        ns: 'common',
-                        defaultValue: staffUser.role,
-                      })}
+                      {t('users.assignedQueue')}: {staffUser.assigned_queue_name ?? '—'}
                     </p>
                   </div>
                 </div>
@@ -167,7 +176,7 @@ export function ManagerUsersPage() {
                 </th>
                 <th className="px-4 py-3 font-medium">{t('labels.name', { ns: 'common' })}</th>
                 <th className="px-4 py-3 font-medium hidden sm:table-cell">Email</th>
-                <th className="px-4 py-3 font-medium">{t('labels.role', { ns: 'common' })}</th>
+                <th className="px-4 py-3 font-medium">{t('users.assignedQueue')}</th>
                 <th className="px-4 py-3 font-medium text-center">{t('users.status')}</th>
               </tr>
             </thead>
@@ -179,9 +188,7 @@ export function ManagerUsersPage() {
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-800">{u.display_name}</td>
                   <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{u.email ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {t(`nav.${u.role}`, { ns: 'common', defaultValue: u.role })}
-                  </td>
+                  <td className="px-4 py-3 text-gray-600">{u.assigned_queue_name ?? '—'}</td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <Link
@@ -277,6 +284,33 @@ export function ManagerUsersPage() {
                 )}
               </div>
             ))}
+            <div>
+              <label htmlFor="staff-queue" className="mb-1 block text-xs font-medium text-gray-700">
+                {t('users.queueRequired')}
+              </label>
+              <select
+                id="staff-queue"
+                name="queueId"
+                required
+                value={form.queueId}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, queueId: event.target.value }))
+                }
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="">{t('users.selectQueue')}</option>
+                {queues.map((queue) => (
+                  <option key={queue.id} value={queue.id}>
+                    {queue.name}
+                  </option>
+                ))}
+              </select>
+              {fieldErrors.queueId?.[0] && (
+                <p className="mt-1 text-xs font-medium text-red-700" role="alert">
+                  {fieldErrors.queueId[0]}
+                </p>
+              )}
+            </div>
             {addError && <p className="text-xs text-red-500">{addError}</p>}
 
             <div className="flex gap-2 pt-1">
@@ -298,7 +332,8 @@ export function ManagerUsersPage() {
                   !form.phone ||
                   !form.currentAddress ||
                   !form.jobTitle ||
-                  !form.employeeCode
+                  !form.employeeCode ||
+                  !form.queueId
                 }
                 className="flex-1 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
               >

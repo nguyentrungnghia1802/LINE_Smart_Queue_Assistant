@@ -54,7 +54,7 @@ Error:
   "error": {
     "code": "VALIDATION_ERROR",
     "message": "Request validation failed",
-    "details": { "fieldErrors": {} }
+    "details": { "fieldErrors": { "email": ["Invalid email address"] } }
   }
 }
 ```
@@ -67,7 +67,8 @@ For `VALIDATION_ERROR`, `details.fieldErrors` includes complete dot-separated pa
 values, for example `managers.0.email`. A root-key alias is also returned for compatibility with
 older forms. Frontends should prefer the complete path so the message appears beside the exact
 input. Client-side `maxLength`, numeric bounds, and accepted-file hints mirror the API validators;
-the API remains authoritative.
+the API remains authoritative. Form-level validation issues that do not target one input use the
+reserved `_form` key, so validation responses never silently collapse to an empty error map.
 
 ## 4. Endpoint inventory
 
@@ -212,17 +213,17 @@ All paths require staff or a non-owner branch manager with exactly one active br
 Organization owners and platform admins do not receive operational queue access through these
 routes. Every queue, entry, order, and product lookup is constrained by organization and branch.
 
-| Method | Path                                      | Purpose                                                                                             |
-| ------ | ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| GET    | `/api/v1/staff/branch`                    | Assigned branch identity and queues for Staff QR rendering                                          |
-| GET    | `/api/v1/staff/my-queue`                  | Next eight active entries, counts, order/contact data, and available queues for the assigned branch |
-| GET    | `/api/v1/staff/queues/:queueId`           | Queue overview                                                                                      |
-| POST   | `/api/v1/staff/queues/:queueId/call-next` | Call next                                                                                           |
-| POST   | `/api/v1/staff/entries/:entryId/serve`    | Start service                                                                                       |
-| POST   | `/api/v1/staff/entries/:entryId/complete` | Complete service                                                                                    |
-| POST   | `/api/v1/staff/entries/:entryId/defer`    | Record absence, move back three slots, or cancel/refund on the third absence; then auto-call next   |
-| POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                                                                        |
-| POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                                                                               |
+| Method | Path                                      | Purpose                                                                                           |
+| ------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/staff/branch`                    | Assigned branch identity and the Staff member's assigned queue for QR rendering                   |
+| GET    | `/api/v1/staff/my-queue`                  | Assigned queue, next eight active entries, counts, and order/contact data                         |
+| GET    | `/api/v1/staff/queues/:queueId`           | Queue overview                                                                                    |
+| POST   | `/api/v1/staff/queues/:queueId/call-next` | Call next                                                                                         |
+| POST   | `/api/v1/staff/entries/:entryId/serve`    | Start service                                                                                     |
+| POST   | `/api/v1/staff/entries/:entryId/complete` | Complete service                                                                                  |
+| POST   | `/api/v1/staff/entries/:entryId/defer`    | Record absence, move back three slots, or cancel/refund on the third absence; then auto-call next |
+| POST   | `/api/v1/staff/entries/:entryId/no-show`  | Mark no-show                                                                                      |
+| POST   | `/api/v1/staff/entries/:entryId/cancel`   | Operator cancellation                                                                             |
 
 Staff transition endpoints validate UUID path parameters and do not require a request body.
 Completion snapshots the responsible staff identity on the order, transitions the ticket to
@@ -354,10 +355,13 @@ The upload request currently carries a browser-compressed data URL for compatibi
 | POST   | `/api/v1/users`                      | Admin                | Create user                                         |
 | DELETE | `/api/v1/users/:id`                  | Admin                | Deactivate user                                     |
 
-`POST /users/staff` requires the staff profile and a non-empty `employeeCode`; it does not accept a
-branch selector. The API derives the target branch from the authenticated non-owner manager's
-single active branch membership. Normalized email uniqueness is platform-wide, so an existing
-email cannot be invited again under another role.
+`POST /users/staff` requires the staff profile, a non-empty `employeeCode`, and `queueId`; it does
+not accept a branch selector. The API derives the target branch from the authenticated non-owner
+manager's single active branch membership and verifies that the selected active queue belongs to
+that branch. `PATCH /users/staff/:userId` may replace `queueId` under the same guard. One queue may
+have multiple Staff assignments, while one active Staff membership has exactly one queue.
+Normalized email uniqueness is platform-wide, so an existing email cannot be invited again under
+another role.
 
 ### LINE and notifications
 

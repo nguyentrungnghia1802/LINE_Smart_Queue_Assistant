@@ -44,6 +44,7 @@ describe('queuesService branch scope', () => {
     jest.mocked(withTransaction).mockImplementation(async (callback) => callback({} as never));
     jest.mocked(productsRepository.syncProductsForQueue).mockResolvedValue(undefined);
     jest.mocked(queueEntriesRepository.countLiveByQueueIds).mockResolvedValue({});
+    jest.mocked(queuesRepository.countStaffAssignments).mockResolvedValue(0);
   });
 
   it('returns live customer counts separately from the daily ticket counter', async () => {
@@ -127,5 +128,15 @@ describe('queuesService branch scope', () => {
     await queuesService.deleteQueue(QUEUE_ID, scope);
 
     expect(queuesRepository.softDelete).toHaveBeenCalledWith(QUEUE_ID);
+  });
+
+  it('requires staff reassignment before deleting their queue', async () => {
+    jest.mocked(queuesRepository.findById).mockResolvedValue(queue);
+    jest.mocked(queuesRepository.countStaffAssignments).mockResolvedValue(1);
+
+    await expect(queuesService.deleteQueue(QUEUE_ID, scope)).rejects.toMatchObject({
+      statusCode: 409,
+    });
+    expect(queuesRepository.softDelete).not.toHaveBeenCalled();
   });
 });

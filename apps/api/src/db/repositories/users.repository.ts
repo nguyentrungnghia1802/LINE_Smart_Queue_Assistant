@@ -27,6 +27,8 @@ export interface UserRow {
   deactivated_at?: Date | null;
   deactivated_by?: string | null;
   preferred_locale?: SupportedLocale | null;
+  assigned_queue_id?: string | null;
+  assigned_queue_name?: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -160,11 +162,14 @@ export class UsersRepository extends BaseRepository {
     const roleClause = role ? 'AND u.role = $2' : '';
     const params: unknown[] = role ? [branchId, role] : [branchId];
     return this.query<UserRow>(
-      `SELECT u.*
+      `SELECT u.*,
+              bm.queue_id AS assigned_queue_id,
+              q.name AS assigned_queue_name
        FROM users u
        JOIN branch_memberships bm
          ON bm.user_id = u.id
         AND bm.deactivated_at IS NULL
+       LEFT JOIN queues q ON q.id = bm.queue_id
        WHERE bm.branch_id = $1
          ${roleClause}
        ORDER BY u.created_at DESC`,
@@ -188,6 +193,27 @@ export class UsersRepository extends BaseRepository {
       ? await this.queryTx<{ branch_id: string }>(client, sql, [organizationId, userId])
       : await this.query<{ branch_id: string }>(sql, [organizationId, userId]);
     return rows[0]?.branch_id ?? null;
+  }
+
+  async findAssignedQueue(
+    organizationId: string,
+    userId: string,
+    client?: PoolClient
+  ): Promise<{ id: string; name: string } | null> {
+    const sql = `SELECT q.id, q.name
+                 FROM branch_memberships membership
+                 JOIN queues q ON q.id = membership.queue_id
+                 WHERE membership.organization_id = $1
+                   AND membership.user_id = $2
+                   AND membership.role = 'staff'
+                   AND membership.is_active = TRUE
+                   AND membership.deactivated_at IS NULL
+                   AND q.is_active = TRUE
+                 LIMIT 1`;
+    const rows = client
+      ? await this.queryTx<{ id: string; name: string }>(client, sql, [organizationId, userId])
+      : await this.query<{ id: string; name: string }>(sql, [organizationId, userId]);
+    return rows[0] ?? null;
   }
 
   async createInvited(

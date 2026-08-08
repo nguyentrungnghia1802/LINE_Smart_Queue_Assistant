@@ -25,6 +25,7 @@ export const UpdateMyProfileSchema = z
   .object({
     displayName: z.string().min(1).max(120).optional(),
     email: z.string().email().max(254).optional(),
+    preferredLocale: LocaleSchema.nullable().optional(),
   })
   .refine((d) => Object.values(d).some((v) => v !== undefined), {
     message: 'At least one field must be provided',
@@ -52,6 +53,7 @@ export const InviteStaffSchema = z.object({
   currentAddress: z.string().trim().min(1).max(300),
   jobTitle: z.string().trim().min(1).max(120),
   employeeCode: z.string().trim().min(1).max(50),
+  queueId: z.string().uuid(),
 });
 
 export const UpdateStaffSchema = z.object({
@@ -60,6 +62,7 @@ export const UpdateStaffSchema = z.object({
   currentAddress: z.string().trim().min(1).max(300).optional(),
   jobTitle: z.string().trim().min(1).max(120).optional(),
   employeeCode: z.string().trim().min(1).max(50).optional(),
+  queueId: z.string().uuid().optional(),
 });
 
 export const UpdateStaffStatusSchema = z.object({ isActive: z.boolean() });
