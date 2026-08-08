@@ -266,7 +266,6 @@ export class QueuesRepository extends BaseRepository {
       ? ((await this.queryTx<QueueRow>(client, sql, values))[0] ?? null)
       : await this.queryOne<QueueRow>(sql, values);
     if (updated) {
-      queueConfigCache.set(`queue:${id}`, updated, 30_000);
       if (params.name !== undefined || params.description !== undefined) {
         const translationSql = `INSERT INTO queue_translations (queue_id, locale, name, description)
           VALUES ($1,'ja',$2,$3)
@@ -276,13 +275,14 @@ export class QueuesRepository extends BaseRepository {
         if (client) await this.queryTx(client, translationSql, translationArgs);
         else await this.query(translationSql, translationArgs);
       }
+      if (!client) queueConfigCache.set(`queue:${id}`, updated, 30_000);
     }
     return updated;
   }
 
   async softDelete(id: string): Promise<void> {
-    queueConfigCache.invalidate(`queue:${id}`);
     await this.query(`UPDATE queues SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, [id]);
+    queueConfigCache.invalidate(`queue:${id}`);
   }
 
   async countStaffAssignments(id: string): Promise<number> {
@@ -298,8 +298,8 @@ export class QueuesRepository extends BaseRepository {
   }
 
   async updateStatus(id: string, status: string): Promise<void> {
-    queueConfigCache.invalidate(`queue:${id}`);
     await this.query('UPDATE queues SET status = $1 WHERE id = $2', [status, id]);
+    queueConfigCache.invalidate(`queue:${id}`);
   }
 
   /**

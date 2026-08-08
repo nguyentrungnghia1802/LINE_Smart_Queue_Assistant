@@ -14,7 +14,10 @@ type CounterName =
   | 'email_outbox_retry_scheduled_total'
   | 'redis_connection_errors_total'
   | 'redis_command_timeouts_total'
-  | 'redis_rate_limit_fallback_total';
+  | 'redis_rate_limit_fallback_total'
+  | 'redis_cache_hits_total'
+  | 'redis_cache_misses_total'
+  | 'redis_cache_errors_total';
 
 const counters: Record<CounterName, number> = {
   requests_total: 0,
@@ -33,19 +36,26 @@ const counters: Record<CounterName, number> = {
   redis_connection_errors_total: 0,
   redis_command_timeouts_total: 0,
   redis_rate_limit_fallback_total: 0,
+  redis_cache_hits_total: 0,
+  redis_cache_misses_total: 0,
+  redis_cache_errors_total: 0,
 };
 
 type GaugeName =
   | 'notifications_outbox_backlog'
   | 'notifications_outbox_retry_backlog'
   | 'notifications_outbox_failed'
-  | 'notifications_delivery_latency_seconds';
+  | 'notifications_delivery_latency_seconds'
+  | 'redis_cache_hit_ratio'
+  | 'redis_cache_latency_seconds';
 
 const gauges: Record<GaugeName, number> = {
   notifications_outbox_backlog: 0,
   notifications_outbox_retry_backlog: 0,
   notifications_outbox_failed: 0,
   notifications_delivery_latency_seconds: 0,
+  redis_cache_hit_ratio: 0,
+  redis_cache_latency_seconds: 0,
 };
 
 export const metricsService = {

@@ -1,7 +1,10 @@
 import { auditLogRepository } from '../../db/repositories/audit-log.repository';
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { withTransaction } from '../../db/transaction';
+import { publicReadModelCache } from '../../infrastructure/redis/redis-json.cache';
 import { AppError } from '../../utils/AppError';
+import { logger } from '../../utils/logger';
+import { branchesRepository } from '../branches/branches.repository';
 
 import { BusinessCalendarDto, UpdateOrgSettingsDto } from './orgs.validator';
 
@@ -11,6 +14,21 @@ interface AuditContext {
   userAgent?: string;
 }
 
+async function invalidateOrganizationReadModels(organizationId: string): Promise<void> {
+  if (!publicReadModelCache.enabled) return;
+  try {
+    const branches = await branchesRepository.list(organizationId);
+    await Promise.all(
+      branches.map((branch) => publicReadModelCache.invalidateBranch(organizationId, branch.id))
+    );
+  } catch (error) {
+    logger.warn(
+      { errorType: error instanceof Error ? error.name : 'UnknownError' },
+      'Public organization read-model invalidation could not enumerate branches'
+    );
+  }
+}
+
 export const orgsService = {
   async updateSettings(orgId: string, dto: UpdateOrgSettingsDto, audit: AuditContext) {
     const existing = await organizationsRepository.findById(orgId);
@@ -18,6 +36,7 @@ export const orgsService = {
 
     const updated = await organizationsRepository.updateOrg(orgId, dto);
     if (!updated) throw AppError.notFound('Organization not found');
+    await invalidateOrganizationReadModels(orgId);
 
     await auditLogRepository.create({
       actorId: audit.actorUserId,
@@ -69,6 +88,7 @@ export const orgsService = {
     await withTransaction((client) =>
       organizationsRepository.replaceBusinessCalendar(orgId, dto, client)
     );
+    await invalidateOrganizationReadModels(orgId);
     await auditLogRepository.create({
       actorId: audit.actorUserId,
       actorType: 'user',

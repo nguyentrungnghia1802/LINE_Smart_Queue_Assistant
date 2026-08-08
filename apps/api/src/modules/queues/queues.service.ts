@@ -7,7 +7,9 @@ import {
 } from '../../db/repositories/queue-entries.repository';
 import { type QueueRow, queuesRepository } from '../../db/repositories/queues.repository';
 import { withTransaction } from '../../db/transaction';
+import { publicReadModelCache } from '../../infrastructure/redis/redis-json.cache';
 import { AppError } from '../../utils/AppError';
+import { queueConfigCache } from '../../utils/cache';
 import { metricsService } from '../../utils/metrics';
 import type { BranchManagerScope } from '../branches/branch-scope';
 
@@ -104,6 +106,12 @@ export const queuesService = {
       }
       return created;
     });
+    queueConfigCache.set(`queue:${queue.id}`, queue, 30_000);
+    await publicReadModelCache.invalidateQueue({
+      organizationId: scope.organizationId,
+      branchId: scope.branchId,
+      queueId: queue.id,
+    });
     metricsService.increment('queue_created_total');
     return toQueueSummary(queue, EMPTY_LIVE_COUNTS, dto.productIds);
   },
@@ -146,6 +154,12 @@ export const queuesService = {
       return result;
     });
     if (!updated) throw AppError.notFound(`Queue ${id} not found`);
+    queueConfigCache.set(`queue:${updated.id}`, updated, 30_000);
+    await publicReadModelCache.invalidateQueue({
+      organizationId: scope.organizationId,
+      branchId: scope.branchId,
+      queueId: updated.id,
+    });
     const liveCounts = await getLiveCounts([updated.id]);
     return toQueueSummary(
       updated,
@@ -162,6 +176,11 @@ export const queuesService = {
 
     const updated = await queuesRepository.update(id, { status: dto.status });
     if (!updated) throw AppError.notFound(`Queue ${id} not found`);
+    await publicReadModelCache.invalidateQueue({
+      organizationId: scope.organizationId,
+      branchId: scope.branchId,
+      queueId: updated.id,
+    });
     const liveCounts = await getLiveCounts([updated.id]);
     return toQueueSummary(updated, liveCounts[updated.id]);
   },
@@ -177,5 +196,10 @@ export const queuesService = {
     }
 
     await queuesRepository.softDelete(id);
+    await publicReadModelCache.invalidateQueue({
+      organizationId: scope.organizationId,
+      branchId: scope.branchId,
+      queueId: id,
+    });
   },
 };

@@ -2,12 +2,18 @@ import { productsRepository } from '../../../db/repositories/products.repository
 import { queueEntriesRepository } from '../../../db/repositories/queue-entries.repository';
 import { type QueueRow, queuesRepository } from '../../../db/repositories/queues.repository';
 import { withTransaction } from '../../../db/transaction';
+import { publicReadModelCache } from '../../../infrastructure/redis/redis-json.cache';
 import { queuesService } from '../queues.service';
 
 jest.mock('../../../db/repositories/products.repository');
 jest.mock('../../../db/repositories/queue-entries.repository');
 jest.mock('../../../db/repositories/queues.repository');
 jest.mock('../../../db/transaction');
+jest.mock('../../../infrastructure/redis/redis-json.cache', () => ({
+  publicReadModelCache: {
+    invalidateQueue: jest.fn().mockResolvedValue(undefined),
+  },
+}));
 
 const ORG_ID = '11111111-1111-4111-8111-111111111111';
 const BRANCH_ID = '22222222-2222-4222-8222-222222222222';
@@ -98,6 +104,30 @@ describe('queuesService branch scope', () => {
       [],
       expect.anything()
     );
+    expect(publicReadModelCache.invalidateQueue).toHaveBeenCalledWith({
+      organizationId: ORG_ID,
+      branchId: BRANCH_ID,
+      queueId: QUEUE_ID,
+    });
+  });
+
+  it('does not invalidate a public read model when queue creation rolls back', async () => {
+    jest.mocked(queuesRepository.create).mockResolvedValue(queue);
+    jest
+      .mocked(productsRepository.syncProductsForQueue)
+      .mockRejectedValueOnce(new Error('transaction failed'));
+
+    await expect(
+      queuesService.createQueue(scope, {
+        name: 'Hair services',
+        status: 'open',
+        avgServiceTimeMinutes: 15,
+        absenceGraceMinutes: 5,
+        productIds: [],
+      })
+    ).rejects.toMatchObject({ statusCode: 422 });
+
+    expect(publicReadModelCache.invalidateQueue).not.toHaveBeenCalled();
   });
 
   it('rejects reading a queue assigned to another branch', async () => {

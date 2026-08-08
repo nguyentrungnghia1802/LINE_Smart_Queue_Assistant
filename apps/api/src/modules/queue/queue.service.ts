@@ -12,6 +12,7 @@ import {
 } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { withTransaction } from '../../db/transaction';
+import { publicReadModelCache } from '../../infrastructure/redis/redis-json.cache';
 import { AppError } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
@@ -93,6 +94,19 @@ async function assertQueueBelongsToOrg(
     throw AppError.forbidden('Queue is outside your assigned branch');
   }
   return queue;
+}
+
+async function invalidateQueueReadModels(queue: {
+  id: string;
+  organization_id: string;
+  branch_id?: string;
+}): Promise<void> {
+  if (!queue.branch_id) return;
+  await publicReadModelCache.invalidateQueue({
+    organizationId: queue.organization_id,
+    branchId: queue.branch_id,
+    queueId: queue.id,
+  });
 }
 
 async function assertEntryBelongsToOrg(
@@ -230,6 +244,7 @@ export const queueService = {
         estimatedWaitSeconds: autoCalled?.id === entry.id ? 0 : estimatedWaitSeconds,
       };
     });
+    await invalidateQueueReadModels(queue);
 
     return {
       entry: created.entry,
@@ -307,14 +322,46 @@ export const queueService = {
     const queue = await queuesRepository.findById(queueId);
     if (!queue) throw AppError.notFound('Queue');
 
-    const waitingCount = await queuesRepository.countWaiting(queueId);
+    const loadSummary = async () => {
+      const waitingCount = await queuesRepository.countWaiting(queueId);
+      return {
+        waitingCount,
+        estimatedWaitSeconds: etaService.calculate({
+          aheadCount: waitingCount,
+          avgServiceSeconds: queue.avg_service_seconds,
+        }).estimatedWaitSeconds,
+      };
+    };
+    const summary = queue.branch_id
+      ? await publicReadModelCache.getQueueSummary({
+          organizationId: queue.organization_id,
+          branchId: queue.branch_id,
+          queueId: queue.id,
+          load: loadSummary,
+          parse: (value) => {
+            if (typeof value !== 'object' || value === null) return undefined;
+            const candidate = value as {
+              waitingCount?: unknown;
+              estimatedWaitSeconds?: unknown;
+            };
+            if (
+              !Number.isInteger(candidate.waitingCount) ||
+              Number(candidate.waitingCount) < 0 ||
+              !Number.isFinite(candidate.estimatedWaitSeconds) ||
+              Number(candidate.estimatedWaitSeconds) < 0
+            ) {
+              return undefined;
+            }
+            return {
+              waitingCount: Number(candidate.waitingCount),
+              estimatedWaitSeconds: Number(candidate.estimatedWaitSeconds),
+            };
+          },
+        })
+      : await loadSummary();
     return {
       queue,
-      waitingCount,
-      estimatedWaitSeconds: etaService.calculate({
-        aheadCount: waitingCount,
-        avgServiceSeconds: queue.avg_service_seconds,
-      }).estimatedWaitSeconds,
+      ...summary,
     };
   },
 
@@ -372,6 +419,7 @@ export const queueService = {
       );
       await tryAutoCallNextWaiting(lockedQueue, client);
     });
+    await invalidateQueueReadModels(queue);
     metricsService.increment('queue_cancelled_total');
   },
 
@@ -410,6 +458,7 @@ export const queueService = {
     }
 
     const updated = await queueEntriesRepository.deprioritize(entryId);
+    await invalidateQueueReadModels(queue);
 
     // Record a skip penalty when the customer reaches the skip limit.
     // Fire-and-forget — a penalty-write failure must not block the queue operation.
@@ -467,7 +516,7 @@ export const queueService = {
       throw AppError.forbidden('Queue is outside your assigned branch');
     }
 
-    return withTransaction(async (client) => {
+    const called = await withTransaction(async (client) => {
       const lockedQueue = await queuesRepository.lockById(queueId, client);
       if (!lockedQueue) throw AppError.notFound('Queue');
       const existingCalled = await queueEntriesRepository.findByQueueAndStatus(
@@ -482,6 +531,8 @@ export const queueService = {
       if (!called) throw AppError.conflict('No waiting entries in this queue');
       return called;
     });
+    await invalidateQueueReadModels(queue);
+    return called;
   },
 
   /**
@@ -498,7 +549,7 @@ export const queueService = {
 
     const entry = await queueEntriesRepository.findById(entryId);
     if (!entry) throw AppError.notFound('Ticket');
-    await assertEntryBelongsToOrg(entry, actorOrganizationId, params.actorBranchId);
+    const queue = await assertEntryBelongsToOrg(entry, actorOrganizationId, params.actorBranchId);
 
     if (entry.status !== 'called') {
       throw AppError.conflict(
@@ -506,10 +557,12 @@ export const queueService = {
       );
     }
 
-    return withTransaction(async (client) => {
+    const serving = await withTransaction(async (client) => {
       const serving = await queueEntriesRepository.markServing(entryId, client);
       return serving;
     });
+    await invalidateQueueReadModels(queue);
+    return serving;
   },
 
   /**
@@ -572,6 +625,7 @@ export const queueService = {
       await tryAutoCallNextWaiting(lockedQueue, client);
       return updated;
     });
+    await invalidateQueueReadModels(queue);
     metricsService.increment('queue_served_total');
     return served;
   },
@@ -592,7 +646,7 @@ export const queueService = {
       throw AppError.conflict(`Ticket must be in 'called' status to defer (was '${entry.status}')`);
     }
 
-    return withTransaction(async (client) => {
+    const deferred = await withTransaction(async (client) => {
       const lockedQueue = await queuesRepository.lockById(queue.id, client);
       if (!lockedQueue) throw AppError.notFound('Queue');
       const waitingBeforeDefer = await queueEntriesRepository.listWaiting(queue.id, client);
@@ -663,6 +717,8 @@ export const queueService = {
       }
       return deferred;
     });
+    await invalidateQueueReadModels(queue);
+    return deferred;
   },
 
   /**
@@ -686,7 +742,7 @@ export const queueService = {
       );
     }
 
-    return withTransaction(async (client) => {
+    const noShow = await withTransaction(async (client) => {
       const lockedQueue = await queuesRepository.lockById(queue.id, client);
       if (!lockedQueue) throw AppError.notFound('Queue');
       const noShow = await queueEntriesRepository.markNoShow(entryId, client);
@@ -726,6 +782,8 @@ export const queueService = {
       await tryAutoCallNextWaiting(lockedQueue, client);
       return noShow;
     });
+    await invalidateQueueReadModels(queue);
+    return noShow;
   },
 
   /** Customer-owned ticket status used by authenticated LIFF deep links. */

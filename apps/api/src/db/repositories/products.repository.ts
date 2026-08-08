@@ -208,13 +208,13 @@ export const productsRepository = {
         data.productType ?? 'service',
       ]
     );
-    invalidateProductCatalog(data.organizationId);
     await executor.query(
       `INSERT INTO product_translations (product_id, locale, name, description)
        VALUES ($1,'ja',$2,$3)
        ON CONFLICT (product_id, locale) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description`,
       [rows[0].id, data.name, data.description ?? null]
     );
+    if (!client) invalidateProductCatalog(data.organizationId);
     return rows[0];
   },
 
@@ -310,7 +310,6 @@ export const productsRepository = {
     );
     const updated = rows[0] ?? null;
     if (updated) {
-      invalidateProductCatalog(updated.organization_id);
       if (data.name !== undefined || data.description !== undefined) {
         await executor.query(
           `INSERT INTO product_translations (product_id, locale, name, description)
@@ -319,6 +318,7 @@ export const productsRepository = {
           [updated.id, updated.name, updated.description]
         );
       }
+      if (!client) invalidateProductCatalog(updated.organization_id);
     }
     return updated;
   },

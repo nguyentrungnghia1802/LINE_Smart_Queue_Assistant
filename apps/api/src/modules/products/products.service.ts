@@ -3,7 +3,11 @@ import type { SupportedLocale } from '@line-queue/shared';
 import { auditLogRepository } from '../../db/repositories/audit-log.repository';
 import { productsRepository } from '../../db/repositories/products.repository';
 import { withTransaction } from '../../db/transaction';
+import { publicReadModelCache } from '../../infrastructure/redis/redis-json.cache';
 import { AppError } from '../../utils/AppError';
+import { invalidateProductCatalog } from '../../utils/cache';
+import { logger } from '../../utils/logger';
+import { branchesRepository } from '../branches/branches.repository';
 
 import { CreateProductDto, UpdateBranchStockDto, UpdateProductDto } from './products.validator';
 
@@ -11,6 +15,23 @@ interface AuditContext {
   actorUserId: string;
   ipAddress?: string;
   userAgent?: string;
+}
+
+async function invalidateOrganizationCatalog(organizationId: string): Promise<void> {
+  invalidateProductCatalog(organizationId);
+  if (!publicReadModelCache.enabled) return;
+
+  try {
+    const branches = await branchesRepository.list(organizationId);
+    await Promise.all(
+      branches.map((branch) => publicReadModelCache.invalidateBranch(organizationId, branch.id))
+    );
+  } catch (error) {
+    logger.warn(
+      { errorType: error instanceof Error ? error.name : 'UnknownError' },
+      'Public product read-model invalidation could not enumerate organization branches'
+    );
+  }
 }
 
 export const productsService = {
@@ -49,6 +70,7 @@ export const productsService = {
       dto.lowStockThreshold
     );
     if (!updated) throw AppError.notFound('Product not found');
+    await publicReadModelCache.invalidateBranch(organizationId, branchId);
     await auditLogRepository.create({
       actorId: audit.actorUserId,
       actorType: 'user',
@@ -96,6 +118,7 @@ export const productsService = {
         client
       );
     });
+    await invalidateOrganizationCatalog(organizationId);
 
     if (audit) {
       await auditLogRepository.create({
@@ -143,6 +166,7 @@ export const productsService = {
       return result;
     });
     if (!updated) throw AppError.notFound('Product not found');
+    await invalidateOrganizationCatalog(organizationId);
 
     if (audit) {
       await auditLogRepository.create({
@@ -168,6 +192,7 @@ export const productsService = {
       throw AppError.forbidden('Product is outside your organization');
     }
     await productsRepository.softDelete(id);
+    await invalidateOrganizationCatalog(organizationId);
 
     if (audit) {
       await auditLogRepository.create({

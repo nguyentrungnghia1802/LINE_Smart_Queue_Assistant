@@ -10,6 +10,7 @@ import { paymentTransactionsRepository } from '../../db/repositories/payment-tra
 import { productsRepository } from '../../db/repositories/products.repository';
 import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
+import { publicReadModelCache } from '../../infrastructure/redis/redis-json.cache';
 import { AppError } from '../../utils/AppError';
 import { invalidateProductCatalog } from '../../utils/cache';
 import { branchesRepository } from '../branches/branches.repository';
@@ -435,6 +436,13 @@ export const ordersService = {
 
       await client.query('COMMIT');
       invalidateProductCatalog(org.id);
+      if (queue.branch_id) {
+        await publicReadModelCache.invalidateQueue({
+          organizationId: org.id,
+          branchId: queue.branch_id,
+          queueId: queue.id,
+        });
+      }
       return { order: linkedOrder, entry: finalEntry };
     } catch (err) {
       await client.query('ROLLBACK');

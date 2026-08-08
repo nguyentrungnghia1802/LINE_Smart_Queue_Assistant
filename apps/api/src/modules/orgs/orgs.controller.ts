@@ -1,11 +1,14 @@
 import { Request, Response } from 'express';
 
+import type { SupportedLocale } from '@line-queue/shared';
+
 import { config } from '../../config';
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { productsRepository } from '../../db/repositories/products.repository';
 import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { resolveLocale } from '../../i18n/locale';
+import { publicReadModelCache } from '../../infrastructure/redis/redis-json.cache';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
@@ -18,18 +21,10 @@ import { BusinessCalendarDto, UpdateOrgSettingsDto } from './orgs.validator';
 
 // ── Shared helper ─────────────────────────────────────────────────────────────
 
-async function buildOrgResponse(orgId: string, clientLocale?: string, selectedBranch?: BranchRow) {
-  const baseOrg = await organizationsRepository.findById(orgId);
-  if (!baseOrg) throw AppError.notFound('Organization not found');
-  const locale = resolveLocale({
-    organizationLocale: baseOrg.default_locale,
-    clientLocale,
-  });
+async function loadOrgResponse(orgId: string, locale: SupportedLocale, branch: BranchRow) {
   const org = await organizationsRepository.findLocalizedById(orgId, locale);
   if (!org) throw AppError.notFound('Organization not found');
 
-  const branch = selectedBranch ?? (await branchesRepository.findFirstByOrganization(org.id));
-  if (!branch) throw AppError.notFound('Organization branch not found');
   const [queues, isBranchOpen] = await Promise.all([
     queuesRepository.findActiveByBranches(org.id, [branch.id], locale),
     branchesRepository.isOpenNow(branch.id),
@@ -105,6 +100,43 @@ async function buildOrgResponse(orgId: string, clientLocale?: string, selectedBr
     queue,
     products: queue?.products ?? [],
   };
+}
+
+type PublicOrganizationReadModel = Awaited<ReturnType<typeof loadOrgResponse>>;
+
+function parseOrgResponse(
+  value: unknown,
+  organizationId: string,
+  branchId: string
+): PublicOrganizationReadModel | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const candidate = value as {
+    org?: { id?: unknown };
+    branch?: { id?: unknown };
+    queues?: unknown;
+  };
+  if (candidate.org?.id !== organizationId || candidate.branch?.id !== branchId) return undefined;
+  if (!Array.isArray(candidate.queues)) return undefined;
+  return value as PublicOrganizationReadModel;
+}
+
+async function buildOrgResponse(orgId: string, clientLocale?: string, selectedBranch?: BranchRow) {
+  const baseOrg = await organizationsRepository.findById(orgId);
+  if (!baseOrg) throw AppError.notFound('Organization not found');
+  const locale = resolveLocale({
+    organizationLocale: baseOrg.default_locale,
+    clientLocale,
+  });
+  const branch = selectedBranch ?? (await branchesRepository.findFirstByOrganization(baseOrg.id));
+  if (!branch) throw AppError.notFound('Organization branch not found');
+
+  return publicReadModelCache.getBranchBooking({
+    organizationId: baseOrg.id,
+    branchId: branch.id,
+    locale,
+    load: () => loadOrgResponse(baseOrg.id, locale, branch),
+    parse: (value) => parseOrgResponse(value, baseOrg.id, branch.id),
+  });
 }
 
 // ── Public endpoints ──────────────────────────────────────────────────────────
