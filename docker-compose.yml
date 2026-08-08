@@ -60,6 +60,8 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       LINE_NOTIFICATION_DELIVERY_OWNER: bullmq
       CORS_ORIGIN: ${WEB_ORIGIN:-http://localhost:80}
+    volumes:
+      - media_data:/app/var/media
     depends_on:
       postgres:
         condition: service_healthy
@@ -132,4 +134,5 @@ services:
 
 volumes:
   postgres_data:
+  media_data:
   redis_data:

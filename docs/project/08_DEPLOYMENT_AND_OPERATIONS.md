@@ -26,6 +26,7 @@ Backend-only secrets:
 - `LINE_MESSAGING_CHANNEL_SECRET`
 - `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`
 - `LINE_RICH_MENU_IMAGE_PATH` or an equivalent deployment-mounted Rich Menu PNG/JPEG asset path
+- `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` (or the equivalent secret-manager fields)
 - payOS merchant keys, future PSP secrets, and the current demo payment webhook secret
 - `GOOGLE_ROUTES_API_KEY` for server-side branch geocoding and walking-route estimates
 
@@ -192,6 +193,8 @@ The stack builds:
 - API TypeScript build/Node runner reachable inside the Compose network as `api:4000`;
 - a dedicated worker from the same API image, with no published port, for BullMQ-owned LINE delivery;
 - Vite static bundle served by nginx on `WEB_PORT`, including same-origin `/api/*` proxying to the API service.
+- S3-compatible media storage configured outside the API container; the production Compose files do
+  not mount a media filesystem volume.
 
 Image-based production Compose:
 
@@ -280,7 +283,34 @@ this path, especially `proxy_buffering off` and a read timeout longer than
 `SSE_MAX_CONNECTION_DURATION_MS`; otherwise the inner proxy cannot prevent the outer hop from
 buffering or closing the stream. Do not add a trailing slash to `proxy_pass http://api:4000`.
 
-The current local media adapter writes to `/app/var/media`, backed by the persistent `media_data` volume. nginx proxies `/media/*` to the API so generated media URLs stay on the public web origin. This volume is a Compose durability baseline, not a substitute for production object storage, backup, scanning, and CDN policy.
+Local/mock media remains available for development and tests. The local Compose stacks persist
+development files in `media_data`/`media_dev_data`, and nginx/Vite proxy `/media/*` to the API. The
+image-based production stacks set `MEDIA_STORAGE_PROVIDER=s3`, remove the API media volume, and
+require `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and
+`S3_PUBLIC_BASE_URL`. `S3_ENDPOINT` is empty for AWS S3 and set to the provider endpoint for R2 or
+another compatible service. `S3_PUBLIC_BASE_URL` should point to a controlled public bucket origin
+or CDN; it must be HTTPS in production.
+
+### Object-storage operations
+
+1. Create a dedicated production bucket per environment or an equivalent isolated prefix. Enable
+   provider versioning/retention when the business recovery policy requires it.
+2. Create a least-privilege API credential limited to the media bucket/prefix with object
+   `PutObject`, `DeleteObject`, and any required metadata/read permission. Never grant bucket
+   administration to the API credential and never put it in a `VITE_*` variable.
+3. Configure public-read/CDN behavior only for the generated media prefix. Keep the bucket control
+   plane private; if the CDN is private, replace this adapter with a reviewed signed-delivery
+   boundary before launch.
+4. Configure lifecycle retention and malware/content scanning according to the provider and legal
+   policy. The API normalizes supported uploads to WebP but does not claim to be an antivirus
+   scanner.
+5. Before redeploying, verify one upload, one replacement, one delete, and one repeated delete in
+   staging. Confirm the returned URL is reachable from the web origin and that recreating the API
+   container does not remove the object.
+6. For partial failures, retry active metadata whose delete failed; for upload cleanup failures,
+   compare provider inventory with active `media_assets.storage_key` rows under the dated purpose
+   prefixes and remove only reviewed unreferenced objects. Do not run an automated destructive
+   orphan sweep without a backup and an explicit grace period.
 
 For a real production environment, use managed PostgreSQL/object storage, TLS ingress, restricted network/security groups, centralized secrets/logs, and a deployment orchestrator. Compose is a packaging baseline, not high-availability infrastructure.
 
@@ -389,7 +419,9 @@ Daily counters are checked hourly and reset when the organization-local date cha
 
 Use encrypted PostgreSQL logical/managed backups with access controls and off-host retention. Include migration version, application commit, deployment configuration references, and object-storage media when introduced.
 
-Local development media is written under `MEDIA_LOCAL_DIR` and served from `MEDIA_PUBLIC_BASE_URL`. It is not a production durability boundary. Production deployment must provide and verify an object-storage client, backups/lifecycle, CDN/access policy, malware scanning if required, and orphan cleanup before switching away from local storage.
+Local development media is written under `MEDIA_LOCAL_DIR` and served from `MEDIA_PUBLIC_BASE_URL`.
+Production media is described in the object-storage operations section above and is not a container
+filesystem durability boundary.
 
 Example logical backup:
 
