@@ -9,13 +9,14 @@ import { TicketHeroSkeleton } from '../../components/ui/Skeleton';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
 import { useMyTickets, useTicketStatus } from '../../hooks/useQueueEntry';
+import { useTicketRealtime } from '../../hooks/useRealtime';
 
 /**
  * Live status page for a single ticket.
  *
  * URL: /liff/tickets/:entryId
  *
- * - Derives ticket data from the myTickets query (polls every 30 s)
+ * - Reconciles transient SSE hints through authoritative REST queries
  * - Shows a CalledBanner with pulsing dot when status is "called"
  * - Displays position, approx. currently-serving number, and ETA
  */
@@ -25,19 +26,34 @@ export function TicketStatusPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { authStatus } = useLiffRuntime();
+  const realtimeState = useTicketRealtime(
+    entryId,
+    [
+      ['queueEntry', 'entry', entryId],
+      ['queueEntry', 'me'],
+    ],
+    authStatus === 'authenticated'
+  );
+  const realtimeConnected = realtimeState === 'connected';
 
   const {
     data: tickets,
     isLoading: isMyTicketsLoading,
     isError: isMyTicketsError,
     refetch: refetchMyTickets,
-  } = useMyTickets({ enabled: authStatus === 'authenticated' });
+  } = useMyTickets({
+    enabled: authStatus === 'authenticated',
+    realtimeConnected,
+  });
   const {
     data: ticketStatus,
     isLoading: isTicketStatusLoading,
     isError: isTicketStatusError,
     refetch: refetchTicketStatus,
-  } = useTicketStatus(entryId, { enabled: authStatus === 'authenticated' });
+  } = useTicketStatus(entryId, {
+    enabled: authStatus === 'authenticated',
+    realtimeConnected,
+  });
 
   const ticketData = tickets?.find((t) => t.entry.id === entryId) ?? ticketStatus;
   const isLoading = !ticketData && (isMyTicketsLoading || isTicketStatusLoading);

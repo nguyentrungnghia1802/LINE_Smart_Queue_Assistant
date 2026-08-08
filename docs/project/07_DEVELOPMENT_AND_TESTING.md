@@ -251,9 +251,11 @@ npm run test:ui -w apps/web
 Realtime tests cover strict event parsing, customer ownership, exact branch/Staff assignment,
 organization-owner rejection, heartbeat and disconnect cleanup, connection fan-out, Redis
 resubscription, duplicate suppression, and cross-tenant/cross-instance routing. Proxy tests assert
-that `/api/v1/realtime/*` preserves the `/api` prefix and disables nginx buffering. Browser SSE
-consumption and REST reconciliation are intentionally TASK-07 rather than part of the backend
-transport contract.
+that `/api/v1/realtime/*` preserves the `/api` prefix and disables nginx buffering. Frontend tests
+cover shared connections, delayed and duplicate events, bounded reconnect/degraded polling,
+session expiry, visibility/navigation cleanup, and customer/Staff TanStack Query reconciliation.
+Use the existing customer booking and Staff operations Playwright scopes for browser regression;
+REST responses remain the assertion source rather than SSE payload contents.
 
 Critical regression scenarios:
 

@@ -69,6 +69,9 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Server-side payment intent boundary with demo provider, localized payment method UI, webhook callback, return status, and reconciliation hooks.
 - Staff order details with booking name, telephone, verified LINE display name, item images, manual payment/status controls, queue actions, and receipt printing.
 - Staff product cards open a read-only detail dialog with a prominent, accessible close control.
+- Customer ticket and Staff queue views share a centralized authenticated SSE client. Events only
+  invalidate TanStack Query snapshots; REST remains authoritative, polling stays active at a lower
+  frequency while connected, and returns to the existing frequency when realtime is unavailable.
 - LINE push for the standard customer journey at booking-created, exactly five people ahead,
   called, and completed, plus exceptional cancelled, deferred, and no-show events on queue entries
   that contain a verified linked LINE user ID.

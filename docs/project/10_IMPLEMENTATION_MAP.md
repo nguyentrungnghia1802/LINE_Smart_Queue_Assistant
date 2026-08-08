@@ -1,6 +1,6 @@
 # Current Implementation Map
 
-Last verified against the TASK-06 working tree on 2026-08-08.
+Last verified against the TASK-07 working tree on 2026-08-08.
 
 This document is the maintenance index for the current repository. It connects product roles and
 flows to source modules, routes, database history, runtime configuration, scheduled jobs, and
@@ -44,6 +44,7 @@ a source of current behavior.
 | Queue operation         | Auto-call when an active slot is free, next eight entries in the Staff board, defer/no-show policy, completion modal | Third absence cancels/refunds according to queue policy                             |
 | Payment                 | Demo provider plus provider abstraction and payOS adapter boundary                                                   | Merchant settlement and provider-side refund E2E remain pending                     |
 | LINE messaging          | Durable PostgreSQL outbox, localized Flex/text fallback, event-key deduplication, retry/backoff                      | Real Official Account delivery and physical-device verification remain pending      |
+| Browser realtime        | Shared authenticated SSE, query invalidation, bounded reconnect, lifecycle cleanup, retained REST polling fallback   | Production device/proxy capacity acceptance remains pending                         |
 | Forecasting             | PostgreSQL measured heuristic for wait and staffing recommendations                                                  | It is not a generative-AI or trained ML model                                       |
 | Media                   | Local/mock media adapter, WebP compression, same-origin `/media` URLs                                                | Durable object storage and orphan reconciliation remain future hardening            |
 
@@ -67,6 +68,7 @@ a source of current behavior.
 | `apps/web/src/router.tsx`                                               | All SPA route paths and compatibility redirects                        | `02`, `05`, UI tests                   |
 | `apps/web/src/pages`                                                    | Role and customer page orchestration                                   | `01`, `03`, `06`, UI tests             |
 | `apps/web/src/services`                                                 | API clients, auth interceptor, LIFF and payment adapters               | `02`, `05`, tests                      |
+| `apps/web/src/services/realtime`, `apps/web/src/hooks/useRealtime.ts`   | Shared SSE streams and authoritative REST-query reconciliation         | `02`, `06`, `07`, `08`, ADR-032        |
 | `apps/web/src/store` and `contexts`                                     | Auth state, session bootstrap, LIFF runtime state                      | `02`, `06`, auth/LIFF tests            |
 | `apps/web/src/i18n/locales`                                             | `ja`, `vi`, `en` visible UI resources by domain                        | `01`, `06`, locale tests               |
 | `db/migrations/node-pg-migrate`                                         | Ordered executable schema history                                      | `04`, repository/service tests         |
