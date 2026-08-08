@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 import { config } from '../config';
-import { pool } from '../db/client';
+import { pool, updatePoolMetrics } from '../db/client';
 import { redisService } from '../infrastructure/redis';
 import { scheduler } from '../jobs/scheduler';
 import { schedulerHealth } from '../jobs/scheduler-lock';
@@ -60,5 +60,6 @@ healthRouter.get('/ready', async (_req, res) => {
 });
 
 healthRouter.get('/metrics', (_req, res) => {
+  updatePoolMetrics();
   res.type('text/plain').send(metricsService.toPrometheus());
 });

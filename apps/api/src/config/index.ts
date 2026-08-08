@@ -47,6 +47,14 @@ function notificationDeliveryOwner(): 'api' | 'bullmq' {
   return value;
 }
 
+function optionalRatio(name: string, fallback: number): number {
+  const value = Number.parseFloat(process.env[name] ?? String(fallback));
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${name} must be between 0 and 1`);
+  }
+  return value;
+}
+
 export const config = {
   nodeEnv: (process.env.NODE_ENV ?? 'development') as 'development' | 'production' | 'test',
   port: Number.parseInt(process.env.API_PORT ?? '4000', 10),
@@ -87,6 +95,22 @@ export const config = {
     providerRateLimitDurationMs: positiveInteger('BULLMQ_PROVIDER_RATE_LIMIT_DURATION_MS', 1_000),
     heartbeatFile: process.env.WORKER_HEALTH_FILE ?? '/tmp/sqa-worker-health',
     heartbeatIntervalMs: positiveInteger('WORKER_HEARTBEAT_INTERVAL_MS', 10_000),
+  },
+
+  observability: {
+    serviceName: process.env.OTEL_SERVICE_NAME?.trim() || 'line-smart-queue-api',
+    release: process.env.SENTRY_RELEASE?.trim() || process.env.APP_RELEASE?.trim() || '',
+    environment: process.env.SENTRY_ENVIRONMENT?.trim() || process.env.NODE_ENV || 'development',
+    otel: {
+      enabled:
+        process.env.OTEL_SDK_DISABLED !== 'true' &&
+        Boolean(process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT?.trim()),
+      endpoint: process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT?.trim() || '',
+      sampleRatio: optionalRatio('OTEL_TRACES_SAMPLER_ARG', 0.1),
+    },
+    sentry: {
+      dsn: process.env.SENTRY_DSN?.trim() || '',
+    },
   },
 
   jwt: {

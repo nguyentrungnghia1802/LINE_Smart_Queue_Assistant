@@ -90,7 +90,11 @@ type GaugeName =
   | 'notification_worker_processing_seconds'
   | 'line_provider_latency_seconds'
   | 'sse_active_connections'
-  | 'sse_connection_duration_seconds';
+  | 'sse_connection_duration_seconds'
+  | 'http_request_latency_seconds'
+  | 'postgres_pool_total'
+  | 'postgres_pool_idle'
+  | 'postgres_pool_waiting';
 
 const gauges: Record<GaugeName, number> = {
   notifications_outbox_backlog: 0,
@@ -110,6 +114,10 @@ const gauges: Record<GaugeName, number> = {
   line_provider_latency_seconds: 0,
   sse_active_connections: 0,
   sse_connection_duration_seconds: 0,
+  http_request_latency_seconds: 0,
+  postgres_pool_total: 0,
+  postgres_pool_idle: 0,
+  postgres_pool_waiting: 0,
 };
 
 export const metricsService = {

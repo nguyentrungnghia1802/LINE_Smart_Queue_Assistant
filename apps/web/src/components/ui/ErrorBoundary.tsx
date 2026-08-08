@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 import { i18n } from '../../i18n';
+import { captureFrontendException } from '../../observability/sentry';
 
 import { ErrorState } from './ErrorState';
 
@@ -30,8 +31,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // In production, forward to an observability service (e.g. Sentry)
-    console.error('[ErrorBoundary]', error, info.componentStack);
+    captureFrontendException(error, { componentStack: info.componentStack ?? '' });
   }
 
   reset = () => {

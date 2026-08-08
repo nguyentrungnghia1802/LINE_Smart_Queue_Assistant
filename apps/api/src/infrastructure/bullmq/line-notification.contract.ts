@@ -8,14 +8,20 @@ export const LINE_NOTIFICATION_DELIVERY_JOB_NAME = 'line.notification-delivery.v
 export const LINE_NOTIFICATION_SCHEDULER_ID = 'line-notification-delivery-sweep-v1';
 export const LINE_NOTIFICATION_JOB_CONTRACT_VERSION = 1 as const;
 
+const traceContextSchema = z.record(z.string(), z.string()).optional();
+
 export const lineNotificationDispatchJobSchema = z
-  .object({ version: z.literal(LINE_NOTIFICATION_JOB_CONTRACT_VERSION) })
+  .object({
+    version: z.literal(LINE_NOTIFICATION_JOB_CONTRACT_VERSION),
+    traceContext: traceContextSchema,
+  })
   .strict();
 
 export const lineNotificationDeliveryJobSchema = z
   .object({
     version: z.literal(LINE_NOTIFICATION_JOB_CONTRACT_VERSION),
     notificationId: z.uuid(),
+    traceContext: traceContextSchema,
   })
   .strict();
 

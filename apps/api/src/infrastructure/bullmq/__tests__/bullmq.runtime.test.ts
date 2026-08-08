@@ -233,6 +233,30 @@ describe('LINE notification BullMQ contracts', () => {
     );
   });
 
+  it('accepts W3C trace context while keeping the delivery handler contract PII-free', async () => {
+    const queue = new FakeQueue();
+    const jobHandlers = handlers();
+
+    await processLineNotificationJob(
+      {
+        id: 'delivery-job',
+        name: LINE_NOTIFICATION_DELIVERY_JOB_NAME,
+        data: {
+          version: 1,
+          notificationId: NOTIFICATION_ID,
+          traceContext: {
+            traceparent: '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01',
+          },
+        },
+      },
+      queue,
+      jobHandlers,
+      100
+    );
+
+    expect(jobHandlers.delivery).toHaveBeenCalledWith(NOTIFICATION_ID, 'delivery-job');
+  });
+
   it.each([
     { name: 'unknown.job', data: { version: 1 } },
     { name: LINE_NOTIFICATION_DISPATCH_JOB_NAME, data: { version: 2 } },

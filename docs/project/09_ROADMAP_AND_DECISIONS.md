@@ -545,3 +545,26 @@ reconnect/auth handling, closes private streams on lifecycle/session termination
 polling as a degraded recovery path. Redis failure or SSE publication failure never rolls back a
 business transaction; cross-replica freshness degrades until reconnect/recovery. Production proxy
 hops must disable buffering and outlive the configured stream duration.
+
+## ADR-033: OpenTelemetry and Sentry complement existing logs and metrics
+
+**Status:** accepted (2026-08-09)
+
+**Context:** Pino request IDs, health/readiness, process-local Prometheus metrics, PostgreSQL audit
+logs, and durable outbox state already provide useful signals, but API/provider latency and
+background notification work could not be correlated across process boundaries. Adding broad SDK
+defaults could duplicate spans or export customer and credential data.
+
+**Decision:** Keep Pino, health endpoints, audit logs, and existing metrics authoritative for their
+current purposes. Enable optional OTLP/HTTP tracing for selected Node HTTP/Express, PostgreSQL,
+ioredis, Undici, notification-dispatch, and notification-delivery boundaries. Propagate only W3C
+trace headers in BullMQ jobs. Run Sentry in error-only mode beside the project-owned OTel provider,
+with explicit browser/backend sanitizers and no default PII. Production browser source maps are not
+served; any future upload must happen in trusted CI. Missing or failed exporters never affect
+business execution.
+
+**Consequences:** Operators can correlate request/worker logs by trace ID and follow dispatcher to
+delivery spans while PostgreSQL remains the notification truth. Trace sampling is bounded and
+configurable. Telemetry can be disabled in local/CI, and a collector or Sentry outage only reduces
+visibility. Raw bodies, credentials, customer contact/LINE identity, exact coordinates, and
+provider payloads are not observability data.

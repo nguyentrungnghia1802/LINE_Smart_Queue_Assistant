@@ -8,6 +8,12 @@ integration. Most recurring database scans remain in the API scheduler; BullMQ o
 notification dispatch and delivery. The current source-to-runtime inventory is maintained in
 [`10_IMPLEMENTATION_MAP.md`](10_IMPLEMENTATION_MAP.md).
 
+OpenTelemetry instruments safe HTTP/Express, PostgreSQL, ioredis, and outbound Undici boundaries
+when an OTLP endpoint is configured. Dispatcher jobs propagate W3C trace context to the dedicated
+worker without placing recipient data in Redis. Sentry captures sanitized browser, API, and worker
+exceptions. Both systems are optional and fail open; PostgreSQL transactions, API responses, and
+worker outcomes never depend on a telemetry backend.
+
 ```text
 Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
               |                                  |
@@ -82,7 +88,8 @@ degraded and missed-event recovery path, running less frequently only while SSE 
 BullMQ uses a separate queue and worker connection lifecycle because a worker requires blocking,
 reconnecting Redis behavior. The versioned `line.notification-outbox.dispatch.v1` scheduler job
 contains only `{ version: 1 }`. It claims committed PostgreSQL rows with `SKIP LOCKED` and adds
-`line.notification-delivery.v1` jobs containing only the notification UUID. Recipient IDs,
+`line.notification-delivery.v1` jobs containing the notification UUID and optional W3C trace
+headers. Recipient IDs,
 provider credentials, locale, and templates remain in PostgreSQL. Each delivery job has the stable
 ID `line-notification-<notification UUID>`, and LINE receives the notification UUID as
 `X-Line-Retry-Key`. A crash before enqueue leaves a stale dispatch claim recoverable; a crash after
@@ -114,6 +121,7 @@ The API entry is `apps/api/src/server.ts`; `app.ts` composes middleware, health 
 | `location`                  | Consent-based snapshots, routes, and travel alerts                |
 | `media`                     | Validated image upload, compression, and storage adapters         |
 | `notifications`             | Durable LINE outbox, templates, delivery, and operations          |
+| `observability`             | OTel/Sentry lifecycle, safe spans, correlation, and sanitization  |
 | `orders`, `payments`        | Atomic booking, fulfillment, payment, QR, webhook, reconciliation |
 | `organization-applications` | Public submission, server demo pricing, and admin review          |
 | `orgs`                      | Public organization/branch booking resolution                     |

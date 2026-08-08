@@ -1,6 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 
+import { captureException } from '../observability/runtime';
+import { sanitizeTelemetryValue } from '../observability/sanitization';
 import { AppError } from '../utils/AppError';
 import { logger } from '../utils/logger';
 import { sendError } from '../utils/response';
@@ -39,7 +41,8 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
 
   // ── Unexpected / programming error ────────────────────────────────────────
   const requestLog = (req as { log?: typeof logger }).log ?? logger;
-  requestLog.error({ err, requestId: req.id }, 'Unhandled error');
+  requestLog.error({ error: sanitizeTelemetryValue(err), requestId: req.id }, 'Unhandled error');
+  captureException(err, { requestId: req.id, method: req.method, path: req.path });
 
   sendError(res, 500, 'INTERNAL_ERROR', 'An unexpected error occurred');
 }

@@ -1,8 +1,5 @@
 {
-  // React Router 7.18.1 is affected only when RSC actions are enabled.
-  // This frontend is a client-side Vite SPA and does not use React Server Components.
   "high": true,
   "skip-dev": true,
-  "allowlist": ["GHSA-qwww-vcr4-c8h2"],
   "report-type": "summary",
 }
