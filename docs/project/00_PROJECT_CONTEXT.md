@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-08-08 at source revision `bd09552`.
+Last verified against the repository on 2026-08-09 at TASK-10 completion.
 
 ## 1. Problem
 
@@ -54,6 +54,9 @@ The project is a working local/demo modular monolith, not yet a production-compl
   30 days.
 - LINE-only customer authentication: public organization slug/token entries redirect to LIFF, while local development uses the paired LIFF mock identity.
 - Localized customer, staff, manager, and admin portals with persisted language selection.
+- Storybook 10.5.7 component review environment with shared design tokens, i18n/provider
+  decorators, deterministic fixtures, Japanese/Vietnamese/English toolbar control, and phone/
+  desktop viewport states for selected reusable components.
 - Shared responsive role navigation with full desktop tabs, icon-labelled mobile bottom navigation,
   safe-area spacing, and mobile card/list variants for dense manager operations.
 - Public business onboarding with organization/contact/address/usage/plan details, a work-email
@@ -107,7 +110,8 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Expand generic OpenAPI operation entries into detailed component schemas where provider/client generation requires stronger typing; runtime route coverage and contract drift tests are complete.
 - Production-scale concurrency and browser/device acceptance tests against real LINE and provider environments.
 - Production stress testing for the implemented scheduler ownership, queue-capacity, call-next, and counter locks.
-- Real object storage, malware scanning, CDN policy, and orphan reconciliation; validated images currently use the local/mock media adapter while legacy data URLs remain readable.
+- Object storage is implemented through the S3/R2-compatible adapter; malware scanning, CDN policy,
+  and automated orphan reconciliation remain future hardening, while legacy data URLs remain readable.
 
 ## 7. Out of scope for the current baseline
 

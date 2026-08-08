@@ -17,6 +17,7 @@ dist-seeds/
 build/
 out/
 .output/
+storybook-static/
 *.tsbuildinfo
 
 # ──────────────────────────────────────────────────────────────────────────────

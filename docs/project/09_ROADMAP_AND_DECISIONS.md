@@ -2,7 +2,7 @@
 
 # Roadmap and Decisions
 
-Last reviewed: 2026-08-09 at TASK-09 completion. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
+Last reviewed: 2026-08-09 at TASK-10 completion. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
 
 ## 1. Prioritized roadmap
 
@@ -595,3 +595,24 @@ authorization stay centralized. Operators must configure bucket lifecycle/versio
 privilege, CDN/public access, scanning, backups, and a reviewed orphan grace-period process.
 Signed direct upload and automated destructive orphan cleanup remain future work and are not part
 of TASK-09.
+
+## ADR-035: Storybook is a development-only component review boundary
+
+**Status:** accepted (2026-08-09)
+
+**Context:** The multi-role SPA has reusable queue, ticket, status, product-picker, and LINE
+friendship components with locale and responsive behavior that is expensive to review only through
+full authenticated pages. The project already has Vitest, Testing Library, and Playwright; a
+component environment should complement those layers rather than replace them.
+
+**Decision:** Use Storybook 10.5.7 with the React/Vite framework in `apps/web/.storybook`. The
+preview loads the existing Tailwind/global CSS and i18n resources, exposes Japanese/Vietnamese/
+English locale controls and phone/desktop viewports, and provides deterministic Query and router
+contexts. Stories are colocated beside real reusable components, while shared fixtures are kept in
+`apps/web/src/storybook`. No story may call the production API, LINE, payment, Google Routes, or
+object storage. `storybook:build` is the static review gate; the production SPA and Docker runtime
+remain unchanged.
+
+**Consequences:** Component state and Japanese long-copy layout can be reviewed quickly in
+isolation, with existing unit/E2E tests retaining behavioral authority. Visual regression and
+accessibility automation remain optional future work and are not introduced as a paid service.
