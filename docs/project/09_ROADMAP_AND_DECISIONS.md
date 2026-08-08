@@ -431,3 +431,24 @@ candidates as measured production limits.
 Later infrastructure changes must preserve transactions, row claims, event-key idempotency, tenant
 isolation, provider fallback behavior, and REST snapshot recovery. Capacity claims require isolated
 staging measurements against the documented scenarios and SLOs.
+
+## ADR-028: Redis is shared ephemeral infrastructure with bounded rate-limit fallback
+
+**Status:** accepted (2026-08-08)
+
+**Context:** Authentication, webhook, public-write, and authenticated-action limits were stored in
+each Express process. Adding replicas multiplied their effective thresholds. Redis is also the
+planned connection boundary for later cache, BullMQ, and Pub/Sub tasks, while PostgreSQL already
+protects durable business state.
+
+**Decision:** Use one centralized ioredis 5.x lifecycle compatible with the planned BullMQ 5.x
+phase. Redis stores only shared ephemeral counters in this task. Strict/auth-related, public-write,
+and authenticated-action policies use atomic Redis windows. Coarse global API and public-read
+limits remain local. If Redis is disabled or unavailable, every protected policy uses its existing
+threshold with a bounded local store and emits throttled safe logs plus metrics. `/ready` remains a
+PostgreSQL gate; health reports Redis status without credentials.
+
+**Consequences:** Multiple healthy API processes enforce one counter namespace. A Redis outage can
+temporarily multiply the bounded limit by replica count, but never removes authentication
+protection or blocks durable queue/order correctness. Redis must remain private, monitored, and
+restored promptly. Cache, BullMQ, Pub/Sub, and process-local idempotency remain separate later tasks.

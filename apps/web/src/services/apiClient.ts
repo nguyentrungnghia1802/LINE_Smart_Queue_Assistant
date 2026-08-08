@@ -49,8 +49,7 @@ apiClient.interceptors.response.use(
   async (error: AxiosError<ApiResponse<never> | ApiErrorResponse>) => {
     const skipAuthRedirect = String(error.config?.headers?.['X-Skip-Auth-Redirect']) === 'true';
     const retryConfig = error.config as
-      | (NonNullable<typeof error.config> & { _authRefreshAttempted?: boolean })
-      | undefined;
+      (NonNullable<typeof error.config> & { _authRefreshAttempted?: boolean }) | undefined;
     const payload = error.response?.data;
     const responseCode = payload && !payload.success ? payload.error.code : undefined;
 

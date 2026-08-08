@@ -59,8 +59,7 @@ describe('OpenAPI runtime contract', () => {
   it('publishes every catalog operation in the assembled specification', () => {
     for (const entry of apiEndpointCatalog) {
       const pathItem = swaggerSpec.paths[entry.path as keyof typeof swaggerSpec.paths] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       expect(pathItem).toBeDefined();
       expect(pathItem?.[entry.method]).toBeDefined();
     }
