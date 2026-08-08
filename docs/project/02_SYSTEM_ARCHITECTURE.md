@@ -2,7 +2,7 @@
 
 ## 1. Architecture summary
 
-The system is a TypeScript modular monolith: one React SPA, one Express API process, one PostgreSQL database, and direct LINE HTTP integration. Scheduled jobs run inside the API process. This keeps local operation simple while module boundaries provide an upgrade path to workers or services later.
+The system is a TypeScript modular monolith: one React SPA, one Express API process, one PostgreSQL database, and direct LINE HTTP integration. Scheduled jobs run inside the API process. This keeps local operation simple while module boundaries provide an upgrade path to workers or services later. The current source-to-runtime inventory is maintained in [`10_IMPLEMENTATION_MAP.md`](10_IMPLEMENTATION_MAP.md).
 
 ```text
 Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
@@ -41,23 +41,28 @@ The deployed production request path uses two proxy hops before Express: the hos
 
 The API entry is `apps/api/src/server.ts`; `app.ts` composes middleware, health routes, docs, and `/api/v1` modules.
 
-| Module                      | Responsibility                                                  |
-| --------------------------- | --------------------------------------------------------------- |
-| `auth`                      | Business email/password login and customer LINE ID-token login  |
-| `admin`                     | Approved organization and manager lifecycle                     |
-| `organization-applications` | Public submission, server-side demo pricing, and admin approval |
-| `orgs`                      | Public organization/branch booking resolution                   |
-| `branches`                  | Owner branch lifecycle/analytics and branch-manager settings    |
-| `products`                  | Branch catalog, queue assignment, and inventory configuration   |
-| `queues`                    | Branch-manager multi-queue configuration                        |
-| `queue`                     | Customer ticket operations and shared ticket transitions        |
-| `staff`                     | Branch-scoped operational queue board/actions                   |
-| `orders`                    | Reservation/order/payment/item/inventory/location transaction   |
-| `users`                     | Profiles and manager-owned staff accounts                       |
-| `line`                      | Webhook signature handling, reply/push transport                |
-| `notifications`             | Notification listing and queue lifecycle messaging              |
-| `eta`                       | Pure wait-time calculation                                      |
-| `skip-penalty`              | Skip/no-show policy behavior                                    |
+| Module                      | Responsibility                                                    |
+| --------------------------- | ----------------------------------------------------------------- |
+| `account-lifecycle`         | Activation, password reset, and email action tokens               |
+| `admin`                     | Approved organization and owner-manager recovery                  |
+| `auth`                      | Business email/password and customer LINE ID-token login          |
+| `bookings`                  | Authenticated current/history booking-group reads                 |
+| `branches`                  | Owner branch lifecycle/analytics and branch-manager settings      |
+| `email`                     | Durable invitation/reset/application email delivery               |
+| `eta`, `forecasts`          | Wait calculation, historical metrics, and staffing advice         |
+| `inventory`                 | Branch stock reservations and expiry                              |
+| `line`                      | Webhook, friendship, location consent, and Rich Menu transport    |
+| `location`                  | Consent-based snapshots, routes, and travel alerts                |
+| `media`                     | Validated image upload, compression, and storage adapters         |
+| `notifications`             | Durable LINE outbox, templates, delivery, and operations          |
+| `orders`, `payments`        | Atomic booking, fulfillment, payment, QR, webhook, reconciliation |
+| `organization-applications` | Public submission, server demo pricing, and admin review          |
+| `orgs`                      | Public organization/branch booking resolution                     |
+| `products`, `queues`        | Organization catalog and branch queue configuration               |
+| `queue`, `staff`            | Customer tickets and branch-scoped operations                     |
+| `skip-penalty`              | Absence/defer/no-show policy and refund boundary                  |
+| `shared`                    | Shared validators and cross-module request contracts              |
+| `users`                     | Profiles, owner/manager/staff accounts, and audit-aware changes   |
 
 Dependency direction:
 
@@ -231,12 +236,22 @@ The browser return URL is a user experience signal, not proof of payment.
 
 ## 11. Scalability and reliability boundaries
 
-The current design is appropriate for a single API instance and modest queue volume. Before horizontal scale:
+The measured development baseline, process-local state inventory, representative load scenarios,
+initial SLOs, and staged target architecture are maintained in
+[`11_SCALABILITY_BASELINE.md`](11_SCALABILITY_BASELINE.md).
 
-- coordinate scheduled jobs;
+The current design is appropriate for a single API instance and modest queue volume. Before
+horizontal scale:
+
+- move long-running/provider work out of the HTTP process while preserving advisory locks or safe
+  row claims;
+- replace per-process rate limiting and correctness-sensitive idempotency responses with shared
+  behavior;
+- bound aggregate PostgreSQL connections across API and worker replicas;
 - enforce queue capacity and order numbering under lock/sequence;
-- add provider webhook idempotency and reconciliation;
-- introduce Redis/BullMQ only when measured workload justifies it;
-- add database pooling/monitoring, object storage, centralized logs, and tracing.
+- extend provider-specific settlement, refund, and operational reconciliation beyond the
+  current abstraction and adapter boundary;
+- introduce Redis/BullMQ only for the documented coordination and workload-isolation needs;
+- add database pooling/monitoring, S3/R2-compatible storage, centralized logs, and tracing.
 
 These are constraints, not a requirement to rewrite the modular monolith.

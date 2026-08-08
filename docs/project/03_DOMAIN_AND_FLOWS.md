@@ -47,7 +47,7 @@ Organization
 | LocationAlert                           | Pending/sent/skipped/failed proximity notification intent                         |
 | Notification                            | Durable LINE notification outbox and delivery log for queue lifecycle messages    |
 | QueueHistory/AuditLog                   | Domain and administrative traceability                                            |
-| WaitTimeForecast/StaffingRecommendation | Model output history; runtime producer not implemented                            |
+| WaitTimeForecast/StaffingRecommendation | Persisted output from the measured heuristic forecast worker                      |
 
 ## 2. State machines
 

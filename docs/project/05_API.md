@@ -74,12 +74,16 @@ reserved `_form` key, so validation responses never silently collapse to an empt
 
 ### Authentication
 
-| Method | Path                   | Access               | Purpose                                                                         |
-| ------ | ---------------------- | -------------------- | ------------------------------------------------------------------------------- |
-| POST   | `/api/v1/auth/line`    | Public, strict limit | Verify LINE ID token, find/create linked customer, issue access/refresh session |
-| POST   | `/api/v1/auth/login`   | Public, strict limit | Email/password login for business roles and issue access/refresh session        |
-| POST   | `/api/v1/auth/refresh` | Refresh cookie       | Rotate refresh token and return new access token/user/session metadata          |
-| POST   | `/api/v1/auth/logout`  | Refresh cookie       | Revoke the current session family and clear the refresh cookie                  |
+| Method | Path                            | Access               | Purpose                                                                         |
+| ------ | ------------------------------- | -------------------- | ------------------------------------------------------------------------------- |
+| POST   | `/api/v1/auth/line`             | Public, strict limit | Verify LINE ID token, find/create linked customer, issue access/refresh session |
+| POST   | `/api/v1/auth/login`            | Public, strict limit | Email/password login for business roles and issue access/refresh session        |
+| POST   | `/api/v1/auth/refresh`          | Refresh cookie       | Rotate refresh token and return new access token/user/session metadata          |
+| POST   | `/api/v1/auth/logout`           | Refresh cookie       | Revoke the current session family and clear the refresh cookie                  |
+| GET    | `/api/v1/auth/account-action`   | Public, token query  | Inspect an activation or password-reset action without consuming it             |
+| POST   | `/api/v1/auth/activate-account` | Public, action token | Set the invited account password and activate the business account              |
+| POST   | `/api/v1/auth/forgot-password`  | Public, strict limit | Create a password-reset email without revealing account existence               |
+| POST   | `/api/v1/auth/reset-password`   | Public, action token | Consume a password-reset action and set a new business password                 |
 
 Login and refresh responses include `token`, `user`, and public `session` timing metadata. The raw
 refresh token is never returned in JSON; it uses a `/api/v1/auth` path-scoped `HttpOnly`,
@@ -233,16 +237,17 @@ call the earliest waiter only when no ticket is already called or serving.
 
 ### Orders and payment
 
-| Method | Path                            | Access                                                      | Purpose                                                |
-| ------ | ------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------ |
-| POST   | `/api/v1/orders`                | Public guest or authenticated customer, limited, idempotent | Atomic booking/order/payment/stock/location creation   |
-| POST   | `/api/v1/orders/:id/cancel`     | Authenticated owner/operator                                | Cancel eligible order and linked ticket                |
-| GET    | `/api/v1/orders`                | Assigned staff/branch manager                               | List assigned-branch orders                            |
-| GET    | `/api/v1/orders/stats`          | Branch manager                                              | Assigned-branch order statistics                       |
-| GET    | `/api/v1/orders/:id`            | Assigned staff/branch manager                               | Assigned-branch order detail                           |
-| PATCH  | `/api/v1/orders/:id/status`     | Assigned staff/branch manager                               | Set processing/completed/cancelled                     |
-| PATCH  | `/api/v1/orders/:id/payment`    | Assigned staff/branch manager, idempotent                   | Collect outstanding balance or record refund           |
-| POST   | `/api/v1/orders/:id/payment-qr` | Assigned staff/branch manager                               | Create a payOS counter checkout for the unpaid balance |
+| Method | Path                            | Access                                           | Purpose                                                |
+| ------ | ------------------------------- | ------------------------------------------------ | ------------------------------------------------------ |
+| POST   | `/api/v1/orders`                | Authenticated LINE customer, limited, idempotent | Atomic booking/order/payment/stock/location creation   |
+| POST   | `/api/v1/orders/:id/cancel`     | Authenticated owner/operator                     | Cancel eligible order and linked ticket                |
+| GET    | `/api/v1/orders`                | Assigned staff/branch manager                    | List assigned-branch orders                            |
+| GET    | `/api/v1/orders/stats`          | Branch manager                                   | Assigned-branch order statistics                       |
+| GET    | `/api/v1/orders/:id`            | Assigned staff/branch manager                    | Assigned-branch order detail                           |
+| GET    | `/api/v1/orders/:id/receipt`    | Assigned staff/branch manager                    | Completed, fully paid receipt source data              |
+| PATCH  | `/api/v1/orders/:id/status`     | Assigned staff/branch manager                    | Set processing/completed/cancelled                     |
+| PATCH  | `/api/v1/orders/:id/payment`    | Assigned staff/branch manager, idempotent        | Collect outstanding balance or record refund           |
+| POST   | `/api/v1/orders/:id/payment-qr` | Assigned staff/branch manager                    | Create a payOS counter checkout for the unpaid balance |
 
 Order payment summary is derived from item coverage. A verified `required_items` transaction marks
 the order paid when those items are the entire cart. For a mixed cart, Staff payment confirmation
@@ -365,18 +370,20 @@ another role.
 
 ### LINE and notifications
 
-| Method  | Path                                          | Access                            | Purpose                                                           |
-| ------- | --------------------------------------------- | --------------------------------- | ----------------------------------------------------------------- |
-| POST    | `/api/v1/line/webhook`                        | LINE signed webhook, strict limit | Verify signature and process supported events                     |
-| POST    | `/api/v1/line/friendship`                     | Authenticated linked customer     | Synchronize current Official Account friendship after LIFF login  |
-| GET     | `/api/v1/notifications`                       | Authenticated                     | List notifications with validated query                           |
-| GET/PUT | `/api/v1/line/preferences`                    | Authenticated linked customer     | Read/update LINE notification consent and event preferences       |
-| GET/PUT | `/api/v1/line/location-consent`               | Authenticated customer            | Read/update location snapshot consent                             |
-| DELETE  | `/api/v1/line/location-data`                  | Authenticated customer            | Revoke consent and anonymize stored snapshots                     |
-| POST    | `/api/v1/line/location-snapshot`              | Verified LINE customer            | Save a consented snapshot only while an active ticket exists      |
-| GET     | `/api/v1/notifications/operations`            | Manager/admin                     | Tenant-scoped delivery operations list with masked LINE recipient |
-| POST    | `/api/v1/notifications/operations/:id/retry`  | Manager/admin                     | Audited explicit retry for failed/cancelled delivery              |
-| POST    | `/api/v1/notifications/operations/:id/cancel` | Manager/admin                     | Audited cancellation for unsent delivery                          |
+| Method | Path                                          | Access                            | Purpose                                                           |
+| ------ | --------------------------------------------- | --------------------------------- | ----------------------------------------------------------------- |
+| POST   | `/api/v1/line/webhook`                        | LINE signed webhook, strict limit | Verify signature and process supported events                     |
+| POST   | `/api/v1/line/friendship`                     | Authenticated linked customer     | Synchronize current Official Account friendship after LIFF login  |
+| GET    | `/api/v1/notifications`                       | Authenticated                     | List notifications with validated query                           |
+| GET    | `/api/v1/line/preferences`                    | Authenticated linked customer     | Read LINE notification consent and event preferences              |
+| PUT    | `/api/v1/line/preferences`                    | Authenticated linked customer     | Update LINE notification consent and event preferences            |
+| GET    | `/api/v1/line/location-consent`               | Authenticated customer            | Read location snapshot consent                                    |
+| PUT    | `/api/v1/line/location-consent`               | Authenticated customer            | Update location snapshot consent                                  |
+| DELETE | `/api/v1/line/location-data`                  | Authenticated customer            | Revoke consent and anonymize stored snapshots                     |
+| POST   | `/api/v1/line/location-snapshot`              | Verified LINE customer            | Save a consented snapshot only while an active ticket exists      |
+| GET    | `/api/v1/notifications/operations`            | Manager/admin                     | Tenant-scoped delivery operations list with masked LINE recipient |
+| POST   | `/api/v1/notifications/operations/:id/retry`  | Manager/admin                     | Audited explicit retry for failed/cancelled delivery              |
+| POST   | `/api/v1/notifications/operations/:id/cancel` | Manager/admin                     | Audited cancellation for unsent delivery                          |
 
 ### Health, docs, and metrics
 
