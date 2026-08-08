@@ -42,6 +42,7 @@ services:
       API_PORT: 4000
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-line_queue}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      LINE_NOTIFICATION_DELIVERY_OWNER: bullmq
       CORS_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN must be set}
       MEDIA_LOCAL_DIR: ${MEDIA_LOCAL_DIR:-/app/var/media}
       MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-/media}
@@ -52,6 +53,33 @@ services:
         condition: service_healthy
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/health >/dev/null || exit 1']
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  worker:
+    image: ${LINE_QUEUE_API_IMAGE:-line-smart-queue-api:latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-line_queue}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      LINE_NOTIFICATION_DELIVERY_OWNER: bullmq
+      WORKER_HEALTH_FILE: /tmp/sqa-worker-health
+    command: ['node', 'apps/api/dist/worker.js']
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "const f=''/tmp/sqa-worker-health'',s=require(''fs'').statSync(f),h=JSON.parse(require(''fs'').readFileSync(f));process.exit(h.status===''ready''&&Date.now()-s.mtimeMs<60000?0:1)"',
+        ]
       interval: 30s
       timeout: 5s
       start_period: 20s

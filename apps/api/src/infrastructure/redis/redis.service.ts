@@ -5,12 +5,7 @@ import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
 
 export type RedisHealthStatus =
-  | 'disabled'
-  | 'connecting'
-  | 'ready'
-  | 'degraded'
-  | 'closing'
-  | 'closed';
+  'disabled' | 'connecting' | 'ready' | 'degraded' | 'closing' | 'closed';
 
 export interface RedisCommandClient {
   eval(script: string, numberOfKeys: number, ...args: Array<string | number>): Promise<unknown>;

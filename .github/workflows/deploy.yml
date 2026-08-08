@@ -95,9 +95,10 @@ jobs:
           DEPLOY_PATH="${DEPLOY_PATH:-/opt/line-smart-queue}"
           ssh -i ~/.ssh/id_ed25519 -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
             "cd '$DEPLOY_PATH' &&
-             docker compose pull api web &&
+             docker compose pull api worker web &&
              docker compose run --rm api npm run db:migrate &&
-             docker compose up -d --force-recreate api web &&
+             docker compose up -d --force-recreate api worker web &&
              docker compose ps &&
              docker compose exec -T api wget -qO- http://127.0.0.1:4000/ready >/dev/null &&
+             docker compose exec -T worker node -e \"const f='/tmp/sqa-worker-health',s=require('fs').statSync(f),h=JSON.parse(require('fs').readFileSync(f));process.exit(h.status==='ready'&&Date.now()-s.mtimeMs<60000?0:1)\" &&
              docker compose exec -T web wget -qO- http://127.0.0.1/health >/dev/null"

@@ -2,7 +2,11 @@
 
 ## 1. Architecture summary
 
-The system is a TypeScript modular monolith: one React SPA, one Express API process, one PostgreSQL database, and direct LINE HTTP integration. Scheduled jobs run inside the API process. This keeps local operation simple while module boundaries provide an upgrade path to workers or services later. The current source-to-runtime inventory is maintained in [`10_IMPLEMENTATION_MAP.md`](10_IMPLEMENTATION_MAP.md).
+The system is a TypeScript modular monolith: one React SPA, an Express API process, a dedicated
+background worker process from the same API image, PostgreSQL, Redis, and direct LINE HTTP
+integration. Most recurring database scans remain in the API scheduler; BullMQ owns only the LINE
+notification delivery sweep. The current source-to-runtime inventory is maintained in
+[`10_IMPLEMENTATION_MAP.md`](10_IMPLEMENTATION_MAP.md).
 
 ```text
 Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
@@ -14,12 +18,15 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
                          REST /api/v1 + JWT
                                  |
                          Express API process
-                    +------------+-------------+
-                    |            |             |
-               PostgreSQL      Redis         LINE APIs
-                    ^             |          Login/OIDC +
-                    |      limits + cache     Messaging push
-                    +------ durable notification outbox
+                                 |
+                    PostgreSQL durable outbox
+                                 |
+                       BullMQ scheduled sweep
+                                 |
+                      Dedicated worker process
+                       |                   |
+                     Redis             LINE APIs
+              limits/cache/queue   Login/OIDC + push
 ```
 
 ## 2. Containers and runtime boundaries
@@ -28,9 +35,10 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | ----------------- | ------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `web`             | React/Vite in dev, nginx static SPA in prod | Routes, i18next UI, browser state, API calls, LIFF adapter                             |
 | `api`             | Node/Express                                | HTTP contracts, auth, business services, SQL repositories, LINE adapter, scheduler     |
+| `worker`          | Node/BullMQ                                 | Claims committed LINE outbox rows and reuses notification delivery services            |
 | Media adapter     | Local/mock plus object-compatible interface | Validates and compresses image ingress; isolates persistence transport                 |
 | `postgres`        | PostgreSQL 16                               | Tenant, identity, queue, order, inventory, payment, notification, audit, forecast data |
-| `redis`           | Redis 7.4                                   | Shared rate-limit counters and bounded public read-model caches                        |
+| `redis`           | Redis 7.4                                   | Rate limits, public read caches, and non-authoritative BullMQ orchestration            |
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
 | Payment provider  | Demo adapter or payOS                       | Hosted/payment redirect, QR payload, and authoritative webhook                         |
 
@@ -51,6 +59,15 @@ validated JSON envelopes, and malformed values, misses, timeouts, or Redis outag
 PostgreSQL. Cached openness, stock, counts, or payment-shaped data is display-only: booking,
 capacity, inventory, payment, transition, and authorization decisions always reload authoritative
 PostgreSQL state.
+
+BullMQ uses a separate queue and worker connection lifecycle because a worker requires blocking,
+reconnecting Redis behavior. The versioned `line.notification-delivery.sweep.v1` job contains only
+`{ version: 1 }`; recipient IDs, provider credentials, and notification payloads remain in
+PostgreSQL. A deterministic Job Scheduler ID prevents duplicate recurring schedules when multiple
+workers start. Worker concurrency is one, sweeps are rate-limited to one per configured delivery
+interval, and the existing bounded outbox batch sends rows serially. BullMQ retries only sweep-level
+infrastructure failures; per-message retry/backoff and terminal state remain authoritative in the
+outbox. Redis/worker downtime therefore increases backlog without blocking API transactions.
 
 The deployed production request path uses two proxy hops before Express: the host TLS nginx and the web-container nginx. The API therefore sets Express `trust proxy` to `2` so `req.ip` is derived from the forwarded client chain instead of the container socket address. This is important for strict rate limiting and request attribution. API port `4000` remains internal to the Compose network and is not published directly to the internet.
 
@@ -208,18 +225,24 @@ copy only this trusted claim into new queue entries; public request bodies canno
 
 ## 8. Background jobs
 
-The API scheduler uses overlap-protected `setInterval` jobs:
+The API scheduler uses overlap-protected `setInterval` jobs except for LINE delivery, which is
+owned by the dedicated BullMQ worker when `LINE_NOTIFICATION_DELIVERY_OWNER=bullmq`:
 
 | Job                   | Interval     | Current behavior                                                                 |
 | --------------------- | ------------ | -------------------------------------------------------------------------------- |
 | ETA updater           | 30 seconds   | Recomputes wait estimates for waiting entries in open queues                     |
 | ETA warning scan      | 30 seconds   | Enqueues approaching-turn LINE notification intents for eligible linked tickets  |
 | Called retry scan     | 60 seconds   | Enqueues called-reminder intents using the same durable event-key deduplication  |
-| Notification delivery | 15 seconds   | Claims due LINE outbox rows, sends them, and records sent/retry/failed outcomes  |
+| Notification delivery | 15 seconds   | BullMQ worker claims due outbox rows and records sent/retry/failed outcomes      |
 | Counter reset         | Hourly check | Resets counters after the organization-local business date changes               |
 | Forecasting           | Configurable | Persists measured demand/service aggregates, wait forecasts, and staffing advice |
 
-Notification delivery uses PostgreSQL row locking with `FOR UPDATE SKIP LOCKED`. ETA, warning, called, inventory expiry, location, counter reset, and forecasting jobs use PostgreSQL advisory locks with scheduler run health records, so multiple API replicas do not execute the same logical cycle concurrently.
+Notification delivery uses PostgreSQL row locking with `FOR UPDATE SKIP LOCKED`; BullMQ does not
+replace the durable outbox. ETA, warning, called, inventory expiry, location, counter reset,
+forecasting, session cleanup, and email delivery retain their existing scheduler ownership. Those
+singleton scans use PostgreSQL advisory locks where applicable, while row workloads retain safe
+claims. Bare local development can explicitly use API ownership, but a deployment must never run
+both owners for the recurring LINE delivery sweep.
 
 ## 9. Payment architecture
 

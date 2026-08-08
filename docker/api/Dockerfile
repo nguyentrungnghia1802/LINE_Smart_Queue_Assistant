@@ -74,6 +74,14 @@ COPY --from=prod-deps \
      /app/node_modules \
      ./node_modules
 
+# npm may keep workspace-specific production packages here when hoisting would
+# violate another workspace's dependency graph. Node resolves this directory
+# first for compiled files under apps/api/dist.
+COPY --from=prod-deps \
+     --chown=appuser:appgroup \
+     /app/apps/api/node_modules \
+     ./apps/api/node_modules
+
 # Root package.json required for npm workspace symlink resolution
 COPY --from=builder \
      --chown=appuser:appgroup \

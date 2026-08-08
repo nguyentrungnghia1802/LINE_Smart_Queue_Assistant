@@ -740,7 +740,7 @@ Move appropriate asynchronous processing out of the HTTP API process while prese
 
 # TASK-04 — BullMQ Foundation & Dedicated Worker Runtime
 
-**Status:** [ ] Not started
+**Status:** [x] Completed (2026-08-08)
 **Priority:** P0
 **Dependencies:** TASK-02
 
@@ -847,11 +847,11 @@ Cover:
 
 ## Acceptance criteria
 
-- [ ] Worker is operationally separate from HTTP serving.
-- [ ] Domain logic is reused rather than duplicated.
-- [ ] BullMQ contracts/retry policies are explicit.
-- [ ] Scheduler ownership remains unambiguous.
-- [ ] Worker downtime does not block durable API transactions.
+- [x] Worker is operationally separate from HTTP serving.
+- [x] Domain logic is reused rather than duplicated.
+- [x] BullMQ contracts/retry policies are explicit.
+- [x] Scheduler ownership remains unambiguous.
+- [x] Worker downtime does not block durable API transactions.
 
 ---
 

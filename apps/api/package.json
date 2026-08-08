@@ -5,8 +5,10 @@
   "description": "Express REST API for LINE Smart Queue Assistant",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only --exit-child src/server.ts",
+    "dev:worker": "ts-node-dev --respawn --transpile-only --exit-child src/worker.ts",
     "build": "tsc --build",
     "start": "node dist/server.js",
+    "start:worker": "node dist/worker.js",
     "lint": "eslint src --ext .ts --max-warnings 0",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
@@ -28,6 +30,7 @@
   "dependencies": {
     "@line-queue/shared": "*",
     "bcryptjs": "^3.0.3",
+    "bullmq": "5.81.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
