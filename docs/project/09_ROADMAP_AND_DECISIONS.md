@@ -409,3 +409,25 @@ assignments are moved or deactivated; ordinary queue removal remains soft deleti
 Migration `000025_staff_queue_assignment` is the database enforcement for this decision. It adds
 `branch_memberships.queue_id`, backfills safe existing Staff assignments, deactivates unresolved
 active Staff memberships, and enforces same-organization/same-branch queue references.
+
+## ADR-027: Scale from measured boundaries while PostgreSQL remains authoritative
+
+**Status:** accepted (2026-08-08)
+
+**Context:** The current API combines HTTP handling, interval scheduling, provider delivery, and
+process-local cache/rate-limit/idempotency/metrics state. Durable PostgreSQL locks, outboxes, and
+constraints already protect many domain transitions, but unconstrained API replicas would multiply
+database connections and make process-local behavior inconsistent. Only a small warm public-read
+development baseline has been measured; production capacity is not yet established.
+
+**Decision:** Use [`11_SCALABILITY_BASELINE.md`](11_SCALABILITY_BASELINE.md) as the evidence and SLO
+baseline. Keep PostgreSQL authoritative. Introduce Redis for documented shared ephemeral behavior,
+BullMQ and dedicated workers for isolated asynchronous execution, SSE plus Redis Pub/Sub for queue
+state invalidation, OpenTelemetry and Sentry for durable observability, and S3/R2-compatible storage
+for shared media only through later scoped tasks. Do not describe scenario sizes or code-review
+candidates as measured production limits.
+
+**Consequences:** The modular monolith remains the source boundary while runtime roles may separate.
+Later infrastructure changes must preserve transactions, row claims, event-key idempotency, tenant
+isolation, provider fallback behavior, and REST snapshot recovery. Capacity claims require isolated
+staging measurements against the documented scenarios and SLOs.

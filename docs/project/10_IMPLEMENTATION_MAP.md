@@ -22,6 +22,8 @@ in the same change:
 5. Configuration and deployment: `apps/api/src/config/index.ts`, Vite config, Dockerfiles,
    Compose files, `.env.example`, and `deploy/.env.example`.
 6. Decisions and accepted limitations: `docs/project/09_ROADMAP_AND_DECISIONS.md`.
+7. Scalability evidence, representative scenarios, and SLOs:
+   `docs/project/11_SCALABILITY_BASELINE.md`.
 
 `README.md` is the short public orientation document. `docs/archive` is historical and is not
 a source of current behavior.

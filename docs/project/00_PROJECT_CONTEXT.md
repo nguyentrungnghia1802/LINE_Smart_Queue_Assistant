@@ -149,6 +149,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 | `08_DEPLOYMENT_AND_OPERATIONS.md` | Environments, deployment, health, backup, incident response       |
 | `09_ROADMAP_AND_DECISIONS.md`     | Priorities, risks, technical debt, accepted ADRs                  |
 | `10_IMPLEMENTATION_MAP.md`        | Current source map, route/API/DB inventory, env and worker matrix |
+| `11_SCALABILITY_BASELINE.md`      | Runtime scale audit, measured baseline, SLOs, target architecture |
 
 Historical files under `docs/archive` are evidence of earlier plans, not current product truth.
 

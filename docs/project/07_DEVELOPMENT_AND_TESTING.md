@@ -218,14 +218,14 @@ npm run test:ui -w apps/web
 
 ## 9. Test strategy
 
-| Layer                          | Tool                                         | Focus                                                                                       |
-| ------------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Pure unit                      | Jest/Vitest                                  | ETA, policy, helpers, adapters, validators                                                  |
-| Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB | Transactions, tenant checks, state transitions, stock/payment behavior                      |
-| Route/API                      | Supertest                                    | Middleware, status/envelope, request validation                                             |
-| Component                      | Testing Library/Vitest                       | Render states and critical interactions                                                     |
-| Browser E2E                    | Playwright + isolated mock LINE/API ports    | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows |
-| Load                           | Historical guide archived                    | Recreate against staging once SLOs and data isolation are defined                           |
+| Layer                          | Tool                                             | Focus                                                                                       |
+| ------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Pure unit                      | Jest/Vitest                                      | ETA, policy, helpers, adapters, validators                                                  |
+| Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB     | Transactions, tenant checks, state transitions, stock/payment behavior                      |
+| Route/API                      | Supertest                                        | Middleware, status/envelope, request validation                                             |
+| Component                      | Testing Library/Vitest                           | Render states and critical interactions                                                     |
+| Browser E2E                    | Playwright + isolated mock LINE/API ports        | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows |
+| Load                           | Scenario definitions and a small Docker baseline | Use `11_SCALABILITY_BASELINE.md`; recreate against isolated staging before capacity claims  |
 
 Critical regression scenarios:
 

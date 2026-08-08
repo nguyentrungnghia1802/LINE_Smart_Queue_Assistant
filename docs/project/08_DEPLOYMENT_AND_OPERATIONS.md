@@ -427,7 +427,8 @@ The canonical executable release gate is `docs/checklists/PRODUCTION_READINESS.m
 - Location consent, retention, deletion, and alert worker.
 - Japan timezone/currency/seed/localization configuration.
 - Multi-replica scheduler ownership or single-worker guarantee.
-- End-to-end and load tests with defined SLOs.
+- End-to-end and load tests against the scenarios and SLOs in
+  [`11_SCALABILITY_BASELINE.md`](11_SCALABILITY_BASELINE.md).
 - On-call ownership, dashboards, alerts, and incident communication.
 
 # Transactional email configuration

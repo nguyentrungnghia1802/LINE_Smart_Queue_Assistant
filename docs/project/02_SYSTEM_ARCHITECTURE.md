@@ -236,13 +236,22 @@ The browser return URL is a user experience signal, not proof of payment.
 
 ## 11. Scalability and reliability boundaries
 
-The current design is appropriate for a single API instance and modest queue volume. Before horizontal scale:
+The measured development baseline, process-local state inventory, representative load scenarios,
+initial SLOs, and staged target architecture are maintained in
+[`11_SCALABILITY_BASELINE.md`](11_SCALABILITY_BASELINE.md).
 
-- coordinate scheduled jobs;
+The current design is appropriate for a single API instance and modest queue volume. Before
+horizontal scale:
+
+- move long-running/provider work out of the HTTP process while preserving advisory locks or safe
+  row claims;
+- replace per-process rate limiting and correctness-sensitive idempotency responses with shared
+  behavior;
+- bound aggregate PostgreSQL connections across API and worker replicas;
 - enforce queue capacity and order numbering under lock/sequence;
 - extend provider-specific settlement, refund, and operational reconciliation beyond the
   current abstraction and adapter boundary;
-- introduce Redis/BullMQ only when measured workload justifies it;
-- add database pooling/monitoring, object storage, centralized logs, and tracing.
+- introduce Redis/BullMQ only for the documented coordination and workload-isolation needs;
+- add database pooling/monitoring, S3/R2-compatible storage, centralized logs, and tracing.
 
 These are constraints, not a requirement to rewrite the modular monolith.
