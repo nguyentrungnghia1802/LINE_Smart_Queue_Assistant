@@ -28,6 +28,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 22. `000022_branch_product_inventory.js`
 23. `000023_branch_map_place.js`
 24. `000024_normalize_core_schema.js`
+25. `000025_staff_queue_assignment.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -150,6 +151,8 @@ retry/error/delivery columns were removed by migration `000024`.
 - A non-owner manager can have only one active branch membership. The organization owner may retain
   a compatibility membership created during activation, but that row never grants branch-operation
   authorization.
+- `branch_memberships.queue_id` scopes each active Staff operator to one operational queue; the
+  database prevents one Staff user from holding multiple current Staff assignments.
 - Staff invitations derive the target branch from the authenticated branch manager and require a
   non-empty employee code and one active queue from that branch; request-body branch identifiers
   are not accepted as authority. `branch_memberships.queue_id` is nullable for managers but required
@@ -265,8 +268,13 @@ removes organization-catalog `products.branch_id` and `products.stock_quantity`,
 `branch_product_inventories` the only stock source, replaces catalog `MAX(...) + 1` numbering with
 tenant counters, and removes duplicate notification type/retry/error/delivery fields after a safe
 backfill. Unsupported historical notification events are cancelled and retained with their former
-event type in payload metadata. The reset schema produces the same 44 application tables, 593
-column signatures, and 184 index definitions as the ordered migration history.
+event type in payload metadata. Migration `000025_staff_queue_assignment` adds the nullable
+`branch_memberships.queue_id`, backfills active Staff to the first active queue, deactivates active
+Staff that cannot be assigned safely, enforces same-branch queue scope, and creates the partial
+unique Staff assignment index. Managers may remain unassigned; every active Staff membership must
+have exactly one queue, while a queue may be shared by multiple Staff members. The reset schema
+produces the same 44 application tables (excluding `pgmigrations`), 594 application column
+signatures, and 186 application index definitions as the ordered migration history.
 
 ## 10. Seed baseline
 

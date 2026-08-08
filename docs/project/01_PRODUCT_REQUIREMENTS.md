@@ -158,7 +158,7 @@ role and does not use branch-operation endpoints.
 | FR-LOC-002 | Warn when longest walking route plus eight minutes exceeds the current queue ETA           | Implemented through durable LINE delivery   |
 | FR-AI-001  | Estimate wait from queue position/workload and configured service time                     | Implemented heuristic                       |
 | FR-AI-002  | Persist forecast history with confidence/model metadata                                    | Implemented as measured heuristic           |
-| FR-AI-003  | Analyze historical load and recommend staff by weekday/hour                                | Schema only                                 |
+| FR-AI-003  | Analyze historical load and recommend staff by weekday/hour                                | Implemented measured heuristic              |
 | FR-AN-001  | Branch manager sees assigned-branch revenue trend, top-three catalog items, and top staff  | Implemented                                 |
 | FR-AN-003  | Owner manager sees organization aggregates and per-branch revenue/cancellation performance | Implemented                                 |
 | FR-AN-002  | Admin sees plan adoption and platform subscription revenue without tenant customer revenue | Implemented                                 |

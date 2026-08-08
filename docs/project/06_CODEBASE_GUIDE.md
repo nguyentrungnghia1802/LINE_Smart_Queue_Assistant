@@ -1,5 +1,9 @@
 # Codebase Guide
 
+Use [`10_IMPLEMENTATION_MAP.md`](10_IMPLEMENTATION_MAP.md) as the first navigation point when a
+change crosses more than one layer. It lists the current route, API, migration, environment, and
+worker source paths that must be reviewed together.
+
 ## 1. Repository layout
 
 ```text
