@@ -11,3 +11,4 @@ blob-report
 var/media
 *.tsbuildinfo
 db/migrations/
+storybook-static/

@@ -6,6 +6,11 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Added a Storybook 10.5.7 React/Vite component-review environment with shared CSS/design tokens,
+  Japanese/Vietnamese/English locale controls, phone/desktop viewports, TanStack Query/MemoryRouter
+  providers, deterministic fixtures, and isolated stories for queue, ticket, status, product-picker,
+  and LINE friendship components. The static build does not call production integrations.
+
 - Added optional OpenTelemetry tracing and sanitized Sentry error reporting across the browser,
   API, PostgreSQL/Redis clients, BullMQ notification delivery, and outbound HTTP providers while
   preserving Pino, health endpoints, Prometheus metrics, and fail-open business behavior.

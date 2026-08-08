@@ -1,6 +1,6 @@
 # Current Implementation Map
 
-Last verified against the TASK-09 working tree on 2026-08-09.
+Last verified against the TASK-10 working tree on 2026-08-09.
 
 This document is the maintenance index for the current repository. It connects product roles and
 flows to source modules, routes, database history, runtime configuration, scheduled jobs, and
@@ -47,6 +47,7 @@ a source of current behavior.
 | Browser realtime        | Shared authenticated SSE, query invalidation, bounded reconnect, lifecycle cleanup, retained REST polling fallback   | Production device/proxy capacity acceptance remains pending                         |
 | Forecasting             | PostgreSQL measured heuristic for wait and staffing recommendations                                                  | It is not a generative-AI or trained ML model                                       |
 | Media                   | Local/mock plus S3/R2-compatible server-mediated storage; WebP compression and stable URLs                           | Signed delivery/upload and automated orphan cleanup remain future hardening         |
+| Component review        | Storybook 10.5.7 with i18n/provider decorators, deterministic fixtures, and phone/desktop viewports                  | Static build is a local/CI review gate; no real integrations                        |
 
 ## 3. Repository and runtime map
 
@@ -69,6 +70,9 @@ a source of current behavior.
 | `apps/api/src/docs/api-endpoint-catalog.ts`                             | Runtime API catalog and OpenAPI metadata                               | routes, validators, `05`                    |
 | `apps/web/src/router.tsx`                                               | All SPA route paths and compatibility redirects                        | `02`, `05`, UI tests                        |
 | `apps/web/src/pages`                                                    | Role and customer page orchestration                                   | `01`, `03`, `06`, UI tests                  |
+| `apps/web/src/components`                                               | Reusable layout, queue, ticket, product, i18n, and LIFF UI             | `06`, UI tests, Storybook stories           |
+| `apps/web/.storybook`                                                   | Storybook framework, global providers, locale toolbar, and viewports   | `06`, `07`, ADR-035                         |
+| `apps/web/src/storybook`                                                | Deterministic Storybook fixtures and fixture tests                     | `07`, Storybook stories                     |
 | `apps/web/src/services`                                                 | API clients, auth interceptor, LIFF and payment adapters               | `02`, `05`, tests                           |
 | `apps/web/src/observability`                                            | Sanitized browser Sentry initialization and runtime error capture      | `06`, `07`, `08`, ADR-033                   |
 | `apps/web/src/services/realtime`, `apps/web/src/hooks/useRealtime.ts`   | Shared SSE streams and authoritative REST-query reconciliation         | `02`, `06`, `07`, `08`, ADR-032             |

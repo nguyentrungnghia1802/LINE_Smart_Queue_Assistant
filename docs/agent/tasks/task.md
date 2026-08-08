@@ -1756,7 +1756,7 @@ Create an isolated component-development environment for the multi-role, respons
 
 # TASK-10 — Storybook Component Environment
 
-**Status:** [ ] Not started
+**Status:** [x] Completed (2026-08-09)
 **Priority:** P2
 
 ## Objective
@@ -1892,12 +1892,12 @@ Do not introduce a paid service merely for technology completeness.
 
 ## Acceptance criteria
 
-- [ ] Storybook runs locally.
-- [ ] Static Storybook build succeeds.
-- [ ] Important reusable components can be reviewed independently.
-- [ ] Critical locale and responsive states are represented.
-- [ ] Production app runtime/bundle behavior is unaffected.
-- [ ] Storybook complements existing automated tests.
+- [x] Storybook runs locally.
+- [x] Static Storybook build succeeds.
+- [x] Important reusable components can be reviewed independently.
+- [x] Critical locale and responsive states are represented.
+- [x] Production app runtime/bundle behavior is unaffected.
+- [x] Storybook complements existing automated tests.
 
 ---
 
@@ -2100,7 +2100,7 @@ Major architectural decisions must be added/superseded through ADRs instead of s
 | Phase 3 | SSE                          | [ ]    |
 | Phase 4 | OpenTelemetry & Sentry       | [x]    |
 | Phase 5 | S3/R2 Object Storage         | [x]    |
-| Phase 6 | Storybook                    | [ ]    |
+| Phase 6 | Storybook                    | [x]    |
 | Phase 7 | Integrated Validation        | [ ]    |
 
 A phase is complete only when all tasks inside it satisfy their acceptance criteria.
