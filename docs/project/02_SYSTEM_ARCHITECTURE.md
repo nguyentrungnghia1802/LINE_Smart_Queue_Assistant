@@ -16,9 +16,9 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
                          Express API process
                     +------------+-------------+
                     |            |             |
-               PostgreSQL   Scheduled jobs   LINE APIs
+               PostgreSQL      Redis         LINE APIs
                     ^             |          Login/OIDC +
-                    |             +------> Messaging push
+                    |        rate limits      Messaging push
                     +------ durable notification outbox
 ```
 
@@ -30,10 +30,18 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | `api`             | Node/Express                                | HTTP contracts, auth, business services, SQL repositories, LINE adapter, scheduler     |
 | Media adapter     | Local/mock plus object-compatible interface | Validates and compresses image ingress; isolates persistence transport                 |
 | `postgres`        | PostgreSQL 16                               | Tenant, identity, queue, order, inventory, payment, notification, audit, forecast data |
+| `redis`           | Redis 7.4                                   | Shared ephemeral rate-limit counters and later cache/queue/pub-sub infrastructure      |
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
 | Payment provider  | Demo adapter or payOS                       | Hosted/payment redirect, QR payload, and authoritative webhook                         |
 
 Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and `/media/*` to the internal `api:4000` service without stripping either prefix, so browser code and locally persisted media use the same public origin. The Vite development server proxies these same prefixes to the local API, keeping persisted image URLs working at `localhost:5173`. Production API requests use an empty `VITE_API_URL` because service paths already include `/api/v1`.
+
+Redis is backend-only and non-authoritative. One centralized `RedisService` owns connection,
+reconnect, command timeout, safe health, and shutdown behavior. Strict authentication/webhook,
+public-write, and authenticated-action rate limits share Redis counters across API replicas. The
+global coarse API limiter and read limiter remain process-local. If Redis is unavailable, protected
+policies use bounded process-local counters and emit safe metrics/logs; queue, order, payment, and
+other durable business correctness continues to rely on PostgreSQL.
 
 The deployed production request path uses two proxy hops before Express: the host TLS nginx and the web-container nginx. The API therefore sets Express `trust proxy` to `2` so `req.ip` is derived from the forwarded client chain instead of the container socket address. This is important for strict rate limiting and request attribution. API port `4000` remains internal to the Compose network and is not published directly to the internet.
 
@@ -226,7 +234,7 @@ The browser return URL is a user experience signal, not proof of payment.
 
 ## 10. Security architecture
 
-- Helmet, configured CORS, JSON size limits, request IDs, rate limits, Zod validation, and standard error envelopes.
+- Helmet, configured CORS, JSON size limits, request IDs, distributed protected-write/auth rate limits, Zod validation, and standard error envelopes.
 - Password hashing and JWT signing occur only on the API.
 - LINE webhook verification uses captured raw request bytes and
   `LINE_MESSAGING_CHANNEL_SECRET`.
@@ -240,13 +248,12 @@ The measured development baseline, process-local state inventory, representative
 initial SLOs, and staged target architecture are maintained in
 [`11_SCALABILITY_BASELINE.md`](11_SCALABILITY_BASELINE.md).
 
-The current design is appropriate for a single API instance and modest queue volume. Before
-horizontal scale:
+The current design supports shared protected-write/auth rate-limit counters, but other boundaries
+still require staged work before unrestricted horizontal scale:
 
 - move long-running/provider work out of the HTTP process while preserving advisory locks or safe
   row claims;
-- replace per-process rate limiting and correctness-sensitive idempotency responses with shared
-  behavior;
+- replace correctness-sensitive process-local idempotency responses with shared behavior;
 - bound aggregate PostgreSQL connections across API and worker replicas;
 - enforce queue capacity and order numbering under lock/sequence;
 - extend provider-specific settlement, refund, and operational reconciliation beyond the

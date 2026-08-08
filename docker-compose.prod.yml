@@ -20,6 +20,19 @@ services:
       start_period: 10s
       retries: 5
 
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes', '--appendfsync', 'everysec']
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      start_period: 5s
+      retries: 5
+
   api:
     image: ${LINE_QUEUE_API_IMAGE:-line-smart-queue-api:latest}
     restart: unless-stopped
@@ -28,6 +41,7 @@ services:
       NODE_ENV: production
       API_PORT: 4000
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-line_queue}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       CORS_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN must be set}
       MEDIA_LOCAL_DIR: ${MEDIA_LOCAL_DIR:-/app/var/media}
       MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-/media}
@@ -61,3 +75,4 @@ services:
 volumes:
   postgres_data:
   media_data:
+  redis_data:

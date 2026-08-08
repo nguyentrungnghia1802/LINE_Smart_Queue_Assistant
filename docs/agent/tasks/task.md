@@ -454,9 +454,14 @@ Introduce Redis as a distributed acceleration/coordination layer while PostgreSQ
 
 # TASK-02 — Redis Infrastructure & Distributed Rate Limiting
 
-**Status:** [ ] Not started
+**Status:** [x] Completed (2026-08-08)
 **Priority:** P0
 **Dependencies:** TASK-01
+
+**Completion evidence:** Centralized `ioredis` lifecycle and safe degraded mode,
+Redis-backed distributed limiters with bounded local fallback, private Compose
+Redis services, safe health/metrics, environment validation, multi-instance and
+failure-path tests, and canonical architecture/operations documentation.
 
 ## Objective
 
@@ -584,12 +589,12 @@ Update relevant:
 
 ## Acceptance criteria
 
-- [ ] Redis lifecycle is centralized.
-- [ ] Redis credentials stay backend-only.
-- [ ] Business correctness does not depend on Redis.
-- [ ] Distributed rate limits work across multiple API processes.
-- [ ] Authentication protection does not silently degrade.
-- [ ] Development remains reproducible.
+- [x] Redis lifecycle is centralized.
+- [x] Redis credentials stay backend-only.
+- [x] Business correctness does not depend on Redis.
+- [x] Distributed rate limits work across multiple API processes.
+- [x] Authentication protection does not silently degrade.
+- [x] Development remains reproducible.
 
 ---
 

@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import { config } from '../config';
 import { pool } from '../db/client';
+import { redisService } from '../infrastructure/redis';
 import { scheduler } from '../jobs/scheduler';
 import { schedulerHealth } from '../jobs/scheduler-lock';
 import { metricsService } from '../utils/metrics';
@@ -35,6 +36,7 @@ healthRouter.get('/health', async (_req, res) => {
     uptime: process.uptime(),
     api: 'ok',
     db: dbStatus,
+    redis: redisService.health(),
     scheduler: {
       ...scheduler.status(),
       jobs: dbStatus === 'connected' ? await schedulerHealth().catch(() => []) : [],
@@ -51,7 +53,7 @@ healthRouter.get('/health', async (_req, res) => {
 healthRouter.get('/ready', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
-    res.json({ status: 'ready', db: 'connected' });
+    res.json({ status: 'ready', db: 'connected', redis: redisService.health() });
   } catch {
     sendError(res, 503, 'SERVICE_UNAVAILABLE', 'Database not reachable');
   }

@@ -28,4 +28,11 @@ describe('development Compose configuration', () => {
     expect(compose).toContain('wget -qO- http://127.0.0.1:4000/health');
     expect(compose).not.toContain('wget -qO- http://localhost:4000/health');
   });
+
+  it('provides a shared Redis service with persistent development data', () => {
+    expect(compose).toContain('image: redis:7.4-alpine');
+    expect(compose).toContain("test: ['CMD', 'redis-cli', 'ping']");
+    expect(compose).toContain('REDIS_URL: ${REDIS_URL:-redis://redis:6379}');
+    expect(compose).toContain('redis_dev_data:/data');
+  });
 });

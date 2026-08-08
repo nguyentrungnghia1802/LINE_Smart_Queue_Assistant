@@ -8,7 +8,7 @@ CI, fixture, test, and troubleshooting guide.
 
 - Node.js `>=20` (see `.nvmrc`)
 - npm `>=10`
-- Docker Desktop/Compose for the easiest local stack, or PostgreSQL 16 locally
+- Docker Desktop/Compose for the easiest local stack, or PostgreSQL 16 plus optional Redis locally
 - Optional: a LINE Developers provider with Login/LIFF and Messaging API channels for real integration tests
 
 ## 2. Environment setup
@@ -29,6 +29,11 @@ Authentication defaults are `JWT_ACCESS_EXPIRES_IN=15m`,
 `AUTH_CUSTOMER_SESSION_DAYS=30`. Local HTTP uses a non-secure `HttpOnly` refresh cookie;
 production automatically adds `Secure`. Do not restore the removed `JWT_EXPIRES_IN=7d` behavior or
 store access/refresh tokens in local storage.
+
+Redis configuration is backend-only: `REDIS_URL`, `REDIS_CONNECT_TIMEOUT_MS`,
+`REDIS_COMMAND_TIMEOUT_MS`, and `REDIS_KEY_PREFIX`. Native development may leave `REDIS_URL`
+empty and uses bounded local rate-limit counters. Compose supplies `redis://redis:6379`. Never put
+a Redis URL or password in a `VITE_*` variable.
 
 LINE notification delivery is durable by default. Local defaults are usually enough, but the worker can be tuned with `LINE_NOTIFICATION_BATCH_SIZE`, `LINE_NOTIFICATION_WORKER_INTERVAL_MS`, `LINE_NOTIFICATION_MAX_ATTEMPTS`, `LINE_NOTIFICATION_RETRY_BASE_SECONDS`, and `LINE_NOTIFICATION_PROCESSING_TIMEOUT_SECONDS`.
 
@@ -65,12 +70,15 @@ npm run docker:dev
 | Web/Vite       | `http://localhost:5173` |
 | API            | `http://localhost:4000` |
 | PostgreSQL     | `localhost:5432`        |
+| Redis          | `localhost:6379`        |
 | Node inspector | `localhost:9229`        |
 
 The development API container builds `packages/shared` and applies pending canonical
 `node-pg-migrate` migrations before starting the hot-reload server. It does not seed demo data
 automatically. Run `npm run db:seed` to create only the platform administrator. Load operational
 tenant data only through `npm run db:fixture:e2e` on an isolated non-production database.
+Redis AOF data uses the separate `redis_dev_data` volume; `npm run docker:clean` removes it along
+with the development database volume.
 
 Useful commands:
 
@@ -223,6 +231,7 @@ npm run test:ui -w apps/web
 | Pure unit                      | Jest/Vitest                                      | ETA, policy, helpers, adapters, validators                                                  |
 | Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB     | Transactions, tenant checks, state transitions, stock/payment behavior                      |
 | Route/API                      | Supertest                                        | Middleware, status/envelope, request validation                                             |
+| Infrastructure lifecycle       | Jest plus Compose smoke tests                    | Redis startup outage, reconnect, timeout, shutdown, fallback, shared counters               |
 | Component                      | Testing Library/Vitest                           | Render states and critical interactions                                                     |
 | Browser E2E                    | Playwright + isolated mock LINE/API ports        | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows |
 | Load                           | Scenario definitions and a small Docker baseline | Use `11_SCALABILITY_BASELINE.md`; recreate against isolated staging before capacity claims  |
