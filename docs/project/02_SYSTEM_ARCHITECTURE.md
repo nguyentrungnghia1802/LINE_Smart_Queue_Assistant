@@ -15,7 +15,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
                                  |
                          React + Vite SPA
                                  |
-                         REST /api/v1 + JWT
+                     REST /api/v1 + authorized SSE
                                  |
                          Express API process
                                  |
@@ -40,7 +40,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | `worker`          | Node/BullMQ                                 | Dispatches committed LINE outbox rows and processes one notification per delivery job  |
 | Media adapter     | Local/mock plus object-compatible interface | Validates and compresses image ingress; isolates persistence transport                 |
 | `postgres`        | PostgreSQL 16                               | Tenant, identity, queue, order, inventory, payment, notification, audit, forecast data |
-| `redis`           | Redis 7.4                                   | Rate limits, public read caches, and non-authoritative BullMQ orchestration            |
+| `redis`           | Redis 7.4                                   | Rate limits, public read caches, transient Pub/Sub, and BullMQ orchestration           |
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
 | Payment provider  | Demo adapter or payOS                       | Hosted/payment redirect, QR payload, and authoritative webhook                         |
 
@@ -61,6 +61,15 @@ validated JSON envelopes, and malformed values, misses, timeouts, or Redis outag
 PostgreSQL. Cached openness, stock, counts, or payment-shaped data is display-only: booking,
 capacity, inventory, payment, transition, and authorization decisions always reload authoritative
 PostgreSQL state.
+
+Authorized realtime delivery uses versioned application events rather than database-row events.
+Customer ticket streams and branch queue streams connect to an in-process `RealtimeHub`; the hub
+uses dedicated Redis publisher/subscriber connections for cross-replica fan-out. Channels include
+organization, branch, queue, and optional ticket scope. Redis Pub/Sub is transient and carries only
+minimal status/ETA invalidation data, never phone, email, LINE identity, payment, or location data.
+Queue/order state is committed before publication, and publication failure is logged without
+rolling back business work. Reconnecting clients must reload the authoritative REST snapshot from
+PostgreSQL because events are not replayed.
 
 BullMQ uses a separate queue and worker connection lifecycle because a worker requires blocking,
 reconnecting Redis behavior. The versioned `line.notification-outbox.dispatch.v1` scheduler job
@@ -102,6 +111,7 @@ The API entry is `apps/api/src/server.ts`; `app.ts` composes middleware, health 
 | `orgs`                      | Public organization/branch booking resolution                     |
 | `products`, `queues`        | Organization catalog and branch queue configuration               |
 | `queue`, `staff`            | Customer tickets and branch-scoped operations                     |
+| `realtime`                  | Authorized SSE streams, event contracts, local hub, Redis Pub/Sub |
 | `skip-penalty`              | Absence/defer/no-show policy and refund boundary                  |
 | `shared`                    | Shared validators and cross-module request contracts              |
 | `users`                     | Profiles, owner/manager/staff accounts, and audit-aware changes   |
@@ -289,8 +299,8 @@ The measured development baseline, process-local state inventory, representative
 initial SLOs, and staged target architecture are maintained in
 [`11_SCALABILITY_BASELINE.md`](11_SCALABILITY_BASELINE.md).
 
-The current design supports shared protected-write/auth rate-limit counters, but other boundaries
-still require staged work before unrestricted horizontal scale:
+The current design supports shared protected-write/auth rate-limit counters and cross-replica SSE
+fan-out. Other boundaries still require staged work before unrestricted horizontal scale:
 
 - move long-running/provider work out of the HTTP process while preserving advisory locks or safe
   row claims;

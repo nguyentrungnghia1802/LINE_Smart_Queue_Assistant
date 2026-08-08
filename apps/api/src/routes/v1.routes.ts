@@ -16,6 +16,7 @@ import { paymentsRouter } from '../modules/payments/payments.routes';
 import { productsRouter } from '../modules/products/products.routes';
 import { queueEntryRouter } from '../modules/queue/queue.routes';
 import { queuesRouter } from '../modules/queues/queues.routes';
+import { realtimeRouter } from '../modules/realtime/realtime.routes';
 import { staffRouter } from '../modules/staff/staff.routes';
 import { usersRouter } from '../modules/users/users.routes';
 
@@ -34,6 +35,7 @@ v1Router.use('/forecasts', forecastsRouter);
 v1Router.use('/admin', adminRouter);
 v1Router.use('/queue', queueEntryRouter); // singular: customer ticket ops
 v1Router.use('/queues', queuesRouter); // plural:   admin queue management
+v1Router.use('/realtime', realtimeRouter); // authorized transient SSE streams
 v1Router.use('/staff', staffRouter); // staff/admin queue operations
 v1Router.use('/users', usersRouter);
 v1Router.use('/notifications', notificationsRouter);

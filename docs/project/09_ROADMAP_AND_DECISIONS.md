@@ -520,3 +520,26 @@ crash before enqueue is recovered after the dispatch-claim timeout; a crash afte
 the same BullMQ job ID harmlessly. BullMQ waiting/active/delayed/failed state is operational, while
 PostgreSQL dispatch and sent/retry/failed state remains authoritative. API queue/order transactions
 never call LINE or Redis and therefore do not roll back when either service fails.
+
+## ADR-032: SSE events are transient invalidation hints with Redis cross-replica fan-out
+
+**Status:** accepted (2026-08-08)
+
+**Context:** Polling remains authoritative but delays queue/ticket freshness and multiplies repeated
+reads. Multiple API replicas cannot share process-local browser connections, while storing durable
+queue truth or replay state in Redis would duplicate PostgreSQL authority.
+
+**Decision:** Expose authenticated customer-ticket and branch-queue SSE endpoints backed by a
+bounded in-process hub. Publish versioned minimal application events only after queue/order commits.
+Use dedicated Redis Pub/Sub connections and tenant-scoped organization/branch/queue/ticket channel
+names for cross-replica fan-out. Customer streams filter queue activity to their own ticket plus
+queue-summary invalidations. Do not include customer contact, LINE identity, payment, or location
+data. Streams use heartbeat, finite duration, disconnect cleanup, retry guidance, and global/per-user
+limits. PostgreSQL-backed REST snapshots remain the only recovery and correctness source.
+
+**Consequences:** Relevant events reach clients connected to another healthy API replica without
+making Redis durable. Duplicate, reordered, and missed events are expected and harmless when clients
+refetch REST. Redis failure or SSE publication failure never rolls back a business transaction;
+cross-replica freshness degrades until reconnect/recovery. Production proxy hops must disable
+buffering and outlive the configured stream duration. Frontend consumption and reconciliation remain
+separate TASK-07 work.

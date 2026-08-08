@@ -88,6 +88,12 @@ Compose service, plus bounded connect/command timeouts and a deployment-specific
 multiple environments share one managed Redis. Do not expose Redis port `6379` publicly and do not
 place Redis credentials in frontend build arguments.
 
+SSE runtime limits are backend-only: `SSE_KEEP_ALIVE_MS`, `SSE_RETRY_MS`,
+`SSE_MAX_CONNECTION_DURATION_MS`, `SSE_MAX_CONNECTIONS`, and
+`SSE_MAX_CONNECTIONS_PER_USER`. Defaults are documented in `.env.example`; keep the maximum
+connection duration below the outer proxy timeout and size connection limits from measured file
+descriptor/memory capacity rather than increasing them blindly.
+
 Set `LINE_NOTIFICATION_DELIVERY_OWNER=bullmq` when the dedicated worker service is deployed. The
 API then stops scheduling LINE delivery while the worker maintains the versioned BullMQ dispatcher
 scheduler and per-notification jobs. `api` remains available if Redis or the worker is unavailable because queue/order
@@ -260,6 +266,13 @@ and forwards to the web nginx container, then the web nginx container proxies `/
 matches the forwarded client IP used by rate limiters. If ingress topology changes, update this
 value and smoke test login/rate limiting before rollout.
 
+The web-container nginx has a dedicated `^~ /api/v1/realtime/` location that preserves the full
+path, uses HTTP/1.1, disables proxy buffering/cache/gzip, clears the hop-by-hop `Connection` header,
+and uses six-minute read/send timeouts. The host TLS nginx must apply equivalent SSE behavior for
+this path, especially `proxy_buffering off` and a read timeout longer than
+`SSE_MAX_CONNECTION_DURATION_MS`; otherwise the inner proxy cannot prevent the outer hop from
+buffering or closing the stream. Do not add a trailing slash to `proxy_pass http://api:4000`.
+
 The current local media adapter writes to `/app/var/media`, backed by the persistent `media_data` volume. nginx proxies `/media/*` to the API so generated media URLs stay on the public web origin. This volume is a Compose durability baseline, not a substitute for production object storage, backup, scanning, and CDN policy.
 
 For a real production environment, use managed PostgreSQL/object storage, TLS ingress, restricted network/security groups, centralized secrets/logs, and a deployment orchestrator. Compose is a packaging baseline, not high-availability infrastructure.
@@ -296,6 +309,12 @@ Use expand/backfill/contract deployment for schema changes that cannot be comple
 | Audit logs            | Administrative/resource changes in PostgreSQL                           |
 
 Current metrics are process-local and reset on restart. Notification delivery counters include sent, retry-scheduled, and failed outbox outcomes, while the durable row state remains in PostgreSQL. Production should scrape frequently and add latency histograms, DB pool saturation, queue depth, job duration/failure, notification/payment states, stock conflicts, and webhook lag.
+
+SSE exports active/opened/closed connections, sent events, send failures, reconnect hints, and the
+latest connection duration. Redis Pub/Sub exports publish/parse/connection/reconnect failures.
+Aggregate these process-local metrics across API replicas. A Redis Pub/Sub outage affects freshness
+only: connected clients on the publishing replica still receive local events, cross-replica clients
+recover by reconnecting and refetching REST, and committed queue/order state remains unchanged.
 
 Redis connection errors, command timeouts, and rate-limit fallback requests are exported as safe
 process-local counters. During a Redis outage, strict auth/webhook and write policies fall back to

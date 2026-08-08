@@ -217,6 +217,8 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
   guards used by every branch-owned endpoint.
 - `apps/api/src/modules/notifications/**`: LINE notification templates and durable PostgreSQL
   outbox/delivery semantics.
+- `apps/api/src/modules/realtime/**`: versioned minimal events, authorized SSE lifecycle, bounded
+  local subscriptions, and dedicated Redis Pub/Sub transport. PostgreSQL/REST remains authoritative.
 - `apps/api/src/modules/line/rich-menu.*` and `apps/api/src/scripts/sync-line-rich-menu.ts`: external LINE Rich Menu configuration; never log channel access tokens.
 - `docs/archive/**`: historical; do not update as current truth.
 

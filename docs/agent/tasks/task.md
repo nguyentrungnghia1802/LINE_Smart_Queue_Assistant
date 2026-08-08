@@ -1032,7 +1032,7 @@ Provide secure realtime queue/ticket updates while keeping REST as the authorita
 
 # TASK-06 — SSE Backend, Event Model & Redis Pub/Sub
 
-**Status:** [ ] Not started
+**Status:** [x] Completed (2026-08-08)
 **Priority:** P1
 **Dependencies:** TASK-02; TASK-03 recommended
 
@@ -1207,11 +1207,11 @@ Cover:
 
 ## Acceptance criteria
 
-- [ ] Event contracts are stable and minimal.
-- [ ] Authorization is enforced server-side.
-- [ ] Redis Pub/Sub is not used as durable truth.
-- [ ] SSE works through the production proxy topology.
-- [ ] Multiple API replicas can deliver relevant events.
+- [x] Event contracts are stable and minimal.
+- [x] Authorization is enforced server-side.
+- [x] Redis Pub/Sub is not used as durable truth.
+- [x] SSE works through the production proxy topology.
+- [x] Multiple API replicas can deliver relevant events.
 
 ---
 

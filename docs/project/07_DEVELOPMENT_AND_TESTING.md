@@ -238,15 +238,22 @@ npm run test:ui -w apps/web
 
 ## 9. Test strategy
 
-| Layer                          | Tool                                             | Focus                                                                                       |
-| ------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| Pure unit                      | Jest/Vitest                                      | ETA, policy, helpers, adapters, validators                                                  |
-| Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB     | Transactions, tenant checks, state transitions, stock/payment behavior                      |
-| Route/API                      | Supertest                                        | Middleware, status/envelope, request validation                                             |
-| Infrastructure lifecycle       | Jest plus Compose smoke tests                    | Redis lifecycle/cache/limits and BullMQ startup, contract, restart, shutdown, outage        |
-| Component                      | Testing Library/Vitest                           | Render states and critical interactions                                                     |
-| Browser E2E                    | Playwright + isolated mock LINE/API ports        | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows |
-| Load                           | Scenario definitions and a small Docker baseline | Use `11_SCALABILITY_BASELINE.md`; recreate against isolated staging before capacity claims  |
+| Layer                          | Tool                                             | Focus                                                                                        |
+| ------------------------------ | ------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| Pure unit                      | Jest/Vitest                                      | ETA, policy, helpers, adapters, validators                                                   |
+| Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB     | Transactions, tenant checks, state transitions, stock/payment behavior                       |
+| Route/API                      | Supertest                                        | Middleware, status/envelope, request validation                                              |
+| Infrastructure lifecycle       | Jest plus Compose smoke tests                    | Redis lifecycle/cache/limits/Pub/Sub, SSE cleanup/fan-out, and BullMQ startup/restart/outage |
+| Component                      | Testing Library/Vitest                           | Render states and critical interactions                                                      |
+| Browser E2E                    | Playwright + isolated mock LINE/API ports        | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows  |
+| Load                           | Scenario definitions and a small Docker baseline | Use `11_SCALABILITY_BASELINE.md`; recreate against isolated staging before capacity claims   |
+
+Realtime tests cover strict event parsing, customer ownership, exact branch/Staff assignment,
+organization-owner rejection, heartbeat and disconnect cleanup, connection fan-out, Redis
+resubscription, duplicate suppression, and cross-tenant/cross-instance routing. Proxy tests assert
+that `/api/v1/realtime/*` preserves the `/api` prefix and disables nginx buffering. Browser SSE
+consumption and REST reconciliation are intentionally TASK-07 rather than part of the backend
+transport contract.
 
 Critical regression scenarios:
 

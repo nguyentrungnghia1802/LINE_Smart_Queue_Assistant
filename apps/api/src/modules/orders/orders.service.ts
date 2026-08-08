@@ -8,11 +8,15 @@ import { ordersRepository } from '../../db/repositories/orders.repository';
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
 import { paymentTransactionsRepository } from '../../db/repositories/payment-transactions.repository';
 import { productsRepository } from '../../db/repositories/products.repository';
-import { queueEntriesRepository } from '../../db/repositories/queue-entries.repository';
-import { queuesRepository } from '../../db/repositories/queues.repository';
+import {
+  queueEntriesRepository,
+  type QueueEntryRow,
+} from '../../db/repositories/queue-entries.repository';
+import { type QueueRow, queuesRepository } from '../../db/repositories/queues.repository';
 import { publicReadModelCache } from '../../infrastructure/redis/redis-json.cache';
 import { AppError } from '../../utils/AppError';
 import { invalidateProductCatalog } from '../../utils/cache';
+import { logger } from '../../utils/logger';
 import { branchesRepository } from '../branches/branches.repository';
 import { etaService } from '../eta/eta.service';
 import { inventoryService } from '../inventory/inventory.service';
@@ -21,6 +25,7 @@ import { notificationOutboxRepository } from '../notifications/notification-outb
 import { queueNotificationService } from '../notifications/queue-notification.service';
 import { paymentsService } from '../payments/payments.service';
 import { tryAutoCallNextWaiting } from '../queue/queue-auto-call.service';
+import { type RealtimeEventName, realtimeService } from '../realtime';
 
 import { assertPaymentTransactionUnused, resolveOrderPaymentStatus } from './orders.payment';
 import { CreateOrderDto, UpdateOrderPaymentDto, UpdateOrderStatusDto } from './orders.validator';
@@ -60,6 +65,28 @@ function transactionMetadata(transaction: { metadata?: Record<string, unknown> |
     coveredProductIds?: string[];
     items?: Array<{ productId: string; quantity: number; subtotal: number }>;
   };
+}
+
+async function publishOrderQueueMutation(input: {
+  queue: QueueRow;
+  reason: string;
+  ticketEvents?: Array<{
+    name: Exclude<RealtimeEventName, 'queue.summary_updated'>;
+    entry: QueueEntryRow;
+    aheadCount?: number;
+  }>;
+}): Promise<void> {
+  try {
+    for (const event of input.ticketEvents ?? []) {
+      await realtimeService.publishTicketEvent({ ...event, queue: input.queue });
+    }
+    await realtimeService.publishQueueSummary({ queue: input.queue, reason: input.reason });
+  } catch (error) {
+    logger.warn(
+      { reason: input.reason, errorType: error instanceof Error ? error.name : 'UnknownError' },
+      'Realtime publication failed after committed order mutation'
+    );
+  }
 }
 
 async function getWaitingPositionInTransaction(
@@ -443,6 +470,18 @@ export const ordersService = {
           queueId: queue.id,
         });
       }
+      await publishOrderQueueMutation({
+        queue,
+        reason: activeOrderContext ? 'order_extended' : 'ticket_created',
+        ticketEvents: [
+          ...(!activeOrderContext
+            ? [{ name: 'ticket.created' as const, entry: linkedEntry, aheadCount }]
+            : []),
+          ...(autoCalled
+            ? [{ name: 'ticket.called' as const, entry: autoCalled, aheadCount: 0 }]
+            : []),
+        ],
+      });
       return { order: linkedOrder, entry: finalEntry };
     } catch (err) {
       await client.query('ROLLBACK');
@@ -573,11 +612,10 @@ export const ordersService = {
       if (!updated) throw AppError.notFound('Order not found');
       await inventoryService.releaseOrder(orderId, client, 'order_cancelled', resolvedActor.userId);
 
+      let cancelledEntry: QueueEntryRow | null = null;
+      let autoCalled: QueueEntryRow | null = null;
       if (linkedEntry && order.queue_entry_id) {
-        const cancelledEntry = await queueEntriesRepository.markCancelled(
-          order.queue_entry_id,
-          client
-        );
+        cancelledEntry = await queueEntriesRepository.markCancelled(order.queue_entry_id, client);
         await queueNotificationService.notifyTicketCancelled(
           cancelledEntry,
           { organizationId: order.organization_id },
@@ -585,11 +623,30 @@ export const ordersService = {
           client
         );
         if (lockedQueue) {
-          await tryAutoCallNextWaiting(lockedQueue, client);
+          autoCalled = await tryAutoCallNextWaiting(lockedQueue, client);
         }
       }
 
       await client.query('COMMIT');
+      if (lockedQueue && cancelledEntry) {
+        if (lockedQueue.branch_id) {
+          await publicReadModelCache.invalidateQueue({
+            organizationId: lockedQueue.organization_id,
+            branchId: lockedQueue.branch_id,
+            queueId: lockedQueue.id,
+          });
+        }
+        await publishOrderQueueMutation({
+          queue: lockedQueue,
+          reason: 'order_cancelled',
+          ticketEvents: [
+            { name: 'ticket.cancelled', entry: cancelledEntry },
+            ...(autoCalled
+              ? [{ name: 'ticket.called' as const, entry: autoCalled, aheadCount: 0 }]
+              : []),
+          ],
+        });
+      }
       return updated;
     } catch (err) {
       await client.query('ROLLBACK');

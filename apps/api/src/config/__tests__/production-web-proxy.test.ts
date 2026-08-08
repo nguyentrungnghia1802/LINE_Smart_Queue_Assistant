@@ -22,6 +22,22 @@ describe('production web reverse proxy configuration', () => {
     expect(nginxConfig).toMatch(/proxy_set_header\s+X-Forwarded-Proto\s+\$scheme;/);
   });
 
+  it('streams realtime events without buffering through the web proxy', () => {
+    const nginxConfig = readRepoFile('docker/nginx/default.conf');
+    const realtimeLocation = nginxConfig.match(
+      /location\s+\^~\s+\/api\/v1\/realtime\/\s*\{([\s\S]*?)\n\s*\}/
+    )?.[1];
+
+    expect(realtimeLocation).toBeDefined();
+    expect(realtimeLocation).toMatch(/proxy_pass\s+http:\/\/api:4000;/);
+    expect(realtimeLocation).not.toMatch(/proxy_pass\s+http:\/\/api:4000\/;/);
+    expect(realtimeLocation).toMatch(/proxy_buffering\s+off;/);
+    expect(realtimeLocation).toMatch(/proxy_cache\s+off;/);
+    expect(realtimeLocation).toMatch(/gzip\s+off;/);
+    expect(realtimeLocation).toMatch(/proxy_read_timeout\s+6m;/);
+    expect(realtimeLocation).toMatch(/proxy_set_header\s+Connection\s+"";/);
+  });
+
   it('proxies persisted media without stripping the /media prefix', () => {
     const nginxConfig = readRepoFile('docker/nginx/default.conf');
 

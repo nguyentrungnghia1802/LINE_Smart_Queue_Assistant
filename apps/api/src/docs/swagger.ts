@@ -17,6 +17,7 @@ import { notificationsPaths } from './paths/notifications.paths';
 import { paymentsPaths } from './paths/payments.paths';
 import { queueEntryPaths } from './paths/queue-entry.paths';
 import { queuesAdminPaths } from './paths/queues-admin.paths';
+import { realtimePaths } from './paths/realtime.paths';
 import { commonSchemas } from './schemas/common.schemas';
 import { notificationSchemas } from './schemas/notification.schemas';
 import { paymentSchemas } from './schemas/payment.schemas';
@@ -122,6 +123,7 @@ export const swaggerSpec = {
   tags: [
     { name: 'queue-entry', description: 'Customer-facing queue ticket operations' },
     { name: 'queues', description: 'Branch-manager queue management' },
+    { name: 'realtime', description: 'Authorized transient SSE event streams' },
     { name: 'notifications', description: 'Notification history' },
     { name: 'line', description: 'LINE Messaging API webhook' },
     { name: 'payments', description: 'Payment intent, webhook, return, and reconciliation' },
@@ -147,6 +149,7 @@ export const swaggerSpec = {
     ...notificationsPaths,
     ...linePaths,
     ...paymentsPaths,
+    ...realtimePaths,
 
     '/health': {
       get: {
