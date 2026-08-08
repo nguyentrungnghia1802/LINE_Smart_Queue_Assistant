@@ -58,8 +58,12 @@ function assertBranchAccess(branchId: string | undefined, actorBranchIds: string
 async function assertQueueAccess(
   queueId: string,
   actorOrganizationId?: string,
-  actorBranchIds: string[] = []
+  actorBranchIds: string[] = [],
+  assignedQueueId?: string
 ) {
+  if (assignedQueueId && queueId !== assignedQueueId) {
+    throw AppError.forbidden('Queue is outside your staff assignment');
+  }
   const queue = await queuesRepository.findById(queueId);
   if (!queue) throw AppError.notFound('Queue');
   if (actorOrganizationId && queue.organization_id !== actorOrganizationId) {
@@ -72,11 +76,17 @@ async function assertQueueAccess(
 async function assertEntryAccess(
   entryId: string,
   actorOrganizationId?: string,
-  actorBranchIds: string[] = []
+  actorBranchIds: string[] = [],
+  assignedQueueId?: string
 ) {
   const entry = await queueEntriesRepository.findById(entryId);
   if (!entry) throw AppError.notFound('Ticket');
-  const queue = await assertQueueAccess(entry.queue_id, actorOrganizationId, actorBranchIds);
+  const queue = await assertQueueAccess(
+    entry.queue_id,
+    actorOrganizationId,
+    actorBranchIds,
+    assignedQueueId
+  );
   return { entry, queue };
 }
 
@@ -108,10 +118,13 @@ function auditStaff(
 // ── Service ────────────────────────────────────────────────────────────────────
 
 export const staffService = {
-  async getMyBranch(organizationId: string, branchId: string) {
+  async getMyBranch(organizationId: string, branchId: string, assignedQueueId?: string) {
     const branch = await branchesRepository.findById(branchId, organizationId);
     if (!branch) throw AppError.notFound('Assigned branch');
-    const queues = await queuesRepository.findActiveByBranches(organizationId, [branchId]);
+    const branchQueues = await queuesRepository.findActiveByBranches(organizationId, [branchId]);
+    const queues = assignedQueueId
+      ? branchQueues.filter((queue) => queue.id === assignedQueueId)
+      : branchQueues;
     return { ...branch, queues };
   },
 
@@ -122,9 +135,15 @@ export const staffService = {
   async getQueueOverview(
     queueId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = []
+    actorBranchIds: string[] = [],
+    assignedQueueId?: string
   ): Promise<QueueOverview> {
-    const queue = await assertQueueAccess(queueId, actorOrganizationId, actorBranchIds);
+    const queue = await assertQueueAccess(
+      queueId,
+      actorOrganizationId,
+      actorBranchIds,
+      assignedQueueId
+    );
 
     const [waitingCount, totalActiveCount, calledEntry, servingEntry] = await Promise.all([
       queueEntriesRepository.countWaiting(queueId),
@@ -155,9 +174,10 @@ export const staffService = {
     queueId: string,
     actorUserId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = []
+    actorBranchIds: string[] = [],
+    assignedQueueId?: string
   ): Promise<QueueEntryRow> {
-    await assertQueueAccess(queueId, actorOrganizationId, actorBranchIds);
+    await assertQueueAccess(queueId, actorOrganizationId, actorBranchIds, assignedQueueId);
     const entry = await queueService.callNextTicket(
       queueId,
       undefined,
@@ -177,9 +197,10 @@ export const staffService = {
     entryId: string,
     actorUserId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = []
+    actorBranchIds: string[] = [],
+    assignedQueueId?: string
   ): Promise<QueueEntryRow> {
-    await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds);
+    await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds, assignedQueueId);
     const entry = await queueService.serveTicket({
       entryId,
       actorUserId,
@@ -197,9 +218,10 @@ export const staffService = {
     entryId: string,
     actorUserId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = []
+    actorBranchIds: string[] = [],
+    assignedQueueId?: string
   ): Promise<QueueEntryRow> {
-    await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds);
+    await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds, assignedQueueId);
     const entry = await queueService.completeTicket({
       entryId,
       actorUserId,
@@ -217,9 +239,10 @@ export const staffService = {
     entryId: string,
     actorUserId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = []
+    actorBranchIds: string[] = [],
+    assignedQueueId?: string
   ): Promise<QueueEntryRow> {
-    await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds);
+    await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds, assignedQueueId);
     const entry = await queueService.deferCalledTicket({
       entryId,
       actorUserId,
@@ -239,9 +262,10 @@ export const staffService = {
     entryId: string,
     actorUserId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = []
+    actorBranchIds: string[] = [],
+    assignedQueueId?: string
   ): Promise<QueueEntryRow> {
-    await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds);
+    await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds, assignedQueueId);
     const entry = await queueService.noShowTicket({ entryId, actorUserId, actorOrganizationId });
     auditStaff(actorUserId, 'no_show', 'queue_entry', entry.id, {
       ticket: entry.ticket_code,
@@ -257,9 +281,15 @@ export const staffService = {
     entryId: string,
     actorUserId: string,
     actorOrganizationId?: string,
-    actorBranchIds: string[] = []
+    actorBranchIds: string[] = [],
+    assignedQueueId?: string
   ): Promise<QueueEntryRow> {
-    const { entry, queue } = await assertEntryAccess(entryId, actorOrganizationId, actorBranchIds);
+    const { entry, queue } = await assertEntryAccess(
+      entryId,
+      actorOrganizationId,
+      actorBranchIds,
+      assignedQueueId
+    );
 
     if (!['waiting', 'called'].includes(entry.status)) {
       throw AppError.conflict(
@@ -314,14 +344,18 @@ export const staffService = {
   async getMyQueueOverview(
     organizationId: string,
     branchIds: string[] = [],
-    requestedQueueId?: string
+    requestedQueueId?: string,
+    assignedQueueId?: string
   ): Promise<EnrichedQueueOverview | null> {
-    const queues = await queuesRepository.findActiveByBranches(organizationId, branchIds);
+    const branchQueues = await queuesRepository.findActiveByBranches(organizationId, branchIds);
+    const queues = assignedQueueId
+      ? branchQueues.filter((queue) => queue.id === assignedQueueId)
+      : branchQueues;
     if (queues.length === 0) return null;
     const overviews = await Promise.all(
       queues.map(async (queue) => ({
         queue,
-        overview: await this.getQueueOverview(queue.id, organizationId, branchIds),
+        overview: await this.getQueueOverview(queue.id, organizationId, branchIds, assignedQueueId),
       }))
     );
     const selected = requestedQueueId

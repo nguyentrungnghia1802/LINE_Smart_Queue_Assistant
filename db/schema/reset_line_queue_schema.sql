@@ -322,6 +322,7 @@ CREATE TABLE branch_memberships (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
   branch_id UUID NOT NULL,
+  queue_id UUID,
   user_id UUID NOT NULL,
   role org_member_role NOT NULL,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -330,6 +331,7 @@ CREATE TABLE branch_memberships (
   deactivated_at TIMESTAMPTZ,
   FOREIGN KEY (branch_id, organization_id) REFERENCES organization_branches(id, organization_id) ON DELETE CASCADE,
   FOREIGN KEY (organization_id, user_id) REFERENCES organization_members(organization_id, user_id) ON DELETE CASCADE,
+  CHECK (role <> 'staff' OR is_active = FALSE OR queue_id IS NOT NULL),
   UNIQUE (branch_id, user_id)
 );
 CREATE UNIQUE INDEX uq_branch_memberships_active_manager_scope ON branch_memberships(user_id)
@@ -554,6 +556,11 @@ CREATE TABLE queues (
   FOREIGN KEY (branch_id, organization_id) REFERENCES organization_branches(id, organization_id) ON DELETE RESTRICT,
   UNIQUE (id, organization_id, branch_id)
 );
+ALTER TABLE branch_memberships
+  ADD CONSTRAINT branch_memberships_queue_scope_fk
+  FOREIGN KEY (queue_id, organization_id, branch_id)
+  REFERENCES queues(id, organization_id, branch_id)
+  ON DELETE RESTRICT;
 CREATE UNIQUE INDEX uq_queues_active_branch_name ON queues(branch_id, LOWER(name)) WHERE is_active = TRUE;
 
 COMMENT ON COLUMN queues.auto_no_show_minutes IS
@@ -1140,6 +1147,12 @@ CREATE INDEX idx_branch_memberships_user_active
   ON branch_memberships(user_id, branch_id) WHERE is_active = TRUE;
 CREATE INDEX idx_branch_memberships_branch_role_active
   ON branch_memberships(branch_id, role) WHERE is_active = TRUE;
+CREATE INDEX idx_branch_memberships_queue_staff_active
+  ON branch_memberships(queue_id, user_id)
+  WHERE role = 'staff' AND is_active = TRUE AND deactivated_at IS NULL;
+CREATE UNIQUE INDEX uq_branch_memberships_staff_assignment
+  ON branch_memberships(user_id)
+  WHERE role = 'staff' AND deactivated_at IS NULL;
 CREATE INDEX idx_account_action_tokens_user_purpose
   ON account_action_tokens(user_id, purpose, created_at DESC);
 CREATE INDEX idx_account_action_tokens_active

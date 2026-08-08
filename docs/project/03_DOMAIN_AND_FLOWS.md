@@ -273,9 +273,10 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
 ## 7. Staff queue flow
 
 1. Staff or a branch manager authenticates and the API resolves one active organization membership
-   and exactly one active branch assignment.
-2. `/staff/my-queue` selects a queue only inside that branch with waiting/called/serving activity
-   (falling back to the first active branch queue), returns at most the next eight active entries,
+   and exactly one active branch assignment. Staff authentication additionally resolves the one
+   active queue recorded on the branch membership.
+2. `/staff/my-queue` returns only the Staff member's assigned queue. A branch manager using the same
+   operational service remains branch-scoped. The response returns at most the next eight active entries,
    exposes separate total-active and waiting counts, and includes order details, booking
    name/telephone, and the linked LINE display name when available.
 3. Booking into an idle queue and transitions that free its active slot atomically call the next
@@ -295,6 +296,10 @@ Anonymous browser drafts may still use a local grouping key, but cross-device hi
    workspace; it refreshes and moves to the next ticket only after Staff confirms.
 8. Related booking groups are historical associations, but the Staff working context filters them
    to tickets in `waiting`, `called`, or `serving`.
+
+Branch managers select the queue when inviting Staff and may replace that assignment later. A
+queue can have multiple Staff members, but an active Staff membership cannot exist without one
+valid queue in the same organization and branch.
 
 The customer current-ticket response includes the linked order and item snapshots in the same
 authenticated request. History uses compact order rows without line items; selecting a row opens

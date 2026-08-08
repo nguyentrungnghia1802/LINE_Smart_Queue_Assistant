@@ -60,25 +60,25 @@ organization_applications 0..1---1 organizations 1---* organization_members *---
 
 ### Identity and tenancy
 
-| Table                         | Key purpose                                                                  | Important constraints                                                       |
-| ----------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `organizations`               | Tenant, slug/token, locale, Japan address, branding, location, LINE/settings | Unique slug/token; `default_locale`; `Asia/Tokyo` default; soft active flag |
-| `organization_applications`   | Public business details, plan/demo payment, and admin review                 | Status/payment checks; pending-email uniqueness; reviewer/organization FKs  |
-| `organization_business_hours` | Weekly local opening schedule                                                | Unique tenant/weekday; closed/open time consistency                         |
-| `organization_exception_days` | Holidays and exceptional opening/closure dates                               | Unique tenant/date; closed/open time consistency                            |
-| `users`                       | Platform identity, role, password/profile, preferred locale                  | Globally unique normalized optional email; nullable locale; active flag     |
-| `organization_members`        | Tenant manager/staff authorization                                           | Unique organization/user pair; cascading tenant/user delete                 |
-| `organization_branches`       | Physical branch, stable QR, address/map place, timezone, payment acceptance  | Unique branch QR and organization/code; soft active flag                    |
-| `branch_memberships`          | Manager/staff branch assignment                                              | Branch/member FK; one active branch for a manager                           |
-| `branch_business_hours`       | Weekly branch-local opening schedule                                         | Unique branch/weekday; closed/open time consistency                         |
-| `branch_exception_days`       | Branch holidays and exceptional opening/closure dates                        | Unique branch/date; overrides weekly schedule                               |
-| `line_accounts`               | One linked LINE identity per user                                            | Unique `line_user_id` and `user_id`                                         |
-| `auth_sessions`               | Rotating refresh sessions and revocation families                            | Hashed token; role policy; idle/absolute expiry; replay/revocation indexes  |
-| `organization_translations`   | Localized organization names                                                 | Composite organization/locale key; cascade delete                           |
-| `product_translations`        | Localized product names/descriptions                                         | Composite product/locale key; cascade delete                                |
-| `queue_translations`          | Localized queue names/descriptions                                           | Composite queue/locale key; cascade delete                                  |
-| `media_assets`                | Stored image key, URL, ownership and deletion state                          | Unique key; provider/purpose/type/size/status checks                        |
-| `organization_counters`       | Atomic order and catalog code allocation                                     | One row per tenant; positive order/product/service counters                 |
+| Table                         | Key purpose                                                                  | Important constraints                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `organizations`               | Tenant, slug/token, locale, Japan address, branding, location, LINE/settings | Unique slug/token; `default_locale`; `Asia/Tokyo` default; soft active flag  |
+| `organization_applications`   | Public business details, plan/demo payment, and admin review                 | Status/payment checks; pending-email uniqueness; reviewer/organization FKs   |
+| `organization_business_hours` | Weekly local opening schedule                                                | Unique tenant/weekday; closed/open time consistency                          |
+| `organization_exception_days` | Holidays and exceptional opening/closure dates                               | Unique tenant/date; closed/open time consistency                             |
+| `users`                       | Platform identity, role, password/profile, preferred locale                  | Globally unique normalized optional email; nullable locale; active flag      |
+| `organization_members`        | Tenant manager/staff authorization                                           | Unique organization/user pair; cascading tenant/user delete                  |
+| `organization_branches`       | Physical branch, stable QR, address/map place, timezone, payment acceptance  | Unique branch QR and organization/code; soft active flag                     |
+| `branch_memberships`          | Manager/staff branch and Staff queue assignment                              | Branch/member FK; one active branch; active Staff requires same-branch queue |
+| `branch_business_hours`       | Weekly branch-local opening schedule                                         | Unique branch/weekday; closed/open time consistency                          |
+| `branch_exception_days`       | Branch holidays and exceptional opening/closure dates                        | Unique branch/date; overrides weekly schedule                                |
+| `line_accounts`               | One linked LINE identity per user                                            | Unique `line_user_id` and `user_id`                                          |
+| `auth_sessions`               | Rotating refresh sessions and revocation families                            | Hashed token; role policy; idle/absolute expiry; replay/revocation indexes   |
+| `organization_translations`   | Localized organization names                                                 | Composite organization/locale key; cascade delete                            |
+| `product_translations`        | Localized product names/descriptions                                         | Composite product/locale key; cascade delete                                 |
+| `queue_translations`          | Localized queue names/descriptions                                           | Composite queue/locale key; cascade delete                                   |
+| `media_assets`                | Stored image key, URL, ownership and deletion state                          | Unique key; provider/purpose/type/size/status checks                         |
+| `organization_counters`       | Atomic order and catalog code allocation                                     | One row per tenant; positive order/product/service counters                  |
 
 ### Catalog, queue, and orders
 
@@ -151,7 +151,10 @@ retry/error/delivery columns were removed by migration `000024`.
   a compatibility membership created during activation, but that row never grants branch-operation
   authorization.
 - Staff invitations derive the target branch from the authenticated branch manager and require a
-  non-empty employee code; request-body branch identifiers are not accepted as authority.
+  non-empty employee code and one active queue from that branch; request-body branch identifiers
+  are not accepted as authority. `branch_memberships.queue_id` is nullable for managers but required
+  for active Staff, references the same organization/branch queue, and is indexed for operational
+  lookup. A partial unique index permits only one current branch/queue assignment per Staff user.
 - Queue ticket number/code uniqueness is scoped to queue as defined by migrations.
 - Active queue-entry lookup indexes support customer/LINE and queue/status ordering.
 - Payment transaction lookup is indexed by provider external ID and provider intent ID.
@@ -239,6 +242,10 @@ Rules:
 - Back up before production migration and test restore/rollback in staging.
 
 Schema migrations live under `db/migrations/node-pg-migrate`. Root and `apps/api` workspace migration commands both execute this canonical `node-pg-migrate` history; the historical SQL runner is disabled by default.
+
+The canonical `db:migrate` script commits migrations individually. PostgreSQL enum additions must
+commit before later migrations can use the new value, so this behavior keeps clean-database
+bootstrap validation consistent with incremental production deployment.
 
 `npm run db:reset` is destructive and intended only for local/dev.
 

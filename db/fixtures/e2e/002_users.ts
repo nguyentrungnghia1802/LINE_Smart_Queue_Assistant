@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import type { PoolClient } from 'pg';
 
-import { BRANCHES, DEMO_PASSWORD, ORG_ID, USERS } from './_ids';
+import { BRANCHES, DEMO_PASSWORD, ORG_ID, QUEUES, USERS } from './_ids';
 
 const demoUsers = [
   [USERS.ADMIN_1, '管理者デモ', 'admin@gmail.com', '0900000000', 'admin'],
@@ -28,11 +28,11 @@ const members = [
 ] as const;
 
 const branchMembers = [
-  [BRANCHES.TOKYO_MAIN, USERS.MANAGER_1, 'manager'],
-  [BRANCHES.TOKYO_MAIN, USERS.STAFF_1, 'staff'],
-  [BRANCHES.TOKYO_MAIN, USERS.STAFF_2, 'staff'],
-  [BRANCHES.TOKYO_VIP, USERS.MANAGER_3, 'manager'],
-  [BRANCHES.TOKYO_VIP, USERS.STAFF_3, 'staff'],
+  [BRANCHES.TOKYO_MAIN, USERS.MANAGER_1, 'manager', null],
+  [BRANCHES.TOKYO_MAIN, USERS.STAFF_1, 'staff', QUEUES.COUNTER_A],
+  [BRANCHES.TOKYO_MAIN, USERS.STAFF_2, 'staff', QUEUES.COUNTER_A],
+  [BRANCHES.TOKYO_VIP, USERS.MANAGER_3, 'manager', null],
+  [BRANCHES.TOKYO_VIP, USERS.STAFF_3, 'staff', QUEUES.VIP_LANE],
 ] as const;
 
 export async function seed(client: PoolClient, includeDemoUsers = false): Promise<void> {
@@ -82,19 +82,20 @@ export async function seed(client: PoolClient, includeDemoUsers = false): Promis
     );
   }
 
-  for (const [branchId, userId, role] of branchMembers) {
+  for (const [branchId, userId, role, queueId] of branchMembers) {
     await client.query(
       `
         INSERT INTO branch_memberships (
-          organization_id, branch_id, user_id, role, is_active
+          organization_id, branch_id, user_id, role, is_active, queue_id
         )
-        VALUES ($1, $2, $3, $4::org_member_role, TRUE)
+        VALUES ($1, $2, $3, $4::org_member_role, TRUE, $5)
         ON CONFLICT (branch_id, user_id) DO UPDATE SET
           role = EXCLUDED.role,
           is_active = TRUE,
+          queue_id = EXCLUDED.queue_id,
           deactivated_at = NULL;
       `,
-      [ORG_ID, branchId, userId, role]
+      [ORG_ID, branchId, userId, role, queueId]
     );
   }
 }

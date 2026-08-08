@@ -4,6 +4,7 @@ import type { PoolClient } from 'pg';
 import { UserRole } from '@line-queue/shared';
 
 import { organizationsRepository } from '../../db/repositories/organizations.repository';
+import { queuesRepository } from '../../db/repositories/queues.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
 import { withTransaction } from '../../db/transaction';
 import type { AuthUser } from '../../types/auth.types';
@@ -37,7 +38,15 @@ export const usersService = {
   async getUser(id: string) {
     const user = await usersRepository.findById(id);
     if (!user) throw AppError.notFound(`User ${id} not found`);
-    return user;
+    const membership = await organizationsRepository.findMembershipByUserId(id);
+    const assignedQueue = membership
+      ? await usersRepository.findAssignedQueue(membership.organization_id, id)
+      : null;
+    return {
+      ...user,
+      assigned_queue_id: assignedQueue?.id ?? null,
+      assigned_queue_name: assignedQueue?.name ?? null,
+    };
   },
 
   async listUsersByOrg(orgId: string, role?: string) {
@@ -122,6 +131,20 @@ export const usersService = {
     return withTransaction(async (client) => {
       const branch = await branchesRepository.findById(scope.branchId, orgId, client);
       if (!branch) throw AppError.notFound('Branch');
+      const queue = await queuesRepository.findByIdForBranch(
+        data.queueId,
+        orgId,
+        scope.branchId,
+        client
+      );
+      if (!queue) {
+        throw new AppError(
+          'Select an active queue from your assigned branch',
+          422,
+          'VALIDATION_ERROR',
+          { fieldErrors: { queueId: ['Select an active queue from your assigned branch'] } }
+        );
+      }
       if (await usersRepository.findByEmail(data.email, client)) {
         throw AppError.conflict('A user with this email already exists');
       }
@@ -154,6 +177,7 @@ export const usersService = {
           role: 'staff',
           assignedBy: actor.id,
           isActive: false,
+          queueId: queue.id,
         },
         client
       );
@@ -173,7 +197,7 @@ export const usersService = {
         `INSERT INTO audit_logs
            (actor_id, action, resource_type, resource_id, organization_id, changes)
          VALUES ($1,'staff_invited','organization_member',$2,$3,$4)`,
-        [actor.id, user.id, orgId, JSON.stringify({ branchId: scope.branchId })]
+        [actor.id, user.id, orgId, JSON.stringify({ branchId: scope.branchId, queueId: queue.id })]
       );
       return user;
     });
@@ -200,7 +224,8 @@ export const usersService = {
   },
 
   async updateStaff(actor: AuthUser, userId: string, data: UpdateStaffDto) {
-    const { organizationId: orgId } = await assertTargetStaffBranch(actor, userId);
+    const scope = await assertTargetStaffBranch(actor, userId);
+    const orgId = scope.organizationId;
     const member = await organizationsRepository.findMember(orgId, userId);
     if (!member) throw AppError.notFound('Staff member not found in this organization');
     if (member.role !== 'staff')
@@ -210,6 +235,31 @@ export const usersService = {
     if (!user) throw AppError.notFound('User not found');
 
     return withTransaction(async (client) => {
+      if (data.queueId) {
+        const queue = await queuesRepository.findByIdForBranch(
+          data.queueId,
+          orgId,
+          scope.branchId,
+          client
+        );
+        if (!queue) {
+          throw new AppError(
+            'Select an active queue from your assigned branch',
+            422,
+            'VALIDATION_ERROR',
+            { fieldErrors: { queueId: ['Select an active queue from your assigned branch'] } }
+          );
+        }
+        const assignmentUpdated = await branchesRepository.updateStaffQueue(
+          orgId,
+          scope.branchId,
+          userId,
+          queue.id,
+          actor.id,
+          client
+        );
+        if (!assignmentUpdated) throw AppError.notFound('Staff branch assignment');
+      }
       const updated = await usersRepository.updateEmployeeProfile(userId, data, client);
       await client.query(
         `INSERT INTO audit_logs
@@ -217,7 +267,15 @@ export const usersService = {
          VALUES ($1,'staff_updated','organization_member',$2,$3,$4)`,
         [actor.id, userId, orgId, JSON.stringify({ fields: Object.keys(data) })]
       );
-      return updated ?? usersRepository.findById(userId);
+      const assignedQueue = await usersRepository.findAssignedQueue(orgId, userId, client);
+      const result = updated ?? (await usersRepository.findById(userId));
+      return result
+        ? {
+            ...result,
+            assigned_queue_id: assignedQueue?.id ?? null,
+            assigned_queue_name: assignedQueue?.name ?? null,
+          }
+        : null;
     });
   },
 

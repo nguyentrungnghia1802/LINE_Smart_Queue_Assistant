@@ -60,6 +60,10 @@ export async function currentUserMiddleware(
       ? await organizationsRepository.findBranchIdsForUser(userRow.id, membership.organization_id)
       : [];
     const role = userRow.role as UserRole;
+    const assignedQueue =
+      membership && role === UserRole.STAFF
+        ? await usersRepository.findAssignedQueue(membership.organization_id, userRow.id)
+        : null;
     let verifiedLineUserId = payload.lineUserId;
 
     if (verifiedLineUserId) {
@@ -84,6 +88,7 @@ export async function currentUserMiddleware(
       organizationLocale: organization?.default_locale,
       isOrganizationOwner: membership?.is_owner ?? false,
       branchIds,
+      assignedQueueId: assignedQueue?.id,
     };
 
     req.user = user;

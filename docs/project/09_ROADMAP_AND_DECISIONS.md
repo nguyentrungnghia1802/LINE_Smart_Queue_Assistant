@@ -387,3 +387,21 @@ usage limits, failure fallback, and tests; provider secrets must remain server-s
 **Consequences:** Current deployments need no model-provider account and cannot accidentally spend
 against an unused AI API. Gemini can still be adopted later without exposing its key through
 `VITE_*` or coupling queue correctness to an external model.
+
+## ADR-026: One operational queue assignment per Staff member
+
+**Status:** accepted (2026-08-08)
+
+**Context:** Branch-level Staff access allowed an operator to switch among every queue in the
+branch, which made day-to-day responsibility ambiguous and expanded the operational authorization
+surface beyond the assigned work area.
+
+**Decision:** Store a Staff queue assignment on `branch_memberships`. Every active Staff membership
+must reference exactly one active queue in the same organization and branch. Managers select that
+queue during invitation and may replace it later. A queue may be shared by multiple Staff members.
+Staff APIs derive the queue from authenticated server-side membership and ignore client attempts to
+select another queue.
+
+**Consequences:** Staff navigation no longer exposes a queue selector. Queue reassignment is an
+audited manager operation. A queue referenced by Staff cannot be physically deleted until those
+assignments are moved or deactivated; ordinary queue removal remains soft deletion.

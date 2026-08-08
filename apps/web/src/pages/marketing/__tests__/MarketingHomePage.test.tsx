@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { MarketingHomePage } from '../MarketingHomePage';
 
@@ -28,9 +28,29 @@ describe('MarketingHomePage', () => {
     expect(
       screen.getByRole('heading', { name: 'さまざまなサービス業にフィット' })
     ).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'サロン・美容' })).toHaveAttribute(
+      'src',
+      '/img/solutions/salon.webp'
+    );
     expect(screen.getByRole('link', { name: 'support@smartqueue.io.vn' })).toHaveAttribute(
       'href',
       'mailto:support@smartqueue.io.vn'
     );
+  });
+
+  it('smoothly scrolls to a selected marketing section', () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(
+      <MemoryRouter>
+        <MarketingHomePage />
+      </MemoryRouter>
+    );
+
+    const pricingLink = screen.getAllByRole('link', { name: '料金' })[0];
+    if (!pricingLink) throw new Error('Pricing navigation link was not rendered');
+    fireEvent.click(pricingLink);
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
   });
 });
