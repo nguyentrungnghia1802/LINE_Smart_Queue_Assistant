@@ -88,6 +88,11 @@ Compose service, plus bounded connect/command timeouts and a deployment-specific
 multiple environments share one managed Redis. Do not expose Redis port `6379` publicly and do not
 place Redis credentials in frontend build arguments.
 
+`REDIS_PUBLIC_BRANCH_CACHE_TTL_MS` defaults to `5000`, and
+`REDIS_PUBLIC_QUEUE_CACHE_TTL_MS` defaults to `3000`. These entries are performance-only and may be
+deleted at any time. Keep TTLs short unless staging measurements justify a change; a longer value
+increases how long public queue counts, ETA, catalog, or opening-state displays may remain stale.
+
 Browser-visible configuration:
 
 - `VITE_API_URL`
@@ -286,6 +291,13 @@ bounded in-process counters; they never become unlimited. Existing status codes,
 envelopes, and proxy-derived client keys are preserved. PostgreSQL-backed domain operations remain
 available. Investigate Redis health and restore it promptly because limits are only instance-local
 during the outage.
+
+Public read-model cache telemetry is exported as `redis_cache_hits_total`,
+`redis_cache_misses_total`, `redis_cache_errors_total`, `redis_cache_hit_ratio`, and
+`redis_cache_latency_seconds` under the existing `line_queue_` Prometheus prefix. Cache errors do
+not fail public reads; PostgreSQL is queried instead. A sustained low hit ratio indicates TTL or
+invalidation churn, while rising error counts with degraded Redis health indicate fallback load on
+PostgreSQL.
 
 ## 6. Scheduled jobs operations
 

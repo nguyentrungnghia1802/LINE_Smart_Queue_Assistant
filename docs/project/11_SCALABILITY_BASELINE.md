@@ -46,7 +46,8 @@ The production Compose definition contains one API service, one Web service, Pos
 private Redis service. The API port and Redis port are private to the Compose network. All scheduled
 work still runs in each API process; there is no separate worker deployment. PostgreSQL remains
 authoritative for domain state, sessions, payment events, notification/email outboxes, inventory
-reservations, and job-run health. Redis currently coordinates only protected rate-limit counters.
+reservations, and job-run health. Redis coordinates protected rate-limit counters and two
+performance-only public read models; losing Redis does not remove domain data or block requests.
 
 The PostgreSQL pool is created once per API process with a hard-coded maximum of 20 connections in
 non-test environments, an idle timeout of 30 seconds, and a connection timeout of 5 seconds. Every
@@ -77,15 +78,16 @@ database pool or container is forcibly closed.
 
 ## 4. Process-local state
 
-| State                             | Classification                         | Multi-instance effect                                                                                               |
-| --------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Successful idempotency responses  | Correctness-sensitive request behavior | A retry routed to another instance cannot reuse the first response; durable DB constraints cover only some commands |
-| Protected-write/auth rate limits  | Shared ephemeral Redis state           | Healthy replicas share counters; Redis outage uses bounded per-instance fallback with logs/metrics                  |
-| Global/read rate-limit counters   | Coarse process-local protection        | Non-sensitive limits apply per instance; no domain authorization depends on them                                    |
-| Organization/product/queue caches | Performance-only                       | Replicas can serve different cached values until TTL/invalidation; PostgreSQL remains authoritative                 |
-| Job overlap set and timers        | Local execution control                | Advisory locks or row claims preserve covered jobs; the local set alone is not distributed                          |
-| Metrics counters and gauges       | Observability-only                     | Values reset on restart and cannot be aggregated correctly across replicas                                          |
-| Frontend query cache/auth timers  | Browser-local UX state                 | Does not coordinate browsers or API replicas                                                                        |
+| State                                    | Classification                         | Multi-instance effect                                                                                               |
+| ---------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Successful idempotency responses         | Correctness-sensitive request behavior | A retry routed to another instance cannot reuse the first response; durable DB constraints cover only some commands |
+| Protected-write/auth rate limits         | Shared ephemeral Redis state           | Healthy replicas share counters; Redis outage uses bounded per-instance fallback with logs/metrics                  |
+| Global/read rate-limit counters          | Coarse process-local protection        | Non-sensitive limits apply per instance; no domain authorization depends on them                                    |
+| Legacy organization/product/queue caches | Process-local performance-only         | Replicas can serve different values until TTL/invalidation; PostgreSQL remains authoritative                        |
+| Public branch/queue read models          | Shared ephemeral Redis cache           | Replicas reuse validated snapshots; misses/outage/corruption fall back to PostgreSQL                                |
+| Job overlap set and timers               | Local execution control                | Advisory locks or row claims preserve covered jobs; the local set alone is not distributed                          |
+| Metrics counters and gauges              | Observability-only                     | Values reset on restart and cannot be aggregated correctly across replicas                                          |
+| Frontend query cache/auth timers         | Browser-local UX state                 | Does not coordinate browsers or API replicas                                                                        |
 
 Distributed protected-write/auth rate limiting is now defined; correctness-sensitive idempotency
 behavior still requires shared treatment before unrestricted horizontal API scaling. Cache
@@ -224,6 +226,22 @@ notification throughput, and backlog age were not measured because the repositor
 have a stable isolated load harness or production-like staging telemetry. Those gaps are explicit
 inputs to later observability and load-test tasks.
 
+### TASK-03 read-amplification comparison
+
+The selected cache paths were compared with the baseline query shape using deterministic loader
+tests. A repeated valid cache key invokes its PostgreSQL loader once rather than once per request;
+TTL expiry, explicit invalidation, corrupt data, or Redis outage invokes the loader again safely.
+
+For the measured one-queue public QR fixture, an uncached branch-token request executes the token
+and base-organization resolution plus localized organization, branch-open, active-queue, waiting,
+and queue-product reads (seven repository reads). A warm branch read-model hit retains only token
+and base-organization resolution (two repository reads), a 5/7 or approximately 71% reduction in
+database reads on that path. Each additional queue avoids two more fan-out reads. A warm public
+queue-summary hit removes its waiting-count query while queue configuration remains separately
+bounded by its existing configuration cache. This is query-count evidence, not a new production
+latency claim; the prior 103.57 requests/second and p50/p95/p99 figures remain the only HTTP timing
+baseline until an isolated repeatable load harness exists.
+
 ## 11. Target SLOs
 
 These are initial engineering targets to validate in staging and revise with business traffic.
@@ -248,9 +266,9 @@ exported to a durable monitoring system.
 
 PostgreSQL remains the source of truth throughout the target evolution.
 
-1. **Redis:** shared protected-write/auth rate-limit counters are implemented with bounded local
-   fallback. Non-authoritative cache, short-lived coordination, and Pub/Sub fan-out remain later
-   tasks. Redis failure must not authorize invalid domain state.
+1. **Redis:** shared protected-write/auth rate-limit counters and bounded public read-model caches
+   are implemented. Short-lived coordination and Pub/Sub fan-out remain later tasks. Redis failure
+   must not authorize invalid domain state.
 2. **BullMQ:** durable scheduling/attempt orchestration for work that benefits from delayed jobs,
    concurrency control, backoff, and operational inspection. PostgreSQL outbox/event keys remain
    the business-delivery record.

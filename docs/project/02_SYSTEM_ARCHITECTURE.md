@@ -18,7 +18,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
                     |            |             |
                PostgreSQL      Redis         LINE APIs
                     ^             |          Login/OIDC +
-                    |        rate limits      Messaging push
+                    |      limits + cache     Messaging push
                     +------ durable notification outbox
 ```
 
@@ -30,7 +30,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | `api`             | Node/Express                                | HTTP contracts, auth, business services, SQL repositories, LINE adapter, scheduler     |
 | Media adapter     | Local/mock plus object-compatible interface | Validates and compresses image ingress; isolates persistence transport                 |
 | `postgres`        | PostgreSQL 16                               | Tenant, identity, queue, order, inventory, payment, notification, audit, forecast data |
-| `redis`           | Redis 7.4                                   | Shared ephemeral rate-limit counters and later cache/queue/pub-sub infrastructure      |
+| `redis`           | Redis 7.4                                   | Shared rate-limit counters and bounded public read-model caches                        |
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
 | Payment provider  | Demo adapter or payOS                       | Hosted/payment redirect, QR payload, and authoritative webhook                         |
 
@@ -42,6 +42,15 @@ public-write, and authenticated-action rate limits share Redis counters across A
 global coarse API limiter and read limiter remain process-local. If Redis is unavailable, protected
 policies use bounded process-local counters and emit safe metrics/logs; queue, order, payment, and
 other durable business correctness continues to rely on PostgreSQL.
+
+Public branch booking and public queue-summary reads use cache-aside Redis entries under versioned,
+tenant-scoped keys. The branch booking read model has a default 5-second TTL; the queue count/ETA
+summary has a default 3-second TTL. Queue, branch, catalog, inventory-display, and live-ticket
+mutations invalidate affected keys only after their database transaction commits. Cache reads use
+validated JSON envelopes, and malformed values, misses, timeouts, or Redis outages fall back to
+PostgreSQL. Cached openness, stock, counts, or payment-shaped data is display-only: booking,
+capacity, inventory, payment, transition, and authorization decisions always reload authoritative
+PostgreSQL state.
 
 The deployed production request path uses two proxy hops before Express: the host TLS nginx and the web-container nginx. The API therefore sets Express `trust proxy` to `2` so `req.ip` is derived from the forwarded client chain instead of the container socket address. This is important for strict rate limiting and request attribution. API port `4000` remains internal to the Compose network and is not published directly to the internet.
 

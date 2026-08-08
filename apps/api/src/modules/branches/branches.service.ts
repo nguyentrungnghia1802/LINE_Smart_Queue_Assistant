@@ -13,6 +13,7 @@ import { organizationsRepository } from '../../db/repositories/organizations.rep
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { usersRepository } from '../../db/repositories/users.repository';
 import { withTransaction } from '../../db/transaction';
+import { publicReadModelCache } from '../../infrastructure/redis/redis-json.cache';
 import type { AuthUser } from '../../types/auth.types';
 import { AppError } from '../../utils/AppError';
 import { issueAccountAction } from '../account-lifecycle/account-lifecycle.service';
@@ -293,11 +294,13 @@ export const branchesService = {
 
   async deleteBranch(actor: AuthUser, branchId: string) {
     const organizationId = requireOrganizationOwner(actor);
-    return withTransaction(async (client) => {
+    const result = await withTransaction(async (client) => {
       const branch = await branchesRepository.findByIdForUpdate(branchId, organizationId, client);
       if (!branch) throw AppError.notFound('Branch');
       return branchesRepository.deleteWithDependencies(branch, actor.id, client);
     });
+    await publicReadModelCache.invalidateBranch(organizationId, branchId);
+    return result;
   },
 
   async removeManager(actor: AuthUser, branchId: string, userId: string) {
@@ -358,7 +361,7 @@ export const branchesService = {
     requestContext?: { ipAddress?: string; userAgent?: string }
   ) {
     const scope = requireBranchManager(actor);
-    return withTransaction(async (client) => {
+    const updated = await withTransaction(async (client) => {
       const previous = await branchesRepository.findById(
         scope.branchId,
         scope.organizationId,
@@ -388,6 +391,8 @@ export const branchesService = {
       );
       return updated;
     });
+    await publicReadModelCache.invalidateBranch(scope.organizationId, scope.branchId);
+    return updated;
   },
 
   async getMyBusinessCalendar(actor: AuthUser) {
@@ -434,6 +439,7 @@ export const branchesService = {
         ]
       );
     });
+    await publicReadModelCache.invalidateBranch(scope.organizationId, scope.branchId);
     return dto;
   },
 

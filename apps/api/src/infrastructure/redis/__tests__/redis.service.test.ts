@@ -46,6 +46,14 @@ class FakeRedisClient extends EventEmitter {
   async del(): Promise<number> {
     return 1;
   }
+
+  async get(): Promise<string | null> {
+    return null;
+  }
+
+  async set(): Promise<'OK'> {
+    return 'OK';
+  }
 }
 
 function createService(client: FakeRedisClient, commandTimeoutMs = 25): RedisService {

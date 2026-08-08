@@ -600,7 +600,7 @@ Update relevant:
 
 # TASK-03 — Redis Queue & Public Read-Model Caching
 
-**Status:** [ ] Not started
+**Status:** [x] Completed (2026-08-08)
 **Priority:** P1
 **Dependencies:** TASK-02 + TASK-01 baseline
 
@@ -722,11 +722,11 @@ Cover:
 
 ## Acceptance criteria
 
-- [ ] PostgreSQL remains authoritative.
-- [ ] Cache loss affects performance only.
-- [ ] Selected cache paths provide measurable benefit.
-- [ ] Cache TTL/invalidation policy is documented.
-- [ ] No authorization/payment/inventory correctness uses cached authority.
+- [x] PostgreSQL remains authoritative.
+- [x] Cache loss affects performance only.
+- [x] Selected cache paths provide measurable benefit.
+- [x] Cache TTL/invalidation policy is documented.
+- [x] No authorization/payment/inventory correctness uses cached authority.
 
 ---
 
