@@ -1,6 +1,8 @@
 import { Pool, PoolClient } from 'pg';
 
 import { config } from '../config';
+import { logger } from '../utils/logger';
+import { metricsService } from '../utils/metrics';
 
 // ── Connection pool ────────────────────────────────────────────────────────────
 // One pool per process. Shared by all repositories and the transaction helper.
@@ -20,8 +22,14 @@ export const pool = new Pool({
 pool.on('error', (err) => {
   // Unexpected error on idle client — log but do not crash; the next acquire
   // will obtain a fresh connection.
-  console.error('[db] Unexpected pool error:', err.message);
+  logger.error({ errorType: err.name }, 'Unexpected PostgreSQL pool error');
 });
+
+export function updatePoolMetrics(): void {
+  metricsService.setGauge('postgres_pool_total', pool.totalCount);
+  metricsService.setGauge('postgres_pool_idle', pool.idleCount);
+  metricsService.setGauge('postgres_pool_waiting', pool.waitingCount);
+}
 
 // ── Typed query helpers ────────────────────────────────────────────────────────
 
@@ -31,6 +39,7 @@ pool.on('error', (err) => {
  */
 export async function query<T>(sql: string, params?: unknown[]): Promise<T[]> {
   const result = await pool.query(sql, params);
+  updatePoolMetrics();
   return result.rows as T[];
 }
 
@@ -39,6 +48,7 @@ export async function query<T>(sql: string, params?: unknown[]): Promise<T[]> {
  */
 export async function queryOne<T>(sql: string, params?: unknown[]): Promise<T | null> {
   const result = await pool.query(sql, params);
+  updatePoolMetrics();
   return (result.rows[0] as T) ?? null;
 }
 
@@ -51,6 +61,7 @@ export async function queryWithClient<T>(
   params?: unknown[]
 ): Promise<T[]> {
   const result = await client.query(sql, params);
+  updatePoolMetrics();
   return result.rows as T[];
 }
 

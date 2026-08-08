@@ -290,6 +290,13 @@ npm run e2e:all
 `LINE_ID_TOKEN_VERIFICATION_MODE=mock` is an explicit local/CI setting and is
 rejected when `NODE_ENV=production`. Browser E2E never contacts LINE or a PSP.
 
+Keep `OTEL_SDK_DISABLED=true` and Sentry DSNs empty in local/CI unless a test collector/project is
+intentionally available. Targeted observability tests cover backend/browser sanitization,
+fail-open capture, no-exporter spans, and BullMQ trace-carrier compatibility. In staging, verify
+one API request and one notification delivery have trace/log correlation, then confirm the same
+business operations succeed while collector and Sentry endpoints are unavailable. Never use real
+customer contact or credentials as test fixtures.
+
 ## 10. Manual LINE verification
 
 1. Configure LINE Login/LIFF and Messaging API under the intended provider.

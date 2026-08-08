@@ -119,6 +119,9 @@ services:
         VITE_LIFF_MOCK: ${VITE_LIFF_MOCK:-false}
         VITE_PAYMENT_MODE: ${VITE_PAYMENT_MODE:-demo}
         VITE_PAYMENT_REDIRECT_BASE_URL: ${VITE_PAYMENT_REDIRECT_BASE_URL:-}
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-production}
+        VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-}
     container_name: lq-web
     restart: unless-stopped
     ports:

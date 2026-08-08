@@ -1,6 +1,7 @@
 import pino from 'pino';
 
 import { config } from '../config';
+import { currentTraceFields } from '../observability/tracing';
 
 const loggerLevel = (() => {
   if (config.nodeEnv === 'test') return 'silent';
@@ -36,6 +37,7 @@ export const logger = pino(
   {
     level: loggerLevel,
     base: { service: 'line-queue-api' },
+    mixin: currentTraceFields,
     redact: {
       paths: [
         'req.headers.authorization',
@@ -51,6 +53,14 @@ export const logger = pino(
         'channelSecret',
         'messagingChannelAccessToken',
         'messagingChannelSecret',
+        'lineUserId',
+        '*.lineUserId',
+        'email',
+        '*.email',
+        'phone',
+        '*.phone',
+        'latitude',
+        'longitude',
       ],
       censor: '[REDACTED]',
     },

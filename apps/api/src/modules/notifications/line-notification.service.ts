@@ -1,3 +1,4 @@
+import { captureException } from '../../observability/runtime';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
 import type { ILineMessagingAdapter, LineMessage } from '../line/line.adapter';
@@ -30,7 +31,6 @@ async function tryPushMessages(
       {
         entryId: context.entryId,
         eventType: context.eventType,
-        lineUserId,
         messageType: messages.map((message) => message.type).join(','),
       },
       'LINE notification sent'
@@ -126,7 +126,14 @@ export const lineNotificationService = {
     );
     if (textResult.sent) return;
 
-    throw textResult.error ?? flexResult.error ?? new Error('LINE notification delivery failed');
+    const error =
+      textResult.error ?? flexResult.error ?? new Error('LINE notification delivery failed');
+    captureException(error, {
+      operation: 'line.notification.delivery',
+      eventType: context.eventType,
+      messageType: 'text-fallback',
+    });
+    throw error;
   },
 };
 

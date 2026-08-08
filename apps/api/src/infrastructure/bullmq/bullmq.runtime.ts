@@ -8,6 +8,7 @@ import {
   dispatchNotificationOutbox,
   type NotificationDispatchQueue,
 } from '../../modules/notifications/notification-dispatcher.service';
+import { extractTraceContext, withSpan } from '../../observability/tracing';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
 
@@ -173,7 +174,14 @@ export async function processLineNotificationJob(
       metricsService.increment('bullmq_invalid_jobs_total');
       throw new UnrecoverableError('Invalid LINE notification dispatcher contract');
     }
-    await withTimeout(handlers.dispatch(queue), timeoutMs, 'LINE outbox dispatch timed out');
+    await withSpan(
+      'notification.outbox.dispatch',
+      () => withTimeout(handlers.dispatch(queue), timeoutMs, 'LINE outbox dispatch timed out'),
+      {
+        parent: extractTraceContext(parsed.data.traceContext),
+        attributes: { 'messaging.system': 'bullmq', 'messaging.operation.name': 'dispatch' },
+      }
+    );
     return;
   }
 
@@ -183,10 +191,19 @@ export async function processLineNotificationJob(
       metricsService.increment('bullmq_invalid_jobs_total');
       throw new UnrecoverableError('Invalid LINE notification delivery contract');
     }
-    await withTimeout(
-      handlers.delivery(parsed.data.notificationId, job.id),
-      timeoutMs,
-      'LINE notification delivery timed out'
+    const jobId = job.id;
+    await withSpan(
+      'notification.delivery',
+      () =>
+        withTimeout(
+          handlers.delivery(parsed.data.notificationId, jobId),
+          timeoutMs,
+          'LINE notification delivery timed out'
+        ),
+      {
+        parent: extractTraceContext(parsed.data.traceContext),
+        attributes: { 'messaging.system': 'bullmq', 'messaging.operation.name': 'deliver' },
+      }
     );
     return;
   }

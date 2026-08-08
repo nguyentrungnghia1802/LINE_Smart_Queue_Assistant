@@ -6,6 +6,10 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Added optional OpenTelemetry tracing and sanitized Sentry error reporting across the browser,
+  API, PostgreSQL/Redis clients, BullMQ notification delivery, and outbound HTTP providers while
+  preserving Pino, health endpoints, Prometheus metrics, and fail-open business behavior.
+
 - Replaced admin-driven organization registration with a public product site, three-step business
   application, server-calculated demo subscription payment, and an admin approval inbox. Approval
   atomically provisions the organization, generated slug/QR token, work-email manager, and

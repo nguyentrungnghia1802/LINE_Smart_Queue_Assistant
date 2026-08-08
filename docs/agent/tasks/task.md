@@ -1327,7 +1327,7 @@ Provide actionable production observability across frontend, API, PostgreSQL, Re
 
 # TASK-08 — OpenTelemetry + Sentry Observability Stack
 
-**Status:** [ ] Not started
+**Status:** [x] Completed (2026-08-09)
 **Priority:** P1
 **Dependencies:** Redis/BullMQ recommended
 
@@ -1552,11 +1552,11 @@ Test:
 
 ## Acceptance criteria
 
-- [ ] Representative API/background operations can be correlated.
-- [ ] Sensitive values are demonstrably scrubbed.
-- [ ] Observability failure does not affect business correctness.
-- [ ] Existing Pino/health/metrics remain coherent.
-- [ ] Operator visibility meaningfully improves.
+- [x] Representative API/background operations can be correlated.
+- [x] Sensitive values are demonstrably scrubbed.
+- [x] Observability failure does not affect business correctness.
+- [x] Existing Pino/health/metrics remain coherent.
+- [x] Operator visibility meaningfully improves.
 
 ---
 
@@ -2098,7 +2098,7 @@ Major architectural decisions must be added/superseded through ADRs instead of s
 | Phase 1 | Redis                        | [ ]    |
 | Phase 2 | BullMQ & Workers             | [ ]    |
 | Phase 3 | SSE                          | [ ]    |
-| Phase 4 | OpenTelemetry & Sentry       | [ ]    |
+| Phase 4 | OpenTelemetry & Sentry       | [x]    |
 | Phase 5 | S3/R2 Object Storage         | [ ]    |
 | Phase 6 | Storybook                    | [ ]    |
 | Phase 7 | Integrated Validation        | [ ]    |
