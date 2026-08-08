@@ -28,6 +28,7 @@
     "db:fixture:e2e": "ts-node --project tsconfig.json ../../db/fixtures/e2e/index.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1106.0",
     "@line-queue/shared": "*",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",

@@ -101,4 +101,97 @@ describe('MediaService', () => {
     expect(storage.objects.has(asset.storage_key)).toBe(false);
     expect(repository.markDeleted).toHaveBeenCalledWith(asset.id);
   });
+
+  it('retries a generated key collision without overwriting an existing object', async () => {
+    const storage = {
+      provider: 'mock' as const,
+      put: jest
+        .fn()
+        .mockRejectedValueOnce(Object.assign(new Error('collision'), { code: 'EEXIST' }))
+        .mockImplementation(async ({ key }: { key: string }) => ({
+          key,
+          publicUrl: `/mock-media/${key}`,
+        })),
+      delete: jest.fn().mockResolvedValue(undefined),
+    };
+    const repository = {
+      create: jest.fn().mockImplementation((value) => ({ ...asset, ...value })),
+      findById: jest.fn().mockResolvedValue(asset),
+      markDeleted: jest.fn().mockResolvedValue(undefined),
+    };
+    const generateKey = jest
+      .fn()
+      .mockReturnValueOnce('collision-key')
+      .mockReturnValueOnce('fresh-key');
+    const service = new MediaService(storage, repository, 1024 * 1024, generateKey);
+
+    const result = await service.upload(
+      { dataUrl: await validPng(), purpose: 'product_image' },
+      { id: asset.owner_user_id, role: UserRole.ADMIN }
+    );
+
+    expect(storage.put).toHaveBeenCalledTimes(2);
+    expect(generateKey).toHaveBeenCalledTimes(2);
+    expect(result.storage_key).toContain('fresh-key');
+  });
+
+  it('cleans the object when database registration fails', async () => {
+    const { service, storage, repository } = setup();
+    repository.create.mockRejectedValue(new Error('database unavailable'));
+
+    await expect(
+      service.upload(
+        { dataUrl: await validPng(), purpose: 'organization_logo' },
+        { id: asset.owner_user_id, role: UserRole.ADMIN }
+      )
+    ).rejects.toThrow('database unavailable');
+
+    expect(storage.objects.size).toBe(0);
+  });
+
+  it('keeps metadata active when object deletion fails so the operation can be retried', async () => {
+    const { service, repository, storage } = setup();
+    jest.spyOn(storage, 'delete').mockRejectedValue(new Error('provider timeout'));
+
+    await expect(
+      service.delete(asset.id, {
+        id: asset.owner_user_id,
+        role: UserRole.MANAGER,
+        organizationId: asset.organization_id,
+      })
+    ).rejects.toThrow('provider timeout');
+
+    expect(repository.markDeleted).not.toHaveBeenCalled();
+  });
+
+  it('marks metadata deleted when the object is already missing', async () => {
+    const { service, repository, storage } = setup();
+    jest
+      .spyOn(storage, 'delete')
+      .mockRejectedValue(Object.assign(new Error('missing'), { name: 'NotFound' }));
+
+    await service.delete(asset.id, {
+      id: asset.owner_user_id,
+      role: UserRole.MANAGER,
+      organizationId: asset.organization_id,
+    });
+
+    expect(repository.markDeleted).toHaveBeenCalledWith(asset.id);
+  });
+
+  it('treats repeated deletion of deleted metadata as idempotent', async () => {
+    const { service, repository, storage } = setup();
+    const deleteSpy = jest.spyOn(storage, 'delete');
+    repository.findById.mockResolvedValue({ ...asset, status: 'deleted' });
+
+    await service.delete(asset.id, {
+      id: asset.owner_user_id,
+      role: UserRole.MANAGER,
+      organizationId: asset.organization_id,
+    });
+
+    expect(storage.objects.size).toBe(0);
+    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(repository.markDeleted).not.toHaveBeenCalled();
+  });
 });

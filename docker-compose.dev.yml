@@ -84,6 +84,7 @@ services:
       - ./packages/shared/tsconfig.json:/app/packages/shared/tsconfig.json
       - ./packages/config:/app/packages/config
       - ./db/migrations/node-pg-migrate:/app/db/migrations/node-pg-migrate:ro
+      - media_dev_data:/app/var/media
     ports:
       - '4000:4000'
       - '9229:9229' # Node.js inspector — attach via VS Code or Chrome DevTools
@@ -176,3 +177,4 @@ services:
 volumes:
   postgres_dev_data: # Separate volume — dev data never touches prod
   redis_dev_data: # Disposable coordination/cache data for local development
+  media_dev_data: # Local media survives API container recreation

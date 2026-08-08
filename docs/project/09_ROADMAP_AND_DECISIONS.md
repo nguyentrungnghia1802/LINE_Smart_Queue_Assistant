@@ -2,7 +2,7 @@
 
 # Roadmap and Decisions
 
-Last reviewed: 2026-08-08 at source revision `bd09552`. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
+Last reviewed: 2026-08-09 at TASK-09 completion. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
 
 ## 1. Prioritized roadmap
 
@@ -20,7 +20,9 @@ Last reviewed: 2026-08-08 at source revision `bd09552`. This file records curren
 3. Connect the implemented audited reconciliation/refund boundary to a real PSP and settlement process.
 4. Calibrate the measured forecast/staffing heuristic with production history and accuracy reporting.
 5. Expand detailed OpenAPI component schemas as new integrations require generated clients; full runtime operation coverage and drift tests are implemented.
-6. Connect the implemented media boundary to object storage with signed upload, scanning, CDN policy, and orphan reconciliation.
+6. Extend the implemented object-storage media boundary with signed delivery/upload only after
+   measured API bandwidth need; add provider-specific scanning and an audited orphan-reconciliation
+   operation before enabling automated cleanup.
 
 ### P2: Reliability, UX, and scale
 
@@ -34,17 +36,18 @@ Last reviewed: 2026-08-08 at source revision `bd09552`. This file records curren
 
 ## 2. Technical debt and risks
 
-| ID     | Issue                                                           | Impact                                 | Planned control                                  |
-| ------ | --------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------ |
-| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places  | Incorrect assumptions/contracts        | Align shared types and add serialization tests   |
-| TD-002 | Notification operations have API but no dashboard               | Support workflow remains technical     | Owner/admin operations dashboard                 |
-| TD-003 | Inventory lifecycle needs production load validation            | Rare race behavior may be undiscovered | Staged concurrent integration/load tests         |
-| TD-004 | payOS collection exists but settlement/refund E2E is incomplete | Production refund/operations risk      | Merchant E2E, refund adapter, settlement runbook |
-| TD-007 | Forecast heuristic lacks production calibration                 | Confidence may not reflect real error  | Measure prediction error before model upgrades   |
-| TD-008 | Google travel adapter needs production privacy/quota acceptance | Cost, consent, and estimate risk       | Legal review, restricted key, staged calibration |
-| TD-009 | Some OpenAPI operations use generic request/response schemas    | Generated clients have weaker typing   | Incrementally model detailed component schemas   |
-| TD-011 | Metrics reset per process and `/metrics` is public in app       | Weak operations/security               | Scrape/protect endpoint and expand metrics       |
-| TD-012 | Native Japanese/legal copy review is pending                    | Customer wording may be unsuitable     | Native review before external production launch  |
+| ID     | Issue                                                               | Impact                                 | Planned control                                                      |
+| ------ | ------------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------------- |
+| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places      | Incorrect assumptions/contracts        | Align shared types and add serialization tests                       |
+| TD-002 | Notification operations have API but no dashboard                   | Support workflow remains technical     | Owner/admin operations dashboard                                     |
+| TD-003 | Inventory lifecycle needs production load validation                | Rare race behavior may be undiscovered | Staged concurrent integration/load tests                             |
+| TD-004 | payOS collection exists but settlement/refund E2E is incomplete     | Production refund/operations risk      | Merchant E2E, refund adapter, settlement runbook                     |
+| TD-007 | Forecast heuristic lacks production calibration                     | Confidence may not reflect real error  | Measure prediction error before model upgrades                       |
+| TD-008 | Google travel adapter needs production privacy/quota acceptance     | Cost, consent, and estimate risk       | Legal review, restricted key, staged calibration                     |
+| TD-009 | Some OpenAPI operations use generic request/response schemas        | Generated clients have weaker typing   | Incrementally model detailed component schemas                       |
+| TD-011 | Metrics reset per process and `/metrics` is public in app           | Weak operations/security               | Scrape/protect endpoint and expand metrics                           |
+| TD-012 | Native Japanese/legal copy review is pending                        | Customer wording may be unsuitable     | Native review before external production launch                      |
+| TD-013 | Media object inventory/reconciliation is operational, not automated | Orphans can consume storage            | Review provider inventory against `media_assets` with a grace period |
 
 ## 3. Decision record format
 
@@ -568,3 +571,27 @@ delivery spans while PostgreSQL remains the notification truth. Trace sampling i
 configurable. Telemetry can be disabled in local/CI, and a collector or Sentry outage only reduces
 visibility. Raw bodies, credentials, customer contact/LINE identity, exact coordinates, and
 provider payloads are not observability data.
+
+## ADR-034: S3-compatible media is server-mediated and production-default
+
+**Status:** accepted (2026-08-09)
+
+**Context:** The original media boundary validated and compressed uploads but stored production
+objects on the API container filesystem. A container replacement could therefore lose uploaded
+logos/product images, while adding direct browser uploads would introduce a second authorization
+and validation path.
+
+**Decision:** Keep the browser-to-API upload contract. `MediaService` validates bytes, pixels,
+format, tenant ownership, and WebP compression before calling a storage adapter. Local and mock
+providers remain available for development/tests; production selects the AWS SDK based
+`S3CompatibleMediaStorage` with server-only credentials, generated keys, cache headers, and a
+configured stable public/CDN base URL. `media_assets.storage_provider='object'` remains the
+database contract, so no migration is required. Production Compose does not mount the API media
+filesystem. Object deletion is attempted before metadata deletion, missing objects are idempotent,
+and partial failures are recoverable through retry/reconciliation rather than silent metadata loss.
+
+**Consequences:** API bandwidth remains the initial upload bottleneck, but validation and tenant
+authorization stay centralized. Operators must configure bucket lifecycle/versioning, least
+privilege, CDN/public access, scanning, backups, and a reviewed orphan grace-period process.
+Signed direct upload and automated destructive orphan cleanup remain future work and are not part
+of TASK-09.

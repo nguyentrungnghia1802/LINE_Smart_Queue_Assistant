@@ -98,6 +98,12 @@ Persisted product and organization image fields use the shared `StoredImageUrlSc
 `/media/...` and `/mock-media/...` paths. Upload request data URLs terminate at the media service
 and must not be written back into organization or product records.
 
+The media boundary is implemented in `apps/api/src/modules/media`: `media.service.ts` owns
+validation/compression and metadata failure semantics, `media-storage.ts` contains local/mock
+providers, `s3-media-storage.ts` contains the AWS S3/R2-compatible adapter, and
+`media.factory.ts` selects the provider from server-only configuration. Do not import the S3 SDK
+from catalog, organization, or browser modules, and do not add browser direct-upload credentials.
+
 Shared form limits and API field-error extraction live in `apps/web/src/utils/formValidation.ts`.
 New forms must set stable `name` attributes, appropriate HTML input types and limits, and map API
 `details.fieldErrors` to the exact field path. These client constraints are usability aids; matching

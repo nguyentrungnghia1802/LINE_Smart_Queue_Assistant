@@ -44,13 +44,13 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | `web`             | React/Vite in dev, nginx static SPA in prod | Routes, i18next UI, browser state, API calls, LIFF adapter                             |
 | `api`             | Node/Express                                | HTTP contracts, auth, business services, SQL repositories, LINE adapter, scheduler     |
 | `worker`          | Node/BullMQ                                 | Dispatches committed LINE outbox rows and processes one notification per delivery job  |
-| Media adapter     | Local/mock plus object-compatible interface | Validates and compresses image ingress; isolates persistence transport                 |
+| Media adapter     | Local/mock plus S3-compatible adapter       | Validates/compresses image ingress; isolates local or durable object persistence       |
 | `postgres`        | PostgreSQL 16                               | Tenant, identity, queue, order, inventory, payment, notification, audit, forecast data |
 | `redis`           | Redis 7.4                                   | Rate limits, public read caches, transient Pub/Sub, and BullMQ orchestration           |
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
 | Payment provider  | Demo adapter or payOS                       | Hosted/payment redirect, QR payload, and authoritative webhook                         |
 
-Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and `/media/*` to the internal `api:4000` service without stripping either prefix, so browser code and locally persisted media use the same public origin. The Vite development server proxies these same prefixes to the local API, keeping persisted image URLs working at `localhost:5173`. Production API requests use an empty `VITE_API_URL` because service paths already include `/api/v1`.
+Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and local-provider `/media/*` to the internal `api:4000` service without stripping either prefix. S3-compatible media records return a stable absolute public/CDN URL and do not depend on the API filesystem or `/media` proxy. The Vite development server proxies these same prefixes to the local API, keeping local media URLs working at `localhost:5173`. Production API requests use an empty `VITE_API_URL` because service paths already include `/api/v1`.
 
 Redis is backend-only and non-authoritative. One centralized `RedisService` owns connection,
 reconnect, command timeout, safe health, and shutdown behavior. Strict authentication/webhook,
@@ -131,6 +131,16 @@ The API entry is `apps/api/src/server.ts`; `app.ts` composes middleware, health 
 | `skip-penalty`              | Absence/defer/no-show policy and refund boundary                  |
 | `shared`                    | Shared validators and cross-module request contracts              |
 | `users`                     | Profiles, owner/manager/staff accounts, and audit-aware changes   |
+
+### Media persistence boundary
+
+`MediaService` owns image validation, pixel limits, orientation-safe rotation, WebP compression, generated
+keys, tenant authorization, and metadata registration. It depends only on `MediaStorage`; the
+catalog and organization modules never import an S3 SDK. `LocalMediaStorage` is used for local
+development, `MockMediaStorage` is used by tests, and `S3CompatibleMediaStorage` uses the AWS SDK
+transport for AWS S3, Cloudflare R2, or another compatible endpoint. Credentials remain in the API
+runtime. The browser sends a data URL to the API and cannot select a bucket, object key, or
+credential.
 
 Dependency direction:
 
