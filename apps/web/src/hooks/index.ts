@@ -7,3 +7,4 @@ export {
   useQueueStatus,
 } from './useQueueEntry';
 export { useDeleteQueue, useQueue, useQueues, useUpdateQueueStatus } from './useQueues';
+export { useQueueRealtime, useRealtimeSubscription, useTicketRealtime } from './useRealtime';

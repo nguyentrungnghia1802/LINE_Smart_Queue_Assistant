@@ -188,6 +188,9 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
     horizontal overflow, modal fit, and fixed-navigation content clearance.
 11. Public marketing video must remain muted and inline, retain an image poster fallback, and
     respect the browser's reduced-motion preference without making page content depend on playback.
+12. Consume authenticated SSE through `services/realtime` and `hooks/useRealtime.ts`. Treat events
+    as invalidation hints, reconcile through TanStack Query/REST, retain a polling fallback, and
+    release subscriptions on route, visibility, network, logout, and session-expiry changes.
 
 ## 9. Error, logging, and transactions
 
@@ -219,6 +222,8 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
   outbox/delivery semantics.
 - `apps/api/src/modules/realtime/**`: versioned minimal events, authorized SSE lifecycle, bounded
   local subscriptions, and dedicated Redis Pub/Sub transport. PostgreSQL/REST remains authoritative.
+- `apps/web/src/services/realtime/**` and `apps/web/src/hooks/useRealtime.ts`: centralized browser
+  stream sharing, strict event parsing, reconnect/auth lifecycle, and REST-query reconciliation.
 - `apps/api/src/modules/line/rich-menu.*` and `apps/api/src/scripts/sync-line-rich-menu.ts`: external LINE Rich Menu configuration; never log channel access tokens.
 - `docs/archive/**`: historical; do not update as current truth.
 

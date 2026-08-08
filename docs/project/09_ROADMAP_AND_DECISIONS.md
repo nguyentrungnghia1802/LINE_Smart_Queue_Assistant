@@ -25,7 +25,8 @@ Last reviewed: 2026-08-08 at source revision `bd09552`. This file records curren
 ### P2: Reliability, UX, and scale
 
 1. Expand browser E2E from the implemented critical-flow baseline to visual regression, accessibility, QR print-dialog, and failure-injection coverage.
-2. Add realtime queue updates through SSE or WebSocket only after measuring polling limitations.
+2. Complete production browser/device acceptance and capacity measurement for the implemented SSE
+   queue/ticket updates before reducing the retained polling safety net further.
 3. Consider a separate scheduler worker after measuring the implemented PostgreSQL advisory-lock design.
 4. Add observability dashboards, SLOs, tracing, centralized logs, and provider/webhook alerts.
 5. Run staged load tests and optimize indexes/queries from measured bottlenecks.
@@ -538,8 +539,9 @@ data. Streams use heartbeat, finite duration, disconnect cleanup, retry guidance
 limits. PostgreSQL-backed REST snapshots remain the only recovery and correctness source.
 
 **Consequences:** Relevant events reach clients connected to another healthy API replica without
-making Redis durable. Duplicate, reordered, and missed events are expected and harmless when clients
-refetch REST. Redis failure or SSE publication failure never rolls back a business transaction;
-cross-replica freshness degrades until reconnect/recovery. Production proxy hops must disable
-buffering and outlive the configured stream duration. Frontend consumption and reconciliation remain
-separate TASK-07 work.
+making Redis durable. Duplicate, reordered, and missed events are expected and harmless because the
+centralized React client invalidates and refetches REST. It shares connections, uses bounded
+reconnect/auth handling, closes private streams on lifecycle/session termination, and retains
+polling as a degraded recovery path. Redis failure or SSE publication failure never rolls back a
+business transaction; cross-replica freshness degrades until reconnect/recovery. Production proxy
+hops must disable buffering and outlive the configured stream duration.

@@ -94,6 +94,13 @@ SSE runtime limits are backend-only: `SSE_KEEP_ALIVE_MS`, `SSE_RETRY_MS`,
 connection duration below the outer proxy timeout and size connection limits from measured file
 descriptor/memory capacity rather than increasing them blindly.
 
+The web client needs no additional realtime environment variable. It opens authenticated
+same-origin `/api/v1/realtime/*` fetch streams through the existing `VITE_API_URL` boundary, shares
+connections per endpoint, and falls back to REST polling. Browser visibility/offline events pause
+streams; route cleanup, logout, and terminal session expiry abort private connections. A sustained
+increase in fallback REST traffic is therefore a useful signal of proxy, Redis Pub/Sub, or SSE
+availability problems even when the customer and Staff workflows remain functional.
+
 Set `LINE_NOTIFICATION_DELIVERY_OWNER=bullmq` when the dedicated worker service is deployed. The
 API then stops scheduling LINE delivery while the worker maintains the versioned BullMQ dispatcher
 scheduler and per-notification jobs. `api` remains available if Redis or the worker is unavailable because queue/order

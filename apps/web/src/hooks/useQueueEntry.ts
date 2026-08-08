@@ -16,13 +16,12 @@ export const queueEntryKeys = {
 // ── Queries ────────────────────────────────────────────────────────────────────
 
 /** Active tickets for the current caller across all queues. */
-export function useMyTickets(options: { enabled?: boolean } = {}) {
+export function useMyTickets(options: { enabled?: boolean; realtimeConnected?: boolean } = {}) {
   return useQuery({
     queryKey: queueEntryKeys.myTickets(),
     queryFn: () => queueEntryApi.myTickets(),
     enabled: options.enabled ?? true,
-    // Re-fetch every 30 s for live position updates
-    refetchInterval: 30_000,
+    refetchInterval: options.realtimeConnected ? 60_000 : 30_000,
   });
 }
 
@@ -37,12 +36,15 @@ export function useQueueStatus(queueId: string) {
 }
 
 /** Live status for one ticket by entry ID. Used by LIFF notification deep links. */
-export function useTicketStatus(entryId: string, options: { enabled?: boolean } = {}) {
+export function useTicketStatus(
+  entryId: string,
+  options: { enabled?: boolean; realtimeConnected?: boolean } = {}
+) {
   return useQuery({
     queryKey: queueEntryKeys.detail(entryId),
     queryFn: () => queueEntryApi.getEntry(entryId),
     enabled: Boolean(entryId) && (options.enabled ?? true),
-    refetchInterval: 15_000,
+    refetchInterval: options.realtimeConnected ? 60_000 : 15_000,
   });
 }
 

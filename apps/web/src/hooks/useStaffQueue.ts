@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 
 import type { QueueOverview } from '../services/staff.api';
 import { staffApi } from '../services/staff.api';
+
+import { useQueueRealtime } from './useRealtime';
 
 // ── Query keys ────────────────────────────────────────────────────────────────
 
@@ -12,12 +15,16 @@ export const staffKeys = {
 // ── Query ─────────────────────────────────────────────────────────────────────
 
 export function useStaffQueueOverview(queueId: string) {
-  return useQuery({
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const query = useQuery({
     queryKey: staffKeys.overview(queueId),
     queryFn: () => staffApi.getQueueOverview(queueId),
     enabled: Boolean(queueId),
-    refetchInterval: 10_000, // poll every 10 s for live updates
+    refetchInterval: realtimeConnected ? 60_000 : 10_000,
   });
+  const realtimeState = useQueueRealtime(queueId, [staffKeys.overview(queueId)], Boolean(queueId));
+  useEffect(() => setRealtimeConnected(realtimeState === 'connected'), [realtimeState]);
+  return { ...query, realtimeState };
 }
 
 // ── Mutations ─────────────────────────────────────────────────────────────────

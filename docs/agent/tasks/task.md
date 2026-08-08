@@ -1217,7 +1217,7 @@ Cover:
 
 # TASK-07 — React / LIFF SSE Integration
 
-**Status:** [ ] Not started
+**Status:** [x] Completed (2026-08-08)
 **Priority:** P1
 **Dependencies:** TASK-06
 
@@ -1309,11 +1309,11 @@ Cover:
 
 ## Acceptance criteria
 
-- [ ] Duplicate/missed events cannot make UI permanently incorrect.
-- [ ] REST remains authoritative.
-- [ ] Realtime measurably improves freshness or polling load.
-- [ ] No SSE resource leak exists.
-- [ ] Logout/session expiry closes private streams.
+- [x] Duplicate/missed events cannot make UI permanently incorrect.
+- [x] REST remains authoritative.
+- [x] Realtime measurably improves freshness or polling load.
+- [x] No SSE resource leak exists.
+- [x] Logout/session expiry closes private streams.
 
 ---
 
