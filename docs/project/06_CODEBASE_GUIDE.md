@@ -36,7 +36,8 @@ apps/api/src/
 |   |-- repositories/        SQL and row mapping
 |   \-- transaction.ts       Transaction helper
 |-- docs/                    Programmatic Swagger fragments
-|-- jobs/                    In-process scheduler and job functions
+|-- jobs/                    In-process scheduler and reusable job functions
+|-- infrastructure/bullmq/  Versioned job contracts, worker lifecycle, and heartbeat
 |-- infrastructure/redis/   Shared Redis lifecycle, rate limits, and public read-model cache
 |-- middlewares/             Auth, role, validation, rate, idempotency, logs, metrics
 |-- modules/<domain>/        Route/controller/service/validator and tests
@@ -44,7 +45,8 @@ apps/api/src/
 |-- types/                   Express/auth-local types
 |-- utils/                   Errors, response, JWT, cache, logs, metrics
 |-- app.ts                   Express composition without listening
-\-- server.ts                Process startup/shutdown and scheduler lifecycle
+|-- server.ts                HTTP process startup/shutdown and scheduler lifecycle
+\-- worker.ts                Dedicated BullMQ worker process entry point
 ```
 
 ### Layer rules

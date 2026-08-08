@@ -451,8 +451,8 @@ PostgreSQL gate; health reports Redis status without credentials.
 **Consequences:** Multiple healthy API processes enforce one counter namespace. A Redis outage can
 temporarily multiply the bounded limit by replica count, but never removes authentication
 protection or blocks durable queue/order correctness. Redis must remain private, monitored, and
-restored promptly. Public read-model caching is handled separately by ADR-029; BullMQ, Pub/Sub, and
-process-local idempotency remain later tasks.
+restored promptly. Public read-model caching is handled separately by ADR-029 and the BullMQ
+worker foundation by ADR-030; Pub/Sub and remaining process-local idempotency are later tasks.
 
 ## ADR-029: Redis caches only bounded public read models
 
@@ -475,3 +475,24 @@ summary reads avoid repeated count queries across API replicas. Redis loss incre
 load but does not change behavior or availability. Cache hit/miss/error, hit ratio, and command
 latency metrics are process-local and must be aggregated by the monitoring system. Cache keys may
 be discarded during deployment or schema evolution because version `v1` is explicit.
+
+## ADR-030: BullMQ isolates LINE delivery without replacing the PostgreSQL outbox
+
+**Status:** accepted (2026-08-08)
+
+**Context:** LINE notification delivery performs external I/O and should not share the HTTP process
+lifecycle. The existing PostgreSQL outbox already provides transactional enqueue, event-key
+deduplication, safe row claims, retry state, and restart durability. Moving every scheduler or
+dual-writing business transactions to Redis would add risk without evidence.
+
+**Decision:** Run only the recurring LINE notification delivery sweep in a dedicated BullMQ worker
+process. Use the versioned `line.notification-delivery.sweep.v1` contract with a deterministic Job
+Scheduler ID and no customer/provider data in Redis. The worker reuses `runNotificationDelivery`;
+PostgreSQL remains the delivery authority. API scheduler ownership is disabled when BullMQ owns the
+sweep. All other jobs remain under their current scheduler/advisory-lock ownership in this task.
+
+**Consequences:** API transactions remain available while the worker or Redis is down, with pending
+outbox backlog as the expected degraded mode. Multiple workers safely upsert one recurring
+scheduler and PostgreSQL row claims prevent duplicate row ownership. BullMQ-level retries cover
+sweep infrastructure failure, while row-level LINE retry/backoff remains in PostgreSQL. TASK-05
+may later introduce per-notification dispatch without changing this authority boundary.

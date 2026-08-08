@@ -13,6 +13,8 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
+    "dev:worker": "npm run dev:worker --workspace=apps/api",
+    "start:worker": "npm run start:worker --workspace=apps/api",
     "build": "npm run build -w packages/shared && npm run build --workspaces --if-present",
     "audit:ci": "audit-ci --config audit-ci.jsonc",
     "test": "npm run test --workspaces --if-present",

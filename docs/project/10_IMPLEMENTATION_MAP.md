@@ -1,6 +1,6 @@
 # Current Implementation Map
 
-Last verified against source revision `bd09552` on 2026-08-08.
+Last verified against the TASK-04 working tree on 2026-08-08.
 
 This document is the maintenance index for the current repository. It connects product roles and
 flows to source modules, routes, database history, runtime configuration, scheduled jobs, and
@@ -53,12 +53,14 @@ a source of current behavior.
 | ------------------------------------------------------ | ---------------------------------------------------------------------- | -------------------------------------- |
 | `apps/api/src/app.ts`                                  | Express middleware, health, docs, and API composition                  | `02`, `05`, security tests             |
 | `apps/api/src/server.ts`                               | API startup/shutdown and scheduler lifecycle                           | `02`, `07`, `08`                       |
+| `apps/api/src/worker.ts`                               | Dedicated BullMQ worker startup, heartbeat, and graceful shutdown      | `02`, `07`, `08`, ADR-030              |
 | `apps/api/src/config/index.ts`                         | Backend environment parsing and defaults                               | env examples, `08`                     |
 | `apps/api/src/infrastructure/redis`                    | Shared Redis lifecycle and resilient distributed rate-limit store      | `02`, `07`, `08`, ADR-028              |
+| `apps/api/src/infrastructure/bullmq`                   | Versioned LINE delivery job contract and BullMQ runtime                | `02`, `07`, `08`, ADR-030              |
 | `apps/api/src/routes/v1.routes.ts`                     | `/api/v1` module mounting and ordering                                 | route modules, `05`, OpenAPI test      |
 | `apps/api/src/modules/*`                               | Domain route/controller/validator/service/repository code              | relevant `01`, `03`, `04`, `05`, tests |
 | `apps/api/src/db/repositories`                         | Parameterized SQL and row mapping                                      | `04`, service tests, migrations        |
-| `apps/api/src/jobs`                                    | In-process recurring jobs                                              | `02`, `03`, `07`, `08`                 |
+| `apps/api/src/jobs`                                    | API-owned recurring jobs and shared LINE outbox delivery service       | `02`, `03`, `07`, `08`                 |
 | `apps/api/src/docs/api-endpoint-catalog.ts`            | Runtime API catalog and OpenAPI metadata                               | routes, validators, `05`               |
 | `apps/web/src/router.tsx`                              | All SPA route paths and compatibility redirects                        | `02`, `05`, UI tests                   |
 | `apps/web/src/pages`                                   | Role and customer page orchestration                                   | `01`, `03`, `06`, UI tests             |
@@ -200,7 +202,7 @@ the destructive reset schema or E2E fixtures against shared data.
 | Family          | Important variables                                                                                                                                                 | Exposure                                                 |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | Database/API    | `DATABASE_URL`, `DB_*`, `API_*`, `CORS_ORIGIN`, `WEB_ORIGIN`                                                                                                        | API/server only                                          |
-| Redis           | `REDIS_URL`, `REDIS_CONNECT_TIMEOUT_MS`, `REDIS_COMMAND_TIMEOUT_MS`, `REDIS_KEY_PREFIX`                                                                             | API/server only; URL may contain credentials             |
+| Redis/BullMQ    | `REDIS_URL`, `REDIS_CONNECT_TIMEOUT_MS`, `REDIS_COMMAND_TIMEOUT_MS`, `REDIS_KEY_PREFIX`, `LINE_NOTIFICATION_DELIVERY_OWNER`, `BULLMQ_*`, `WORKER_*`                 | API/worker only; URL may contain credentials             |
 | Auth            | `JWT_SECRET`, `JWT_ACCESS_EXPIRES_IN`, `AUTH_*`                                                                                                                     | Secret plus server-only policy                           |
 | LINE Login/LIFF | `LINE_LOGIN_CHANNEL_ID`, `LINE_LOGIN_LIFF_ID`, `LINE_ID_TOKEN_VERIFICATION_MODE`, `LINE_LIFF_ENDPOINT_PATH`                                                         | IDs/path are public; verification mode is server runtime |
 | LINE Messaging  | `LINE_MESSAGING_CHANNEL_SECRET`, `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`, `LINE_NOTIFICATION_*`, `LINE_RICH_MENU_IMAGE_PATH`                                          | Server-only except non-secret tuning                     |
@@ -226,24 +228,26 @@ Login channel ID and LIFF ID.
 
 ## 9. Scheduled jobs and ownership
 
-Jobs run inside the API process. `JobRunner` prevents overlapping cycles, and advisory locks
-prevent duplicate logical cycles across API replicas. Notification delivery uses PostgreSQL row
-claiming with `FOR UPDATE SKIP LOCKED` instead of the advisory lock so multiple workers can process
-different messages.
+The API owns all recurring work except LINE notification delivery. `JobRunner` prevents
+overlapping API cycles, and advisory locks prevent duplicate logical cycles across API replicas.
+The dedicated BullMQ worker owns the deterministic LINE delivery sweep and invokes the same
+PostgreSQL outbox service used by native-development API ownership. Delivery rows still use
+`FOR UPDATE SKIP LOCKED`, so PostgreSQL remains authoritative and multiple workers cannot send the
+same claimed row concurrently.
 
-| Job                    |        Default interval | Durable boundary                                                |
-| ---------------------- | ----------------------: | --------------------------------------------------------------- |
-| `authSessionCleanup`   |                  1 hour | Removes expired/revoked refresh sessions after retention        |
-| `etaUpdater`           |              30 seconds | Recalculates waiting-entry ETA                                  |
-| `etaWarning`           |              30 seconds | Enqueues exactly-five-ahead LINE events                         |
-| `calledRenotify`       |              60 seconds | Repairs missed called notification enqueue                      |
-| `inventoryExpiry`      |              60 seconds | Expires stale finite-stock reservations                         |
-| `locationAlerts`       |              60 seconds | Calculates consented travel alerts and enqueues LINE events     |
-| `locationCleanup`      |                  1 hour | Deletes/anonymizes expired location data                        |
-| `notificationDelivery` |              15 seconds | Claims, sends, retries, or fails LINE outbox rows               |
-| `counterReset`         |            1 hour check | Resets organization-local daily counters                        |
-| `forecasting`          |                  1 hour | Persists wait and staffing measured heuristics                  |
-| `emailDelivery`        | 15 seconds when enabled | Claims and sends activation/reset/application email outbox rows |
+| Job                    | Owner         |        Default interval | Durable boundary                                                |
+| ---------------------- | ------------- | ----------------------: | --------------------------------------------------------------- |
+| `authSessionCleanup`   | API scheduler |                  1 hour | Removes expired/revoked refresh sessions after retention        |
+| `etaUpdater`           | API scheduler |              30 seconds | Recalculates waiting-entry ETA                                  |
+| `etaWarning`           | API scheduler |              30 seconds | Enqueues exactly-five-ahead LINE events                         |
+| `calledRenotify`       | API scheduler |              60 seconds | Repairs missed called notification enqueue                      |
+| `inventoryExpiry`      | API scheduler |              60 seconds | Expires stale finite-stock reservations                         |
+| `locationAlerts`       | API scheduler |              60 seconds | Calculates consented travel alerts and enqueues LINE events     |
+| `locationCleanup`      | API scheduler |                  1 hour | Deletes/anonymizes expired location data                        |
+| `notificationDelivery` | BullMQ worker |              15 seconds | Claims, sends, retries, or fails LINE outbox rows               |
+| `counterReset`         | API scheduler |            1 hour check | Resets organization-local daily counters                        |
+| `forecasting`          | API scheduler |                  1 hour | Persists wait and staffing measured heuristics                  |
+| `emailDelivery`        | API scheduler | 15 seconds when enabled | Claims and sends activation/reset/application email outbox rows |
 
 Each external failure is isolated from the committed queue/order transition. LINE and email errors
 are sanitized before persistence/logging, and provider secrets/payloads are not written to the
