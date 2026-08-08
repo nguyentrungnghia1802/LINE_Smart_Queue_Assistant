@@ -3,6 +3,7 @@ import { config } from './config';
 import { closePool } from './db/client';
 import { redisService } from './infrastructure/redis';
 import { scheduler } from './jobs/scheduler';
+import { realtimeService } from './modules/realtime';
 
 const app = createApp();
 
@@ -10,6 +11,7 @@ async function startServer(): Promise<void> {
   // Redis accelerates and coordinates ephemeral behavior only. Startup continues
   // in bounded local-fallback mode when Redis is temporarily unavailable.
   await redisService.start();
+  await realtimeService.start();
 
   const server = app.listen(config.port, config.host, () => {
     console.info(`🚀  API ready → http://${config.host}:${config.port}`);
@@ -18,11 +20,12 @@ async function startServer(): Promise<void> {
   });
 
   let shuttingDown = false;
-  const shutdown = (signal: string): void => {
+  const shutdown = async (signal: string): Promise<void> => {
     if (shuttingDown) return;
     shuttingDown = true;
     console.info(`\n${signal} received — shutting down gracefully…`);
     scheduler.stop();
+    await realtimeService.stop();
     server.close(async () => {
       console.info('HTTP server closed.');
       await Promise.all([closePool(), redisService.stop()]);
@@ -31,8 +34,8 @@ async function startServer(): Promise<void> {
     });
   };
 
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 
 void startServer();

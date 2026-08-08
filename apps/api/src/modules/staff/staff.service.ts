@@ -6,6 +6,7 @@ import {
 } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { withTransaction } from '../../db/transaction';
+import { publicReadModelCache } from '../../infrastructure/redis/redis-json.cache';
 import { AppError } from '../../utils/AppError';
 import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
@@ -16,6 +17,7 @@ import { queueNotificationService } from '../notifications/queue-notification.se
 import { paymentsService } from '../payments/payments.service';
 import { queueService } from '../queue/queue.service';
 import { tryAutoCallNextWaiting } from '../queue/queue-auto-call.service';
+import { realtimeService } from '../realtime';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -297,7 +299,7 @@ export const staffService = {
       );
     }
 
-    const cancelled = await withTransaction(async (client) => {
+    const result = await withTransaction(async (client) => {
       const lockedQueue = await queuesRepository.lockById(queue.id, client);
       if (!lockedQueue) throw AppError.notFound('Queue');
       const updated = await queueEntriesRepository.markCancelled(entryId, client);
@@ -326,15 +328,43 @@ export const staffService = {
         notificationOutboxRepository,
         client
       );
-      await tryAutoCallNextWaiting(lockedQueue, client);
-      return updated;
+      const autoCalled = await tryAutoCallNextWaiting(lockedQueue, client);
+      return { cancelled: updated, autoCalled };
     });
+    if (queue.branch_id) {
+      await publicReadModelCache.invalidateQueue({
+        organizationId: queue.organization_id,
+        branchId: queue.branch_id,
+        queueId: queue.id,
+      });
+    }
+    try {
+      await realtimeService.publishTicketEvent({
+        name: 'ticket.cancelled',
+        entry: result.cancelled,
+        queue,
+      });
+      if (result.autoCalled) {
+        await realtimeService.publishTicketEvent({
+          name: 'ticket.called',
+          entry: result.autoCalled,
+          queue,
+          aheadCount: 0,
+        });
+      }
+      await realtimeService.publishQueueSummary({ queue, reason: 'staff_cancelled_ticket' });
+    } catch (error) {
+      logger.warn(
+        { errorType: error instanceof Error ? error.name : 'UnknownError' },
+        'Realtime publication failed after staff cancellation'
+      );
+    }
     metricsService.increment('queue_cancelled_total');
-    auditStaff(actorUserId, 'staff_cancel', 'queue_entry', cancelled.id, {
-      ticket: cancelled.ticket_code,
+    auditStaff(actorUserId, 'staff_cancel', 'queue_entry', result.cancelled.id, {
+      ticket: result.cancelled.ticket_code,
       previousStatus: entry.status,
     });
-    return cancelled;
+    return result.cancelled;
   },
 
   /**

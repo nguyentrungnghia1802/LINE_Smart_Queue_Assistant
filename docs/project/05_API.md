@@ -211,6 +211,26 @@ Static `/current` and `/me` routes must remain before parameter routes.
 
 The current customer LIFF UI treats `/queue/join` as a legacy/direct queue path. The product/service booking flow uses `POST /orders` after LIFF ID-token login has produced the system JWT.
 
+### Realtime SSE
+
+| Method | Path                                | Access                                     | Purpose                                      |
+| ------ | ----------------------------------- | ------------------------------------------ | -------------------------------------------- |
+| GET    | `/api/v1/realtime/tickets/:entryId` | Authenticated customer who owns the ticket | Ticket and queue invalidation event stream   |
+| GET    | `/api/v1/realtime/queues/:queueId`  | Exact-branch manager or assigned Staff     | Branch queue operational invalidation stream |
+
+Both endpoints return `text/event-stream`, `Cache-Control: no-cache, no-transform`, an SSE retry
+hint, heartbeat comments, and `X-Accel-Buffering: no`. Organization owners, platform admins,
+foreign customers, foreign branches, and Staff assigned to another queue are rejected. Streams
+have bounded global/per-user counts and a finite connection duration so session authority is
+revalidated on reconnect.
+
+Event contract version `1` includes `ticket.created`, `ticket.called`, `ticket.serving`,
+`ticket.completed`, `ticket.cancelled`, `ticket.deferred`, `ticket.no_show`,
+`ticket.eta_updated`, and `queue.summary_updated`. Payloads contain only status, people-ahead/ETA
+hints, or a bounded reason. Events may be duplicated, reordered, or missed during disconnect or
+Redis restart. They are refresh hints only; clients must refetch the corresponding authenticated
+REST resource and never treat SSE or `Last-Event-ID` as durable state.
+
 ### Staff operations
 
 All paths require staff or a non-owner branch manager with exactly one active branch assignment.

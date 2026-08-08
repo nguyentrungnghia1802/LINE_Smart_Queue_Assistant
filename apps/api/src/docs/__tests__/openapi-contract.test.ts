@@ -23,6 +23,7 @@ const routeModules = [
   ['products/products.routes.ts', '/products'],
   ['queue/queue.routes.ts', '/queue'],
   ['queues/queues.routes.ts', '/queues'],
+  ['realtime/realtime.routes.ts', '/realtime'],
   ['staff/staff.routes.ts', '/staff'],
   ['users/users.routes.ts', '/users'],
 ] as const;

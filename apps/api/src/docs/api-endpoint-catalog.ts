@@ -260,6 +260,13 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     validator: 'EntryIdParamSchema',
   }),
 
+  endpoint('get', '/api/v1/realtime/tickets/{entryId}', 'realtime', {
+    validator: 'RealtimeTicketParamsSchema',
+  }),
+  endpoint('get', '/api/v1/realtime/queues/{queueId}', 'realtime', {
+    validator: 'RealtimeQueueParamsSchema',
+  }),
+
   endpoint('get', '/api/v1/users', 'users'),
   endpoint('patch', '/api/v1/users/me/password', 'users', {
     validator: 'ChangeMyPasswordSchema',
