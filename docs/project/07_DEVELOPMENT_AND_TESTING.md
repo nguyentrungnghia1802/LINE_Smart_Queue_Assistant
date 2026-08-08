@@ -1,5 +1,9 @@
 # Development and Testing
 
+The cross-layer source inventory and validation gate are summarized in
+[`10_IMPLEMENTATION_MAP.md`](10_IMPLEMENTATION_MAP.md). This document remains the detailed local,
+CI, fixture, test, and troubleshooting guide.
+
 ## 1. Prerequisites
 
 - Node.js `>=20` (see `.nvmrc`)

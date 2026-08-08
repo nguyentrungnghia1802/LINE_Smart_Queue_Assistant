@@ -1,5 +1,9 @@
 # Deployment and Operations
 
+Use [`10_IMPLEMENTATION_MAP.md`](10_IMPLEMENTATION_MAP.md) to trace a deployment-sensitive change
+from source module to environment variable, migration, worker, and validation command. This
+document remains the canonical deployment and incident-response guide.
+
 ## 1. Environment model
 
 | Environment | Purpose                    | Data/integration policy                                         |
@@ -34,9 +38,11 @@ Role-aware session settings are non-secret runtime values:
 - `AUTH_SESSION_CLEANUP_INTERVAL_MS=3600000`
 - `AUTH_REVOKED_SESSION_RETENTION_DAYS=7`
 
-Deploy migration `000021` before serving the updated API. It preserves existing business data and
-does not require seed/reset. Access tokens issued by older releases have no session-family claim
-and are intentionally rejected; users sign in once after rollout. The same-origin production proxy
+Deploy the complete ordered migration history through `000025` before serving the updated API.
+Migrations `000021` through `000025` are additive/normalization changes that preserve business
+data when applied through the forward migration command; they do not require seed/reset. Access
+tokens issued by older releases have no session-family claim and are intentionally rejected; users
+sign in once after rollout. The same-origin production proxy
 is required so the path-scoped refresh cookie reaches `/api/v1/auth/*`. Keep CORS credentials
 enabled only for the configured web origin.
 

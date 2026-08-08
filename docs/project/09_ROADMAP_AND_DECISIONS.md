@@ -2,7 +2,7 @@
 
 # Roadmap and Decisions
 
-Last reviewed: 2026-07-27. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
+Last reviewed: 2026-08-08 at source revision `bd09552`. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
 
 ## 1. Prioritized roadmap
 
@@ -405,3 +405,7 @@ select another queue.
 **Consequences:** Staff navigation no longer exposes a queue selector. Queue reassignment is an
 audited manager operation. A queue referenced by Staff cannot be physically deleted until those
 assignments are moved or deactivated; ordinary queue removal remains soft deletion.
+
+Migration `000025_staff_queue_assignment` is the database enforcement for this decision. It adds
+`branch_memberships.queue_id`, backfills safe existing Staff assignments, deactivates unresolved
+active Staff memberships, and enforces same-organization/same-branch queue references.

@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-08-04.
+Last verified against the repository on 2026-08-08 at source revision `bd09552`.
 
 ## 1. Problem
 
@@ -49,7 +49,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 
 - Email/password authentication for admin, manager, and staff roles; customer email login is rejected.
 - LINE LIFF login with server-side ID-token verification and linked `line_accounts` records.
-- Fifteen-minute in-memory access tokens with PostgreSQL-backed rotating refresh sessions:
+- Fifteen-minute signed access JWTs with PostgreSQL-backed rotating refresh sessions:
   business roles expire after 15 idle minutes or 12 hours absolute; LINE customers can resume for
   30 days.
 - LINE-only customer authentication: public organization slug/token entries redirect to LIFF, while local development uses the paired LIFF mock identity.
@@ -137,19 +137,25 @@ The project is a working local/demo modular monolith, not yet a production-compl
 
 ## 10. Documentation map
 
-| Document                          | Canonical responsibility                                    |
-| --------------------------------- | ----------------------------------------------------------- |
-| `01_PRODUCT_REQUIREMENTS.md`      | Actors, requirements, rules, acceptance criteria            |
-| `02_SYSTEM_ARCHITECTURE.md`       | Containers, modules, dependencies, integrations             |
-| `03_DOMAIN_AND_FLOWS.md`          | Domain model, state machines, end-to-end behavior           |
-| `04_DATABASE.md`                  | Tables, constraints, transactions, migration policy         |
-| `05_API.md`                       | HTTP contract and endpoint inventory                        |
-| `06_CODEBASE_GUIDE.md`            | Repository layout and placement conventions                 |
-| `07_DEVELOPMENT_AND_TESTING.md`   | Local setup, commands, tests, troubleshooting               |
-| `08_DEPLOYMENT_AND_OPERATIONS.md` | Environments, deployment, health, backup, incident response |
-| `09_ROADMAP_AND_DECISIONS.md`     | Priorities, risks, technical debt, accepted ADRs            |
+| Document                          | Canonical responsibility                                          |
+| --------------------------------- | ----------------------------------------------------------------- |
+| `01_PRODUCT_REQUIREMENTS.md`      | Actors, requirements, rules, acceptance criteria                  |
+| `02_SYSTEM_ARCHITECTURE.md`       | Containers, modules, dependencies, integrations                   |
+| `03_DOMAIN_AND_FLOWS.md`          | Domain model, state machines, end-to-end behavior                 |
+| `04_DATABASE.md`                  | Tables, constraints, transactions, migration policy               |
+| `05_API.md`                       | HTTP contract and endpoint inventory                              |
+| `06_CODEBASE_GUIDE.md`            | Repository layout and placement conventions                       |
+| `07_DEVELOPMENT_AND_TESTING.md`   | Local setup, commands, tests, troubleshooting                     |
+| `08_DEPLOYMENT_AND_OPERATIONS.md` | Environments, deployment, health, backup, incident response       |
+| `09_ROADMAP_AND_DECISIONS.md`     | Priorities, risks, technical debt, accepted ADRs                  |
+| `10_IMPLEMENTATION_MAP.md`        | Current source map, route/API/DB inventory, env and worker matrix |
 
 Historical files under `docs/archive` are evidence of earlier plans, not current product truth.
+
+The implementation map is the fastest maintenance entry point. It records the source paths and
+verification commands that must be checked when a route, migration, role boundary, environment
+variable, worker, or customer flow changes. It does not replace the domain, API, database, or
+deployment documents; those remain authoritative for their own contracts.
 
 Production release evidence is tracked with `docs/checklists/PRODUCTION_READINESS.md`. LINE Login has
 been exercised on the deployed HTTPS environment. Messaging, Rich Menu, preferences, and deeplink
