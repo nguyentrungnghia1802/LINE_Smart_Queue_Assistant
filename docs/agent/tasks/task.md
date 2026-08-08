@@ -857,7 +857,7 @@ Cover:
 
 # TASK-05 — PostgreSQL Outbox → BullMQ → LINE Worker
 
-**Status:** [ ] Not started
+**Status:** [x] Completed (2026-08-08)
 **Priority:** P0
 **Dependencies:** TASK-04
 
@@ -1013,12 +1013,12 @@ Cover:
 
 ## Acceptance criteria
 
-- [ ] No committed notification intent can be lost because Redis/BullMQ is unavailable.
-- [ ] Duplicate execution is safe.
-- [ ] Existing LINE behavior remains compatible.
-- [ ] Queue/order correctness is independent of LINE success.
-- [ ] Notification backlog is observable.
-- [ ] Workers can scale independently.
+- [x] No committed notification intent can be lost because Redis/BullMQ is unavailable.
+- [x] Duplicate execution is safe.
+- [x] Existing LINE behavior remains compatible.
+- [x] Queue/order correctness is independent of LINE success.
+- [x] Notification backlog is observable.
+- [x] Workers can scale independently.
 
 ---
 

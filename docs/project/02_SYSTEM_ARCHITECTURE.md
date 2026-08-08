@@ -4,8 +4,8 @@
 
 The system is a TypeScript modular monolith: one React SPA, an Express API process, a dedicated
 background worker process from the same API image, PostgreSQL, Redis, and direct LINE HTTP
-integration. Most recurring database scans remain in the API scheduler; BullMQ owns only the LINE
-notification delivery sweep. The current source-to-runtime inventory is maintained in
+integration. Most recurring database scans remain in the API scheduler; BullMQ owns only LINE
+notification dispatch and delivery. The current source-to-runtime inventory is maintained in
 [`10_IMPLEMENTATION_MAP.md`](10_IMPLEMENTATION_MAP.md).
 
 ```text
@@ -21,9 +21,11 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
                                  |
                     PostgreSQL durable outbox
                                  |
-                       BullMQ scheduled sweep
+                  PostgreSQL outbox dispatcher
                                  |
-                      Dedicated worker process
+                  BullMQ per-notification jobs
+                                 |
+                      Dedicated LINE worker
                        |                   |
                      Redis             LINE APIs
               limits/cache/queue   Login/OIDC + push
@@ -35,7 +37,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | ----------------- | ------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `web`             | React/Vite in dev, nginx static SPA in prod | Routes, i18next UI, browser state, API calls, LIFF adapter                             |
 | `api`             | Node/Express                                | HTTP contracts, auth, business services, SQL repositories, LINE adapter, scheduler     |
-| `worker`          | Node/BullMQ                                 | Claims committed LINE outbox rows and reuses notification delivery services            |
+| `worker`          | Node/BullMQ                                 | Dispatches committed LINE outbox rows and processes one notification per delivery job  |
 | Media adapter     | Local/mock plus object-compatible interface | Validates and compresses image ingress; isolates persistence transport                 |
 | `postgres`        | PostgreSQL 16                               | Tenant, identity, queue, order, inventory, payment, notification, audit, forecast data |
 | `redis`           | Redis 7.4                                   | Rate limits, public read caches, and non-authoritative BullMQ orchestration            |
@@ -61,13 +63,19 @@ capacity, inventory, payment, transition, and authorization decisions always rel
 PostgreSQL state.
 
 BullMQ uses a separate queue and worker connection lifecycle because a worker requires blocking,
-reconnecting Redis behavior. The versioned `line.notification-delivery.sweep.v1` job contains only
-`{ version: 1 }`; recipient IDs, provider credentials, and notification payloads remain in
-PostgreSQL. A deterministic Job Scheduler ID prevents duplicate recurring schedules when multiple
-workers start. Worker concurrency is one, sweeps are rate-limited to one per configured delivery
-interval, and the existing bounded outbox batch sends rows serially. BullMQ retries only sweep-level
-infrastructure failures; per-message retry/backoff and terminal state remain authoritative in the
-outbox. Redis/worker downtime therefore increases backlog without blocking API transactions.
+reconnecting Redis behavior. The versioned `line.notification-outbox.dispatch.v1` scheduler job
+contains only `{ version: 1 }`. It claims committed PostgreSQL rows with `SKIP LOCKED` and adds
+`line.notification-delivery.v1` jobs containing only the notification UUID. Recipient IDs,
+provider credentials, locale, and templates remain in PostgreSQL. Each delivery job has the stable
+ID `line-notification-<notification UUID>`, and LINE receives the notification UUID as
+`X-Line-Retry-Key`. A crash before enqueue leaves a stale dispatch claim recoverable; a crash after
+enqueue can redispatch the same BullMQ job harmlessly. Redis/worker downtime therefore grows the
+undispatched PostgreSQL backlog without blocking API transactions.
+
+Delivery retries classify timeouts, `429`, and provider `5xx` as retryable and provider validation
+`4xx` as permanent. BullMQ applies bounded attempts, exponential backoff with jitter,
+`Retry-After`, and provider throttling. PostgreSQL separately records dispatch state and actual
+delivery state; enqueueing a BullMQ job never marks a notification `sent`.
 
 The deployed production request path uses two proxy hops before Express: the host TLS nginx and the web-container nginx. The API therefore sets Express `trust proxy` to `2` so `req.ip` is derived from the forwarded client chain instead of the container socket address. This is important for strict rate limiting and request attribution. API port `4000` remains internal to the Compose network and is not published directly to the internet.
 
@@ -233,16 +241,17 @@ owned by the dedicated BullMQ worker when `LINE_NOTIFICATION_DELIVERY_OWNER=bull
 | ETA updater           | 30 seconds   | Recomputes wait estimates for waiting entries in open queues                     |
 | ETA warning scan      | 30 seconds   | Enqueues approaching-turn LINE notification intents for eligible linked tickets  |
 | Called retry scan     | 60 seconds   | Enqueues called-reminder intents using the same durable event-key deduplication  |
-| Notification delivery | 15 seconds   | BullMQ worker claims due outbox rows and records sent/retry/failed outcomes      |
+| Notification dispatch | 15 seconds   | Claims committed outbox rows and creates deterministic BullMQ delivery jobs      |
+| Notification delivery | Event-driven | LINE worker records actual sent/retry/failed outcomes for one PostgreSQL row     |
 | Counter reset         | Hourly check | Resets counters after the organization-local business date changes               |
 | Forecasting           | Configurable | Persists measured demand/service aggregates, wait forecasts, and staffing advice |
 
-Notification delivery uses PostgreSQL row locking with `FOR UPDATE SKIP LOCKED`; BullMQ does not
+Notification dispatch uses PostgreSQL row locking with `FOR UPDATE SKIP LOCKED`; BullMQ does not
 replace the durable outbox. ETA, warning, called, inventory expiry, location, counter reset,
 forecasting, session cleanup, and email delivery retain their existing scheduler ownership. Those
 singleton scans use PostgreSQL advisory locks where applicable, while row workloads retain safe
 claims. Bare local development can explicitly use API ownership, but a deployment must never run
-both owners for the recurring LINE delivery sweep.
+both owners for LINE delivery.
 
 ## 9. Payment architecture
 

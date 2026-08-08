@@ -1,6 +1,9 @@
+import { UnrecoverableError } from 'bullmq';
+
 import { config } from '../config';
 import type { ILineMessagingAdapter } from '../modules/line/line.adapter';
 import { lineMessagingAdapter } from '../modules/line/line.messaging';
+import { LineProviderError } from '../modules/line/line.sdk.adapter';
 import { lineNotificationService } from '../modules/notifications/line-notification.service';
 import {
   buildTicketDeepLink,
@@ -20,6 +23,19 @@ export interface NotificationDeliveryOptions {
   adapter?: ILineMessagingAdapter;
   batchSize?: number;
   now?: () => Date;
+  random?: () => number;
+}
+
+export interface NotificationFailureClassification {
+  retryable: boolean;
+  retryAfterMs: number | null;
+}
+
+class NotificationPayloadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotificationPayloadError';
+  }
 }
 
 const EVENT_TYPES = new Set<TicketNotificationEventType>([
@@ -38,7 +54,7 @@ function asEventType(value: string): TicketNotificationEventType {
   if (EVENT_TYPES.has(value as TicketNotificationEventType)) {
     return value as TicketNotificationEventType;
   }
-  throw new Error(`Unsupported notification event type: ${value}`);
+  throw new NotificationPayloadError(`Unsupported notification event type: ${value}`);
 }
 
 function numberOrNull(value: unknown): number | null {
@@ -52,7 +68,8 @@ function stringOrFallback(value: unknown, fallback: string): string {
 }
 
 function buildTemplateFromOutbox(row: NotificationOutboxRow) {
-  if (!row.queue_entry_id) throw new Error('Notification is missing queue_entry_id');
+  if (!row.queue_entry_id)
+    throw new NotificationPayloadError('Notification is missing queue_entry_id');
   const payload = row.payload ?? {};
   return buildTicketNotification({
     eventType: asEventType(row.event_type),
@@ -68,38 +85,38 @@ function buildTemplateFromOutbox(row: NotificationOutboxRow) {
   });
 }
 
+export function classifyLineDeliveryError(error: unknown): NotificationFailureClassification {
+  if (error instanceof NotificationPayloadError) return { retryable: false, retryAfterMs: null };
+  if (error instanceof LineProviderError) {
+    return { retryable: error.retryable, retryAfterMs: error.retryAfterMs };
+  }
+  return { retryable: true, retryAfterMs: null };
+}
+
 export function calculateNextRetryAt(
   attemptCount: number,
   now: Date,
-  baseSeconds = config.notifications.retryBaseSeconds
+  baseSeconds = config.notifications.retryBaseSeconds,
+  retryAfterMs = 0,
+  random = Math.random
 ): Date {
-  const delaySeconds = baseSeconds * 2 ** Math.max(0, attemptCount - 1);
-  return new Date(now.getTime() + delaySeconds * 1000);
+  const exponentialMs = Math.min(
+    baseSeconds * 1_000 * 2 ** Math.max(0, attemptCount - 1),
+    60 * 60_000
+  );
+  const jitter = 0.5 + Math.max(0, Math.min(1, random())) * 0.5;
+  return new Date(now.getTime() + Math.max(retryAfterMs, Math.round(exponentialMs * jitter)));
 }
 
-async function handleDeliveryFailure(
+async function deliverClaimedNotification(
   row: NotificationOutboxRow,
-  error: unknown,
-  repository: NotificationOutboxRepository,
-  now: Date
+  options: Required<Pick<NotificationDeliveryOptions, 'repository' | 'adapter' | 'now' | 'random'>>,
+  throwRetryable: boolean
 ): Promise<void> {
-  if (row.attempt_count >= row.max_attempts) {
-    await repository.markFailed(row.id, error);
-    metricsService.increment('notifications_outbox_failed_total');
-    return;
-  }
-
-  await repository.markRetry(row.id, calculateNextRetryAt(row.attempt_count, now), error);
-  metricsService.increment('notifications_outbox_retry_scheduled_total');
-}
-
-export async function deliverOutboxNotification(
-  row: NotificationOutboxRow,
-  options: Required<Pick<NotificationDeliveryOptions, 'repository' | 'adapter' | 'now'>>
-): Promise<void> {
-  const { repository, adapter, now } = options;
+  const { repository, adapter, now, random } = options;
   if (!row.line_user_id) {
     await repository.markFailed(row.id, 'Missing LINE user ID');
+    if (throwRetryable) throw new UnrecoverableError('Missing LINE user ID');
     return;
   }
 
@@ -108,8 +125,9 @@ export async function deliverOutboxNotification(
     return;
   }
 
+  const startedAt = Date.now();
   try {
-    const sent = await lineNotificationService.pushTicketNotification(
+    await lineNotificationService.pushTicketNotificationOrThrow(
       row.line_user_id,
       buildTemplateFromOutbox(row),
       {
@@ -119,47 +137,96 @@ export async function deliverOutboxNotification(
       },
       adapter
     );
-
-    if (sent) {
-      await repository.markSent(row.id);
-      metricsService.increment('notifications_outbox_sent_total');
+    await repository.markSent(row.id);
+    metricsService.increment('notifications_outbox_sent_total');
+  } catch (error) {
+    const classification = classifyLineDeliveryError(error);
+    const exhausted = row.attempt_count >= row.max_attempts;
+    if (!classification.retryable || exhausted) {
+      await repository.markFailed(row.id, error);
+      metricsService.increment('notifications_outbox_failed_total');
+      if (throwRetryable) throw new UnrecoverableError('LINE notification delivery exhausted');
       return;
     }
 
-    await handleDeliveryFailure(row, 'LINE notification delivery failed', repository, now());
-  } catch (err) {
-    await handleDeliveryFailure(row, err, repository, now());
+    await repository.markRetry(
+      row.id,
+      calculateNextRetryAt(
+        row.attempt_count,
+        now(),
+        config.notifications.retryBaseSeconds,
+        classification.retryAfterMs ?? 0,
+        random
+      ),
+      error
+    );
+    metricsService.increment('notifications_outbox_retry_scheduled_total');
+    if (throwRetryable) throw error;
+  } finally {
+    metricsService.setGauge(
+      'notification_worker_processing_seconds',
+      (Date.now() - startedAt) / 1_000
+    );
   }
 }
 
+export async function processOutboxNotificationJob(
+  notificationId: string,
+  jobId: string,
+  options: NotificationDeliveryOptions = {}
+): Promise<void> {
+  const repository = options.repository ?? notificationOutboxRepository;
+  const row = await repository.claimForDelivery(notificationId, jobId);
+  if (!row) return;
+
+  await deliverClaimedNotification(
+    row,
+    {
+      repository,
+      adapter: options.adapter ?? lineMessagingAdapter,
+      now: options.now ?? (() => new Date()),
+      random: options.random ?? Math.random,
+    },
+    true
+  );
+}
+
+export async function deliverOutboxNotification(
+  row: NotificationOutboxRow,
+  options: Required<Pick<NotificationDeliveryOptions, 'repository' | 'adapter' | 'now'>> & {
+    random?: () => number;
+  }
+): Promise<void> {
+  await deliverClaimedNotification(
+    row,
+    { ...options, random: options.random ?? Math.random },
+    false
+  );
+}
+
+/** Native-development compatibility path. Production delivery uses per-row BullMQ jobs. */
 export async function runNotificationDelivery(
   options: NotificationDeliveryOptions = {}
 ): Promise<void> {
   const repository = options.repository ?? notificationOutboxRepository;
   const adapter = options.adapter ?? lineMessagingAdapter;
-  const batchSize = options.batchSize ?? config.notifications.deliveryBatchSize;
   const now = options.now ?? (() => new Date());
-
-  const batch = await repository.claimDue(batchSize);
-  if (batch.length > 0)
-    logger.debug({ count: batch.length }, 'notificationDelivery: claimed batch');
+  const random = options.random ?? Math.random;
+  const batch = await repository.claimDue(
+    options.batchSize ?? config.notifications.deliveryBatchSize
+  );
 
   for (const row of batch) {
     try {
-      await deliverOutboxNotification(row, { repository, adapter, now });
-    } catch (err) {
-      logger.error({ err, notificationId: row.id }, 'notificationDelivery: unexpected row error');
+      await deliverOutboxNotification(row, { repository, adapter, now, random });
+    } catch (error) {
+      logger.error({ error, notificationId: row.id }, 'notificationDelivery: unexpected row error');
     }
   }
 
-  if (repository.deliveryMetrics) {
-    const values = await repository.deliveryMetrics();
-    metricsService.setGauge('notifications_outbox_backlog', Number(values.pending));
-    metricsService.setGauge('notifications_outbox_retry_backlog', Number(values.retrying));
-    metricsService.setGauge('notifications_outbox_failed', Number(values.failed));
-    metricsService.setGauge(
-      'notifications_delivery_latency_seconds',
-      Number(values.latency_seconds)
-    );
-  }
+  const values = await repository.deliveryMetrics();
+  metricsService.setGauge('notifications_outbox_backlog', Number(values.pending));
+  metricsService.setGauge('notifications_outbox_retry_backlog', Number(values.retrying));
+  metricsService.setGauge('notifications_outbox_failed', Number(values.failed));
+  metricsService.setGauge('notifications_delivery_latency_seconds', Number(values.latency_seconds));
 }

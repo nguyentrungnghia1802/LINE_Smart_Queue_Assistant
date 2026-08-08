@@ -81,7 +81,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - LIFF friendship detection and an in-app Add/Unblock Official Account prompt for customers who
   are not yet eligible to receive LINE push messages.
 - Scheduled ETA refresh, approaching-turn scan, called-message retry scan, and daily counter reset,
-  plus a dedicated BullMQ worker for durable LINE notification delivery.
+  plus a PostgreSQL-outbox dispatcher and independently scalable BullMQ LINE notification worker.
 - Rate limits, request IDs, structured logging, basic Prometheus text metrics, health/readiness endpoints, and audit logs.
 - Playwright browser coverage for LIFF mock authentication, required-item demo payment, booking/ticket redirect, staff transitions, durable mock notification delivery, receipt access, public application/admin approval, manager QR/settings, complete role navigation, and desktop/mobile overflow checks.
 - Database structures for booking groups, location snapshots/alerts, forecast history, and staffing recommendations.

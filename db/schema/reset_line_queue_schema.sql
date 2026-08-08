@@ -937,7 +937,15 @@ CREATE TABLE notifications (
   max_attempts      INT NOT NULL DEFAULT 5,
   next_retry_at     TIMESTAMPTZ,
   processing_started_at TIMESTAMPTZ,
+  processing_job_id TEXT,
   last_error        TEXT,
+  dispatch_status   TEXT NOT NULL DEFAULT 'pending',
+  dispatch_attempt_count INT NOT NULL DEFAULT 0,
+  dispatch_next_retry_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  dispatch_started_at TIMESTAMPTZ,
+  dispatch_job_id   TEXT,
+  dispatched_at     TIMESTAMPTZ,
+  dispatch_last_error TEXT,
   manual_retry_count INT NOT NULL DEFAULT 0,
   operator_note     TEXT,
   sent_at           TIMESTAMPTZ,
@@ -945,9 +953,13 @@ CREATE TABLE notifications (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   CONSTRAINT notifications_attempt_count_non_negative CHECK (attempt_count >= 0),
+  CONSTRAINT notifications_dispatch_attempt_non_negative CHECK (dispatch_attempt_count >= 0),
   CONSTRAINT notifications_manual_retry_non_negative CHECK (manual_retry_count >= 0),
   CONSTRAINT notifications_max_attempts_positive CHECK (max_attempts > 0),
   CONSTRAINT notifications_event_key_unique UNIQUE (event_key),
+  CONSTRAINT notifications_dispatch_status_supported CHECK (
+    dispatch_status IN ('pending', 'dispatching', 'dispatched')
+  ),
   CONSTRAINT notifications_event_type_supported CHECK (
     event_type IN (
       'booking_created', 'eta_warning', 'called', 'serving', 'completed',
@@ -1122,6 +1134,12 @@ CREATE INDEX idx_notif_user_recent ON notifications(user_id, created_at DESC)
   WHERE user_id IS NOT NULL AND status = 'sent';
 CREATE INDEX idx_notif_line_user_recent ON notifications(line_user_id, created_at DESC)
   WHERE line_user_id IS NOT NULL AND status = 'sent';
+CREATE INDEX idx_notifications_dispatch_due
+  ON notifications(dispatch_next_retry_at, created_at)
+  WHERE channel = 'line_push' AND status = 'pending' AND dispatch_status = 'pending';
+CREATE INDEX idx_notifications_dispatch_claim_recovery
+  ON notifications(dispatch_started_at)
+  WHERE channel = 'line_push' AND status = 'pending' AND dispatch_status = 'dispatching';
 
 CREATE INDEX idx_penalty_user_recent ON penalty_records(user_id, created_at DESC)
   WHERE user_id IS NOT NULL;

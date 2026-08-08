@@ -1,6 +1,6 @@
 # Scalability Baseline and Target Architecture
 
-Verified against the TASK-04 working tree on 2026-08-08. This document records the current runtime
+Verified against the TASK-05 working tree on 2026-08-08. This document records the current runtime
 boundary, a small reproducible development baseline, target SLOs, and the technical motivation for
 later scaling work. It does not claim production capacity. Redis and the initial BullMQ worker are
 implemented; SSE and the remaining worker migrations are staged future work.
@@ -41,9 +41,9 @@ host TLS proxy -> web Nginx -> Express API process -> PostgreSQL 16
                                   +-> Google Routes
                                   +-> payOS when configured
 
-private Redis 7.4 -> BullMQ LINE delivery scheduler -> dedicated worker -> PostgreSQL outbox
+PostgreSQL outbox -> dispatcher -> private Redis/BullMQ -> dedicated LINE worker
                                                                |
-                                                               +-> LINE Messaging API
+                                                               +-> LINE Messaging API -> PostgreSQL outcome
 ```
 
 The production Compose definition contains one API service, one dedicated worker, one Web service,
@@ -61,26 +61,26 @@ made configurable and bounded against the database connection budget.
 
 ## 3. Current background work
 
-| Workload             | Default cadence | Coordination and current execution                                                                    |
-| -------------------- | --------------- | ----------------------------------------------------------------------------------------------------- |
-| Session cleanup      | 1 hour          | Advisory lock; bounded delete of expired/revoked sessions                                             |
-| ETA update           | 30 seconds      | Advisory lock; one concurrent window-function update per open queue                                   |
-| ETA warning scan     | 30 seconds      | Advisory lock; global candidate scan and durable notification enqueue                                 |
-| Called reminder scan | 60 seconds      | Advisory lock; recent-called scan and durable event-key deduplication                                 |
-| Inventory expiry     | 60 seconds      | Advisory lock plus `SKIP LOCKED`; bounded order cancellation/release transaction                      |
-| Location alerts      | 60 seconds      | Advisory lock plus `SKIP LOCKED`; sequential Google Routes calls while one DB transaction is open     |
-| Location cleanup     | 1 hour          | Advisory lock; bounded location anonymization                                                         |
-| LINE delivery        | 15 seconds      | BullMQ worker sweep; `SKIP LOCKED`, bounded batch retry/backoff, durable PostgreSQL sent/failed state |
-| Email delivery       | 15 seconds      | `SKIP LOCKED`; sequential batch delivery when email is enabled                                        |
-| Counter reset        | 1 hour          | Advisory lock; organization-timezone-aware bulk update                                                |
-| Forecasting          | 1 hour          | Advisory lock; all-branch slot aggregation, current-load calculation, persistence, and expiry         |
+| Workload             | Default cadence | Coordination and current execution                                                                |
+| -------------------- | --------------- | ------------------------------------------------------------------------------------------------- |
+| Session cleanup      | 1 hour          | Advisory lock; bounded delete of expired/revoked sessions                                         |
+| ETA update           | 30 seconds      | Advisory lock; one concurrent window-function update per open queue                               |
+| ETA warning scan     | 30 seconds      | Advisory lock; global candidate scan and durable notification enqueue                             |
+| Called reminder scan | 60 seconds      | Advisory lock; recent-called scan and durable event-key deduplication                             |
+| Inventory expiry     | 60 seconds      | Advisory lock plus `SKIP LOCKED`; bounded order cancellation/release transaction                  |
+| Location alerts      | 60 seconds      | Advisory lock plus `SKIP LOCKED`; sequential Google Routes calls while one DB transaction is open |
+| Location cleanup     | 1 hour          | Advisory lock; bounded location anonymization                                                     |
+| LINE dispatch        | 15 seconds      | `SKIP LOCKED` committed-row claims and deterministic per-notification BullMQ jobs                 |
+| LINE delivery        | Event-driven    | Bounded provider-aware retry/backoff and durable PostgreSQL sent/failed state                     |
+| Email delivery       | 15 seconds      | `SKIP LOCKED`; sequential batch delivery when email is enabled                                    |
+| Counter reset        | 1 hour          | Advisory lock; organization-timezone-aware bulk update                                            |
+| Forecasting          | 1 hour          | Advisory lock; all-branch slot aggregation, current-load calculation, persistence, and expiry     |
 
 `JobRunner` prevents overlapping cycles only inside one API process. Advisory locks provide
 cross-process ownership for the named API jobs. The BullMQ worker uses one versioned deterministic
-scheduler, one active sweep per worker policy, bounded retries, and graceful drain. LINE and email
-delivery services rely on PostgreSQL row claims, allowing separate processes to handle different
-rows safely. BullMQ job state is operational only; the PostgreSQL outbox and event key are the
-delivery authority across restarts or Redis loss.
+dispatcher scheduler and one deterministic delivery job per outbox row. Delivery attempts are
+bounded, jittered, provider-aware, throttled, and drained gracefully. The PostgreSQL outbox and
+event key remain the delivery authority; Redis outages leave rows undispatched and recoverable.
 
 ## 4. Process-local state
 
@@ -275,10 +275,10 @@ PostgreSQL remains the source of truth throughout the target evolution.
 1. **Redis:** shared protected-write/auth rate-limit counters and bounded public read-model caches
    are implemented. Short-lived coordination and Pub/Sub fan-out remain later tasks. Redis failure
    must not authorize invalid domain state.
-2. **BullMQ:** the versioned LINE notification-delivery sweep and dedicated worker are implemented
-   with deterministic scheduling, bounded attempts/backoff, concurrency/throttling, and health
-   signals. PostgreSQL outbox/event keys remain the business-delivery record. Per-notification
-   dispatch and other workloads remain later tasks.
+2. **BullMQ:** the versioned PostgreSQL dispatcher and per-notification LINE worker are implemented
+   with deterministic jobs, crash-safe redispatch, bounded provider-aware attempts/backoff,
+   concurrency/throttling, backlog metrics, and health signals. PostgreSQL outbox/event keys remain
+   the business-delivery record. Other workloads remain later tasks.
 3. **Dedicated workers:** LINE delivery is isolated from HTTP serving. Email delivery,
    ETA/notification scans, location routes, inventory expiry, forecasting, session cleanup, and
    counter reset remain API-owned until separately justified and migrated. Singleton jobs retain
