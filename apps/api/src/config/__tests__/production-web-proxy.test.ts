@@ -85,6 +85,9 @@ describe('production web reverse proxy configuration', () => {
     expect(deployCompose).toBe(canonicalCompose);
     expect(canonicalCompose).toContain('media_data:/app/var/media');
     expect(canonicalCompose).toContain('MEDIA_LOCAL_DIR: ${MEDIA_LOCAL_DIR:-/app/var/media}');
+    expect(canonicalCompose).toContain('image: redis:7.4-alpine');
+    expect(canonicalCompose).toContain('REDIS_URL: ${REDIS_URL:-redis://redis:6379}');
+    expect(canonicalCompose).toContain('redis_data:/data');
     expect(apiDockerfile).toContain('mkdir -p /app/var/media');
     expect(apiDockerfile).toContain('chown appuser:appgroup /app/var/media');
   });

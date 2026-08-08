@@ -13,6 +13,32 @@ function positiveInteger(name: string, fallback: number): number {
   return value;
 }
 
+function optionalRedisUrl(): string {
+  const value = process.env.REDIS_URL?.trim() ?? '';
+  if (!value) return '';
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error('REDIS_URL must be a valid redis:// or rediss:// URL');
+  }
+
+  if (parsed.protocol !== 'redis:' && parsed.protocol !== 'rediss:') {
+    throw new Error('REDIS_URL must use the redis:// or rediss:// protocol');
+  }
+
+  return value;
+}
+
+function redisKeyPrefix(): string {
+  const value = process.env.REDIS_KEY_PREFIX?.trim() || 'sqa';
+  if (!/^[a-zA-Z0-9:_-]{1,64}$/.test(value)) {
+    throw new Error('REDIS_KEY_PREFIX must contain 1-64 safe key-prefix characters');
+  }
+  return value;
+}
+
 export const config = {
   nodeEnv: (process.env.NODE_ENV ?? 'development') as 'development' | 'production' | 'test',
   port: Number.parseInt(process.env.API_PORT ?? '4000', 10),
@@ -25,6 +51,13 @@ export const config = {
     name: process.env.DB_NAME ?? 'line_queue',
     user: process.env.DB_USER ?? 'postgres',
     password: process.env.DB_PASSWORD ?? '',
+  },
+
+  redis: {
+    url: optionalRedisUrl(),
+    connectTimeoutMs: positiveInteger('REDIS_CONNECT_TIMEOUT_MS', 5_000),
+    commandTimeoutMs: positiveInteger('REDIS_COMMAND_TIMEOUT_MS', 1_000),
+    keyPrefix: redisKeyPrefix(),
   },
 
   jwt: {
@@ -90,9 +123,7 @@ export const config = {
   email: {
     mode: (process.env.EMAIL_TRANSPORT ??
       (process.env.NODE_ENV === 'production' ? 'disabled' : 'mock')) as
-      | 'disabled'
-      | 'mock'
-      | 'smtp',
+      'disabled' | 'mock' | 'smtp',
     fromName: process.env.EMAIL_FROM_NAME ?? 'LINE Smart Queue Assistant',
     fromAddress: process.env.EMAIL_FROM_ADDRESS ?? 'no-reply@example.invalid',
     smtp: {

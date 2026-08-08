@@ -54,6 +54,7 @@ a source of current behavior.
 | `apps/api/src/app.ts`                                  | Express middleware, health, docs, and API composition                  | `02`, `05`, security tests             |
 | `apps/api/src/server.ts`                               | API startup/shutdown and scheduler lifecycle                           | `02`, `07`, `08`                       |
 | `apps/api/src/config/index.ts`                         | Backend environment parsing and defaults                               | env examples, `08`                     |
+| `apps/api/src/infrastructure/redis`                    | Shared Redis lifecycle and resilient distributed rate-limit store      | `02`, `07`, `08`, ADR-028              |
 | `apps/api/src/routes/v1.routes.ts`                     | `/api/v1` module mounting and ordering                                 | route modules, `05`, OpenAPI test      |
 | `apps/api/src/modules/*`                               | Domain route/controller/validator/service/repository code              | relevant `01`, `03`, `04`, `05`, tests |
 | `apps/api/src/db/repositories`                         | Parameterized SQL and row mapping                                      | `04`, service tests, migrations        |
@@ -199,6 +200,7 @@ the destructive reset schema or E2E fixtures against shared data.
 | Family          | Important variables                                                                                                                                                 | Exposure                                                 |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | Database/API    | `DATABASE_URL`, `DB_*`, `API_*`, `CORS_ORIGIN`, `WEB_ORIGIN`                                                                                                        | API/server only                                          |
+| Redis           | `REDIS_URL`, `REDIS_CONNECT_TIMEOUT_MS`, `REDIS_COMMAND_TIMEOUT_MS`, `REDIS_KEY_PREFIX`                                                                             | API/server only; URL may contain credentials             |
 | Auth            | `JWT_SECRET`, `JWT_ACCESS_EXPIRES_IN`, `AUTH_*`                                                                                                                     | Secret plus server-only policy                           |
 | LINE Login/LIFF | `LINE_LOGIN_CHANNEL_ID`, `LINE_LOGIN_LIFF_ID`, `LINE_ID_TOKEN_VERIFICATION_MODE`, `LINE_LIFF_ENDPOINT_PATH`                                                         | IDs/path are public; verification mode is server runtime |
 | LINE Messaging  | `LINE_MESSAGING_CHANNEL_SECRET`, `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`, `LINE_NOTIFICATION_*`, `LINE_RICH_MENU_IMAGE_PATH`                                          | Server-only except non-secret tuning                     |

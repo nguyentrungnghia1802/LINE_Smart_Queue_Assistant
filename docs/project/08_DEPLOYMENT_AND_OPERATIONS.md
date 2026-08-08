@@ -83,6 +83,11 @@ values. It omits all `VITE_*` values because an already-built web image cannot r
 from the server `.env`; rebuild the web image when public frontend configuration changes. Runtime
 variables shared by the production API must remain synchronized between both examples.
 
+Redis runtime configuration is backend-only. Set `REDIS_URL=redis://redis:6379` for the bundled
+Compose service, plus bounded connect/command timeouts and a deployment-specific key prefix when
+multiple environments share one managed Redis. Do not expose Redis port `6379` publicly and do not
+place Redis credentials in frontend build arguments.
+
 Browser-visible configuration:
 
 - `VITE_API_URL`
@@ -159,6 +164,7 @@ docker compose ps
 The stack builds:
 
 - PostgreSQL 16 with persistent `postgres_data`;
+- Redis 7.4 with AOF-backed `redis_data`, private to the Compose network;
 - API TypeScript build/Node runner reachable inside the Compose network as `api:4000`;
 - Vite static bundle served by nginx on `WEB_PORT`, including same-origin `/api/*` proxying to the API service.
 
@@ -264,15 +270,22 @@ Use expand/backfill/contract deployment for schema changes that cannot be comple
 
 ## 5. Health and observability
 
-| Endpoint/signal | Meaning                                                                     |
-| --------------- | --------------------------------------------------------------------------- |
-| `/health`       | API process plus DB status, scheduler state, and LINE configuration summary |
-| `/ready`        | Database accepts connections; use for traffic readiness                     |
-| `/metrics`      | In-memory Prometheus-format counters; restrict from public internet         |
-| Pino HTTP logs  | Structured requests/errors with request ID                                  |
-| Audit logs      | Administrative/resource changes in PostgreSQL                               |
+| Endpoint/signal | Meaning                                                                 |
+| --------------- | ----------------------------------------------------------------------- |
+| `/health`       | API/DB status, safe Redis lifecycle state, scheduler, and LINE summary  |
+| `/ready`        | Database accepts connections; Redis state is reported but is not a gate |
+| `/metrics`      | In-memory Prometheus-format counters; restrict from public internet     |
+| Pino HTTP logs  | Structured requests/errors with request ID                              |
+| Audit logs      | Administrative/resource changes in PostgreSQL                           |
 
 Current metrics are process-local and reset on restart. Notification delivery counters include sent, retry-scheduled, and failed outbox outcomes, while the durable row state remains in PostgreSQL. Production should scrape frequently and add latency histograms, DB pool saturation, queue depth, job duration/failure, notification/payment states, stock conflicts, and webhook lag.
+
+Redis connection errors, command timeouts, and rate-limit fallback requests are exported as safe
+process-local counters. During a Redis outage, strict auth/webhook and write policies fall back to
+bounded in-process counters; they never become unlimited. Existing status codes, thresholds, error
+envelopes, and proxy-derived client keys are preserved. PostgreSQL-backed domain operations remain
+available. Investigate Redis health and restore it promptly because limits are only instance-local
+during the outage.
 
 ## 6. Scheduled jobs operations
 

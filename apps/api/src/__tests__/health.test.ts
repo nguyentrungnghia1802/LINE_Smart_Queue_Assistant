@@ -45,6 +45,10 @@ describe('GET /health', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       status: 'ok',
+      redis: {
+        enabled: false,
+        status: 'disabled',
+      },
     });
     expect(typeof res.body.timestamp).toBe('string');
     expect(typeof res.body.uptime).toBe('number');
@@ -70,6 +74,10 @@ describe('GET /ready', () => {
     expect(res.body).toMatchObject({
       status: 'ready',
       db: 'connected',
+      redis: {
+        enabled: false,
+        status: 'disabled',
+      },
     });
   });
 

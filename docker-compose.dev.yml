@@ -33,6 +33,23 @@ services:
       start_period: 10s
       retries: 5
 
+  # Shared ephemeral coordination. PostgreSQL remains authoritative.
+  redis:
+    image: redis:7.4-alpine
+    container_name: lq-dev-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes', '--appendfsync', 'everysec']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      start_period: 5s
+      retries: 5
+
   # ── API dev (ts-node-dev hot-reload) ────────────────────────────────────────
   api:
     build:
@@ -46,6 +63,7 @@ services:
       NODE_ENV: development
       API_PORT: 4000
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-dev_password}@postgres:5432/${DB_NAME:-line_queue_dev}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       CORS_ORIGIN: http://localhost:5173
       LINE_ID_TOKEN_VERIFICATION_MODE: mock
       LINE_ID_TOKEN_MOCK_VALUE: mock-liff-id-token
@@ -112,3 +130,4 @@ services:
 
 volumes:
   postgres_dev_data: # Separate volume — dev data never touches prod
+  redis_dev_data: # Disposable coordination/cache data for local development

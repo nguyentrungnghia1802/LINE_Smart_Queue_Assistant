@@ -166,8 +166,7 @@ export function BusinessRegistrationPage() {
     } catch (submitError) {
       if (submitError instanceof ApiClientError) {
         const details = submitError.details as
-          | { fieldErrors?: Record<string, string[]> }
-          | undefined;
+          { fieldErrors?: Record<string, string[]> } | undefined;
         setFieldErrors(details?.fieldErrors ?? {});
         setError(submitError.message);
       } else {

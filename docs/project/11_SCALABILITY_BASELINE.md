@@ -42,10 +42,11 @@ host TLS proxy -> web Nginx -> Express API process -> PostgreSQL 16
                                   +-> payOS when configured
 ```
 
-The production Compose definition contains one API service, one Web service, and PostgreSQL. The
-API port is private to the Compose network. All scheduled work runs in each API process; there is no
-separate worker deployment. PostgreSQL remains authoritative for domain state, sessions, payment
-events, notification/email outboxes, inventory reservations, and job-run health.
+The production Compose definition contains one API service, one Web service, PostgreSQL, and a
+private Redis service. The API port and Redis port are private to the Compose network. All scheduled
+work still runs in each API process; there is no separate worker deployment. PostgreSQL remains
+authoritative for domain state, sessions, payment events, notification/email outboxes, inventory
+reservations, and job-run health. Redis currently coordinates only protected rate-limit counters.
 
 The PostgreSQL pool is created once per API process with a hard-coded maximum of 20 connections in
 non-test environments, an idle timeout of 30 seconds, and a connection timeout of 5 seconds. Every
@@ -79,16 +80,18 @@ database pool or container is forcibly closed.
 | State                             | Classification                         | Multi-instance effect                                                                                               |
 | --------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Successful idempotency responses  | Correctness-sensitive request behavior | A retry routed to another instance cannot reuse the first response; durable DB constraints cover only some commands |
-| Rate-limit counters               | Security and operational consistency   | Limits apply per instance rather than globally                                                                      |
+| Protected-write/auth rate limits  | Shared ephemeral Redis state           | Healthy replicas share counters; Redis outage uses bounded per-instance fallback with logs/metrics                  |
+| Global/read rate-limit counters   | Coarse process-local protection        | Non-sensitive limits apply per instance; no domain authorization depends on them                                    |
 | Organization/product/queue caches | Performance-only                       | Replicas can serve different cached values until TTL/invalidation; PostgreSQL remains authoritative                 |
 | Job overlap set and timers        | Local execution control                | Advisory locks or row claims preserve covered jobs; the local set alone is not distributed                          |
 | Metrics counters and gauges       | Observability-only                     | Values reset on restart and cannot be aggregated correctly across replicas                                          |
 | Frontend query cache/auth timers  | Browser-local UX state                 | Does not coordinate browsers or API replicas                                                                        |
 
-Before unrestricted horizontal API scaling, distributed rate limiting and idempotency behavior
-must be defined. Cache invalidation can remain best-effort only for explicitly non-authoritative
-reads. Domain correctness must continue to rely on PostgreSQL transactions, locks, constraints,
-and durable event keys rather than Redis availability.
+Distributed protected-write/auth rate limiting is now defined; correctness-sensitive idempotency
+behavior still requires shared treatment before unrestricted horizontal API scaling. Cache
+invalidation can remain best-effort only for explicitly non-authoritative reads. Domain correctness
+continues to rely on PostgreSQL transactions, locks, constraints, and durable event keys rather
+than Redis availability.
 
 ## 5. High-frequency read paths
 
@@ -245,8 +248,9 @@ exported to a durable monitoring system.
 
 PostgreSQL remains the source of truth throughout the target evolution.
 
-1. **Redis:** shared rate-limit counters, bounded non-authoritative cache, short-lived coordination,
-   and Pub/Sub fan-out. Redis failure must not authorize invalid domain state.
+1. **Redis:** shared protected-write/auth rate-limit counters are implemented with bounded local
+   fallback. Non-authoritative cache, short-lived coordination, and Pub/Sub fan-out remain later
+   tasks. Redis failure must not authorize invalid domain state.
 2. **BullMQ:** durable scheduling/attempt orchestration for work that benefits from delayed jobs,
    concurrency control, backoff, and operational inspection. PostgreSQL outbox/event keys remain
    the business-delivery record.

@@ -1,9 +1,10 @@
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator, Store } from 'express-rate-limit';
 
 import { config } from '../config';
+import { ResilientRateLimitStore } from '../infrastructure/redis';
 import { AppError } from '../utils/AppError';
 
-function resolveClientIp(req: { headers: Record<string, unknown>; ip?: string }): string {
+export function resolveClientIp(req: { headers: Record<string, unknown>; ip?: string }): string {
   const forwarded = req.headers['x-forwarded-for'];
   const forwardedValue = Array.isArray(forwarded) ? forwarded[0] : forwarded;
   const candidate =
@@ -13,7 +14,10 @@ function resolveClientIp(req: { headers: Record<string, unknown>; ip?: string })
   return candidate && candidate.length > 0 ? candidate : 'unknown';
 }
 
-function clientIpRateLimitKey(req: { headers: Record<string, unknown>; ip?: string }): string {
+export function clientIpRateLimitKey(req: {
+  headers: Record<string, unknown>;
+  ip?: string;
+}): string {
   const ip = resolveClientIp(req);
   return ip === 'unknown' ? ip : ipKeyGenerator(ip);
 }
@@ -37,16 +41,21 @@ export const apiRateLimiter = rateLimit({
  * Strict rate limiter for sensitive endpoints (auth, webhook).
  * 20 requests per minute per IP.
  */
-export const strictRateLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: config.nodeEnv === 'production' ? 20 : 120,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  handler: (_req, _res, next) => {
-    next(AppError.tooManyRequests());
-  },
-  keyGenerator: clientIpRateLimitKey,
-});
+export function createStrictRateLimiter(options?: { limit?: number; store?: Store }) {
+  return rateLimit({
+    windowMs: 60 * 1000,
+    limit: options?.limit ?? (config.nodeEnv === 'production' ? 20 : 120),
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: (_req, _res, next) => {
+      next(AppError.tooManyRequests());
+    },
+    keyGenerator: clientIpRateLimitKey,
+    store: options?.store ?? new ResilientRateLimitStore('strict'),
+  });
+}
+
+export const strictRateLimiter = createStrictRateLimiter();
 
 export const publicReadRateLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -59,16 +68,21 @@ export const publicReadRateLimiter = rateLimit({
   keyGenerator: clientIpRateLimitKey,
 });
 
-export const publicWriteRateLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 15,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  handler: (_req, _res, next) => {
-    next(AppError.tooManyRequests());
-  },
-  keyGenerator: clientIpRateLimitKey,
-});
+export function createPublicWriteRateLimiter(options?: { limit?: number; store?: Store }) {
+  return rateLimit({
+    windowMs: 60 * 1000,
+    limit: options?.limit ?? 15,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: (_req, _res, next) => {
+      next(AppError.tooManyRequests());
+    },
+    keyGenerator: clientIpRateLimitKey,
+    store: options?.store ?? new ResilientRateLimitStore('public-write'),
+  });
+}
+
+export const publicWriteRateLimiter = createPublicWriteRateLimiter();
 
 export const authenticatedActionRateLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -79,4 +93,5 @@ export const authenticatedActionRateLimiter = rateLimit({
     next(AppError.tooManyRequests());
   },
   keyGenerator: (req) => req.user?.id ?? clientIpRateLimitKey(req),
+  store: new ResilientRateLimitStore('authenticated-action'),
 });

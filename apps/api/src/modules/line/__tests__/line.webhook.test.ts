@@ -57,6 +57,12 @@ jest.mock('../../../config', () => ({
     cors: { origin: 'http://localhost:5173' },
     jwt: { secret: 'test-jwt-secret', expiresIn: '7d' },
     database: { url: '' },
+    redis: {
+      url: '',
+      connectTimeoutMs: 5000,
+      commandTimeoutMs: 1000,
+      keyPrefix: 'sqa-test',
+    },
     media: {
       mode: 'mock',
       localDir: '',
