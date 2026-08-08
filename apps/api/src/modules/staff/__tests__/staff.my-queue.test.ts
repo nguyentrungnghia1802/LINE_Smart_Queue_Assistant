@@ -223,6 +223,26 @@ describe('staffService.getMyQueueOverview', () => {
     expect(result?.waitingCount).toBe(1);
   });
 
+  it('returns only the queue assigned to the staff member', async () => {
+    const secondQueue = { ...queueRow, id: 'queue-002', name: 'Counter B' };
+    mockFindActiveByBranches.mockResolvedValue([queueRow, secondQueue]);
+    mockFindById.mockImplementation(async (id) => (id === secondQueue.id ? secondQueue : queueRow));
+    mockListWaiting.mockResolvedValue([]);
+    mockFindByQueueAndStatus.mockResolvedValue(null);
+
+    const result = await staffService.getMyQueueOverview(
+      ORG_ID,
+      [BRANCH_ID],
+      undefined,
+      secondQueue.id
+    );
+
+    expect(result?.queueId).toBe(secondQueue.id);
+    expect(result?.availableQueues).toEqual([{ id: secondQueue.id, name: secondQueue.name }]);
+    expect(mockFindById).toHaveBeenCalledWith(secondQueue.id);
+    expect(mockFindById).not.toHaveBeenCalledWith(queueRow.id);
+  });
+
   it('returns only the first eight waiting entries while preserving the total count', async () => {
     const waitingEntries = Array.from({ length: 8 }, (_, index) =>
       makeEntry(`e${index + 1}`, `A-${index + 1}`, 'waiting')

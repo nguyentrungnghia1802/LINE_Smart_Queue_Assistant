@@ -21,12 +21,10 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   if (err instanceof ZodError) {
     // Build fieldErrors map from issues (replaces deprecated err.flatten())
     const fieldErrors = err.issues.reduce<Record<string, string[]>>((acc, issue) => {
-      if (issue.path.length > 0) {
-        const key = issue.path.map(String).join('.');
-        (acc[key] ??= []).push(issue.message);
-        const rootKey = String(issue.path[0]);
-        if (rootKey !== key) (acc[rootKey] ??= []).push(issue.message);
-      }
+      const key = issue.path.length > 0 ? issue.path.map(String).join('.') : '_form';
+      (acc[key] ??= []).push(issue.message);
+      const rootKey = issue.path.length > 0 ? String(issue.path[0]) : key;
+      if (rootKey !== key) (acc[rootKey] ??= []).push(issue.message);
       return acc;
     }, {});
     sendError(res, 422, 'VALIDATION_ERROR', 'Request validation failed', { fieldErrors });

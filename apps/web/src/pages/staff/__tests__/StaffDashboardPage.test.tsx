@@ -85,6 +85,7 @@ describe('StaffDashboardPage', () => {
     expect(await screen.findByText('LINE 山田')).toBeInTheDocument();
     expect(screen.getByText('LINE表示名')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '次の番号を呼び出す' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'キューを選択' })).not.toBeInTheDocument();
   });
 
   it('disables manual payment confirmation when the order is already paid', async () => {

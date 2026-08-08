@@ -20,7 +20,14 @@ import {
   Utensils,
   X,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
@@ -123,24 +130,28 @@ export function MarketingHomePage() {
               <Solution
                 number="01"
                 icon={Scissors}
+                imageSrc="/img/solutions/salon.webp"
                 label={t('solutions.salon')}
                 description={t('solutions.details.salon')}
               />
               <Solution
                 number="02"
                 icon={HeartPulse}
+                imageSrc="/img/solutions/clinic.webp"
                 label={t('solutions.clinic')}
                 description={t('solutions.details.clinic')}
               />
               <Solution
                 number="03"
                 icon={Utensils}
+                imageSrc="/img/solutions/restaurant.webp"
                 label={t('solutions.restaurant')}
                 description={t('solutions.details.restaurant')}
               />
               <Solution
                 number="04"
                 icon={ShoppingBag}
+                imageSrc="/img/solutions/counter.webp"
                 label={t('solutions.counter')}
                 description={t('solutions.details.counter')}
               />
@@ -281,7 +292,7 @@ function MarketingHeader({
               <a
                 key={href}
                 href={href}
-                onClick={onCloseNavigation}
+                onClick={(event) => scrollToSection(event, href, onCloseNavigation)}
                 className="flex min-h-11 items-center justify-between rounded-lg px-3 text-sm font-semibold text-gray-800 hover:bg-gray-100"
               >
                 {label}
@@ -307,6 +318,7 @@ function HeaderAnchor({ href, label }: Readonly<{ href: string; label: string }>
   return (
     <a
       href={href}
+      onClick={(event) => scrollToSection(event, href)}
       className="border-b-2 border-transparent py-6 text-sm font-semibold text-gray-600 transition hover:border-brand-500 hover:text-gray-950"
     >
       {label}
@@ -388,6 +400,7 @@ function HeroSection() {
             </Link>
             <a
               href="#product"
+              onClick={(event) => scrollToSection(event, '#product')}
               className="inline-flex min-h-12 items-center rounded-lg border border-white/60 bg-gray-950/25 px-6 py-3 text-sm font-bold text-white backdrop-blur-sm hover:bg-white/15"
             >
               {t('hero.secondary')}
@@ -413,6 +426,7 @@ function HeroSection() {
 
       <a
         href="#product"
+        onClick={(event) => scrollToSection(event, '#product')}
         className="absolute bottom-7 right-6 hidden h-11 w-11 items-center justify-center rounded-full border border-white/40 text-white hover:bg-white/10 lg:flex"
         aria-label={t('hero.secondary')}
       >
@@ -464,22 +478,33 @@ function Feature({
 function Solution({
   number,
   icon: Icon,
+  imageSrc,
   label,
   description,
 }: Readonly<{
   number: string;
   icon: typeof Store;
+  imageSrc: string;
   label: string;
   description: string;
 }>) {
   return (
-    <article className="flex min-h-80 flex-col bg-gray-950 p-7 transition hover:bg-gray-900 sm:p-8">
-      <div className="flex items-center justify-between text-gray-400">
-        <span className="text-xs font-bold">{number}</span>
-        <Icon className="h-8 w-8 text-emerald-300" aria-hidden="true" />
+    <article className="group flex min-h-[28rem] flex-col bg-gray-950 transition hover:bg-gray-900">
+      <div className="relative aspect-[4/3] overflow-hidden">
+        <img
+          src={imageSrc}
+          alt={label}
+          loading="lazy"
+          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-950/45 to-transparent" />
       </div>
-      <div className="mt-auto pt-16">
-        <h3 className="text-xl font-bold text-white">{label}</h3>
+      <div className="flex flex-1 flex-col p-7 sm:p-8">
+        <div className="flex items-center justify-between text-gray-400">
+          <span className="text-xs font-bold">{number}</span>
+          <Icon className="h-7 w-7 text-emerald-300" aria-hidden="true" />
+        </div>
+        <h3 className="mt-8 text-xl font-bold text-white">{label}</h3>
         <p className="mt-3 text-sm leading-6 text-gray-400">{description}</p>
       </div>
     </article>
@@ -595,7 +620,9 @@ function MarketingFooter() {
         <div className="flex flex-col gap-5 pt-7 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs">{t('footer.copyright')}</p>
           <nav className="flex flex-wrap gap-x-6 gap-y-2 font-semibold">
-            <a href="#product">{t('footer.product')}</a>
+            <a href="#product" onClick={(event) => scrollToSection(event, '#product')}>
+              {t('footer.product')}
+            </a>
             <Link to="/business/register">{t('nav.businessSignup')}</Link>
             <Link to="/login">{t('nav.login')}</Link>
           </nav>
@@ -603,6 +630,22 @@ function MarketingFooter() {
       </div>
     </footer>
   );
+}
+
+function scrollToSection(
+  event: ReactMouseEvent<HTMLAnchorElement>,
+  href: string,
+  onScrolled?: () => void
+) {
+  const target = document.querySelector<HTMLElement>(href);
+  if (!target) return;
+  event.preventDefault();
+  const reducedMotion =
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  target.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+  window.history.replaceState(null, '', href);
+  onScrolled?.();
 }
 
 function RevealSection({

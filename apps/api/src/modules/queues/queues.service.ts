@@ -172,6 +172,10 @@ export const queuesService = {
     if (existing.organization_id !== scope.organizationId || existing.branch_id !== scope.branchId)
       throw AppError.forbidden('Queue is outside your assigned branch');
 
+    if ((await queuesRepository.countStaffAssignments(id)) > 0) {
+      throw AppError.conflict('Reassign staff before removing this queue');
+    }
+
     await queuesRepository.softDelete(id);
   },
 };

@@ -458,6 +458,10 @@ export class BranchesRepository extends BaseRepository {
          AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.booking_group_id = bg.id)`,
       [bookingGroupIds]
     );
+    await client.query(
+      'DELETE FROM branch_memberships WHERE branch_id = $1 AND organization_id = $2',
+      [branch.id, branch.organization_id]
+    );
     await client.query('DELETE FROM queues WHERE id = ANY($1::uuid[])', [queueIds]);
     await client.query('DELETE FROM organization_branches WHERE id = $1 AND organization_id = $2', [
       branch.id,
@@ -638,15 +642,17 @@ export class BranchesRepository extends BaseRepository {
       role: 'manager' | 'staff';
       assignedBy: string;
       isActive?: boolean;
+      queueId?: string | null;
     },
     client: PoolClient
   ): Promise<void> {
     await client.query(
       `INSERT INTO branch_memberships (
-         organization_id, branch_id, user_id, role, is_active, assigned_by
+         organization_id, branch_id, queue_id, user_id, role, is_active, assigned_by
        )
-       VALUES ($1,$2,$3,$4,$5,$6)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT (branch_id, user_id) DO UPDATE SET
+         queue_id = EXCLUDED.queue_id,
          role = EXCLUDED.role,
          is_active = EXCLUDED.is_active,
          assigned_by = EXCLUDED.assigned_by,
@@ -655,12 +661,34 @@ export class BranchesRepository extends BaseRepository {
       [
         params.organizationId,
         params.branchId,
+        params.queueId ?? null,
         params.userId,
         params.role,
         params.isActive ?? false,
         params.assignedBy,
       ]
     );
+  }
+
+  async updateStaffQueue(
+    organizationId: string,
+    branchId: string,
+    userId: string,
+    queueId: string,
+    assignedBy: string,
+    client: PoolClient
+  ): Promise<boolean> {
+    const result = await client.query(
+      `UPDATE branch_memberships
+       SET queue_id = $4, assigned_by = $5, assigned_at = NOW()
+       WHERE organization_id = $1
+         AND branch_id = $2
+         AND user_id = $3
+         AND role = 'staff'
+         AND deactivated_at IS NULL`,
+      [organizationId, branchId, userId, queueId, assignedBy]
+    );
+    return result.rowCount === 1;
   }
 
   async findManagerAssignment(

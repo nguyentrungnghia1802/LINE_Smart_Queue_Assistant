@@ -26,4 +26,6 @@ export interface AuthUser {
   isOrganizationOwner?: boolean;
   /** Active branch assignments used to scope branch queue operations. */
   branchIds?: string[];
+  /** The single active queue assigned to a staff account. */
+  assignedQueueId?: string;
 }

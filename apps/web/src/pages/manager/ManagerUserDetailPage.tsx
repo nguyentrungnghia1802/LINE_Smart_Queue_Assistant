@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
+import { useQueues } from '../../hooks/useQueues';
 import { ApiClientError, get, patch } from '../../services/apiClient';
 import { type ApiFieldErrors, getApiFieldErrors, INPUT_LIMITS } from '../../utils/formValidation';
 
@@ -14,6 +15,8 @@ interface StaffUser {
   address_line1: string | null;
   job_title: string | null;
   employee_code: string | null;
+  assigned_queue_id: string | null;
+  assigned_queue_name: string | null;
   account_status: 'invited' | 'active' | 'disabled';
   created_at: string;
 }
@@ -31,7 +34,9 @@ export function ManagerUserDetailPage() {
     currentAddress: '',
     jobTitle: '',
     employeeCode: '',
+    queueId: '',
   });
+  const queuesQuery = useQueues();
   const userQuery = useQuery<StaffUser>({
     queryKey: ['staff-user', userId],
     queryFn: () => get<StaffUser>(`/api/v1/users/${userId}`),
@@ -47,6 +52,7 @@ export function ManagerUserDetailPage() {
       currentAddress: user.address_line1 ?? '',
       jobTitle: user.job_title ?? '',
       employeeCode: user.employee_code ?? '',
+      queueId: user.assigned_queue_id ?? '',
     });
   }, [userQuery.data]);
 
@@ -145,6 +151,31 @@ export function ManagerUserDetailPage() {
                 )}
               </label>
             ))}
+            <label className="text-sm font-medium text-gray-700" htmlFor="staff-queue">
+              {t('users.queueRequired')}
+              <select
+                id="staff-queue"
+                name="queueId"
+                required
+                value={form.queueId}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, queueId: event.target.value }))
+                }
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm"
+              >
+                <option value="">{t('users.selectQueue')}</option>
+                {(queuesQuery.data ?? []).map((queue) => (
+                  <option key={queue.id} value={queue.id}>
+                    {queue.name}
+                  </option>
+                ))}
+              </select>
+              {fieldErrors.queueId?.[0] && (
+                <span className="mt-1 block text-xs font-medium text-red-700" role="alert">
+                  {fieldErrors.queueId[0]}
+                </span>
+              )}
+            </label>
             {error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
             <div className="flex gap-2 sm:col-span-2 sm:justify-end">
               <button
@@ -175,6 +206,10 @@ export function ManagerUserDetailPage() {
             <ReadOnlyField
               label={t('users.employeeCodeRequired')}
               value={user.employee_code ?? '-'}
+            />
+            <ReadOnlyField
+              label={t('users.assignedQueue')}
+              value={user.assigned_queue_name ?? '-'}
             />
             <ReadOnlyField
               label={t('users.status')}

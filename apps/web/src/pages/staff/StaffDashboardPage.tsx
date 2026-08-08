@@ -244,7 +244,6 @@ export function StaffDashboardPage() {
   const orgId = user?.organizationId;
   const queryClient = useQueryClient();
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
-  const [selectedQueueId, setSelectedQueueId] = useState('');
   const [lastCompletedReceipt, setLastCompletedReceipt] = useState<{
     order: Order;
     ticketCode: string;
@@ -253,11 +252,8 @@ export function StaffDashboardPage() {
 
   // Unified queue + orders endpoint
   const { data: queueData, isLoading: queueLoading } = useQuery<MyQueueOverview>({
-    queryKey: ['staff-my-queue', orgId, selectedQueueId],
-    queryFn: () =>
-      get<MyQueueOverview>(
-        `/api/v1/staff/my-queue${selectedQueueId ? `?queueId=${selectedQueueId}` : ''}`
-      ),
+    queryKey: ['staff-my-queue', orgId],
+    queryFn: () => get<MyQueueOverview>('/api/v1/staff/my-queue'),
     enabled: !!orgId,
     refetchInterval: lastCompletedReceipt ? false : 10_000,
   });
@@ -459,23 +455,6 @@ export function StaffDashboardPage() {
       <aside className="flex w-full shrink-0 flex-col border-b border-gray-200 bg-white md:w-72 md:border-b-0 md:border-r xl:w-80">
         {/* Queue header */}
         <div className="border-b border-gray-100 px-3 py-2.5 md:px-4 md:py-3">
-          {(queueData?.availableQueues?.length ?? 0) > 1 && (
-            <select
-              aria-label={t('dashboard.queueSelector')}
-              value={selectedQueueId || queueData?.queueId || ''}
-              onChange={(event) => {
-                setSelectedQueueId(event.target.value);
-                setSelectedEntryId(null);
-              }}
-              className="mb-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800"
-            >
-              {queueData?.availableQueues?.map((queue) => (
-                <option key={queue.id} value={queue.id}>
-                  {queue.name}
-                </option>
-              ))}
-            </select>
-          )}
           <div className="flex items-center justify-between">
             <h2 className="flex items-center text-xs font-semibold text-gray-700 md:text-sm">
               <span className="hidden md:inline">
