@@ -20,3 +20,11 @@ docker compose -f docker-compose.dev.yml down
 
 Open `http://localhost:5173`. Local customer authentication uses the paired LIFF mock configuration
 from the development Compose stack unless real LINE settings are explicitly enabled.
+
+Run Storybook for component development and testing from the repository root:
+
+```powershell
+npm run storybook
+```
+
+Open `http://localhost:6006`.
