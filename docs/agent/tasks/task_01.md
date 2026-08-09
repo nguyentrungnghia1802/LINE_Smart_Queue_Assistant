@@ -1,3 +1,5 @@
+# THIS FILE TASK IS DONE, so don't follow it for future tasks. It is preserved here for historical reference.
+
 # LINE Smart Queue Assistant — Scalability & Production Engineering Tasks
 
 > **Purpose:** Incrementally evolve the current LINE Smart Queue Assistant modular monolith toward a production-oriented architecture capable of supporting substantially higher concurrent traffic while preserving correctness, tenant isolation, and operational simplicity.
