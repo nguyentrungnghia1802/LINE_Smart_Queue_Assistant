@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { NUMERIC_LIMITS } from '@line-queue/shared';
+
+import { BoundedNumberInput } from '../../components/ui/BoundedNumberInput';
 import { formatCurrency } from '../../i18n/format';
 import { del, get, patch } from '../../services/apiClient';
 import { useAuthStore } from '../../store/authStore';
@@ -168,12 +171,11 @@ export function ManagerProductDetailPage() {
             >
               <label className="text-sm font-medium text-gray-700">
                 {t('products.stock')}
-                <input
-                  type="number"
-                  min="0"
-                  max="100000000"
+                <BoundedNumberInput
+                  min={NUMERIC_LIMITS.stockQuantity.min}
+                  max={NUMERIC_LIMITS.stockQuantity.max}
                   value={stockQuantity}
-                  onChange={(event) => setStockQuantity(event.target.value)}
+                  onValueChange={setStockQuantity}
                   placeholder={
                     product.stock_quantity === null ? '∞' : String(product.stock_quantity)
                   }
@@ -183,12 +185,11 @@ export function ManagerProductDetailPage() {
               </label>
               <label className="text-sm font-medium text-gray-700">
                 {t('products.lowStockThreshold')}
-                <input
-                  type="number"
-                  min="0"
-                  max="100000"
+                <BoundedNumberInput
+                  min={NUMERIC_LIMITS.lowStockThreshold.min}
+                  max={NUMERIC_LIMITS.lowStockThreshold.max}
                   value={lowStockThreshold}
-                  onChange={(event) => setLowStockThreshold(event.target.value)}
+                  onValueChange={setLowStockThreshold}
                   placeholder={String(product.low_stock_threshold ?? 10)}
                   className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
                 />

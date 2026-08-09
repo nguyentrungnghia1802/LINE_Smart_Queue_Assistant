@@ -2,50 +2,54 @@ import { z } from 'zod';
 
 import { JapanesePhoneSchema, StoredImageUrlSchema } from '../shared/shared.validator';
 
-export const UpdateOrgSettingsSchema = z.object({
-  defaultLocale: z.enum(['ja', 'vi', 'en']).optional(),
-  name: z.string().min(1).max(200).optional(),
-  logoUrl: StoredImageUrlSchema.nullable().optional(),
-  address: z.string().max(500).nullable().optional(),
-  postalCode: z
-    .string()
-    .regex(/^[0-9]{3}-?[0-9]{4}$/)
-    .nullable()
-    .optional(),
-  prefecture: z.string().max(20).nullable().optional(),
-  city: z.string().max(100).nullable().optional(),
-  addressLine1: z.string().max(200).nullable().optional(),
-  addressLine2: z.string().max(200).nullable().optional(),
-  latitude: z.number().min(-90).max(90).nullable().optional(),
-  longitude: z.number().min(-180).max(180).nullable().optional(),
-  phone: JapanesePhoneSchema.nullable().optional(),
-  paymentInfo: z.string().max(2000).nullable().optional(),
-  settings: z
-    .object({
-      businessHours: z
-        .object({
-          open: z.string().max(10).optional(),
-          close: z.string().max(10).optional(),
-          holidays: z.string().max(500).optional(),
-        })
-        .optional(),
-      paymentProvider: z
-        .object({
-          provider: z.string().max(80).optional(),
-          merchantId: z.string().max(120).optional(),
-          demoMode: z.boolean().optional(),
-        })
-        .optional(),
-      notificationPreferences: z
-        .object({
-          lineEnabled: z.boolean().optional(),
-          retryEnabled: z.boolean().optional(),
-          notifyBeforeTurns: z.number().int().min(1).max(20).optional(),
-        })
-        .optional(),
-    })
-    .optional(),
-});
+export const UpdateOrgSettingsSchema = z
+  .object({
+    defaultLocale: z.enum(['ja', 'vi', 'en']).optional(),
+    name: z.string().min(1).max(200).optional(),
+    logoUrl: StoredImageUrlSchema.nullable().optional(),
+    address: z.string().max(500).nullable().optional(),
+    postalCode: z
+      .string()
+      .regex(/^[0-9]{3}-?[0-9]{4}$/)
+      .nullable()
+      .optional(),
+    prefecture: z.string().max(20).nullable().optional(),
+    city: z.string().max(100).nullable().optional(),
+    addressLine1: z.string().max(200).nullable().optional(),
+    addressLine2: z.string().max(200).nullable().optional(),
+    latitude: z.number().min(-90).max(90).nullable().optional(),
+    longitude: z.number().min(-180).max(180).nullable().optional(),
+    phone: JapanesePhoneSchema.nullable().optional(),
+    paymentInfo: z.string().max(2000).nullable().optional(),
+    settings: z
+      .object({
+        businessHours: z
+          .object({
+            open: z.string().max(10).optional(),
+            close: z.string().max(10).optional(),
+            holidays: z.string().max(500).optional(),
+          })
+          .optional(),
+        paymentProvider: z
+          .object({
+            provider: z.string().max(80).optional(),
+            merchantId: z.string().max(120).optional(),
+            demoMode: z.boolean().optional(),
+          })
+          .optional(),
+        notificationPreferences: z
+          .object({
+            lineEnabled: z.boolean().optional(),
+            retryEnabled: z.boolean().optional(),
+            notifyBeforeTurns: z.number().int().min(1).max(20).optional(),
+          })
+          .optional(),
+      })
+      .optional(),
+  })
+  .refine((value) => Object.values(value).some((item) => item !== undefined), {
+    message: 'At least one field must be provided',
+  });
 
 export type UpdateOrgSettingsDto = z.infer<typeof UpdateOrgSettingsSchema>;
 

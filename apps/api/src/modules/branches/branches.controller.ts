@@ -11,6 +11,7 @@ import type {
   CreateBranchDto,
   InviteBranchManagerDto,
   UpdateMyBranchDto,
+  UpdateOwnedBranchDto,
 } from './branches.validator';
 
 function actor(req: Request) {
@@ -28,6 +29,21 @@ export const createBranch = asyncHandler(async (req: Request, res: Response) => 
 
 export const deleteBranch = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, await branchesService.deleteBranch(actor(req), req.params['branchId'] ?? ''));
+});
+
+export const updateOwnedBranch = asyncHandler(async (req: Request, res: Response) => {
+  sendSuccess(
+    res,
+    await branchesService.updateOwnedBranch(
+      actor(req),
+      req.params['branchId'] ?? '',
+      req.body as UpdateOwnedBranchDto,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      }
+    )
+  );
 });
 
 export const inviteBranchManager = asyncHandler(async (req: Request, res: Response) => {

@@ -68,7 +68,7 @@ apps/api/src/
 
 ```text
 apps/web/src/
-|-- components/              Reusable layout/domain/UI components
+|-- components/              Reusable layout/domain/UI components and form validation manager
 |-- hooks/                   Query and integration hooks
 |-- pages/
 |   |-- admin/               Platform administration
@@ -83,7 +83,7 @@ apps/web/src/
 |-- store/                   Zustand authentication state
 |-- contexts/                Runtime providers such as LIFF initialization state
 |-- types/                   Frontend-only contracts
-|-- utils/                   Checkout storage, payment boundary, logo compression
+|-- utils/                   Checkout storage, validation helpers, payment boundary, logo compression
 |-- public/logo.svg               Shared SQA brand mark and browser favicon
 |-- public/img/landing-hero.webp  Product-site hero poster and video fallback
 |-- public/vid/banner.mp4         Muted looping product-site hero video
@@ -92,7 +92,7 @@ apps/web/src/
 \-- main.tsx                 Browser entry
 ```
 
-Pages orchestrate data and interactions. Reusable visual patterns belong in components, server calls in services/hooks, and non-React transformations in utils. Browser storage is for drafts and convenience, never authorization/payment truth.
+Pages orchestrate data and interactions. Reusable visual patterns belong in components, server calls in services/hooks, and non-React transformations in utils. `FormValidationManager` converts native browser constraints into one localized inline error per invalid control; API `fieldErrors` remain mapped by each form because their paths follow request contracts. Browser storage is for drafts and convenience, never authorization/payment truth.
 
 The isolated component-review environment is `apps/web/.storybook/main.ts` and
 `apps/web/.storybook/preview.tsx`. Reusable stories use the `*.stories.tsx` convention beside the
@@ -116,10 +116,14 @@ providers, `s3-media-storage.ts` contains the AWS S3/R2-compatible adapter, and
 `media.factory.ts` selects the provider from server-only configuration. Do not import the S3 SDK
 from catalog, organization, or browser modules, and do not add browser direct-upload credentials.
 
-Shared form limits and API field-error extraction live in `apps/web/src/utils/formValidation.ts`.
-New forms must set stable `name` attributes, appropriate HTML input types and limits, and map API
-`details.fieldErrors` to the exact field path. These client constraints are usability aids; matching
-Zod validators remain the security and data-integrity boundary.
+Shared text limits and API field-error extraction live in `apps/web/src/utils/formValidation.ts`.
+Numeric domain bounds live in `packages/shared/src/constants/numericLimits.ts` and are consumed by
+both Zod validators and browser forms. Numeric form controls use
+`apps/web/src/components/ui/BoundedNumberInput.tsx` so keyboard and pasted values reject invalid
+characters, signs, decimals, and out-of-range values consistently. New forms must set stable `name`
+attributes, appropriate HTML input types and limits, and map API `details.fieldErrors` to the exact
+field path. Client constraints are usability aids; matching Zod validators remain the security and
+data-integrity boundary.
 
 Authentication is split between `modules/auth/auth-session.policy.ts` (role timing),
 `auth-session.repository.ts` (hashed PostgreSQL rows), `auth-session.service.ts`
@@ -262,3 +266,8 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
   `utils/calendarMonth.ts` rather than UTC string conversion.
 - `RoleAppShell` workspace content owns vertical scrolling on small screens so fixed/mobile
   navigation cannot hide form submission controls.
+- `UserMenuName` is the shared account-name renderer for navigation menus. Keep its two-line clamp,
+  adaptive length classes, and full-value `title`; account triggers do not render an avatar.
+- Desktop management tables use fixed layout or explicit `minmax(0, ...)` grid tracks. Keep
+  sequence/code/status/action cells non-wrapping, reserve flexible width for descriptive data, add
+  truncation plus a full-value `title` where content can be long, and preserve mobile card views.

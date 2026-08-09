@@ -124,7 +124,7 @@ export function ManagerUsersPage() {
         <p className="text-gray-400 text-sm">{t('users.empty')}</p>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="divide-y divide-gray-100 sm:hidden">
+          <div className="divide-y divide-gray-100 md:hidden">
             {pageStaffUsers.map((staffUser, index) => (
               <article key={staffUser.id} className="p-4">
                 <div className="flex items-start gap-3">
@@ -168,16 +168,25 @@ export function ManagerUsersPage() {
             ))}
           </div>
 
-          <table className="hidden w-full text-sm sm:table">
+          <table className="hidden w-full table-fixed text-sm md:table">
+            <colgroup>
+              <col className="w-16" />
+              <col className="w-[22%]" />
+              <col className="w-[30%]" />
+              <col />
+              <col className="w-36" />
+            </colgroup>
             <thead>
               <tr className="bg-gray-50 text-left text-gray-500 border-b border-gray-200">
                 <th className="w-16 whitespace-nowrap px-4 py-3 text-left font-medium">
                   {t('labels.number', { ns: 'common' })}
                 </th>
                 <th className="px-4 py-3 font-medium">{t('labels.name', { ns: 'common' })}</th>
-                <th className="px-4 py-3 font-medium hidden sm:table-cell">Email</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">{t('users.assignedQueue')}</th>
-                <th className="px-4 py-3 font-medium text-center">{t('users.status')}</th>
+                <th className="whitespace-nowrap px-4 py-3 text-center font-medium">
+                  {t('users.status')}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -186,11 +195,26 @@ export function ManagerUsersPage() {
                   <td className="px-4 py-3 text-left text-gray-500">
                     {(page - 1) * 15 + index + 1}
                   </td>
-                  <td className="px-4 py-3 font-medium text-gray-800">{u.display_name}</td>
-                  <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{u.email ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-600">{u.assigned_queue_name ?? '—'}</td>
+                  <td
+                    className="truncate px-4 py-3 font-medium text-gray-800"
+                    title={u.display_name}
+                  >
+                    {u.display_name}
+                  </td>
+                  <td
+                    className="truncate whitespace-nowrap px-4 py-3 text-gray-500"
+                    title={u.email ?? undefined}
+                  >
+                    {u.email ?? '—'}
+                  </td>
+                  <td
+                    className="truncate px-4 py-3 text-gray-600"
+                    title={u.assigned_queue_name ?? undefined}
+                  >
+                    {u.assigned_queue_name ?? '—'}
+                  </td>
                   <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex flex-nowrap items-center justify-center gap-2 whitespace-nowrap">
                       <Link
                         to={`/manager/users/${u.id}`}
                         className="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100"

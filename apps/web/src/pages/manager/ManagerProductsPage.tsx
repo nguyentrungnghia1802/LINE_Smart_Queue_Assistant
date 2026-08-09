@@ -231,27 +231,41 @@ export function ManagerProductsPage() {
             ))}
           </div>
 
-          <table className="hidden w-full text-sm md:table">
+          <table className="hidden w-full table-fixed text-sm md:table">
+            <colgroup>
+              <col className="w-14" />
+              <col className="w-28" />
+              <col />
+              <col className="w-24" />
+              <col className="w-32" />
+              <col className="w-24" />
+              {!isOwner && <col className="w-20" />}
+              <col className={isOwner ? 'w-36' : 'w-20'} />
+            </colgroup>
             <thead>
               <tr className="bg-gray-50 text-left text-gray-500 border-b border-gray-200">
                 <th className="w-14 px-4 py-3 text-left font-medium">
                   {t('labels.number', { ns: 'common' })}
                 </th>
-                <th className="px-4 py-3 font-medium">{t('products.code')}</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium">{t('products.code')}</th>
                 <th className="px-4 py-3 font-medium">{t('labels.name', { ns: 'common' })}</th>
-                <th className="px-4 py-3 font-medium hidden sm:table-cell">{t('products.type')}</th>
-                <th className="px-4 py-3 font-medium text-right">
+                <th className="hidden whitespace-nowrap px-4 py-3 font-medium sm:table-cell">
+                  {t('products.type')}
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-right font-medium">
                   {t('labels.price', { ns: 'common' })}
                 </th>
-                <th className="px-4 py-3 font-medium text-right hidden sm:table-cell">
+                <th className="hidden whitespace-nowrap px-4 py-3 text-right font-medium sm:table-cell">
                   {t('products.duration')}
                 </th>
                 {!isOwner && (
-                  <th className="px-4 py-3 font-medium text-right hidden md:table-cell">
+                  <th className="hidden whitespace-nowrap px-4 py-3 text-right font-medium md:table-cell">
                     {t('products.stock')}
                   </th>
                 )}
-                <th className="px-4 py-3 font-medium text-center">{t('products.actions')}</th>
+                <th className="whitespace-nowrap px-4 py-3 text-center font-medium">
+                  {t('products.actions')}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -263,11 +277,14 @@ export function ManagerProductsPage() {
                   <td className="px-4 py-3 text-left text-gray-500">
                     {(page - 1) * 15 + index + 1}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs font-bold text-gray-700">
+                  <td
+                    className="truncate whitespace-nowrap px-4 py-3 font-mono text-xs font-bold text-gray-700"
+                    title={p.product_code}
+                  >
                     {p.product_code}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       {p.image_url ? (
                         <img src={p.image_url} alt="" className="w-8 h-8 rounded object-cover" />
                       ) : (
@@ -275,7 +292,9 @@ export function ManagerProductsPage() {
                           ?
                         </div>
                       )}
-                      <span className="font-medium text-gray-800">{p.name}</span>
+                      <span className="min-w-0 truncate font-medium text-gray-800" title={p.name}>
+                        {p.name}
+                      </span>
                     </div>
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
@@ -287,19 +306,19 @@ export function ManagerProductsPage() {
                         : t('labels.product', { ns: 'common' })}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-700">
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-gray-700">
                     {formatCurrency(Number(p.price), i18n.resolvedLanguage ?? 'ja')}
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-500 hidden sm:table-cell">
+                  <td className="hidden whitespace-nowrap px-4 py-3 text-right text-gray-500 sm:table-cell">
                     {t('units.minutes', { ns: 'common', count: p.service_time_minutes })}
                   </td>
                   {!isOwner && (
-                    <td className="px-4 py-3 text-right text-gray-500 hidden md:table-cell">
+                    <td className="hidden whitespace-nowrap px-4 py-3 text-right text-gray-500 md:table-cell">
                       {p.stock_quantity ?? '∞'}
                     </td>
                   )}
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex flex-nowrap items-center justify-center gap-2 whitespace-nowrap">
                       <Link
                         to={`/manager/products/${p.id}`}
                         className="text-brand-600 hover:underline text-xs"

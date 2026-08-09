@@ -1,6 +1,10 @@
 import { UpdateOrgSettingsSchema } from '../orgs.validator';
 
 describe('UpdateOrgSettingsSchema logo URL', () => {
+  it('rejects an empty update', () => {
+    expect(UpdateOrgSettingsSchema.safeParse({}).success).toBe(false);
+  });
+
   it.each([
     '/media/organization_logo/2026-08-02/logo.webp',
     '/mock-media/organization_logo/2026-08-02/logo.webp',
