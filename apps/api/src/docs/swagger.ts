@@ -9,6 +9,8 @@
  *   GET /api/docs.json — raw JSON spec for Postman / CI tooling
  */
 
+import { NUMERIC_LIMITS } from '@line-queue/shared';
+
 import { config } from '../config';
 
 import { buildCatalogPaths } from './api-endpoint-catalog';
@@ -73,8 +75,22 @@ const adminQueueSchemas = {
       description: { type: 'string', maxLength: 500 },
       status: { type: 'string', enum: ['open', 'paused', 'closed'], default: 'open' },
       prefix: { type: 'string', maxLength: 10 },
-      maxCapacity: { type: 'integer', minimum: 1 },
-      avgServiceTimeMinutes: { type: 'integer', minimum: 1 },
+      maxCapacity: {
+        type: 'integer',
+        minimum: NUMERIC_LIMITS.queueCapacity.min,
+        maximum: NUMERIC_LIMITS.queueCapacity.max,
+      },
+      avgServiceTimeMinutes: {
+        type: 'integer',
+        minimum: NUMERIC_LIMITS.queueServiceMinutes.min,
+        maximum: NUMERIC_LIMITS.queueServiceMinutes.max,
+      },
+      absenceGraceMinutes: {
+        type: 'integer',
+        minimum: NUMERIC_LIMITS.queueAbsenceGraceMinutes.min,
+        maximum: NUMERIC_LIMITS.queueAbsenceGraceMinutes.max,
+        default: 5,
+      },
     },
   },
 
@@ -85,8 +101,21 @@ const adminQueueSchemas = {
       name: { type: 'string', minLength: 1, maxLength: 120 },
       description: { type: 'string', maxLength: 500 },
       status: { type: 'string', enum: ['open', 'paused', 'closed'] },
-      maxCapacity: { type: 'integer', minimum: 1 },
-      avgServiceTimeMinutes: { type: 'integer', minimum: 1 },
+      maxCapacity: {
+        type: 'integer',
+        minimum: NUMERIC_LIMITS.queueCapacity.min,
+        maximum: NUMERIC_LIMITS.queueCapacity.max,
+      },
+      avgServiceTimeMinutes: {
+        type: 'integer',
+        minimum: NUMERIC_LIMITS.queueServiceMinutes.min,
+        maximum: NUMERIC_LIMITS.queueServiceMinutes.max,
+      },
+      absenceGraceMinutes: {
+        type: 'integer',
+        minimum: NUMERIC_LIMITS.queueAbsenceGraceMinutes.min,
+        maximum: NUMERIC_LIMITS.queueAbsenceGraceMinutes.max,
+      },
     },
   },
 } as const;

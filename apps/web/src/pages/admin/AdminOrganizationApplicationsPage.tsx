@@ -3,8 +3,9 @@ import { Building2, CheckCircle2, Clock3, Search, X, XCircle } from 'lucide-reac
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { API_BASE_PATH } from '@line-queue/shared';
+import { API_BASE_PATH, NUMERIC_LIMITS } from '@line-queue/shared';
 
+import { BoundedNumberInput } from '../../components/ui/BoundedNumberInput';
 import { Pagination } from '../../components/ui/Pagination';
 import { ApiClientError, get, patch, post } from '../../services/apiClient';
 
@@ -227,7 +228,7 @@ export function AdminOrganizationApplicationsPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <div className="hidden grid-cols-[44px_1.5fr_180px_150px_140px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase text-gray-500 lg:grid">
+          <div className="hidden grid-cols-[44px_minmax(0,1.5fr)_180px_150px_140px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase text-gray-500 lg:grid">
             <span>{t('labels.number', { ns: 'common' })}</span>
             <span>{t('applications.company')}</span>
             <span>{t('applications.submittedAt')}</span>
@@ -244,18 +245,20 @@ export function AdminOrganizationApplicationsPage() {
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') openReview(application);
                 }}
-                className="grid cursor-pointer gap-3 px-5 py-4 transition hover:bg-gray-50 lg:grid-cols-[44px_1.5fr_180px_150px_140px] lg:items-center"
+                className="grid cursor-pointer gap-3 px-5 py-4 transition hover:bg-gray-50 lg:grid-cols-[44px_minmax(0,1.5fr)_180px_150px_140px] lg:items-center"
               >
                 <span className="text-left text-sm text-gray-500">
                   {(page - 1) * 15 + index + 1}
                 </span>
-                <div className="self-center">
-                  <p className="font-bold text-gray-950">{application.trade_name}</p>
+                <div className="min-w-0 self-center">
+                  <p className="truncate font-bold text-gray-950" title={application.trade_name}>
+                    {application.trade_name}
+                  </p>
                 </div>
-                <div className="self-center text-sm text-gray-600">
+                <div className="self-center whitespace-nowrap text-sm text-gray-600">
                   {dateTime.format(new Date(application.submitted_at))}
                 </div>
-                <div className="self-center text-sm font-bold">
+                <div className="self-center truncate whitespace-nowrap text-sm font-bold">
                   {t(`pricing.${application.plan_code}.name`, { ns: 'marketing' })}
                 </div>
                 <StatusBadge status={application.status} />
@@ -553,12 +556,16 @@ function ApplicationEditForm({
         <NumberField
           label={t('applications.locationCount')}
           value={application.location_count}
+          min={NUMERIC_LIMITS.organizationLocationCount.min}
+          max={NUMERIC_LIMITS.organizationLocationCount.max}
           placeholder="1"
           onChange={(value) => set('location_count', value)}
         />
         <NumberField
           label={t('applications.expectedCustomers')}
           value={application.expected_monthly_customers}
+          min={NUMERIC_LIMITS.expectedMonthlyCustomers.min}
+          max={NUMERIC_LIMITS.expectedMonthlyCustomers.max}
           placeholder="1000"
           onChange={(value) => set('expected_monthly_customers', value)}
         />
@@ -629,24 +636,29 @@ function SelectField({
 function NumberField({
   label,
   value,
+  min,
+  max,
   placeholder,
   onChange,
 }: Readonly<{
   label: string;
   value: number;
+  min: number;
+  max: number;
   placeholder: string;
   onChange: (value: number) => void;
 }>) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-bold text-gray-600">{label}</span>
-      <input
-        type="number"
-        min={1}
-        max={1_000_000}
+      <BoundedNumberInput
+        min={min}
+        max={max}
         value={value}
         placeholder={placeholder}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onValueChange={(nextValue) => {
+          if (nextValue !== '') onChange(Number(nextValue));
+        }}
         className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
       />
     </label>

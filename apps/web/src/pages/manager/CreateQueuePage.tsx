@@ -3,10 +3,13 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { NUMERIC_LIMITS } from '@line-queue/shared';
+
 import {
   type QueueProductOption,
   QueueProductPicker,
 } from '../../components/products/QueueProductPicker';
+import { BoundedNumberInput } from '../../components/ui/BoundedNumberInput';
 import { get, post } from '../../services/apiClient';
 import { type ApiFieldErrors, getApiFieldErrors, INPUT_LIMITS } from '../../utils/formValidation';
 
@@ -135,26 +138,25 @@ export function CreateQueuePage() {
             />
           </Field>
           <Field label={t('queue.capacity')} error={fieldErrors['maxCapacity']?.[0]}>
-            <input
+            <BoundedNumberInput
               name="maxCapacity"
-              type="number"
-              min="1"
-              max="100000"
+              min={NUMERIC_LIMITS.queueCapacity.min}
+              max={NUMERIC_LIMITS.queueCapacity.max}
               placeholder={t('units.unlimited', { ns: 'common' })}
               value={form.maxCapacity}
-              onChange={(e) => set('maxCapacity', e.target.value)}
+              onValueChange={(value) => set('maxCapacity', value)}
               className={inputCls}
             />
           </Field>
           <Field label={t('queue.absenceGrace')} error={fieldErrors['absenceGraceMinutes']?.[0]}>
-            <input
+            <BoundedNumberInput
               name="absenceGraceMinutes"
-              type="number"
-              min="1"
-              max="120"
+              min={NUMERIC_LIMITS.queueAbsenceGraceMinutes.min}
+              max={NUMERIC_LIMITS.queueAbsenceGraceMinutes.max}
+              required
               placeholder="5"
               value={form.absenceGraceMinutes}
-              onChange={(e) => set('absenceGraceMinutes', e.target.value)}
+              onValueChange={(value) => set('absenceGraceMinutes', value)}
               className={inputCls}
             />
           </Field>
@@ -173,14 +175,13 @@ export function CreateQueuePage() {
             label={t('queue.averageService')}
             error={fieldErrors['avgServiceTimeMinutes']?.[0]}
           >
-            <input
+            <BoundedNumberInput
               name="avgServiceTimeMinutes"
-              type="number"
-              min="1"
-              max="480"
+              min={NUMERIC_LIMITS.queueServiceMinutes.min}
+              max={NUMERIC_LIMITS.queueServiceMinutes.max}
               placeholder="15"
               value={form.avgServiceTimeMinutes}
-              onChange={(e) => set('avgServiceTimeMinutes', e.target.value)}
+              onValueChange={(value) => set('avgServiceTimeMinutes', value)}
               className={inputCls}
             />
           </Field>

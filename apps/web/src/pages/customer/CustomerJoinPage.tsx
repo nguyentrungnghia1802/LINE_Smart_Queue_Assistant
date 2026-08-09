@@ -4,11 +4,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
-import { UserRole } from '@line-queue/shared';
+import { NUMERIC_LIMITS, UserRole } from '@line-queue/shared';
 
 import { BrandLogo } from '../../components/BrandLogo';
 import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
 import { StandalonePageTopBar } from '../../components/layout/StandalonePageTopBar';
+import { BoundedNumberInput } from '../../components/ui/BoundedNumberInput';
 import { useLiffRuntime } from '../../contexts/LiffRuntimeContext';
 import { useMyTickets } from '../../hooks/useQueueEntry';
 import { formatDateTime } from '../../i18n/format';
@@ -1183,7 +1184,10 @@ function ProductCard({
 }>) {
   const { t, i18n } = useTranslation(['customer', 'common']);
   const outOfStock = product.stock_quantity !== null && product.stock_quantity <= 0;
-  const maxQuantity = product.stock_quantity === null ? 99 : Math.max(0, product.stock_quantity);
+  const maxQuantity =
+    product.stock_quantity === null
+      ? NUMERIC_LIMITS.cartItemQuantity.max
+      : Math.min(NUMERIC_LIMITS.cartItemQuantity.max, Math.max(0, product.stock_quantity));
   const atMax = quantity >= maxQuantity;
 
   return (
@@ -1266,13 +1270,12 @@ function ProductCard({
           >
             -
           </button>
-          <input
-            type="number"
-            min={0}
+          <BoundedNumberInput
+            min={NUMERIC_LIMITS.cartItemQuantity.min}
             max={maxQuantity}
             value={quantity}
             disabled={outOfStock}
-            onChange={(event) => onQuantityChange(Number(event.target.value))}
+            onValueChange={(nextValue) => onQuantityChange(Number(nextValue || 0))}
             className="h-9 w-14 rounded-full border border-gray-200 bg-white text-center text-sm font-bold text-gray-950 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:bg-gray-100 disabled:text-gray-400"
             aria-label={t('booking.itemQuantity', { ns: 'customer', name: product.name })}
           />

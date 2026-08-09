@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { NUMERIC_LIMITS } from '@line-queue/shared';
+
 import { JapanesePhoneSchema } from '../shared/shared.validator';
 
 const ManagerInvitationSchema = z.object({
@@ -11,8 +13,18 @@ const ManagerInvitationSchema = z.object({
 
 const CoordinatesSchema = z
   .object({
-    latitude: z.number().min(-90).max(90).nullable().optional(),
-    longitude: z.number().min(-180).max(180).nullable().optional(),
+    latitude: z
+      .number()
+      .min(NUMERIC_LIMITS.latitude.min)
+      .max(NUMERIC_LIMITS.latitude.max)
+      .nullable()
+      .optional(),
+    longitude: z
+      .number()
+      .min(NUMERIC_LIMITS.longitude.min)
+      .max(NUMERIC_LIMITS.longitude.max)
+      .nullable()
+      .optional(),
   })
   .refine(
     (value) =>
@@ -24,47 +36,52 @@ const CoordinatesSchema = z
     }
   );
 
+const BranchDetailsSchema = z.object({
+  name: z.string().trim().min(2).max(160),
+  phone: JapanesePhoneSchema,
+  email: z.string().trim().toLowerCase().email().max(254).nullable().optional(),
+  postalCode: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{3}-?[0-9]{4}$/),
+  prefecture: z.string().trim().min(1).max(20),
+  city: z.string().trim().min(1).max(100),
+  addressLine1: z.string().trim().min(1).max(200),
+  addressLine2: z.string().trim().max(200).nullable().optional(),
+  latitude: z
+    .number()
+    .min(NUMERIC_LIMITS.latitude.min)
+    .max(NUMERIC_LIMITS.latitude.max)
+    .nullable()
+    .optional(),
+  longitude: z
+    .number()
+    .min(NUMERIC_LIMITS.longitude.min)
+    .max(NUMERIC_LIMITS.longitude.max)
+    .nullable()
+    .optional(),
+  googlePlaceId: z.string().trim().max(255).nullable().optional(),
+  formattedMapAddress: z.string().trim().max(500).nullable().optional(),
+});
+
 export const CreateBranchSchema = z
   .object({
-    name: z.string().trim().min(2).max(160),
-    phone: JapanesePhoneSchema,
-    email: z.string().trim().toLowerCase().email().max(254).nullable().optional(),
-    postalCode: z
-      .string()
-      .trim()
-      .regex(/^[0-9]{3}-?[0-9]{4}$/),
-    prefecture: z.string().trim().min(1).max(20),
-    city: z.string().trim().min(1).max(100),
-    addressLine1: z.string().trim().min(1).max(200),
-    addressLine2: z.string().trim().max(200).nullable().optional(),
-    latitude: z.number().min(-90).max(90).nullable().optional(),
-    longitude: z.number().min(-180).max(180).nullable().optional(),
-    googlePlaceId: z.string().trim().max(255).nullable().optional(),
-    formattedMapAddress: z.string().trim().max(500).nullable().optional(),
+    ...BranchDetailsSchema.shape,
     managers: z.array(ManagerInvitationSchema).min(1).max(10),
   })
   .and(CoordinatesSchema);
 
 export const InviteBranchManagerSchema = ManagerInvitationSchema;
 
+export const UpdateOwnedBranchSchema = BranchDetailsSchema.partial()
+  .and(CoordinatesSchema)
+  .refine((value) => Object.values(value).some((item) => item !== undefined), {
+    message: 'At least one field must be provided',
+  });
+
 export const UpdateMyBranchSchema = z
   .object({
-    name: z.string().trim().min(2).max(160).optional(),
-    phone: JapanesePhoneSchema.optional(),
-    email: z.string().trim().toLowerCase().email().max(254).nullable().optional(),
-    postalCode: z
-      .string()
-      .trim()
-      .regex(/^[0-9]{3}-?[0-9]{4}$/)
-      .optional(),
-    prefecture: z.string().trim().min(1).max(20).optional(),
-    city: z.string().trim().min(1).max(100).optional(),
-    addressLine1: z.string().trim().min(1).max(200).optional(),
-    addressLine2: z.string().trim().max(200).nullable().optional(),
-    latitude: z.number().min(-90).max(90).nullable().optional(),
-    longitude: z.number().min(-180).max(180).nullable().optional(),
-    googlePlaceId: z.string().trim().max(255).nullable().optional(),
-    formattedMapAddress: z.string().trim().max(500).nullable().optional(),
+    ...BranchDetailsSchema.partial().shape,
     paymentSettings: z
       .object({
         merchantName: z.string().trim().max(160).optional(),
@@ -112,5 +129,6 @@ export const BranchGeocodeSchema = z.object({
 
 export type CreateBranchDto = z.infer<typeof CreateBranchSchema>;
 export type InviteBranchManagerDto = z.infer<typeof InviteBranchManagerSchema>;
+export type UpdateOwnedBranchDto = z.infer<typeof UpdateOwnedBranchSchema>;
 export type UpdateMyBranchDto = z.infer<typeof UpdateMyBranchSchema>;
 export type BranchGeocodeDto = z.infer<typeof BranchGeocodeSchema>;

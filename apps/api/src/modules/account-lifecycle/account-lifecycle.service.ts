@@ -90,6 +90,15 @@ export async function issueAccountAction(
   );
 }
 
+export async function revokeAccountAction(
+  userId: string,
+  purpose: AccountActionPurpose,
+  client: PoolClient
+): Promise<void> {
+  await accountLifecycleRepository.revokeActive(userId, purpose, client);
+  await emailOutboxRepository.cancelAccountAction(userId, purpose, client);
+}
+
 function assertPurpose(actual: AccountActionPurpose, expected: AccountActionPurpose): void {
   if (actual !== expected) {
     throw new AppError('The account action link is invalid', 400, 'ACCOUNT_TOKEN_INVALID');

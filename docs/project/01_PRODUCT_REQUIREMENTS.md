@@ -54,28 +54,28 @@ role and does not use branch-operation endpoints.
 
 ### Organization administration
 
-| ID         | Requirement                                                                                                                                                                      | Status                                     |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| FR-ORG-001 | Admin sees an organization list, not an implicit single-organization editor                                                                                                      | Implemented                                |
-| FR-ORG-002 | Admin opens a separate detail view for full organization information                                                                                                             | Implemented                                |
-| FR-ORG-003 | A business submits a public service application with work email, plan, demo payment, plan-fit guidance, and receipt email                                                        | Implemented                                |
-| FR-ORG-004 | Admin approves or rejects applications but does not manually register new organizations; rejection sends an applicant email                                                      | Implemented                                |
-| FR-ORG-005 | The system generates a unique organization slug and one public QR token per branch                                                                                               | Implemented                                |
-| FR-ORG-006 | Branch manager edits only their assigned branch settings and business calendar                                                                                                   | Implemented                                |
-| FR-ORG-007 | Branch stores location, business hours, holiday rules, and provider configuration                                                                                                | Implemented; real provider secrets pending |
-| FR-ORG-008 | Branch-manager print/copy actions prefer LIFF QR and expose public web booking as fallback                                                                                       | Implemented                                |
-| FR-ORG-009 | Approval atomically creates an inactive organization, invited owner, activation action, and email outbox row; it creates no branch/queue                                         | Implemented                                |
-| FR-ORG-010 | Public organization applications never accept or store account credentials                                                                                                       | Implemented                                |
-| FR-ORG-011 | Owner manager creates branches with at least one invited branch manager; assigned managers create queues later                                                                   | Implemented                                |
-| FR-ORG-012 | Owner dashboard shows organization revenue, branch count, best/worst branch, trend, and branch detail                                                                            | Implemented                                |
-| FR-ORG-013 | Owner navigation excludes branch product, queue, staff, and QR operations                                                                                                        | Implemented                                |
-| FR-ORG-014 | Branch creation enforces the selected subscription plan; Standard permits at most three active branches                                                                          | Implemented                                |
-| FR-ORG-015 | Management lists provide localized search and stable visible row numbers                                                                                                         | Implemented                                |
-| FR-ORG-016 | Branch settings store non-secret payment acceptance details separately from organization settings                                                                                | Implemented; real PSP pending              |
-| FR-ORG-017 | Owner manager can permanently delete a branch and all branch-owned operational data atomically while retaining audit evidence                                                    | Implemented                                |
-| FR-ORG-017 | The public product site presents the service, solutions, and plans through a responsive editorial layout with a muted video hero, service imagery, and smooth section navigation | Implemented                                |
-| FR-ORG-018 | Platform admin may change only the owner manager sign-in email for account recovery; display name, password, status, and other tenant accounts remain outside admin scope        | Implemented                                |
-| FR-ORG-019 | The public product footer exposes the dedicated `support@smartqueue.io.vn` address as a working email link                                                                       | Implemented                                |
+| ID         | Requirement                                                                                                                                                                                  | Status                                     |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| FR-ORG-001 | Admin sees an organization list, not an implicit single-organization editor                                                                                                                  | Implemented                                |
+| FR-ORG-002 | Admin opens a separate detail view for full organization information                                                                                                                         | Implemented                                |
+| FR-ORG-003 | A business submits a public service application with work email, plan, demo payment, plan-fit guidance, and receipt email                                                                    | Implemented                                |
+| FR-ORG-004 | Admin approves or rejects applications but does not manually register new organizations; rejection sends an applicant email                                                                  | Implemented                                |
+| FR-ORG-005 | The system generates a unique organization slug and one public QR token per branch                                                                                                           | Implemented                                |
+| FR-ORG-006 | Branch manager edits only their assigned branch settings and business calendar                                                                                                               | Implemented                                |
+| FR-ORG-007 | Branch stores location, business hours, holiday rules, and provider configuration                                                                                                            | Implemented; real provider secrets pending |
+| FR-ORG-008 | Branch-manager print/copy actions prefer LIFF QR and expose public web booking as fallback                                                                                                   | Implemented                                |
+| FR-ORG-009 | Approval atomically creates an inactive organization, invited owner, activation action, and email outbox row; it creates no branch/queue                                                     | Implemented                                |
+| FR-ORG-010 | Public organization applications never accept or store account credentials                                                                                                                   | Implemented                                |
+| FR-ORG-011 | Owner creates/edits branches with at least one active or invited branch manager; pending invites may be revoked while one retained assignment remains; assigned managers create queues later | Implemented                                |
+| FR-ORG-012 | Owner dashboard shows organization revenue, branch count, best/worst branch, trend, and branch detail                                                                                        | Implemented                                |
+| FR-ORG-013 | Owner navigation excludes branch product, queue, staff, and QR operations                                                                                                                    | Implemented                                |
+| FR-ORG-014 | Branch creation enforces the selected subscription plan; Standard permits at most three active branches                                                                                      | Implemented                                |
+| FR-ORG-015 | Management lists provide localized search and stable visible row numbers                                                                                                                     | Implemented                                |
+| FR-ORG-016 | Branch settings store non-secret payment acceptance details separately from organization settings                                                                                            | Implemented; real PSP pending              |
+| FR-ORG-017 | Owner manager can permanently delete a branch and all branch-owned operational data atomically while retaining audit evidence                                                                | Implemented                                |
+| FR-ORG-017 | The public product site presents the service, solutions, and plans through a responsive editorial layout with a muted video hero, service imagery, and smooth section navigation             | Implemented                                |
+| FR-ORG-018 | Platform admin may change only the owner manager sign-in email for account recovery; display name, password, status, and other tenant accounts remain outside admin scope                    | Implemented                                |
+| FR-ORG-019 | The public product footer exposes the dedicated `support@smartqueue.io.vn` address as a working email link                                                                                   | Implemented                                |
 
 ### Catalog and inventory
 
@@ -258,7 +258,8 @@ role and does not use branch-operation endpoints.
 - Validation errors return `422 VALIDATION_ERROR` with field details.
 - Every editable form applies field-appropriate browser limits and API validation. Invalid values
   are reported beside the exact input, including nested collection paths such as
-  `managers.0.email`; browser limits improve usability but never replace server validation.
+  `managers.0.email`. A field displays only its first actionable error at a time to preserve a
+  compact layout; browser limits improve usability but never replace server validation.
 - Missing authentication returns `401`; insufficient role/tenant ownership returns `403`.
 - Missing resources return `404`; state/stock/idempotency conflicts return `409` where applicable.
 - Third-party delivery failure is logged and retried according to its workflow; it must not expose provider secrets.
@@ -269,6 +270,13 @@ role and does not use branch-operation endpoints.
 
 - Long organization, application, product, and staff lists paginate at 15 rows per page. Sequence
   numbers remain stable across pages and are left-aligned for fast scanning.
+- Management tables keep sequence, code, price, status, and action columns at stable widths without
+  wrapping. Descriptive columns may use the remaining space and truncate oversized values with the
+  complete value available on hover. Narrow screens use the corresponding card layout instead of
+  compressing desktop actions into unreadable rows.
+- Authenticated navigation keeps the account name readable without an avatar: long names use a
+  smaller label, wrap to at most two lines, and only then truncate. The account trigger and chevron
+  retain stable dimensions across supported viewport sizes.
 - Organization applications are presented as compact rows containing sequence, organization,
   submission time, plan, and status only; selecting a row opens the full review and approval
   workspace.

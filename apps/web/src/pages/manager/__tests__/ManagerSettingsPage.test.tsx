@@ -81,12 +81,13 @@ describe('ManagerSettingsPage organization logo', () => {
   });
 
   it('does not resubmit an oversized legacy data URL when saving other settings', async () => {
+    const legacyLogoUrl = `data:image/png;base64,${'A'.repeat(2_100)}`;
     vi.mocked(get).mockResolvedValue({
       ...organization,
-      logoUrl: `data:image/png;base64,${'A'.repeat(2_100)}`,
+      logoUrl: legacyLogoUrl,
     });
     renderPage();
-    await screen.findByDisplayValue('Test Organization');
+    expect(await screen.findByAltText('組織ロゴ')).toHaveAttribute('src', legacyLogoUrl);
 
     const input = screen.getByLabelText('組織ロゴ');
     const form = input.closest('form');

@@ -31,6 +31,10 @@ describe('staff invitation validation', () => {
     expect(UpdateStaffSchema.safeParse({ employeeCode: '' }).success).toBe(false);
     expect(UpdateStaffSchema.safeParse({ employeeCode: 'ST-002' }).success).toBe(true);
   });
+
+  it('rejects an empty staff update', () => {
+    expect(UpdateStaffSchema.safeParse({}).success).toBe(false);
+  });
 });
 
 describe('personal profile validation', () => {

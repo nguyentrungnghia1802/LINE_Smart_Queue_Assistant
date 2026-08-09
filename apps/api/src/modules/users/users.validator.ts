@@ -56,14 +56,18 @@ export const InviteStaffSchema = z.object({
   queueId: z.string().uuid(),
 });
 
-export const UpdateStaffSchema = z.object({
-  displayName: z.string().trim().min(1).max(120).optional(),
-  phone: JapanesePhoneSchema.optional(),
-  currentAddress: z.string().trim().min(1).max(300).optional(),
-  jobTitle: z.string().trim().min(1).max(120).optional(),
-  employeeCode: z.string().trim().min(1).max(50).optional(),
-  queueId: z.string().uuid().optional(),
-});
+export const UpdateStaffSchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(120).optional(),
+    phone: JapanesePhoneSchema.optional(),
+    currentAddress: z.string().trim().min(1).max(300).optional(),
+    jobTitle: z.string().trim().min(1).max(120).optional(),
+    employeeCode: z.string().trim().min(1).max(50).optional(),
+    queueId: z.string().uuid().optional(),
+  })
+  .refine((value) => Object.values(value).some((item) => item !== undefined), {
+    message: 'At least one field must be provided',
+  });
 
 export const UpdateStaffStatusSchema = z.object({ isActive: z.boolean() });
 export const StaffUserParamSchema = z.object({ userId: z.string().uuid() });

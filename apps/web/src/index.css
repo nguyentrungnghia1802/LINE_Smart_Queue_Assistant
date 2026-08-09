@@ -72,6 +72,12 @@
   select {
     @apply text-gray-900 placeholder:text-gray-400;
   }
+
+  input[aria-invalid='true'],
+  textarea[aria-invalid='true'],
+  select[aria-invalid='true'] {
+    @apply border-red-400 ring-2 ring-red-100;
+  }
 }
 
 @layer utilities {

@@ -306,6 +306,10 @@ injection on every commit.
 | Browser E2E                    | Playwright + isolated mock LINE/API ports       | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows  |
 | Load/failure                   | Node HTTP runner plus isolated Compose topology | Use `scale:validate`; recreate against production-like staging before capacity claims        |
 
+API Jest runs do not load the repository `.env`. Configuration tests must set every relevant
+environment value explicitly so local credentials and developer-specific limits cannot change
+their result. Normal development and production processes continue to load the root `.env`.
+
 Realtime tests cover strict event parsing, customer ownership, exact branch/Staff assignment,
 organization-owner rejection, heartbeat and disconnect cleanup, connection fan-out, Redis
 resubscription, duplicate suppression, and cross-tenant/cross-instance routing. Proxy tests assert

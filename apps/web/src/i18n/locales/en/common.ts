@@ -122,6 +122,17 @@ export const common = {
   },
   accessibility: { mainNavigation: 'Main navigation', toggleMenu: 'Toggle menu' },
   pagination: { previous: 'Previous', next: 'Next', page: 'Page {{page}} / {{totalPages}}' },
+  validation: {
+    required: 'This field is required.',
+    email: 'Enter a valid email address.',
+    format: 'Enter the value in the required format.',
+    minLength: 'Enter at least {{count}} characters.',
+    maxLength: 'Enter no more than {{count}} characters.',
+    min: 'Enter a value greater than or equal to {{value}}.',
+    max: 'Enter a value less than or equal to {{value}}.',
+    number: 'Enter a valid number.',
+    invalid: 'Check this value and try again.',
+  },
   pages: {
     notFoundTitle: 'Page not found',
     notFoundDescription: 'The page you are looking for does not exist.',

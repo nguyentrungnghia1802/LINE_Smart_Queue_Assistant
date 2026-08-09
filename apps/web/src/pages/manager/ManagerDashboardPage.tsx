@@ -300,22 +300,38 @@ export function ManagerDashboardPage() {
         {data.topProducts.length === 0 ? (
           <p className="text-sm text-gray-400">{t('states.empty', { ns: 'common' })}</p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col className="w-12" />
+              <col />
+              <col className="w-24" />
+              <col className="w-32" />
+            </colgroup>
             <thead>
               <tr className="text-left text-gray-500 border-b border-gray-100">
                 <th className="w-12 pb-2 font-medium">{t('labels.number', { ns: 'common' })}</th>
                 <th className="pb-2 font-medium">{t('labels.product', { ns: 'common' })}</th>
-                <th className="pb-2 font-medium text-right">{t('dashboard.salesCount')}</th>
-                <th className="pb-2 font-medium text-right">{t('dashboard.revenue')}</th>
+                <th className="whitespace-nowrap pb-2 text-right font-medium">
+                  {t('dashboard.salesCount')}
+                </th>
+                <th className="whitespace-nowrap pb-2 text-right font-medium">
+                  {t('dashboard.revenue')}
+                </th>
               </tr>
             </thead>
             <tbody>
               {data.topProducts.map((p, i) => (
                 <tr key={p.product_name} className="border-b border-gray-50">
                   <td className="py-2 text-gray-400">{i + 1}</td>
-                  <td className="py-2 text-gray-800">{p.product_name}</td>
-                  <td className="py-2 text-right text-gray-600">{p.total_sold}</td>
-                  <td className="py-2 text-right text-gray-800">{formatMoney(p.revenue)}</td>
+                  <td className="truncate py-2 pr-3 text-gray-800" title={p.product_name}>
+                    {p.product_name}
+                  </td>
+                  <td className="whitespace-nowrap py-2 text-right text-gray-600">
+                    {p.total_sold}
+                  </td>
+                  <td className="whitespace-nowrap py-2 text-right text-gray-800">
+                    {formatMoney(p.revenue)}
+                  </td>
                 </tr>
               ))}
             </tbody>

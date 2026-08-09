@@ -16,7 +16,10 @@ import { withTransaction } from '../../db/transaction';
 import { publicReadModelCache } from '../../infrastructure/redis/redis-json.cache';
 import type { AuthUser } from '../../types/auth.types';
 import { AppError } from '../../utils/AppError';
-import { issueAccountAction } from '../account-lifecycle/account-lifecycle.service';
+import {
+  issueAccountAction,
+  revokeAccountAction,
+} from '../account-lifecycle/account-lifecycle.service';
 import type { BusinessCalendarDto } from '../orgs/orgs.validator';
 
 import { requireBranchManager, requireOrganizationOwner } from './branch-scope';
@@ -25,6 +28,7 @@ import type {
   CreateBranchDto,
   InviteBranchManagerDto,
   UpdateMyBranchDto,
+  UpdateOwnedBranchDto,
 } from './branches.validator';
 
 function branchCode(name: string): string {
@@ -303,10 +307,44 @@ export const branchesService = {
     return result;
   },
 
+  async updateOwnedBranch(
+    actor: AuthUser,
+    branchId: string,
+    dto: UpdateOwnedBranchDto,
+    requestContext?: { ipAddress?: string; userAgent?: string }
+  ) {
+    const organizationId = requireOrganizationOwner(actor);
+    const updated = await withTransaction(async (client) => {
+      const previous = await branchesRepository.findByIdForUpdate(branchId, organizationId, client);
+      if (!previous) throw AppError.notFound('Branch');
+      const next = await branchesRepository.update(branchId, organizationId, dto, client);
+      if (!next) throw AppError.notFound('Branch');
+      await client.query(
+        `INSERT INTO audit_logs (
+           actor_id, action, resource_type, resource_id, organization_id,
+           changes, ip_address, user_agent
+         ) VALUES ($1,'branch.update','organization_branch',$2,$3,$4,$5,$6)`,
+        [
+          actor.id,
+          branchId,
+          organizationId,
+          JSON.stringify({ old: previous, new: next }),
+          requestContext?.ipAddress ?? null,
+          requestContext?.userAgent ?? null,
+        ]
+      );
+      return next;
+    });
+    await publicReadModelCache.invalidateBranch(organizationId, branchId);
+    return updated;
+  },
+
   async removeManager(actor: AuthUser, branchId: string, userId: string) {
     const organizationId = requireOrganizationOwner(actor);
     if (actor.id === userId) throw AppError.forbidden('Managers cannot remove their own account');
     return withTransaction(async (client) => {
+      const branch = await branchesRepository.findByIdForUpdate(branchId, organizationId, client);
+      if (!branch) throw AppError.notFound('Branch');
       const assignment = await branchesRepository.findManagerAssignment(
         branchId,
         organizationId,
@@ -315,23 +353,28 @@ export const branchesService = {
       );
       if (!assignment || assignment.deactivated_at) throw AppError.notFound('Branch manager');
       if (assignment.is_owner) throw AppError.forbidden('The organization owner cannot be removed');
-      if ((await branchesRepository.countAssignedManagers(branchId, userId, client)) < 1) {
+      if ((await branchesRepository.countRetainedManagers(branchId, userId, client)) < 1) {
         throw AppError.conflict('A branch must keep at least one manager');
       }
-      await branchesRepository.deactivateManager(
+      const invitationRevoked = assignment.account_status === 'invited';
+      if (invitationRevoked) {
+        await revokeAccountAction(userId, 'account_activation', client);
+      }
+      await branchesRepository.removeManager(
         branchId,
         organizationId,
         userId,
         actor.id,
+        invitationRevoked,
         client
       );
       await client.query(
         `INSERT INTO audit_logs
            (actor_id, action, resource_type, resource_id, organization_id, changes)
          VALUES ($1,'manager_removed','organization_member',$2,$3,$4)`,
-        [actor.id, userId, organizationId, JSON.stringify({ branchId })]
+        [actor.id, userId, organizationId, JSON.stringify({ branchId, invitationRevoked })]
       );
-      return { removed: true };
+      return { removed: true, invitationRevoked };
     });
   },
 

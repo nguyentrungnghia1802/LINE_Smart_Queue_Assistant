@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { NUMERIC_LIMITS } from '@line-queue/shared';
+
 // ── Create queue ───────────────────────────────────────────────────────────────
 
 export const CreateQueueSchema = z.object({
@@ -7,9 +9,24 @@ export const CreateQueueSchema = z.object({
   description: z.string().max(500).optional(),
   status: z.enum(['open', 'paused', 'closed']).default('open'),
   prefix: z.string().max(10).optional(),
-  maxCapacity: z.number().int().min(1).max(100_000).optional(),
-  avgServiceTimeMinutes: z.number().int().min(1).max(480).optional(),
-  absenceGraceMinutes: z.number().int().min(1).max(120).default(5),
+  maxCapacity: z
+    .number()
+    .int()
+    .min(NUMERIC_LIMITS.queueCapacity.min)
+    .max(NUMERIC_LIMITS.queueCapacity.max)
+    .optional(),
+  avgServiceTimeMinutes: z
+    .number()
+    .int()
+    .min(NUMERIC_LIMITS.queueServiceMinutes.min)
+    .max(NUMERIC_LIMITS.queueServiceMinutes.max)
+    .optional(),
+  absenceGraceMinutes: z
+    .number()
+    .int()
+    .min(NUMERIC_LIMITS.queueAbsenceGraceMinutes.min)
+    .max(NUMERIC_LIMITS.queueAbsenceGraceMinutes.max)
+    .default(5),
   productIds: z.array(z.string().uuid()).max(200).default([]),
 });
 
@@ -20,9 +37,24 @@ export const UpdateQueueSchema = z
     name: z.string().min(1).max(120).optional(),
     description: z.string().max(500).optional(),
     status: z.enum(['open', 'paused', 'closed']).optional(),
-    maxCapacity: z.number().int().min(1).max(100_000).optional(),
-    avgServiceTimeMinutes: z.number().int().min(1).max(480).optional(),
-    absenceGraceMinutes: z.number().int().min(1).max(120).optional(),
+    maxCapacity: z
+      .number()
+      .int()
+      .min(NUMERIC_LIMITS.queueCapacity.min)
+      .max(NUMERIC_LIMITS.queueCapacity.max)
+      .optional(),
+    avgServiceTimeMinutes: z
+      .number()
+      .int()
+      .min(NUMERIC_LIMITS.queueServiceMinutes.min)
+      .max(NUMERIC_LIMITS.queueServiceMinutes.max)
+      .optional(),
+    absenceGraceMinutes: z
+      .number()
+      .int()
+      .min(NUMERIC_LIMITS.queueAbsenceGraceMinutes.min)
+      .max(NUMERIC_LIMITS.queueAbsenceGraceMinutes.max)
+      .optional(),
     productIds: z.array(z.string().uuid()).max(200).optional(),
   })
   .refine((d) => Object.values(d).some((v) => v !== undefined), {

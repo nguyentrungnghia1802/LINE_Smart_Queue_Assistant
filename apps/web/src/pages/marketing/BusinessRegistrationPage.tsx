@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import type { SupportedLocale } from '@line-queue/shared';
-import { API_BASE_PATH, getSubscriptionPlanBranchLimit } from '@line-queue/shared';
+import { API_BASE_PATH, getSubscriptionPlanBranchLimit, NUMERIC_LIMITS } from '@line-queue/shared';
 
 import { BrandLogo } from '../../components/BrandLogo';
 import { LanguageSwitcher } from '../../components/i18n/LanguageSwitcher';
+import { BoundedNumberInput } from '../../components/ui/BoundedNumberInput';
 import { ApiClientError, post } from '../../services/apiClient';
 import { compressLogoFile } from '../../utils/compressLogoFile';
 
@@ -415,8 +416,8 @@ export function BusinessRegistrationPage() {
                     label={t('registration.fields.locationCount')}
                     name="locationCount"
                     type="number"
-                    min="1"
-                    max="10000"
+                    min={String(NUMERIC_LIMITS.organizationLocationCount.min)}
+                    max={String(NUMERIC_LIMITS.organizationLocationCount.max)}
                     value={form.locationCount}
                     onChange={(value) => update('locationCount', value)}
                     required
@@ -425,8 +426,8 @@ export function BusinessRegistrationPage() {
                     label={t('registration.fields.expectedMonthlyCustomers')}
                     name="expectedMonthlyCustomers"
                     type="number"
-                    min="1"
-                    max="10000000"
+                    min={String(NUMERIC_LIMITS.expectedMonthlyCustomers.min)}
+                    max={String(NUMERIC_LIMITS.expectedMonthlyCustomers.max)}
                     value={form.expectedMonthlyCustomers}
                     onChange={(value) => update('expectedMonthlyCustomers', value)}
                     required
@@ -697,21 +698,33 @@ function Field({
   return (
     <label className={`block ${className}`}>
       <span className="mb-1.5 block text-sm font-semibold text-gray-800">{label}</span>
-      <input
-        name={name}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        type={type}
-        required={required}
-        pattern={pattern}
-        placeholder={placeholder}
-        min={min}
-        max={max}
-        minLength={minLength}
-        maxLength={registrationFieldMaxLength(name, type)}
-        aria-invalid={Boolean(error)}
-        className={`h-11 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 ${error ? 'border-red-400 focus:ring-red-100' : 'border-gray-300 focus:border-brand-500 focus:ring-brand-100'}`}
-      />
+      {type === 'number' ? (
+        <BoundedNumberInput
+          name={name}
+          value={value}
+          onValueChange={onChange}
+          min={Number(min)}
+          max={Number(max)}
+          required={required}
+          placeholder={placeholder}
+          aria-invalid={Boolean(error)}
+          className={`h-11 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 ${error ? 'border-red-400 focus:ring-red-100' : 'border-gray-300 focus:border-brand-500 focus:ring-brand-100'}`}
+        />
+      ) : (
+        <input
+          name={name}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          type={type}
+          required={required}
+          pattern={pattern}
+          placeholder={placeholder}
+          minLength={minLength}
+          maxLength={registrationFieldMaxLength(name, type)}
+          aria-invalid={Boolean(error)}
+          className={`h-11 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 ${error ? 'border-red-400 focus:ring-red-100' : 'border-gray-300 focus:border-brand-500 focus:ring-brand-100'}`}
+        />
+      )}
       {error ? (
         <span className="mt-1 block text-xs text-red-600">{error}</span>
       ) : hint ? (

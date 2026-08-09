@@ -125,6 +125,17 @@ export const common = {
   },
   accessibility: { mainNavigation: 'メインナビゲーション', toggleMenu: 'メニューを切り替え' },
   pagination: { previous: '前へ', next: '次へ', page: '{{page}} / {{totalPages}}ページ' },
+  validation: {
+    required: 'この項目は必須です。',
+    email: '有効なメールアドレスを入力してください。',
+    format: '指定された形式で入力してください。',
+    minLength: '{{count}}文字以上で入力してください。',
+    maxLength: '{{count}}文字以内で入力してください。',
+    min: '{{value}}以上の値を入力してください。',
+    max: '{{value}}以下の値を入力してください。',
+    number: '有効な数値を入力してください。',
+    invalid: '入力内容を確認してください。',
+  },
   pages: {
     notFoundTitle: 'ページが見つかりません',
     notFoundDescription: 'お探しのページは存在しません。',

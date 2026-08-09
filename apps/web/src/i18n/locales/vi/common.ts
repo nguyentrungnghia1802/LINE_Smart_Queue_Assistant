@@ -123,6 +123,17 @@ export const common = {
   },
   accessibility: { mainNavigation: 'Điều hướng chính', toggleMenu: 'Mở hoặc đóng menu' },
   pagination: { previous: 'Trước', next: 'Sau', page: 'Trang {{page}} / {{totalPages}}' },
+  validation: {
+    required: 'Trường này là bắt buộc.',
+    email: 'Hãy nhập địa chỉ email hợp lệ.',
+    format: 'Hãy nhập đúng định dạng được yêu cầu.',
+    minLength: 'Hãy nhập ít nhất {{count}} ký tự.',
+    maxLength: 'Chỉ được nhập tối đa {{count}} ký tự.',
+    min: 'Giá trị phải lớn hơn hoặc bằng {{value}}.',
+    max: 'Giá trị phải nhỏ hơn hoặc bằng {{value}}.',
+    number: 'Hãy nhập một số hợp lệ.',
+    invalid: 'Hãy kiểm tra lại giá trị này.',
+  },
   pages: {
     notFoundTitle: 'Không tìm thấy trang',
     notFoundDescription: 'Trang bạn đang tìm không tồn tại.',

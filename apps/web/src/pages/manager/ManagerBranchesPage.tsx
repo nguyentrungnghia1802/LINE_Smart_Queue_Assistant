@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Plus, Search } from 'lucide-react';
+import { Building2, Pencil, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -9,7 +9,7 @@ import {
   type BranchMapLocation,
 } from '../../components/manager/BranchLocationPicker';
 import { Pagination } from '../../components/ui/Pagination';
-import { ApiClientError, del, get, post } from '../../services/apiClient';
+import { ApiClientError, del, get, patch, post } from '../../services/apiClient';
 import { formatAddress } from '../../utils/address';
 import {
   type ApiFieldErrors,
@@ -22,10 +22,16 @@ type Branch = {
   id: string;
   name: string;
   phone: string;
+  email: string | null;
   postal_code: string;
   prefecture: string;
   city: string;
   address_line1: string;
+  address_line2: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  google_place_id: string | null;
+  formatted_map_address: string | null;
   manager_count: number;
   staff_count: number;
   queue_count: number;
@@ -62,8 +68,10 @@ export function ManagerBranchesPage() {
   const { t, i18n } = useTranslation(['manager', 'common']);
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editBranchId, setEditBranchId] = useState<string | null>(null);
   const [inviteBranchId, setInviteBranchId] = useState<string | null>(null);
   const [form, setForm] = useState(initial);
+  const [editForm, setEditForm] = useState(initial);
   const [managerForm, setManagerForm] = useState({
     managerName: '',
     managerEmail: '',
@@ -73,6 +81,7 @@ export function ManagerBranchesPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [createFieldErrors, setCreateFieldErrors] = useState<ApiFieldErrors>({});
+  const [editFieldErrors, setEditFieldErrors] = useState<ApiFieldErrors>({});
   const [inviteFieldErrors, setInviteFieldErrors] = useState<ApiFieldErrors>({});
   const { data = [] } = useQuery<Branch[]>({
     queryKey: ['branches'],
@@ -136,6 +145,16 @@ export function ManagerBranchesPage() {
       void client.invalidateQueries({ queryKey: ['branches'] });
     },
     onError: (error) => setInviteFieldErrors(getApiFieldErrors(error)),
+  });
+  const edit = useMutation({
+    mutationFn: () => patch(`/api/v1/branches/${editBranchId}`, branchDetailsPayload(editForm)),
+    onMutate: () => setEditFieldErrors({}),
+    onSuccess: () => {
+      setEditBranchId(null);
+      setEditForm(initial);
+      void client.invalidateQueries({ queryKey: ['branches'] });
+    },
+    onError: (error) => setEditFieldErrors(getApiFieldErrors(error)),
   });
   const remove = useMutation({
     mutationFn: ({ branchId, userId }: { branchId: string; userId: string }) =>
@@ -220,12 +239,26 @@ export function ManagerBranchesPage() {
                 <dd className="truncate font-bold">{branch.queue_count}</dd>
               </div>
             </dl>
-            <Link
-              to={`/manager/branches/${branch.id}`}
-              className="mt-4 inline-flex text-sm font-bold text-brand-700"
-            >
-              {t('branches.viewDetails')}
-            </Link>
+            <div className="mt-4 flex flex-wrap items-center gap-4">
+              <Link
+                to={`/manager/branches/${branch.id}`}
+                className="inline-flex text-sm font-bold text-brand-700"
+              >
+                {t('branches.viewDetails')}
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditBranchId(branch.id);
+                  setEditForm(branchToForm(branch));
+                  setEditFieldErrors({});
+                }}
+                className="inline-flex items-center gap-1.5 text-sm font-bold text-brand-700"
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('branches.editAction')}
+              </button>
+            </div>
             <div className="mt-4 border-t pt-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase text-gray-500">
@@ -240,32 +273,36 @@ export function ManagerBranchesPage() {
               </div>
               <div className="mt-2 space-y-2">
                 {branch.managers.map((manager) => (
-                  <div
-                    key={manager.id}
-                    className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2 text-sm"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-bold">{manager.displayName}</p>
-                      <p className="truncate text-xs text-gray-500">
-                        {manager.email} · {t(`branches.accountStatus.${manager.accountStatus}`)}
-                      </p>
+                  <div key={manager.id} className="rounded-md bg-gray-50 px-3 py-2 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-bold">{manager.displayName}</p>
+                        <p className="truncate text-xs text-gray-500">
+                          {manager.email} · {t(`branches.accountStatus.${manager.accountStatus}`)}
+                        </p>
+                      </div>
+                      {!manager.isOwner && (
+                        <button
+                          type="button"
+                          disabled={remove.isPending || wouldLeaveBranchWithoutManager(branch)}
+                          onClick={() => remove.mutate({ branchId: branch.id, userId: manager.id })}
+                          title={
+                            wouldLeaveBranchWithoutManager(branch)
+                              ? t('branches.lastManagerRequired')
+                              : undefined
+                          }
+                          className="shrink-0 text-xs font-semibold text-red-700 disabled:cursor-not-allowed disabled:text-gray-400"
+                        >
+                          {manager.accountStatus === 'invited'
+                            ? t('branches.revokeInvitation')
+                            : t('branches.removeManager')}
+                        </button>
+                      )}
                     </div>
-                    {!manager.isOwner && (
-                      <button
-                        type="button"
-                        disabled={
-                          remove.isPending || wouldLeaveBranchWithoutActiveManager(branch, manager)
-                        }
-                        onClick={() => remove.mutate({ branchId: branch.id, userId: manager.id })}
-                        title={
-                          wouldLeaveBranchWithoutActiveManager(branch, manager)
-                            ? t('branches.lastManagerRequired')
-                            : undefined
-                        }
-                        className="shrink-0 text-xs font-semibold text-red-700 disabled:cursor-not-allowed disabled:text-gray-400"
-                      >
-                        {t('branches.removeManager')}
-                      </button>
+                    {remove.error && remove.variables?.userId === manager.id && (
+                      <p className="mt-1 text-xs font-medium text-red-700" role="alert">
+                        {remove.error.message}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -307,7 +344,7 @@ export function ManagerBranchesPage() {
                   </span>
                   <input
                     name={key}
-                    required={!['email', 'addressLine2', 'latitude', 'longitude'].includes(key)}
+                    required={branchFieldRequired(key)}
                     type={
                       key.toLowerCase().includes('email')
                         ? 'email'
@@ -323,6 +360,9 @@ export function ManagerBranchesPage() {
                     placeholder={t(`branches.placeholders.${key}`)}
                     value={form[key]}
                     onChange={(e) => setForm((v) => ({ ...v, [key]: e.target.value }))}
+                    aria-invalid={Boolean(
+                      firstFieldError(createFieldErrors, branchApiFieldPath(key))
+                    )}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
                   />
                   <FieldError
@@ -362,7 +402,7 @@ export function ManagerBranchesPage() {
                 }
               />
             </div>
-            {create.error && (
+            {create.error && Object.keys(createFieldErrors).length === 0 && (
               <p className="mt-4 text-sm text-red-700">
                 {create.error instanceof ApiClientError &&
                 create.error.code === 'BRANCH_PLAN_LIMIT_REACHED'
@@ -379,6 +419,107 @@ export function ManagerBranchesPage() {
                 className="rounded-lg bg-brand-600 px-5 py-2 font-bold text-white"
               >
                 {t('branches.save')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {editBranchId && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              edit.mutate();
+            }}
+            className="mx-auto my-4 max-w-2xl rounded-lg bg-white p-5 sm:p-7"
+          >
+            <h2 className="text-xl font-bold">{t('branches.editTitle')}</h2>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {branchDetailFields.map((key) => (
+                <label
+                  key={key}
+                  className={
+                    key === 'addressLine1' || key === 'addressLine2' ? 'sm:col-span-2' : ''
+                  }
+                >
+                  <span className="mb-1 block text-xs font-bold text-gray-600">
+                    {t(`branches.fields.${key}`)}
+                  </span>
+                  <input
+                    name={key}
+                    required={!['email', 'addressLine2'].includes(key)}
+                    type={key === 'email' ? 'email' : 'text'}
+                    minLength={branchFieldMinLength(key)}
+                    maxLength={branchFieldMaxLength(key)}
+                    inputMode={branchFieldInputMode(key)}
+                    pattern={key === 'postalCode' ? '[0-9]{3}-?[0-9]{4}' : undefined}
+                    placeholder={t(`branches.placeholders.${key}`)}
+                    value={editForm[key]}
+                    onChange={(event) =>
+                      setEditForm((current) => ({ ...current, [key]: event.target.value }))
+                    }
+                    aria-invalid={Boolean(firstFieldError(editFieldErrors, key))}
+                    className={`w-full rounded-lg border px-3 py-2.5 ${
+                      firstFieldError(editFieldErrors, key) ? 'border-red-400' : 'border-gray-300'
+                    }`}
+                  />
+                  <FieldError message={firstFieldError(editFieldErrors, key)} />
+                </label>
+              ))}
+              <BranchLocationPicker
+                addressQuery={[
+                  editForm.name,
+                  editForm.postalCode,
+                  editForm.prefecture,
+                  editForm.city,
+                  editForm.addressLine1,
+                  editForm.addressLine2,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+                value={
+                  editForm.latitude && editForm.longitude && editForm.googlePlaceId
+                    ? {
+                        latitude: Number(editForm.latitude),
+                        longitude: Number(editForm.longitude),
+                        placeId: editForm.googlePlaceId,
+                        formattedAddress: editForm.formattedMapAddress,
+                      }
+                    : null
+                }
+                onChange={(location: BranchMapLocation) =>
+                  setEditForm((current) => ({
+                    ...current,
+                    latitude: String(location.latitude),
+                    longitude: String(location.longitude),
+                    googlePlaceId: location.placeId,
+                    formattedMapAddress: location.formattedAddress,
+                  }))
+                }
+              />
+              <div className="sm:col-span-2">
+                <FieldError message={firstFieldError(editFieldErrors, 'latitude', 'longitude')} />
+              </div>
+            </div>
+            {edit.error && Object.keys(editFieldErrors).length === 0 && (
+              <p className="mt-4 text-sm text-red-700" role="alert">
+                {edit.error.message}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={edit.isPending}
+                onClick={() => setEditBranchId(null)}
+                className="px-4 py-2"
+              >
+                {t('branches.cancel')}
+              </button>
+              <button
+                disabled={edit.isPending}
+                className="rounded-lg bg-brand-600 px-5 py-2 font-bold text-white disabled:opacity-50"
+              >
+                {edit.isPending ? t('branches.saving') : t('branches.saveChanges')}
               </button>
             </div>
           </form>
@@ -419,6 +560,9 @@ export function ManagerBranchesPage() {
                       onChange={(event) =>
                         setManagerForm((value) => ({ ...value, [key]: event.target.value }))
                       }
+                      aria-invalid={Boolean(
+                        firstFieldError(inviteFieldErrors, inviteApiFieldPath(key))
+                      )}
                       className="w-full rounded-lg border border-gray-300 px-3 py-2.5"
                     />
                     <FieldError
@@ -428,7 +572,9 @@ export function ManagerBranchesPage() {
                 )
               )}
             </div>
-            {invite.error && <p className="mt-4 text-sm text-red-700">{invite.error.message}</p>}
+            {invite.error && Object.keys(inviteFieldErrors).length === 0 && (
+              <p className="mt-4 text-sm text-red-700">{invite.error.message}</p>
+            )}
             <div className="mt-6 flex justify-end gap-2">
               <button type="button" onClick={() => setInviteBranchId(null)} className="px-4 py-2">
                 {t('branches.cancel')}
@@ -469,6 +615,10 @@ function branchFieldMinLength(key: keyof typeof initial): number | undefined {
   return key === 'name' || key === 'managerName' ? 2 : undefined;
 }
 
+function branchFieldRequired(key: keyof typeof initial): boolean {
+  return !['email', 'addressLine2', 'managerTitle'].includes(key);
+}
+
 function branchFieldInputMode(key: keyof typeof initial) {
   if (key === 'phone' || key === 'managerPhone') return 'tel' as const;
   if (key === 'email' || key === 'managerEmail') return 'email' as const;
@@ -503,9 +653,52 @@ function FieldError({ message }: { message?: string }) {
   ) : null;
 }
 
-function wouldLeaveBranchWithoutActiveManager(
-  branch: Branch,
-  manager: Branch['managers'][number]
-): boolean {
-  return branch.manager_count - (manager.accountStatus === 'active' ? 1 : 0) < 1;
+const branchDetailFields = [
+  'name',
+  'phone',
+  'email',
+  'postalCode',
+  'prefecture',
+  'city',
+  'addressLine1',
+  'addressLine2',
+] as const;
+
+function wouldLeaveBranchWithoutManager(branch: Branch): boolean {
+  return branch.managers.length <= 1;
+}
+
+function branchToForm(branch: Branch): typeof initial {
+  return {
+    ...initial,
+    name: branch.name,
+    phone: branch.phone,
+    email: branch.email ?? '',
+    postalCode: branch.postal_code,
+    prefecture: branch.prefecture,
+    city: branch.city,
+    addressLine1: branch.address_line1,
+    addressLine2: branch.address_line2 ?? '',
+    latitude: branch.latitude ?? '',
+    longitude: branch.longitude ?? '',
+    googlePlaceId: branch.google_place_id ?? '',
+    formattedMapAddress: branch.formatted_map_address ?? '',
+  };
+}
+
+function branchDetailsPayload(value: typeof initial) {
+  return {
+    name: value.name,
+    phone: value.phone,
+    email: value.email || null,
+    postalCode: value.postalCode,
+    prefecture: value.prefecture,
+    city: value.city,
+    addressLine1: value.addressLine1,
+    addressLine2: value.addressLine2 || null,
+    latitude: value.latitude ? Number(value.latitude) : null,
+    longitude: value.longitude ? Number(value.longitude) : null,
+    googlePlaceId: value.googlePlaceId || null,
+    formattedMapAddress: value.formattedMapAddress || null,
+  };
 }
