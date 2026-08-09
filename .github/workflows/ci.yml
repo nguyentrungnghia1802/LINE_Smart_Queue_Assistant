@@ -10,22 +10,105 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   secret-scan:
-    name: Secret scan
+    name: 🔐 Secret scan
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout full history
+      - name: 📥 Checkout full history
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Scan repository history
+      - name: 🔎 Scan repository history
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  quality-gates:
-    name: Test · Migration · Build · E2E
+  dependency-audit:
+    name: 🛡️ Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 🛡️ Audit production dependencies
+        run: npm run audit:ci
+
+  formatting:
+    name: ✨ Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: ✨ Check formatting
+        run: npm run format:check
+
+  lint:
+    name: 🧹 Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 🧹 Run lint
+        run: npm run lint
+
+  typecheck:
+    name: 🔷 Type-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 🔷 Run type-check
+        run: npm run typecheck
+
+  openapi:
+    name: 📘 OpenAPI contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 📘 Check OpenAPI contract
+        run: npm run openapi:check
+
+  api-tests:
+    name: 🧪 API tests
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -51,60 +134,150 @@ jobs:
       LINE_ID_TOKEN_VERIFICATION_MODE: mock
       MEDIA_STORAGE_MODE: mock
       CORS_ORIGIN: http://127.0.0.1:5174
-
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Node.js
+      - name: 🟢 Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
-
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: npm ci
-
-      - name: Dependency audit
-        run: npm run audit:ci
-
-      - name: Formatting
-        run: npm run format:check
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Type-check
-        run: npm run typecheck
-
-      - name: OpenAPI contract
-        run: npm run openapi:check
-
-      - name: API tests and critical coverage thresholds
+      - name: 🧪 Run API tests and coverage thresholds
         run: npm run test:coverage -w apps/api -- --runInBand
 
-      - name: Web and shared tests
-        run: |
-          npm run test -w apps/web
-          npm run test -w packages/shared --if-present
+  web-tests:
+    name: 🌐 Web and shared tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 🌐 Run web tests
+        run: npm run test -w apps/web
+      - name: 🔗 Run shared-package tests
+        run: npm run test -w packages/shared --if-present
 
-      - name: Clean canonical migrations
-        run: |
-          npm run db:migrate
-          npm run db:migrate:status
-
-      - name: Seed smoke and idempotency
+  migration-smoke:
+    name: 🗄️ Migration and seed smoke
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: line_queue_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d line_queue_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/line_queue_test
+      JWT_SECRET: ci-only-jwt-secret-never-use-in-production
+      DEMO_PAYMENT_WEBHOOK_SECRET: ci-only-payment-secret
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: ''
+      LINE_MESSAGING_CHANNEL_SECRET: ci-only-line-secret
+      LINE_ID_TOKEN_VERIFICATION_MODE: mock
+      MEDIA_STORAGE_MODE: mock
+      CORS_ORIGIN: http://127.0.0.1:5174
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 🗄️ Apply canonical migrations
+        run: npm run db:migrate
+      - name: ✅ Check migration status
+        run: npm run db:migrate:status
+      - name: 🌱 Run idempotent administrator seed smoke
         run: |
           npm run db:seed
           npm run db:seed
 
-      - name: Build
+  build:
+    name: 🏗️ Production build
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 🏗️ Build shared, API, and Web
         run: npm run build
 
-      - name: Install Playwright Chromium
+  browser-e2e:
+    name: 🎭 Browser E2E
+    needs:
+      - formatting
+      - lint
+      - typecheck
+      - openapi
+      - api-tests
+      - web-tests
+      - migration-smoke
+      - build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: line_queue_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d line_queue_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/line_queue_test
+      JWT_SECRET: ci-only-jwt-secret-never-use-in-production
+      DEMO_PAYMENT_WEBHOOK_SECRET: ci-only-payment-secret
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: ''
+      LINE_MESSAGING_CHANNEL_SECRET: ci-only-line-secret
+      LINE_ID_TOKEN_VERIFICATION_MODE: mock
+      MEDIA_STORAGE_MODE: mock
+      CORS_ORIGIN: http://127.0.0.1:5174
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 🗄️ Prepare isolated E2E database
+        run: npm run db:migrate
+      - name: 🌱 Load browser-only fixtures
+        run: npm run db:fixture:e2e
+      - name: 🎭 Install Chromium with system dependencies
         run: npx playwright install --with-deps chromium
-
-      - name: Browser E2E with mock integrations
-        run: |
-          npm run db:fixture:e2e
-          npm run e2e:all
+      - name: 🎭 Run desktop and mobile browser E2E
+        run: npm run e2e:all
