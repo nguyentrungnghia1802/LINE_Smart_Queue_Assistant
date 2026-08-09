@@ -1,7 +1,7 @@
 import { QueueStatus, type QueueSummary, type TicketStatus } from '@line-queue/shared';
 
 import type { LiffContext } from '../types/liff';
-import type { TicketPositionResult } from '../types/queue-entry';
+import type { CustomerTicketOrder, TicketPositionResult } from '../types/queue-entry';
 
 export const queueFixtures: Record<string, QueueSummary> = {
   active: {
@@ -37,6 +37,23 @@ export const queueFixtures: Record<string, QueueSummary> = {
     branchId: 'branch-tokyo',
     ticketPrefix: 'B',
     productIds: ['product-consultation'],
+    createdAt: new Date('2026-08-01T09:00:00+09:00'),
+    updatedAt: new Date('2026-08-09T10:30:00+09:00'),
+  },
+  closed: {
+    id: 'queue-closed',
+    name: 'Takeout counter',
+    description: undefined,
+    status: QueueStatus.CLOSED,
+    currentNumber: 24,
+    waitingCount: 0,
+    calledCount: 0,
+    servingCount: 0,
+    avgServiceTimeMinutes: 5,
+    organizationId: 'org-demo',
+    branchId: 'branch-tokyo',
+    ticketPrefix: 'C',
+    productIds: ['product-water'],
     createdAt: new Date('2026-08-01T09:00:00+09:00'),
     updatedAt: new Date('2026-08-09T10:30:00+09:00'),
   },
@@ -99,9 +116,114 @@ export const ticketFixtures: Record<string, TicketPositionResult> = {
     aheadCount: 0,
     estimatedWaitSeconds: 0,
   },
+  completed: {
+    entry: {
+      id: 'entry-completed',
+      queue_id: 'queue-salon',
+      user_id: 'user-demo',
+      order_id: 'order-demo',
+      line_user_id: 'U-demo',
+      ticket_number: 18,
+      ticket_code: 'A018',
+      status: ticketStatus('served'),
+      priority: 0,
+      position_snapshot: null,
+      estimated_wait_seconds: 0,
+      called_at: '2026-08-09T09:31:00+09:00',
+      serving_started_at: '2026-08-09T09:32:00+09:00',
+      served_at: '2026-08-09T10:00:00+09:00',
+      skipped_at: null,
+      cancelled_at: null,
+      no_show_at: null,
+      created_at: '2026-08-09T09:20:00+09:00',
+      updated_at: '2026-08-09T10:00:00+09:00',
+    },
+    order: null,
+    aheadCount: 0,
+    estimatedWaitSeconds: 0,
+  },
 };
 
-export function friendshipContext(status: LiffContext['friendshipStatus']): LiffContext {
+export const orderFixtures: Record<string, CustomerTicketOrder> = {
+  partiallyPaid: {
+    id: 'order-partially-paid',
+    order_number: 'ORD-2026-001',
+    customer_name: 'Demo Customer',
+    customer_phone: '09012345678',
+    subtotal: '8500',
+    payment_status: 'unpaid',
+    status: 'processing',
+    organization_name_snapshot: 'Smart Queue Tokyo',
+    branch_name_snapshot: 'Tokyo Station Branch',
+    queue_name_snapshot: 'Salon Reception',
+    fulfilled_by_name: null,
+    fulfilled_at: null,
+    created_at: '2026-08-09T10:20:00+09:00',
+    items: [
+      {
+        id: 'order-item-cut',
+        product_id: 'product-cut',
+        product_name: 'Haircut and Shampoo',
+        product_image_url: '/img/solutions/salon.webp',
+        product_price: '3500',
+        service_time_minutes: 30,
+        quantity: 1,
+        subtotal: '3500',
+        payment_status: 'paid',
+        prepaid_amount: '3500',
+        refunded_amount: '0',
+      },
+      {
+        id: 'order-item-color',
+        product_id: 'product-color',
+        product_name: 'Hair Color',
+        product_image_url: null,
+        product_price: '5000',
+        service_time_minutes: 90,
+        quantity: 1,
+        subtotal: '5000',
+        payment_status: 'unpaid',
+        prepaid_amount: '0',
+        refunded_amount: '0',
+      },
+    ],
+  },
+  paid: {
+    id: 'order-paid',
+    order_number: 'ORD-2026-002',
+    customer_name: 'Second Demo Customer',
+    customer_phone: '08098765432',
+    subtotal: '1200',
+    payment_status: 'paid',
+    status: 'completed',
+    organization_name_snapshot: 'Smart Queue Tokyo',
+    branch_name_snapshot: 'Tokyo Station Branch',
+    queue_name_snapshot: 'Takeout Counter',
+    fulfilled_by_name: 'Demo Staff',
+    fulfilled_at: '2026-08-09T11:10:00+09:00',
+    created_at: '2026-08-09T10:45:00+09:00',
+    items: [
+      {
+        id: 'order-item-water',
+        product_id: 'product-water',
+        product_name: 'Mineral Water',
+        product_image_url: '/img/solutions/restaurant.webp',
+        product_price: '600',
+        service_time_minutes: 3,
+        quantity: 2,
+        subtotal: '1200',
+        payment_status: 'paid',
+        prepaid_amount: '1200',
+        refunded_amount: '0',
+      },
+    ],
+  },
+};
+
+export function friendshipContext(
+  status: LiffContext['friendshipStatus'],
+  options: { requestFriendshipResult?: boolean } = {}
+): LiffContext {
   return {
     initStatus: 'ready',
     authStatus: 'authenticated',
@@ -117,7 +239,7 @@ export function friendshipContext(status: LiffContext['friendshipStatus']): Liff
     login: () => undefined,
     logout: async () => undefined,
     refreshFriendship: async () => status === 'friend',
-    requestFriendship: async () => false,
+    requestFriendship: async () => options.requestFriendshipResult ?? false,
     scanQrCode: async () => null,
   };
 }

@@ -1,4 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useMemo, useState } from 'react';
+import { expect } from 'storybook/test';
 
 import { LiffRuntimeProvider } from '../../contexts/LiffRuntimeContext';
 import { friendshipContext } from '../../storybook/fixtures';
@@ -33,4 +35,32 @@ export const AlreadyConnected: Story = {
       </LiffRuntimeProvider>
     ),
   ],
+};
+
+function FriendshipRequestFlow() {
+  const [isFriend, setIsFriend] = useState(false);
+  const context = useMemo(
+    () => ({
+      ...friendshipContext(isFriend ? 'friend' : 'not_friend'),
+      requestFriendship: async () => {
+        setIsFriend(true);
+        return true;
+      },
+    }),
+    [isFriend]
+  );
+
+  return (
+    <LiffRuntimeProvider value={context}>
+      <LineFriendshipPrompt />
+    </LiffRuntimeProvider>
+  );
+}
+
+export const AddFriendSuccess: Story = {
+  render: () => <FriendshipRequestFlow />,
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button'));
+    await expect(canvas.queryByRole('region')).not.toBeInTheDocument();
+  },
 };
