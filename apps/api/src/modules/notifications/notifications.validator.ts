@@ -13,11 +13,36 @@ export const ListNotificationsQuerySchema = PaginationSchema.extend({
 
 export const ListNotificationOperationsQuerySchema = PaginationSchema.extend({
   status: z.enum(['pending', 'processing', 'sent', 'failed', 'cancelled']).optional(),
+  organizationId: z.string().uuid().optional(),
+  branchId: z.string().uuid().optional(),
+  eventType: z
+    .enum([
+      'booking_created',
+      'eta_warning',
+      'called',
+      'serving',
+      'completed',
+      'cancelled',
+      'no_show',
+      'deferred',
+      'location_warning',
+    ])
+    .optional(),
+  createdFrom: z.coerce.date().optional(),
+  createdTo: z.coerce.date().optional(),
+}).superRefine((value, context) => {
+  if (value.createdFrom && value.createdTo && value.createdFrom > value.createdTo) {
+    context.addIssue({
+      code: 'custom',
+      path: ['createdTo'],
+      message: 'createdTo must be on or after createdFrom',
+    });
+  }
 });
 
 export const NotificationOperationParamsSchema = z.object({ id: z.string().uuid() });
 export const NotificationOperationBodySchema = z.object({
-  note: z.string().max(500).optional(),
+  reason: z.string().trim().min(3).max(500),
 });
 
 export type ListNotificationsQuery = z.infer<typeof ListNotificationsQuerySchema>;

@@ -62,6 +62,8 @@ a source of current behavior.
 | `apps/api/src/observability`                                            | OTel/Sentry lifecycle, trace helpers, and sensitive-data sanitization             | `02`, `06`, `07`, `08`, ADR-033             |
 | `apps/api/src/modules/media`                                            | Image validation/compression, storage adapters, metadata cleanup                  | `02`, `04`, `05`, `06`, `07`, `08`, ADR-034 |
 | `apps/api/src/modules/notifications/notification-dispatcher.service.ts` | PostgreSQL-to-BullMQ deterministic outbox dispatch                                | `02`, `04`, `08`, ADR-031                   |
+| `apps/api/src/modules/notifications/notification-operations.*`          | Scoped safe delivery diagnostics and audited retry/cancel                         | `01`, `04`, `05`, `08`                      |
+| `apps/web/src/pages/NotificationOperationsPage.tsx`                     | Responsive Admin/Manager LINE delivery operations UI                              | `01`, `05`, `08`                            |
 | `apps/api/src/modules/realtime`                                         | Authorized SSE streams and transient Redis Pub/Sub event fan-out                  | `02`, `05`, `07`, `08`, ADR-032             |
 | `apps/api/src/routes/v1.routes.ts`                                      | `/api/v1` module mounting and ordering                                            | route modules, `05`, OpenAPI test           |
 | `apps/api/src/modules/*`                                                | Domain route/controller/validator/service/repository code                         | relevant `01`, `03`, `04`, `05`, tests      |

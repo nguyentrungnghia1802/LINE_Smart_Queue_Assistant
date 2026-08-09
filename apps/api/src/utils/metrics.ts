@@ -77,7 +77,9 @@ type GaugeName =
   | 'notifications_outbox_backlog'
   | 'notifications_outbox_retry_backlog'
   | 'notifications_outbox_failed'
+  | 'notifications_oldest_pending_seconds'
   | 'notifications_delivery_latency_seconds'
+  | 'notification_worker_heartbeat_unixtime'
   | 'redis_cache_hit_ratio'
   | 'redis_cache_latency_seconds'
   | 'bullmq_worker_ready'
@@ -100,7 +102,9 @@ const gauges: Record<GaugeName, number> = {
   notifications_outbox_backlog: 0,
   notifications_outbox_retry_backlog: 0,
   notifications_outbox_failed: 0,
+  notifications_oldest_pending_seconds: 0,
   notifications_delivery_latency_seconds: 0,
+  notification_worker_heartbeat_unixtime: 0,
   redis_cache_hit_ratio: 0,
   redis_cache_latency_seconds: 0,
   bullmq_worker_ready: 0,
