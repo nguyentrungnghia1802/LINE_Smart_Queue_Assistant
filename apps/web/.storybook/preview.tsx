@@ -20,7 +20,19 @@ const viewportOptions = {
   desktop: { name: 'Desktop', styles: { width: '1440px', height: '900px' } },
 };
 
-function StoryProviders({ locale, children }: { locale: string; children: ReactNode }) {
+interface StoryRouterParameters {
+  initialEntries?: string[];
+}
+
+function StoryProviders({
+  locale,
+  initialEntries,
+  children,
+}: {
+  locale: string;
+  initialEntries: string[];
+  children: ReactNode;
+}) {
   const queryClient = useMemo(
     () =>
       new QueryClient({
@@ -38,17 +50,23 @@ function StoryProviders({ locale, children }: { locale: string; children: ReactN
   return (
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/']}>{children}</MemoryRouter>
+        <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
       </QueryClientProvider>
     </I18nextProvider>
   );
 }
 
-const withProviders: Decorator = (Story, context) => (
-  <StoryProviders locale={String(context.globals.locale ?? 'ja')}>
-    <Story />
-  </StoryProviders>
-);
+const withProviders: Decorator = (Story, context) => {
+  const router = (context.parameters.router ?? {}) as StoryRouterParameters;
+  return (
+    <StoryProviders
+      locale={String(context.globals.locale ?? 'ja')}
+      initialEntries={router.initialEntries ?? ['/']}
+    >
+      <Story />
+    </StoryProviders>
+  );
+};
 
 const preview: Preview = {
   decorators: [withProviders],
@@ -66,8 +84,15 @@ const preview: Preview = {
     locale: 'ja',
     viewport: { value: 'desktop', isRotated: false },
   },
+  tags: ['autodocs'],
   parameters: {
+    layout: 'padded',
     controls: { expanded: true },
+    options: {
+      storySort: {
+        order: ['Brand', 'UI', 'Layout', 'Queue', 'Ticket', 'Manager', 'LIFF'],
+      },
+    },
     viewport: { options: viewportOptions },
   },
 };

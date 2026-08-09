@@ -105,9 +105,16 @@ npm run storybook:build
 ```
 
 The toolbar provides Japanese, Vietnamese, and English locale selection plus phone and desktop
-viewports. Stories are colocated with reusable components as `*.stories.tsx`; shared deterministic
-fixtures are tested under `apps/web/src/storybook`. A Storybook static build is a development/CI
-review artifact and is not copied into the production web image.
+viewports. The 20 colocated story modules expose 64 entries covering shared brand/layout/i18n
+controls, role shell and login chrome, loading/empty/error/pagination feedback, queue/ticket/order
+states, manager form/map boundaries, and LIFF friendship/QR flows. Stories that change state use
+Storybook interaction tests
+for pagination, dismissible alerts, product selection, friendship requests, and QR navigation.
+`apps/web/src/storybook/fixtures.ts` contains queue, ticket, order, and LIFF fixtures;
+`apps/web/src/storybook/providers.tsx` supplies deterministic authenticated context without login,
+storage, or network calls. Camera, maps, and API integration boundaries stay in Vitest tests with
+explicit mocks. A Storybook static build is a development/CI review artifact and is not copied into
+the production web image.
 
 `npm run docker:clean` also removes development database volumes and is destructive.
 
