@@ -95,14 +95,14 @@ test('a public business application is provisioned only after admin approval', a
   const applicationBody = (await applicationResponse.json()) as {
     data: { referenceCode: string };
   };
+  expect(applicationBody.data.referenceCode).toMatch(/^SQA-/);
 
   await login(page, 'admin@gmail.com');
   await page.goto('/admin/applications');
-  const applicationRow = page
-    .locator('article')
-    .filter({ hasText: applicationBody.data.referenceCode });
-  await expect(applicationRow.getByText(tradeName)).toBeVisible();
-  await applicationRow.getByRole('button', { name: '審査する' }).click();
+  const applicationRow = page.locator('article').filter({ hasText: tradeName });
+  await expect(applicationRow).toHaveCount(1);
+  await expect(applicationRow).toContainText(tradeName);
+  await applicationRow.click();
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: '承認して組織を作成' }).click();
 

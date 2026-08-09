@@ -518,23 +518,31 @@ and investigate the cancellation/retry/concurrency path. Do not manually edit on
 
 ## 10. CI/CD
 
-`.github/workflows/ci.yml` runs on every pushed branch and pull request. It
-provides two required quality surfaces:
+`.github/workflows/ci.yml` runs on every pushed branch and pull request. It splits the validation
+gate into independent jobs so failures are easy to locate:
 
 - full-history Gitleaks secret scanning;
-- dependency audit, format, lint, typecheck, OpenAPI drift validation, API coverage thresholds, web/shared tests, clean PostgreSQL migration/status, repeated seed smoke, build, and mock-integration Playwright desktop/mobile E2E.
+- dependency audit;
+- formatting, lint, type-check, and OpenAPI contract checks;
+- API tests with coverage thresholds;
+- Web/shared tests;
+- clean PostgreSQL migration/status and repeated administrator seed smoke;
+- production build;
+- mock-integration Playwright desktop/mobile browser E2E.
 
-CI uses PostgreSQL 16 and does not receive real LINE, PSP, SMTP, SSH, or customer
-credentials. `npm run audit:ci` blocks new high/critical advisories in
-production dependencies and keeps its single narrow, reviewed exception in
-`audit-ci.jsonc`.
+The API tests, migration smoke, and browser E2E jobs use separate PostgreSQL services. Browser E2E
+waits for the earlier quality jobs, applies migrations, loads only the explicit browser fixtures,
+and then starts the API/Web test servers. CI uses PostgreSQL 16 and does not receive real LINE,
+PSP, SMTP, SSH, or customer credentials. `npm run audit:ci` blocks new high/critical advisories
+in production dependencies and keeps its single narrow, reviewed exception in `audit-ci.jsonc`.
 
-`.github/workflows/deploy.yml` starts only after `CI Quality Gates` succeeds for
-`main`. It checks out the exact tested commit, publishes API and Web images with
-both `latest` and `sha-<full-commit>` tags, then connects to the production host,
-pulls images, applies migrations, recreates API/worker/Web, and verifies API,
-worker-heartbeat, and Web health. Configure a GitHub Environment named `production`; use required
-reviewers there when manual approval is desired.
+Continuous deployment is temporarily disabled. `.github/workflows/deploy.yml` exposes only a
+manual placeholder that reports the disabled state. It does not build images, push Docker images,
+or connect to the production server. Docker image publishing and server updates remain manual
+until CD is explicitly re-enabled and reviewed.
+
+The production variables and secrets below are retained as a future-CD reference only; the
+disabled workflow does not read or use them.
 
 Production GitHub Actions variables:
 
