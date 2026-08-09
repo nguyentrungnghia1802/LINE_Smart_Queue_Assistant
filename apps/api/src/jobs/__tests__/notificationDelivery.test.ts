@@ -65,6 +65,7 @@ function makeRepository(rows: NotificationOutboxRow[] = []) {
       pending: '0',
       retrying: '0',
       failed: '0',
+      oldest_pending_seconds: '0',
       latency_seconds: '0',
     }),
   } as unknown as jest.Mocked<NotificationOutboxRepository>;

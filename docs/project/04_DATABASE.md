@@ -311,7 +311,10 @@ the administrator; it is blocked in production and requires
 
 - Real per-organization payment/LINE provider secrets need a managed encrypted configuration boundary.
 - Forecast calibration still needs production history and measured accuracy review before any ML claim.
-- Advanced notification operations UI, manual replay/cancel controls, and long-term notification retention policy are not implemented.
+- Notification operations list/detail, guarded replay/cancel, and audit controls are implemented
+  over the existing `notifications` and `audit_logs` tables. No provider secrets or raw responses
+  are added to the schema. Long-term automated archival remains deferred; production retention is
+  an operator policy described in `08_DEPLOYMENT_AND_OPERATIONS.md`.
 
 ## 12. Account lifecycle, branch scope, and receipts (migrations 000015-000017)
 

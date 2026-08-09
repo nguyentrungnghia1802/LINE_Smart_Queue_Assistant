@@ -81,6 +81,8 @@ The project is a working local/demo modular monolith, not yet a production-compl
   that contain a verified linked LINE user ID.
 - Centralized Japanese, Vietnamese, and English LINE Flex Message and text fallback templates for ticket lifecycle notifications, with Japanese as the final locale fallback.
 - Durable LINE notification outbox/delivery log in PostgreSQL with unique event keys, worker claim, retry/backoff, sent/failed state, and mock-mode delivery.
+- Tenant-scoped LINE notification operations center for safe diagnosis, sanitized failure categories,
+  audited retry of recoverable failures, and cancellation of obsolete pending deliveries.
 - LINE notification ticket deeplinks that open `/liff/tickets/:entryId`.
 - LIFF Home at `/liff/home` as the common customer entry point from Rich Menu, including active-ticket resolution, ticket opening, booking start, and localized empty states.
 - Central Rich Menu definition for `ホーム`, `予約する`, `現在の受付`, and `利用案内`, plus an explicit idempotent `npm run line:rich-menu:sync` command with mock mode.

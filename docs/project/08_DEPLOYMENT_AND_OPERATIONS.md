@@ -495,6 +495,28 @@ Remove instance from readiness, inspect credentials/network/storage/connections,
 
 Check linked `line_user_id`, Official Account relationship, access token, channel pairing, `/health`, API logs/metrics, recipient block status, and device notification settings. Inspect the `notifications` outbox rows for the ticket: `pending` means waiting for the worker, `processing` means claimed, `sent` means delivery succeeded, and `failed` means retry limit was reached. Errors are sanitized; do not paste access tokens into tickets/logs.
 
+Use **LINE delivery** in the Admin or Manager navigation before querying PostgreSQL. Filter by
+status/event/time and tenant or branch as permitted, then open the row detail. Failure categories
+`timeout`, `rate_limited`, `provider_5xx`, `network`, and `unknown` may be manually retried after the
+provider or network has recovered. `blocked_recipient`, `invalid_recipient`, and `provider_4xx` are
+permanent until the recipient/account/configuration is corrected and cannot be manually retried.
+Every manual action requires an operator reason and writes `notification_manual_retry` or
+`notification_manual_cancel` to `audit_logs`.
+
+For an outage, first confirm `line_queue_bullmq_worker_ready`,
+`line_queue_notification_worker_heartbeat_unixtime`, outbox backlog, oldest-pending age, delivery
+latency, and failure count. Restore Redis/worker/provider connectivity before scheduling retries;
+retry rows in small batches and watch rate-limit signals. For invalid credentials, rotate the
+Messaging API token/secret in the secret store, recreate API/worker containers, verify `/health`,
+then retry only recoverable failed rows. Exhausted retries remain `failed` for investigation.
+Cancel is available only for stale `pending` rows whose ticket is already `served`, `cancelled`, or
+`no_show`; it never changes ticket/order state.
+
+Retention policy: keep sent/cancelled delivery metadata for at least 90 days and failed/audited
+operator records for at least 180 days unless local legal/privacy policy requires longer. Archive or
+delete in bounded batches by `created_at`; preserve `audit_logs` and aggregate metrics, and never
+archive pending/processing rows. Automated archival is not enabled by the application yet.
+
 ### Rich Menu missing or outdated
 
 Check the intended Official Account, `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`,

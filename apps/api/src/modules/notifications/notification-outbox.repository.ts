@@ -325,12 +325,19 @@ export class NotificationOutboxRepository extends BaseRepository {
       pending: string;
       retrying: string;
       failed: string;
+      oldest_pending_seconds: string;
       latency_seconds: string;
     }>(
       `SELECT
          COUNT(*) FILTER (WHERE status IN ('pending','processing')) AS pending,
          COUNT(*) FILTER (WHERE status = 'pending' AND attempt_count > 0) AS retrying,
          COUNT(*) FILTER (WHERE status = 'failed') AS failed,
+         COALESCE(
+           EXTRACT(EPOCH FROM (NOW() - MIN(created_at) FILTER (
+             WHERE status IN ('pending','processing')
+           ))),
+           0
+         ) AS oldest_pending_seconds,
          COALESCE(AVG(EXTRACT(EPOCH FROM (sent_at - created_at))) FILTER (WHERE sent_at IS NOT NULL), 0) AS latency_seconds
        FROM notifications`
     );

@@ -34,6 +34,7 @@ import { QueueSettingsPage } from './pages/manager/QueueSettingsPage';
 import { BusinessRegistrationPage } from './pages/marketing/BusinessRegistrationPage';
 import { MarketingHomePage } from './pages/marketing/MarketingHomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { NotificationOperationsPage } from './pages/NotificationOperationsPage';
 import { PaymentDemoPage } from './pages/PaymentDemoPage';
 import { QueueDetailPage } from './pages/QueueDetailPage';
 import { QueuesPage } from './pages/QueuesPage';
@@ -99,6 +100,7 @@ export const router = createBrowserRouter([
       { path: 'branches', element: <ManagerBranchesPage /> },
       { path: 'branches/:branchId', element: <ManagerBranchDetailPage /> },
       { path: 'audit', element: <ManagerAuditPage /> },
+      { path: 'notifications', element: <NotificationOperationsPage /> },
       { path: 'qr', element: <ManagerQRPage /> },
       { path: 'settings', element: <ManagerSettingsRoute /> },
     ],
@@ -145,6 +147,7 @@ export const router = createBrowserRouter([
       { path: 'orgs', element: <AdminOrganizationsPage /> },
       { path: 'applications', element: <AdminOrganizationApplicationsPage /> },
       { path: 'orgs/:orgId', element: <AdminOrganizationDetailPage /> },
+      { path: 'notifications', element: <NotificationOperationsPage /> },
     ],
   },
 

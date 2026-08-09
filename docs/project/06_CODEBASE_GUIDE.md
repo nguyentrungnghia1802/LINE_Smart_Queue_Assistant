@@ -243,7 +243,10 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 - `apps/api/src/modules/branches/branch-scope.ts`: owner, branch-manager, and branch-operator scope
   guards used by every branch-owned endpoint.
 - `apps/api/src/modules/notifications/**`: LINE notification templates and durable PostgreSQL
-  outbox/delivery semantics.
+  outbox/delivery semantics. `notification-operations.repository.ts` owns scoped diagnostic SQL;
+  `notification-operations.service.ts` owns sanitization, failure categories, and guarded audited
+  retry/cancel transitions. The responsive operator UI is
+  `apps/web/src/pages/NotificationOperationsPage.tsx` and must use the safe operations API only.
 - `apps/api/src/modules/realtime/**`: versioned minimal events, authorized SSE lifecycle, bounded
   local subscriptions, and dedicated Redis Pub/Sub transport. PostgreSQL/REST remains authoritative.
 - `scripts/scalability/**`, `docker-compose.validation.yml`, and `docker/nginx/validation.conf`:
