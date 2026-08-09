@@ -1911,7 +1911,7 @@ Prove the final architecture provides measurable benefit and safe degraded behav
 
 # TASK-11 — Load, Failure Injection, Horizontal Readiness & Final Documentation
 
-**Status:** [ ] Not started
+**Status:** [x] Completed (2026-08-09)
 **Priority:** P0
 **Dependencies:** TASK-02 through TASK-10 as applicable
 
@@ -2078,15 +2078,15 @@ Major architectural decisions must be added/superseded through ADRs instead of s
 
 ## Acceptance criteria
 
-- [ ] Scale improvements are evidence-backed.
-- [ ] Redis loss does not corrupt business truth.
-- [ ] BullMQ/worker failure does not lose durable notification intent.
-- [ ] SSE failure has authoritative REST recovery.
-- [ ] Observability outage does not break business flows.
-- [ ] Object-storage failures have safe recovery behavior.
-- [ ] Multiple API instances operate correctly at the intended baseline.
-- [ ] Canonical docs match code.
-- [ ] Tech stack contains only technologies actually implemented and validated.
+- [x] Scale improvements are evidence-backed.
+- [x] Redis loss does not corrupt business truth.
+- [x] BullMQ/worker failure does not lose durable notification intent.
+- [x] SSE failure has authoritative REST recovery.
+- [x] Observability outage does not break business flows.
+- [x] Object-storage failures have safe recovery behavior.
+- [x] Multiple API instances operate correctly at the intended baseline.
+- [x] Canonical docs match code.
+- [x] Tech stack contains only technologies actually implemented and validated.
 
 ---
 
@@ -2094,14 +2094,14 @@ Major architectural decisions must be added/superseded through ADRs instead of s
 
 | Phase   | Description                  | Status |
 | ------- | ---------------------------- | ------ |
-| Phase 0 | Baseline & Architecture Plan | [ ]    |
-| Phase 1 | Redis                        | [ ]    |
-| Phase 2 | BullMQ & Workers             | [ ]    |
-| Phase 3 | SSE                          | [ ]    |
+| Phase 0 | Baseline & Architecture Plan | [x]    |
+| Phase 1 | Redis                        | [x]    |
+| Phase 2 | BullMQ & Workers             | [x]    |
+| Phase 3 | SSE                          | [x]    |
 | Phase 4 | OpenTelemetry & Sentry       | [x]    |
 | Phase 5 | S3/R2 Object Storage         | [x]    |
 | Phase 6 | Storybook                    | [x]    |
-| Phase 7 | Integrated Validation        | [ ]    |
+| Phase 7 | Integrated Validation        | [x]    |
 
 A phase is complete only when all tasks inside it satisfy their acceptance criteria.
 

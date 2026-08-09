@@ -32,6 +32,22 @@ EXPOSE 9229
 
 CMD ["npm", "run", "dev", "--workspace=apps/api"]
 
+# ── validation: isolated migrations + E2E fixtures for TASK-11 ───────────────
+# This stage is never used by production. It keeps the horizontal validation
+# stack reproducible on hosts that only provide Docker.
+FROM base AS validation
+ENV NODE_ENV=test
+
+COPY packages/config/   ./packages/config/
+COPY packages/shared/   ./packages/shared/
+COPY apps/api/          ./apps/api/
+COPY db/                ./db/
+COPY docker-compose.validation.yml ./docker-compose.validation.yml
+COPY docker/nginx/validation.conf ./docker/nginx/validation.conf
+COPY scripts/scalability/ ./scripts/scalability/
+
+CMD ["sh", "-c", "npm run build --workspace=packages/shared && npm run db:migrate && npm run db:fixture:e2e"]
+
 # ── prod-deps: production-only dependencies ────────────────────────────────────
 # Separate stage so runner image never contains devDependencies.
 FROM node:20-alpine AS prod-deps

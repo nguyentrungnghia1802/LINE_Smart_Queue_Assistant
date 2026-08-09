@@ -251,18 +251,40 @@ npm run test:watch -w apps/api
 npm run test:ui -w apps/web
 ```
 
+### Integrated horizontal validation
+
+TASK-11 adds a local-only topology with two API replicas, shared PostgreSQL/Redis, a dedicated
+BullMQ worker, and an nginx gateway. It uses mock/disabled providers and an isolated Compose
+project/volume; never point it at production data or real recipients.
+
+```bash
+npm run scale:validate:config
+npm run scale:validate
+
+# Optional focused HTTP run against an already running target.
+npm run scale:load -- --url http://localhost:4180/api/v1/orgs/by-token/demo-queue-lab-2026 --requests 160 --concurrency 10
+```
+
+`scale:validate` applies migrations and the explicit E2E fixture, then checks cross-instance auth,
+shared strict rate limiting, cache loss, Redis interruption/recovery, durable worker restart,
+cross-instance SSE, API restart, PostgreSQL readiness failure/recovery, metrics, and container
+resource snapshots. It tears the stack down by default and writes the ignored evidence file to
+`var/scalability/task-11-report.json`. This disruptive harness remains a manual engineering gate;
+normal CI keeps the deterministic unit/config/infrastructure tests and does not run Docker failure
+injection on every commit.
+
 ## 9. Test strategy
 
-| Layer                          | Tool                                             | Focus                                                                                        |
-| ------------------------------ | ------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| Pure unit                      | Jest/Vitest                                      | ETA, policy, helpers, adapters, validators                                                   |
-| Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB     | Transactions, tenant checks, state transitions, stock/payment behavior                       |
-| Route/API                      | Supertest                                        | Middleware, status/envelope, request validation                                              |
-| Infrastructure lifecycle       | Jest plus Compose smoke tests                    | Redis lifecycle/cache/limits/Pub/Sub, SSE cleanup/fan-out, and BullMQ startup/restart/outage |
-| Component                      | Testing Library/Vitest                           | Render states and critical interactions                                                      |
-| Isolated component review      | Storybook 10 + React/Vite                        | Locale, phone/desktop viewport, and deterministic reusable-component states                  |
-| Browser E2E                    | Playwright + isolated mock LINE/API ports        | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows  |
-| Load                           | Scenario definitions and a small Docker baseline | Use `11_SCALABILITY_BASELINE.md`; recreate against isolated staging before capacity claims   |
+| Layer                          | Tool                                            | Focus                                                                                        |
+| ------------------------------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Pure unit                      | Jest/Vitest                                     | ETA, policy, helpers, adapters, validators                                                   |
+| Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB    | Transactions, tenant checks, state transitions, stock/payment behavior                       |
+| Route/API                      | Supertest                                       | Middleware, status/envelope, request validation                                              |
+| Infrastructure lifecycle       | Jest plus Compose smoke tests                   | Redis lifecycle/cache/limits/Pub/Sub, SSE cleanup/fan-out, and BullMQ startup/restart/outage |
+| Component                      | Testing Library/Vitest                          | Render states and critical interactions                                                      |
+| Isolated component review      | Storybook 10 + React/Vite                       | Locale, phone/desktop viewport, and deterministic reusable-component states                  |
+| Browser E2E                    | Playwright + isolated mock LINE/API ports       | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows  |
+| Load/failure                   | Node HTTP runner plus isolated Compose topology | Use `scale:validate`; recreate against production-like staging before capacity claims        |
 
 Realtime tests cover strict event parsing, customer ownership, exact branch/Staff assignment,
 organization-owner rejection, heartbeat and disconnect cleanup, connection fan-out, Redis

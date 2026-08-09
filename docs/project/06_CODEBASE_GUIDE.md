@@ -20,10 +20,11 @@ worker source paths that must be reviewed together.
 |   |-- seeds/               Idempotent administrator-only baseline
 |   \-- fixtures/e2e/        Isolated browser-test tenant and operational data
 |-- docker/                  API/web Dockerfiles and nginx config
-|-- scripts/                 Root migration/reset runners
+|-- scripts/                 Root migration/reset and isolated scalability runners
 |-- docs/                    Canonical documentation and historical archive
 |-- .github/workflows/       CI
 |-- docker-compose.dev.yml   Hot-reload local stack
+|-- docker-compose.validation.yml Isolated two-API failure/load topology
 \-- docker-compose.yml       Production-like stack
 ```
 
@@ -237,6 +238,9 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
   outbox/delivery semantics.
 - `apps/api/src/modules/realtime/**`: versioned minimal events, authorized SSE lifecycle, bounded
   local subscriptions, and dedicated Redis Pub/Sub transport. PostgreSQL/REST remains authoritative.
+- `scripts/scalability/**`, `docker-compose.validation.yml`, and `docker/nginx/validation.conf`:
+  destructive local-only load/failure validation. Never point this topology at production data or
+  enable real LINE, payment, SMTP, maps, telemetry, or object-storage credentials.
 - `apps/web/src/services/realtime/**` and `apps/web/src/hooks/useRealtime.ts`: centralized browser
   stream sharing, strict event parsing, reconnect/auth lifecycle, and REST-query reconciliation.
 - `apps/api/src/modules/line/rich-menu.*` and `apps/api/src/scripts/sync-line-rich-menu.ts`: external LINE Rich Menu configuration; never log channel access tokens.

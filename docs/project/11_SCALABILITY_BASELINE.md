@@ -1,9 +1,9 @@
 # Scalability Baseline and Target Architecture
 
-Verified against the TASK-05 working tree on 2026-08-08. This document records the current runtime
-boundary, a small reproducible development baseline, target SLOs, and the technical motivation for
-later scaling work. It does not claim production capacity. Redis and the initial BullMQ worker are
-implemented; SSE and the remaining worker migrations are staged future work.
+Verified against the TASK-11 working tree on 2026-08-09. This document records the current runtime
+boundary, reproducible local evidence, target SLOs, and remaining production acceptance work. It
+does not claim production capacity. Redis, bounded public caches, BullMQ LINE delivery,
+cross-replica SSE, optional observability, and S3-compatible media are implemented.
 
 ## 1. Scope and evidence
 
@@ -54,10 +54,10 @@ notification/email outboxes, inventory reservations, and job-run health. Redis c
 protected rate-limit counters, two performance-only public read models, and BullMQ orchestration.
 Losing Redis pauses LINE delivery but does not remove domain data or block API transactions.
 
-The PostgreSQL pool is created once per API process with a hard-coded maximum of 20 connections in
-non-test environments, an idle timeout of 30 seconds, and a connection timeout of 5 seconds. Every
-additional API replica therefore adds capacity for up to 20 database connections unless this is
-made configurable and bounded against the database connection budget.
+The PostgreSQL pool is created once per API/worker process. `DB_POOL_MAX`,
+`DB_POOL_IDLE_TIMEOUT_MS`, and `DB_POOL_CONNECTION_TIMEOUT_MS` configure its maximum, idle timeout,
+and connection timeout. Every replica adds its configured maximum to the aggregate budget; staging
+must leave explicit database headroom for migrations, administration, and recovery.
 
 ## 3. Current background work
 
@@ -84,40 +84,40 @@ event key remain the delivery authority; Redis outages leave rows undispatched a
 
 ## 4. Process-local state
 
-| State                                    | Classification                         | Multi-instance effect                                                                                               |
-| ---------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Successful idempotency responses         | Correctness-sensitive request behavior | A retry routed to another instance cannot reuse the first response; durable DB constraints cover only some commands |
-| Protected-write/auth rate limits         | Shared ephemeral Redis state           | Healthy replicas share counters; Redis outage uses bounded per-instance fallback with logs/metrics                  |
-| Global/read rate-limit counters          | Coarse process-local protection        | Non-sensitive limits apply per instance; no domain authorization depends on them                                    |
-| Legacy organization/product/queue caches | Process-local performance-only         | Replicas can serve different values until TTL/invalidation; PostgreSQL remains authoritative                        |
-| Public branch/queue read models          | Shared ephemeral Redis cache           | Replicas reuse validated snapshots; misses/outage/corruption fall back to PostgreSQL                                |
-| Job overlap set and timers               | Local execution control                | Advisory locks or row claims preserve covered jobs; the local set alone is not distributed                          |
-| Metrics counters and gauges              | Observability-only                     | Values reset on restart and cannot be aggregated correctly across replicas                                          |
-| Frontend query cache/auth timers         | Browser-local UX state                 | Does not coordinate browsers or API replicas                                                                        |
+| State                                    | Classification                             | Multi-instance effect                                                                                                                  |
+| ---------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Successful idempotency responses         | Process-local response-replay optimization | A retry on another replica may recompute/read the result; PostgreSQL constraints and transaction locks remain the correctness boundary |
+| Protected-write/auth rate limits         | Shared ephemeral Redis state               | Healthy replicas share counters; Redis outage uses bounded per-instance fallback with logs/metrics                                     |
+| Global/read rate-limit counters          | Coarse process-local protection            | Non-sensitive limits apply per instance; no domain authorization depends on them                                                       |
+| Legacy organization/product/queue caches | Process-local performance-only             | Replicas can serve different values until TTL/invalidation; PostgreSQL remains authoritative                                           |
+| Public branch/queue read models          | Shared ephemeral Redis cache               | Replicas reuse validated snapshots; misses/outage/corruption fall back to PostgreSQL                                                   |
+| Job overlap set and timers               | Local execution control                    | Advisory locks or row claims preserve covered jobs; the local set alone is not distributed                                             |
+| Metrics counters and gauges              | Observability-only                         | Values reset on restart and cannot be aggregated correctly across replicas                                                             |
+| Frontend query cache/auth timers         | Browser-local UX state                     | Does not coordinate browsers or API replicas                                                                                           |
 
-Distributed protected-write/auth rate limiting is now defined; correctness-sensitive idempotency
-behavior still requires shared treatment before unrestricted horizontal API scaling. Cache
+Distributed protected-write/auth rate limiting is now defined. Cross-replica response replay can
+still be improved, but it is not the business correctness boundary for validated writes. Cache
 invalidation can remain best-effort only for explicitly non-authoritative reads. Domain correctness
 continues to rely on PostgreSQL transactions, locks, constraints, and durable event keys rather
 than Redis availability.
 
 ## 5. High-frequency read paths
 
-| Client/read path                      | Current frequency | Server work and scale candidate                                                       |
-| ------------------------------------- | ----------------- | ------------------------------------------------------------------------------------- |
-| Ticket detail                         | 15 seconds/ticket | Ticket, queue position, order, and item reads                                         |
-| Customer active tickets               | 30 seconds/client | Active actor tickets plus queue/order enrichment                                      |
-| Customer queue status/current         | 30 seconds/view   | Waiting counts and current queue state                                                |
-| Staff queue overview                  | 10 seconds/staff  | Waiting/called/serving counts followed by entry/order enrichment                      |
-| Manager branch order statistics       | 30 seconds/view   | Summary, 12-month series, top products, queue/product metrics, and best-staff queries |
-| Owner branch analytics                | 60 seconds/view   | Cross-branch summaries and revenue series                                             |
-| Active-location ticket/consent checks | 30/60 seconds     | Active-ticket and consent reads; snapshots can be posted at most once per minute      |
-| Public QR catalog                     | on entry/refresh  | Organization, branch calendar, queue catalog, waiting counts, and products per queue  |
+| Client/read path                      | Current frequency         | Server work and scale candidate                                                       |
+| ------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------- |
+| Ticket detail                         | SSE plus degraded polling | Ticket, queue position, order, and item reads                                         |
+| Customer active tickets               | 30 seconds/client         | Active actor tickets plus queue/order enrichment                                      |
+| Customer queue status/current         | 30 seconds/view           | Waiting counts and current queue state                                                |
+| Staff queue overview                  | SSE plus degraded polling | Waiting/called/serving counts followed by entry/order enrichment                      |
+| Manager branch order statistics       | 30 seconds/view           | Summary, 12-month series, top products, queue/product metrics, and best-staff queries |
+| Owner branch analytics                | 60 seconds/view           | Cross-branch summaries and revenue series                                             |
+| Active-location ticket/consent checks | 30/60 seconds             | Active-ticket and consent reads; snapshots can be posted at most once per minute      |
+| Public QR catalog                     | on entry/refresh          | Organization, branch calendar, queue catalog, waiting counts, and products per queue  |
 
-Polling load grows approximately with the number of open browser views, not only the number of
-organizations. Candidate optimization order is: measure query plans and response reuse, remove
-duplicate reads, add bounded cache where stale data is acceptable, then introduce SSE for active
-ticket/staff state after a durable event publication path exists.
+Fallback polling load grows approximately with the number of open browser views, not only the
+number of organizations. Active ticket and Staff views now use SSE invalidation with authoritative
+REST reconciliation; polling remains the recovery path. Continue measuring query plans and
+response reuse before adding cache to any additional route.
 
 ## 6. Query and contention candidates
 
@@ -163,13 +163,13 @@ therefore consume pool capacity even when their inner query is idle or waiting o
 
 ## 8. External provider boundaries
 
-| Provider       | Current protection                                    | Capacity/availability risk                                                                         |
-| -------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| LINE Messaging | Durable outbox, event key, max attempts, backoff      | Sequential batches; adapter has no request timeout; provider quota/429 handling is not specialized |
-| SMTP           | Durable outbox, max attempts, backoff                 | Sequential batches; throughput and timeout behavior depend on the SMTP adapter/provider            |
-| Google Routes  | 10-second request timeout, bounded location batch     | One request per claimed alert; external calls currently occur inside a DB transaction              |
-| payOS          | 10-second intent timeout, signed webhook, idempotency | Intent creation is synchronous on the API request; provider quota and outage affect checkout       |
-| Local media    | Size/type validation and persistent Docker volume     | Local filesystem is not a shared, horizontally scalable object store                               |
+| Provider       | Current protection                                                                  | Capacity/availability risk                                                                   |
+| -------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| LINE Messaging | Durable outbox, bounded timeout, provider-aware retry/backoff and retry key         | Real quota/account/device acceptance remains external                                        |
+| SMTP           | Durable outbox, max attempts, backoff                                               | Sequential batches; throughput and timeout behavior depend on the SMTP adapter/provider      |
+| Google Routes  | 10-second request timeout, bounded location batch                                   | One request per claimed alert; external calls currently occur inside a DB transaction        |
+| payOS          | 10-second intent timeout, signed webhook, idempotency                               | Intent creation is synchronous on the API request; provider quota and outage affect checkout |
+| S3/R2 media    | Server validation/compression, bounded adapter, stable object key and failure tests | Real bucket/CDN credentials, lifecycle, scanning, and recovery acceptance remain external    |
 
 Provider rate limits and quotas must be read from the contracted provider account before setting
 worker concurrency. Retry logic must respect provider retry guidance and jitter; blindly increasing
@@ -228,9 +228,7 @@ works, not a production capacity claim.
 
 The run included Docker Desktop and host-to-container networking, so results are workstation- and
 environment-specific. Database CPU/IO, scheduler duration, booking throughput, active-user limit,
-notification throughput, and backlog age were not measured because the repository does not yet
-have a stable isolated load harness or production-like staging telemetry. Those gaps are explicit
-inputs to later observability and load-test tasks.
+and provider capacity were not measured in this first baseline.
 
 ### TASK-03 read-amplification comparison
 
@@ -245,8 +243,49 @@ and base-organization resolution (two repository reads), a 5/7 or approximately 
 database reads on that path. Each additional queue avoids two more fan-out reads. A warm public
 queue-summary hit removes its waiting-count query while queue configuration remains separately
 bounded by its existing configuration cache. This is query-count evidence, not a new production
-latency claim; the prior 103.57 requests/second and p50/p95/p99 figures remain the only HTTP timing
-baseline until an isolated repeatable load harness exists.
+latency claim; TASK-11 provides the separate integrated HTTP timing below.
+
+### TASK-11 integrated local validation
+
+On 2026-08-09, `npm run scale:validate` ran nginx -> two API replicas -> shared PostgreSQL/Redis
+with a dedicated BullMQ worker. Providers were mock/disabled and the database used the explicit E2E
+fixture. The public branch read run produced:
+
+| Property    | TASK-01 baseline | TASK-11 local run |
+| ----------- | ---------------- | ----------------- |
+| Requests    | 100              | 160               |
+| Concurrency | 10               | 10                |
+| Throughput  | 103.57 req/s     | 210.75 req/s      |
+| p50         | 72.61 ms         | 41.69 ms          |
+| p95         | 209.81 ms        | 78.49 ms          |
+| p99         | 245.42 ms        | 168.50 ms         |
+| Errors      | 0                | 0                 |
+
+Both API upstreams served requests. The direction is favorable and consistent with the measured
+71% warm-cache query reduction, but it is not a controlled production benchmark: the harness,
+runtime state, cache, topology, and sample count differ from TASK-01. It must not be presented as a
+production capacity multiplier.
+
+The same run established these failure/recovery facts:
+
+| Injection/verification               | Customer/staff impact                                                    | Business truth and recovery                                         | Operator evidence/action                             |
+| ------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------- | ---------------------------------------------------- |
+| Cache deletion                       | Next read may be slower                                                  | PostgreSQL fallback returned `200`                                  | Cache miss/error metrics; no action unless sustained |
+| Redis stop/restart                   | Reads stayed available; realtime/limits degraded per fallback policy     | PostgreSQL state remained intact; cache/Pub/Sub reconnected         | Redis health/reconnect metrics; restore promptly     |
+| Worker stop/restart                  | LINE delivery delayed                                                    | Outbox row remained pending and became `sent` after worker recovery | Backlog age/depth and worker heartbeat               |
+| Cross-instance SSE                   | No visible loss in tested transition                                     | API 2 commit reached a client on API 1; REST remained authoritative | SSE/Pub/Sub metrics and reconnect logs               |
+| API 1 restart                        | Gateway continued through API 2                                          | Restarted replica recovered REST service                            | Per-replica health and gateway upstream headers      |
+| PostgreSQL stop/restart              | API readiness returned `503`; domain requests unavailable                | No reset/corruption; readiness recovered after restart              | Database health, pool, and recovery runbook          |
+| LINE timeout/429/5xx                 | Notification delayed, business transition succeeds                       | Durable bounded retry/final state in PostgreSQL                     | Provider/error/retry metrics and sanitized logs      |
+| S3 timeout/credentials/upload/delete | Media action fails safely; existing metadata/object behavior is explicit | No domain authorization bypass; retry/reconciliation path retained  | Adapter errors/metrics; fix credentials/provider     |
+| OTel/Sentry outage                   | No customer/staff business interruption                                  | Fail-open instrumentation; domain transaction unchanged             | Local logs, exporter/Sentry diagnostics              |
+
+The run observed two PostgreSQL connections with no waiting clients after recovery; API pools were
+capped at five per process. API memory snapshots were about 89.77 MiB and 57.35 MiB, worker memory
+59.55 MiB; CPU snapshots were below 0.1% for APIs and the active worker. The oldest
+active notification was five seconds. These point-in-time Docker statistics are diagnostic only,
+not capacity limits. API 1 metrics reset on its intentional restart, demonstrating why production
+metrics must be scraped and aggregated externally.
 
 ## 11. Target SLOs
 
@@ -272,9 +311,8 @@ exported to a durable monitoring system.
 
 PostgreSQL remains the source of truth throughout the target evolution.
 
-1. **Redis:** shared protected-write/auth rate-limit counters and bounded public read-model caches
-   are implemented. Short-lived coordination and Pub/Sub fan-out remain later tasks. Redis failure
-   must not authorize invalid domain state.
+1. **Redis:** shared protected-write/auth rate-limit counters, bounded public read-model caches, and
+   transient Pub/Sub fan-out are implemented. Redis failure must not authorize invalid domain state.
 2. **BullMQ:** the versioned PostgreSQL dispatcher and per-notification LINE worker are implemented
    with deterministic jobs, crash-safe redispatch, bounded provider-aware attempts/backoff,
    concurrency/throttling, backlog metrics, and health signals. PostgreSQL outbox/event keys remain
@@ -283,16 +321,12 @@ PostgreSQL remains the source of truth throughout the target evolution.
    ETA/notification scans, location routes, inventory expiry, forecasting, session cleanup, and
    counter reset remain API-owned until separately justified and migrated. Singleton jobs retain
    distributed ownership; row workloads retain safe claims.
-4. **SSE:** replace high-frequency ticket/staff polling with server-pushed state invalidation. REST
-   remains the snapshot/recovery contract.
-5. **Redis Pub/Sub:** propagate committed queue-change hints to SSE gateways across API replicas.
-   Clients reconnect and refetch from PostgreSQL-backed REST, so Pub/Sub loss does not lose state.
-6. **OpenTelemetry:** request, SQL, job, queue, and provider traces/metrics with p50/p95/p99,
-   connection-pool, lock-wait, backlog-age, and scheduler-duration visibility.
-7. **Sentry:** sanitized exception aggregation and release correlation for API, worker, and browser;
-   it complements rather than replaces metrics/traces.
-8. **S3/R2-compatible storage:** immutable shared object keys, signed/controlled upload boundary,
-   CDN delivery, lifecycle policy, and removal of the local-volume horizontal scaling blocker.
+4. **SSE and Redis Pub/Sub:** active ticket/Staff views use transient cross-replica invalidation;
+   clients reconnect and refetch PostgreSQL-backed REST, so event loss does not lose state.
+5. **OpenTelemetry and Sentry:** optional sanitized tracing/error boundaries are implemented and
+   fail open. Production exporters, dashboards, alerts, and release correlation remain deployment work.
+6. **S3/R2-compatible storage:** server-mediated immutable object keys and the adapter boundary are
+   implemented. Real bucket/CDN lifecycle, scanning, backup, and recovery acceptance remain external.
 
 The modular monolith remains one codebase. API and worker processes should reuse the existing
 services/repositories and be separated by entry point and deployment role, not duplicated business
