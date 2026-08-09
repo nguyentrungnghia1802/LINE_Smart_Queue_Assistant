@@ -75,7 +75,7 @@ export function AdminOrganizationsPage() {
       </label>
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-        <div className="grid grid-cols-[48px_64px_1fr_160px_160px] gap-3 border-b border-gray-100 px-4 py-3 text-xs font-medium text-gray-500 max-md:hidden">
+        <div className="grid grid-cols-[48px_64px_minmax(0,1fr)_160px_160px] gap-3 border-b border-gray-100 px-4 py-3 text-xs font-medium text-gray-500 max-md:hidden">
           <span>{t('labels.number', { ns: 'common' })}</span>
           <span>{t('organizations.logo')}</span>
           <span>{t('organizations.name')}</span>
@@ -96,7 +96,7 @@ export function AdminOrganizationsPage() {
               <Link
                 key={org.id}
                 to={`/admin/orgs/${org.id}`}
-                className="grid grid-cols-[32px_56px_1fr] items-center gap-3 px-4 py-4 hover:bg-gray-50 md:grid-cols-[48px_64px_1fr_160px_160px]"
+                className="grid grid-cols-[32px_56px_minmax(0,1fr)] items-center gap-3 px-4 py-4 hover:bg-gray-50 md:grid-cols-[48px_64px_minmax(0,1fr)_160px_160px]"
               >
                 <span className="self-center text-left text-sm text-gray-500">
                   {(page - 1) * 15 + index + 1}

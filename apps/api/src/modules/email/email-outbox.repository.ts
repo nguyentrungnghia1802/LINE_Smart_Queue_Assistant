@@ -66,6 +66,26 @@ export class EmailOutboxRepository extends BaseRepository {
     return this.firstOrThrow(rows, 'emailOutbox.enqueue');
   }
 
+  async cancelAccountAction(
+    userId: string,
+    purpose: 'account_activation' | 'password_reset',
+    client: PoolClient
+  ): Promise<void> {
+    await client.query(
+      `UPDATE email_outbox outbox
+       SET status = 'cancelled',
+           processing_started_at = NULL,
+           encrypted_action_token = '',
+           updated_at = NOW()
+       FROM account_action_tokens token
+       WHERE outbox.event_key = 'account-action:' || token.id::TEXT
+         AND token.user_id = $1
+         AND token.purpose = $2
+         AND outbox.status IN ('pending', 'processing', 'failed')`,
+      [userId, purpose]
+    );
+  }
+
   async claimDue(limit: number): Promise<EmailOutboxRow[]> {
     return this.query<EmailOutboxRow>(
       `WITH due AS (

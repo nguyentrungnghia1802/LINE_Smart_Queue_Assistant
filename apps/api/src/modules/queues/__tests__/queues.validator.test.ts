@@ -1,3 +1,5 @@
+import { NUMERIC_LIMITS } from '@line-queue/shared';
+
 import { CreateQueueSchema } from '../queues.validator';
 
 describe('CreateQueueSchema', () => {
@@ -13,5 +15,15 @@ describe('CreateQueueSchema', () => {
     expect(result.avgServiceTimeMinutes).toBe(15);
     expect(result).not.toHaveProperty('orgId');
     expect(result).not.toHaveProperty('branchId');
+  });
+
+  it.each([
+    ['maxCapacity', NUMERIC_LIMITS.queueCapacity.max + 1],
+    ['avgServiceTimeMinutes', NUMERIC_LIMITS.queueServiceMinutes.max + 1],
+    ['absenceGraceMinutes', 0],
+  ])('rejects an unrealistic %s value', (field, value) => {
+    expect(CreateQueueSchema.safeParse({ name: 'General reception', [field]: value }).success).toBe(
+      false
+    );
   });
 });

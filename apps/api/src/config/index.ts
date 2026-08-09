@@ -2,8 +2,10 @@ import path from 'node:path';
 
 import dotenv from 'dotenv';
 
-// Load .env from monorepo root when running locally
-dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+// Jest cases provide isolated environment values and must not inherit local secrets.
+if (!process.env.JEST_WORKER_ID) {
+  dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+}
 
 function positiveInteger(name: string, fallback: number): number {
   const value = Number.parseInt(process.env[name] ?? String(fallback), 10);

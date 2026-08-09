@@ -1,0 +1,17 @@
+export const NUMERIC_LIMITS = {
+  organizationLocationCount: { min: 1, max: 10_000 },
+  expectedMonthlyCustomers: { min: 1, max: 10_000_000 },
+  queueCapacity: { min: 1, max: 100_000 },
+  queueServiceMinutes: { min: 1, max: 480 },
+  queueAbsenceGraceMinutes: { min: 1, max: 120 },
+  productPrice: { min: 0, max: 100_000_000 },
+  productWaitMinutes: { min: 1, max: 1_440 },
+  stockQuantity: { min: 0, max: 100_000_000 },
+  lowStockThreshold: { min: 0, max: 100_000 },
+  orderItemQuantity: { min: 1, max: 99 },
+  orderLineItems: { min: 1, max: 100 },
+  cartItemQuantity: { min: 0, max: 99 },
+  latitude: { min: -90, max: 90 },
+  longitude: { min: -180, max: 180 },
+  locationAccuracyMeters: { min: 0, max: 100_000 },
+} as const;

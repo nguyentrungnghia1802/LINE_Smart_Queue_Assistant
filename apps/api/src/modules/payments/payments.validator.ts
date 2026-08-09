@@ -1,8 +1,14 @@
 import { z } from 'zod';
 
+import { NUMERIC_LIMITS } from '@line-queue/shared';
+
 const PaymentItemSchema = z.object({
   productId: z.string().uuid(),
-  quantity: z.number().int().min(1).max(99),
+  quantity: z
+    .number()
+    .int()
+    .min(NUMERIC_LIMITS.orderItemQuantity.min)
+    .max(NUMERIC_LIMITS.orderItemQuantity.max),
 });
 
 export const CreatePaymentIntentSchema = z
@@ -10,7 +16,10 @@ export const CreatePaymentIntentSchema = z
     orgSlug: z.string().min(1).max(120),
     branchId: z.string().uuid(),
     queueId: z.string().uuid(),
-    items: z.array(PaymentItemSchema).min(1),
+    items: z
+      .array(PaymentItemSchema)
+      .min(NUMERIC_LIMITS.orderLineItems.min)
+      .max(NUMERIC_LIMITS.orderLineItems.max),
     scope: z.enum(['required_items', 'all_items']),
     provider: z.enum(['demo', 'payos', 'stripe', 'komoju', 'paypay']).default('demo'),
     method: z.string().min(1).max(60).default('demo'),

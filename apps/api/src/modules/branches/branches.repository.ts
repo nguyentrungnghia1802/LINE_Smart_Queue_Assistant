@@ -696,24 +696,33 @@ export class BranchesRepository extends BaseRepository {
     organizationId: string,
     userId: string,
     client: PoolClient
-  ): Promise<{ is_owner: boolean; deactivated_at: Date | null } | null> {
-    const rows = await this.queryTx<{ is_owner: boolean; deactivated_at: Date | null }>(
+  ): Promise<{
+    is_owner: boolean;
+    deactivated_at: Date | null;
+    account_status: string;
+  } | null> {
+    const rows = await this.queryTx<{
+      is_owner: boolean;
+      deactivated_at: Date | null;
+      account_status: string;
+    }>(
       client,
-      `SELECT om.is_owner, bm.deactivated_at
+      `SELECT om.is_owner, bm.deactivated_at, u.account_status
        FROM branch_memberships bm
        JOIN organization_members om
          ON om.organization_id = bm.organization_id AND om.user_id = bm.user_id
+       JOIN users u ON u.id = bm.user_id
        WHERE bm.branch_id = $1
          AND bm.organization_id = $2
          AND bm.user_id = $3
          AND bm.role = 'manager'
-       FOR UPDATE OF bm, om`,
+       FOR UPDATE OF bm, om, u`,
       [branchId, organizationId, userId]
     );
     return rows[0] ?? null;
   }
 
-  async countAssignedManagers(
+  async countRetainedManagers(
     branchId: string,
     exceptUserId: string,
     client: PoolClient
@@ -724,20 +733,49 @@ export class BranchesRepository extends BaseRepository {
        WHERE branch_id = $1
          AND role = 'manager'
          AND user_id <> $2
-         AND is_active = TRUE
          AND deactivated_at IS NULL`,
       [branchId, exceptUserId]
     );
     return Number(result.rows[0]?.count ?? 0);
   }
 
-  async deactivateManager(
+  async removeManager(
     branchId: string,
     organizationId: string,
     userId: string,
     actorId: string,
+    revokeInvitation: boolean,
     client: PoolClient
   ): Promise<void> {
+    if (revokeInvitation) {
+      await client.query(
+        `DELETE FROM branch_memberships
+         WHERE branch_id = $1 AND organization_id = $2 AND user_id = $3`,
+        [branchId, organizationId, userId]
+      );
+      await client.query(
+        `DELETE FROM organization_members om
+         WHERE om.organization_id = $1
+           AND om.user_id = $2
+           AND om.is_owner = FALSE
+           AND NOT EXISTS (
+             SELECT 1
+             FROM branch_memberships bm
+             WHERE bm.organization_id = om.organization_id
+               AND bm.user_id = om.user_id
+               AND bm.deactivated_at IS NULL
+           )`,
+        [organizationId, userId]
+      );
+      await client.query(
+        `DELETE FROM users u
+         WHERE u.id = $1
+           AND u.account_status = 'invited'
+           AND NOT EXISTS (SELECT 1 FROM organization_members om WHERE om.user_id = u.id)`,
+        [userId]
+      );
+      return;
+    }
     await client.query(
       `UPDATE branch_memberships
        SET is_active = FALSE, deactivated_at = NOW()

@@ -6,6 +6,8 @@
  *   2. `customerPhone` is rejected when too long (> 20 chars).
  *   3. Orders without customer contact details are rejected.
  */
+import { NUMERIC_LIMITS } from '@line-queue/shared';
+
 import { CreateOrderSchema } from '../orders.validator';
 
 const baseOrder = {
@@ -52,12 +54,44 @@ describe('CreateOrderSchema — customer linkage fields', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects an oversized item collection', () => {
+    const items = Array.from({ length: NUMERIC_LIMITS.orderLineItems.max + 1 }, (_, index) => ({
+      productId: `44444444-4444-4444-8444-${String(index).padStart(12, '0')}`,
+      quantity: 1,
+    }));
+    expect(CreateOrderSchema.safeParse({ ...baseOrder, items }).success).toBe(false);
+  });
+
   it('rejects items with quantity 0', () => {
     const result = CreateOrderSchema.safeParse({
       ...baseOrder,
       items: [{ productId: '44444444-4444-4444-8444-444444444441', quantity: 0 }],
     });
     expect(result.success).toBe(false);
+  });
+
+  it('rejects item quantities and location accuracy above their safe limits', () => {
+    expect(
+      CreateOrderSchema.safeParse({
+        ...baseOrder,
+        items: [
+          {
+            productId: baseOrder.items[0].productId,
+            quantity: NUMERIC_LIMITS.orderItemQuantity.max + 1,
+          },
+        ],
+      }).success
+    ).toBe(false);
+    expect(
+      CreateOrderSchema.safeParse({
+        ...baseOrder,
+        customerLocation: {
+          latitude: 35.681236,
+          longitude: 139.767125,
+          accuracyMeters: NUMERIC_LIMITS.locationAccuracyMeters.max + 1,
+        },
+      }).success
+    ).toBe(false);
   });
 
   it('rejects items with invalid productId format', () => {

@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { NUMERIC_LIMITS } from '@line-queue/shared';
+
+import { BoundedNumberInput } from '../../components/ui/BoundedNumberInput';
 import { ApiClientError, get, patch, post } from '../../services/apiClient';
 import { uploadImage } from '../../services/media.api';
 import { useAuthStore } from '../../store/authStore';
@@ -239,45 +242,47 @@ export function ManagerProductFormPage() {
         )}
         {field(
           t('products.priceYenRequired'),
-          <input
+          <BoundedNumberInput
             name="price"
             className={inputCls}
-            type="number"
-            min={form.requiresPrepayment ? 1 : 0}
-            max={100_000_000}
+            min={form.requiresPrepayment ? 1 : NUMERIC_LIMITS.productPrice.min}
+            max={NUMERIC_LIMITS.productPrice.max}
+            integer={false}
             required
             value={form.price}
             placeholder="3500"
-            onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+            onValueChange={(value) => setForm((formValue) => ({ ...formValue, price: value }))}
           />,
           fieldErrors['price']?.[0]
         )}
         {field(
           t('products.serviceTimeRequired'),
-          <input
+          <BoundedNumberInput
             name="serviceTimeMinutes"
             className={inputCls}
-            type="number"
-            min={1}
-            max={480}
+            min={NUMERIC_LIMITS.queueServiceMinutes.min}
+            max={NUMERIC_LIMITS.queueServiceMinutes.max}
             required
             value={form.serviceTimeMinutes}
             placeholder="30"
-            onChange={(e) => setForm((f) => ({ ...f, serviceTimeMinutes: e.target.value }))}
+            onValueChange={(value) =>
+              setForm((formValue) => ({ ...formValue, serviceTimeMinutes: value }))
+            }
           />,
           fieldErrors['serviceTimeMinutes']?.[0]
         )}
         {field(
           t('products.maxWait'),
-          <input
+          <BoundedNumberInput
             name="maxWaitMinutes"
             className={inputCls}
-            type="number"
-            min={1}
-            max={1_440}
+            min={NUMERIC_LIMITS.productWaitMinutes.min}
+            max={NUMERIC_LIMITS.productWaitMinutes.max}
             value={form.maxWaitMinutes}
             placeholder="60"
-            onChange={(e) => setForm((f) => ({ ...f, maxWaitMinutes: e.target.value }))}
+            onValueChange={(value) =>
+              setForm((formValue) => ({ ...formValue, maxWaitMinutes: value }))
+            }
           />,
           fieldErrors['maxWaitMinutes']?.[0]
         )}

@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 
 import { withTransaction } from '../../../db/transaction';
 import type { AuthUser } from '../../../types/auth.types';
+import { revokeAccountAction } from '../../account-lifecycle/account-lifecycle.service';
 import { branchesRepository } from '../branches.repository';
 import { branchesService } from '../branches.service';
 
@@ -93,45 +94,112 @@ describe('branchesService subscription limits', () => {
     );
   });
 
-  it('rejects removing the last active branch manager', async () => {
+  it('rejects removing the final retained manager invitation', async () => {
     const client = { query: jest.fn() } as unknown as PoolClient;
+    const branchId = '33333333-3333-4333-8333-333333333333';
     const managerId = '44444444-4444-4444-8444-444444444444';
     jest.mocked(withTransaction).mockImplementation(async (callback) => callback(client));
+    jest.mocked(branchesRepository.findByIdForUpdate).mockResolvedValue({ id: branchId } as never);
     jest.mocked(branchesRepository.findManagerAssignment).mockResolvedValue({
       is_owner: false,
       deactivated_at: null,
+      account_status: 'invited',
     });
-    jest.mocked(branchesRepository.countAssignedManagers).mockResolvedValue(0);
+    jest.mocked(branchesRepository.countRetainedManagers).mockResolvedValue(0);
 
-    await expect(
-      branchesService.removeManager(actor, '33333333-3333-4333-8333-333333333333', managerId)
-    ).rejects.toMatchObject({
+    await expect(branchesService.removeManager(actor, branchId, managerId)).rejects.toMatchObject({
       statusCode: 409,
       message: 'A branch must keep at least one manager',
     });
-    expect(branchesRepository.deactivateManager).not.toHaveBeenCalled();
+    expect(branchesRepository.removeManager).not.toHaveBeenCalled();
   });
 
-  it('allows removing a manager when another active manager remains', async () => {
+  it('allows revoking an invitation when another pending invitation remains', async () => {
     const client = { query: jest.fn().mockResolvedValue({ rows: [] }) } as unknown as PoolClient;
     const branchId = '33333333-3333-4333-8333-333333333333';
     const managerId = '44444444-4444-4444-8444-444444444444';
     jest.mocked(withTransaction).mockImplementation(async (callback) => callback(client));
+    jest.mocked(branchesRepository.findByIdForUpdate).mockResolvedValue({ id: branchId } as never);
     jest.mocked(branchesRepository.findManagerAssignment).mockResolvedValue({
       is_owner: false,
       deactivated_at: null,
+      account_status: 'invited',
     });
-    jest.mocked(branchesRepository.countAssignedManagers).mockResolvedValue(1);
+    jest.mocked(branchesRepository.countRetainedManagers).mockResolvedValue(1);
 
     await expect(branchesService.removeManager(actor, branchId, managerId)).resolves.toEqual({
       removed: true,
+      invitationRevoked: true,
     });
-    expect(branchesRepository.deactivateManager).toHaveBeenCalledWith(
+    expect(revokeAccountAction).toHaveBeenCalledWith(managerId, 'account_activation', client);
+    expect(branchesRepository.removeManager).toHaveBeenCalledWith(
       branchId,
       actor.organizationId,
       managerId,
       actor.id,
+      true,
       client
     );
+  });
+
+  it('deactivates an active manager when another retained assignment remains', async () => {
+    const client = { query: jest.fn().mockResolvedValue({ rows: [] }) } as unknown as PoolClient;
+    const branchId = '33333333-3333-4333-8333-333333333333';
+    const managerId = '44444444-4444-4444-8444-444444444444';
+    jest.mocked(withTransaction).mockImplementation(async (callback) => callback(client));
+    jest.mocked(branchesRepository.findByIdForUpdate).mockResolvedValue({ id: branchId } as never);
+    jest.mocked(branchesRepository.findManagerAssignment).mockResolvedValue({
+      is_owner: false,
+      deactivated_at: null,
+      account_status: 'active',
+    });
+    jest.mocked(branchesRepository.countRetainedManagers).mockResolvedValue(1);
+
+    await expect(branchesService.removeManager(actor, branchId, managerId)).resolves.toEqual({
+      removed: true,
+      invitationRevoked: false,
+    });
+    expect(revokeAccountAction).not.toHaveBeenCalled();
+    expect(branchesRepository.removeManager).toHaveBeenCalledWith(
+      branchId,
+      actor.organizationId,
+      managerId,
+      actor.id,
+      false,
+      client
+    );
+  });
+
+  it('lets the organization owner update an owned branch with audit context', async () => {
+    const client = { query: jest.fn().mockResolvedValue({ rows: [] }) } as unknown as PoolClient;
+    const branchId = '33333333-3333-4333-8333-333333333333';
+    const previous = { id: branchId, organization_id: actor.organizationId, name: 'Old' };
+    const updated = { ...previous, name: 'New' };
+    jest.mocked(withTransaction).mockImplementation(async (callback) => callback(client));
+    jest.mocked(branchesRepository.findByIdForUpdate).mockResolvedValue(previous as never);
+    jest.mocked(branchesRepository.update).mockResolvedValue(updated as never);
+
+    await expect(
+      branchesService.updateOwnedBranch(
+        actor,
+        branchId,
+        { name: 'New' },
+        { ipAddress: '127.0.0.1' }
+      )
+    ).resolves.toEqual(updated);
+    expect(branchesRepository.update).toHaveBeenCalledWith(
+      branchId,
+      actor.organizationId,
+      { name: 'New' },
+      client
+    );
+    expect(client.query).toHaveBeenCalledWith(expect.stringContaining("'branch.update'"), [
+      actor.id,
+      branchId,
+      actor.organizationId,
+      JSON.stringify({ old: previous, new: updated }),
+      '127.0.0.1',
+      null,
+    ]);
   });
 });

@@ -1,3 +1,5 @@
+import { NUMERIC_LIMITS } from '@line-queue/shared';
+
 import { CreateOrganizationApplicationSchema } from './organization-applications.validator';
 
 const validApplication = {
@@ -43,5 +45,23 @@ describe('organization application plan limits', () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) expect(result.error.issues[0]?.path).toEqual(['locationCount']);
+  });
+
+  it('rejects unrealistic location and expected-customer counts', () => {
+    expect(
+      CreateOrganizationApplicationSchema.safeParse({
+        ...validApplication,
+        planCode: 'scale',
+        locationCount: NUMERIC_LIMITS.organizationLocationCount.max + 1,
+      }).success
+    ).toBe(false);
+    expect(
+      CreateOrganizationApplicationSchema.safeParse({
+        ...validApplication,
+        planCode: 'scale',
+        locationCount: 10,
+        expectedMonthlyCustomers: NUMERIC_LIMITS.expectedMonthlyCustomers.max + 1,
+      }).success
+    ).toBe(false);
   });
 });

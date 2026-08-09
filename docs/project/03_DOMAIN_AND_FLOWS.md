@@ -432,8 +432,10 @@ There is no OpenAI or Gemini call in this flow. Adding a generative-AI API key w
 - Platform-admin owner recovery is limited to replacing the owner manager's sign-in email. The
   owner changes their own display name and password; an admin email change revokes existing owner
   sessions and never grants access to other tenant accounts.
-- An owner manager may create branches and invite one or more branch managers. Every branch retains
-  at least one assigned manager, but its queues are created later by an assigned branch manager.
+- An owner manager may create branches, edit branch contact/address/map details, and invite one or
+  more branch managers. Before activation, the owner may revoke pending invitations as long as at
+  least one active or pending manager assignment remains. Every branch retains at least one such
+  assignment, while its queues are created later by an activated branch manager.
 - An owner manager may permanently delete a branch through an explicit confirmation flow. The API
   locks the branch and removes branch-owned accounts, queues, orders, payment records, inventory,
   notifications, QR identity, and operational data atomically. Accounts with another active branch

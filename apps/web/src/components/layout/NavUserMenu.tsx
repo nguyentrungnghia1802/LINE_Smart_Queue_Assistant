@@ -1,8 +1,11 @@
+import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../store/authStore';
+
+import { UserMenuName } from './UserMenuName';
 
 interface NavUserMenuProps {
   compact?: boolean;
@@ -25,7 +28,6 @@ export function NavUserMenu({ compact = false }: Readonly<NavUserMenuProps>) {
   }
 
   const displayName = user?.displayName ?? user?.email ?? t('nav.account');
-  const initial = displayName.trim().slice(0, 1).toUpperCase() || 'A';
   const roleLabel = user?.role ?? 'guest';
 
   return (
@@ -38,37 +40,25 @@ export function NavUserMenu({ compact = false }: Readonly<NavUserMenuProps>) {
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
+          className="flex min-h-10 min-w-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
           aria-haspopup="menu"
           aria-expanded={open}
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-950 text-xs font-bold text-white">
-            {initial}
-          </span>
-          {!compact && (
-            <span className="hidden max-w-36 truncate text-sm font-semibold text-gray-800 sm:inline">
-              {displayName}
-            </span>
-          )}
-          <span
+          <UserMenuName name={displayName} compact={compact} />
+          <ChevronDown
             aria-hidden="true"
-            className={`h-2 w-2 rotate-45 border-b-2 border-r-2 border-gray-400 transition-transform ${
-              open ? 'translate-y-0.5 rotate-[225deg]' : '-translate-y-0.5'
-            }`}
+            className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
           />
         </button>
 
         {open && (
           <div
             role="menu"
-            className="absolute right-0 top-full z-20 mt-3 w-60 overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-xl shadow-gray-900/10"
+            className="absolute right-0 top-full z-20 mt-3 w-[min(15rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-xl shadow-gray-900/10"
           >
-            <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-3 py-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-950 text-sm font-bold text-white">
-                {initial}
-              </span>
+            <div className="rounded-xl bg-gray-50 px-3 py-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-gray-950">{displayName}</p>
+                <UserMenuName name={displayName} className="max-w-full font-bold text-gray-950" />
                 <p className="mt-1 inline-flex rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                   {roleLabel}
                 </p>

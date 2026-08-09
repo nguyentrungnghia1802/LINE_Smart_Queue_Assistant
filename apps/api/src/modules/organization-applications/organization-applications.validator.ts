@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getSubscriptionPlanBranchLimit } from '@line-queue/shared';
+import { getSubscriptionPlanBranchLimit, NUMERIC_LIMITS } from '@line-queue/shared';
 
 import { JapanesePhoneSchema } from '../shared/shared.validator';
 
@@ -38,8 +38,16 @@ const OrganizationApplicationFieldsSchema = z.object({
   city: z.string().trim().min(1).max(100),
   addressLine1: z.string().trim().min(1).max(200),
   addressLine2: z.string().trim().max(200).nullable().optional(),
-  locationCount: z.coerce.number().int().min(1).max(10_000),
-  expectedMonthlyCustomers: z.coerce.number().int().min(1).max(10_000_000),
+  locationCount: z.coerce
+    .number()
+    .int()
+    .min(NUMERIC_LIMITS.organizationLocationCount.min)
+    .max(NUMERIC_LIMITS.organizationLocationCount.max),
+  expectedMonthlyCustomers: z.coerce
+    .number()
+    .int()
+    .min(NUMERIC_LIMITS.expectedMonthlyCustomers.min)
+    .max(NUMERIC_LIMITS.expectedMonthlyCustomers.max),
   planCode: z.enum(['starter', 'standard', 'scale']),
   billingCycle: z.enum(['monthly', 'annual']),
   defaultLocale: z.enum(['ja', 'vi', 'en']).default('ja'),

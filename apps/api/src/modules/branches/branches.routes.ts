@@ -23,6 +23,7 @@ import {
   removeBranchManager,
   updateMyBranch,
   updateMyBranchBusinessCalendar,
+  updateOwnedBranch,
 } from './branches.controller';
 import {
   AuditLogQuerySchema,
@@ -32,6 +33,7 @@ import {
   CreateBranchSchema,
   InviteBranchManagerSchema,
   UpdateMyBranchSchema,
+  UpdateOwnedBranchSchema,
 } from './branches.validator';
 
 export const branchesRouter = Router();
@@ -65,6 +67,13 @@ branchesRouter.post(
   authenticatedActionRateLimiter,
   validate(CreateBranchSchema),
   createBranch
+);
+branchesRouter.patch(
+  '/:branchId',
+  authenticatedActionRateLimiter,
+  validate(BranchIdParamSchema, 'params'),
+  validate(UpdateOwnedBranchSchema),
+  updateOwnedBranch
 );
 branchesRouter.delete(
   '/:branchId',

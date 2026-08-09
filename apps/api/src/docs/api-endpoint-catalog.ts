@@ -54,6 +54,9 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
   }),
   endpoint('get', '/api/v1/branches', 'branches'),
   endpoint('post', '/api/v1/branches', 'branches', { validator: 'CreateBranchSchema' }),
+  endpoint('patch', '/api/v1/branches/{branchId}', 'branches', {
+    validator: 'UpdateOwnedBranchSchema',
+  }),
   endpoint('delete', '/api/v1/branches/{branchId}', 'branches'),
   endpoint('get', '/api/v1/branches/audit', 'branches', {
     validator: 'AuditLogQuerySchema',

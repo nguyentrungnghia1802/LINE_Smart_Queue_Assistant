@@ -6,7 +6,13 @@
  *   2. Both 'product' and 'service' are accepted.
  *   3. Invalid values are rejected.
  */
-import { CreateProductSchema } from '../products.validator';
+import { NUMERIC_LIMITS } from '@line-queue/shared';
+
+import {
+  CreateProductSchema,
+  UpdateBranchStockSchema,
+  UpdateProductSchema,
+} from '../products.validator';
 
 const baseProduct = {
   name: 'Test Product',
@@ -89,5 +95,24 @@ describe('CreateProductSchema — productType field', () => {
       requiresPrepayment: true,
     });
     expect(result.success).toBe(false);
+  });
+
+  it('rejects unrealistic product and branch inventory values', () => {
+    expect(
+      CreateProductSchema.safeParse({
+        ...baseProduct,
+        price: NUMERIC_LIMITS.productPrice.max + 1,
+      }).success
+    ).toBe(false);
+    expect(
+      UpdateBranchStockSchema.safeParse({
+        stockQuantity: -1,
+        lowStockThreshold: NUMERIC_LIMITS.lowStockThreshold.max + 1,
+      }).success
+    ).toBe(false);
+  });
+
+  it('rejects an empty product update', () => {
+    expect(UpdateProductSchema.safeParse({}).success).toBe(false);
   });
 });

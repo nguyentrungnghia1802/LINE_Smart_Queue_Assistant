@@ -70,6 +70,20 @@ input. Client-side `maxLength`, numeric bounds, and accepted-file hints mirror t
 the API remains authoritative. Form-level validation issues that do not target one input use the
 reserved `_form` key, so validation responses never silently collapse to an empty error map.
 
+Numeric form contracts use shared bounds in `@line-queue/shared`. Organization applications accept
+`1..10,000` requested locations and `1..10,000,000` expected monthly customers. Queue capacity is
+`1..100,000`, average service time is `1..480` minutes, and absence grace is `1..120` minutes.
+Product prices are `0..100,000,000`, product wait time is `1..1,440` minutes, finite branch stock is
+`0..100,000,000`, and its low-stock threshold is `0..100,000`. Order/payment item quantity is
+`1..99`; the customer cart also permits zero to remove an item. Latitude/longitude remain bounded
+to `-90..90` and `-180..180`, and reported location accuracy is limited to `0..100,000` metres.
+The shared numeric input prevents alphabetic/exponential notation and disallowed signs while
+retaining out-of-range values long enough to show one localized inline correction. Native integer,
+minimum, and maximum constraints block submission; Zod repeats the authoritative checks for direct
+requests. Order and payment
+requests contain at most 100 distinct line items, and empty PATCH payloads for organization, staff,
+product, queue, and branch updates are rejected instead of becoming silent no-ops.
+
 ## 4. Endpoint inventory
 
 ### Authentication
@@ -136,6 +150,7 @@ authority.
 | ------ | --------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------- |
 | GET    | `/api/v1/branches`                            | Owner manager  | List branches, managers, staff counts, and active queues                                    |
 | POST   | `/api/v1/branches`                            | Owner manager  | Create branch within the plan with map coordinates, calendar, and manager invites; no queue |
+| PATCH  | `/api/v1/branches/:branchId`                  | Owner manager  | Edit owned branch contact, structured address, and verified map location                    |
 | DELETE | `/api/v1/branches/:branchId`                  | Owner manager  | Permanently remove a branch and branch-owned operational data in one transaction            |
 | GET    | `/api/v1/branches/analytics`                  | Owner manager  | Revenue trend, total/best/worst branch, and branch performance                              |
 | GET    | `/api/v1/branches/audit`                      | Owner manager  | Personnel and branch audit history                                                          |
@@ -455,6 +470,14 @@ another role.
   branch assignment, queues, orders, payments, reservations, notifications, QR identity, and
   operational records in one transaction. Historical audit rows and the final deletion snapshot
   remain available for accountability.
-- `POST /api/v1/branches/:branchId/managers` and `DELETE /api/v1/branches/:branchId/managers/:userId` manage branch-manager assignments; owner-only. Removing a manager counts only active assignments and cannot remove the final active manager.
+- `PATCH /api/v1/branches/:branchId` is owner-only, validates partial contact/address/map changes,
+  records the old/new branch snapshot in the audit log, and derives organization scope from the
+  authenticated owner.
+- `POST /api/v1/branches/:branchId/managers` and
+  `DELETE /api/v1/branches/:branchId/managers/:userId` manage branch-manager assignments;
+  owner-only. Removal is serialized on the branch and cannot remove the final non-deactivated
+  manager assignment. A pending invitation may therefore be revoked while another active or
+  pending assignment remains; its activation token and unsent email are revoked in the same
+  transaction.
 - `GET /api/v1/branches/audit` returns owner-only personnel and branch audit history.
 - `POST /api/v1/users/staff` now creates an invitation with profile and branch assignment. It no longer accepts a manager-selected password.
