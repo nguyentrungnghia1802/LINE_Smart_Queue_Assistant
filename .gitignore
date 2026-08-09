@@ -80,6 +80,7 @@ Thumbs.db
 docker/volumes/
 var/media/
 var/email-preview/
+var/scalability/
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Misc

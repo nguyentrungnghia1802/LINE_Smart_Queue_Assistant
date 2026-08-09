@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-08-09 at TASK-10 completion.
+Last verified against the repository on 2026-08-09 at TASK-11 completion.
 
 ## 1. Problem
 
@@ -43,7 +43,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 | Booking history           | Implemented                                         | Authenticated server-side group history is paginated across devices; customers and tenant staff can inspect independent orders/tickets without merging payment, cancellation, or receipt state                                                                                                          |
 | ETA                       | Measured heuristic implemented                      | Position/workload calculation, 30-second updater, persisted forecast history, version/confidence/explanation, retention, and manager API/dashboard                                                                                                                                                      |
 | Staffing recommendation   | Measured heuristic baseline implemented             | Eight-week weekday/hour demand and service-duration aggregates produce explainable staffing suggestions; this is deliberately not described as ML                                                                                                                                                       |
-| Deployment                | Local/Compose ready                                 | Docker and health checks exist; production infrastructure and secret management are environment-specific                                                                                                                                                                                                |
+| Deployment                | Local/Compose and horizontal validation ready       | Docker health checks plus an isolated two-API/Redis/PostgreSQL/worker validation topology exist; production capacity, infrastructure, and secret management remain environment-specific                                                                                                                 |
 
 ## 5. Implemented features
 
@@ -89,6 +89,9 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - Scheduled ETA refresh, approaching-turn scan, called-message retry scan, and daily counter reset,
   plus a PostgreSQL-outbox dispatcher and independently scalable BullMQ LINE notification worker.
 - Rate limits, request IDs, structured logging, basic Prometheus text metrics, health/readiness endpoints, and audit logs.
+- Configurable per-process PostgreSQL pool limits and an isolated horizontal validation harness that
+  exercises two API replicas, shared Redis/PostgreSQL, a dedicated worker, cross-instance SSE,
+  distributed rate limits, and controlled dependency recovery.
 - Playwright browser coverage for LIFF mock authentication, required-item demo payment, booking/ticket redirect, staff transitions, durable mock notification delivery, receipt access, public application/admin approval, manager QR/settings, complete role navigation, and desktop/mobile overflow checks.
 - Database structures for booking groups, location snapshots/alerts, forecast history, and staffing recommendations.
 - Japan-oriented organization addresses, `Asia/Tokyo` defaults, normalized weekly hours,
@@ -138,7 +141,9 @@ The project is a working local/demo modular monolith, not yet a production-compl
 
 - `packages/shared` contains legacy enum/value descriptions that do not fully match PostgreSQL values; DB migrations and runtime mappers currently take precedence.
 - Demo organization, catalog, queue names, address, timezone, and currency are localized for Japan; native-language and legal-copy review remains required.
-- Queue capacity, call-next, daily ticket numbering, and organization order numbering use transactional row locks/counters; production stress testing remains pending.
+- Queue capacity, call-next, daily ticket numbering, and organization order numbering use transactional row locks/counters; production-scale write stress testing remains pending.
+- TASK-11 measurements prove local Docker horizontal behavior and degraded recovery, but they are
+  workstation evidence rather than a production capacity or SLO acceptance claim.
 - Anonymous public booking cannot receive LINE notifications unless the session is linked to LINE and the queue entry stores a verified linked `line_user_id`; production customer entry should therefore use the LIFF-first flow.
 - One Messaging API channel is still shared by the deployment; multi-organization LINE channels are not implemented.
 - Location data is snapshot-only with configurable retention and deletion, but the production retention period and consent wording still require legal approval.

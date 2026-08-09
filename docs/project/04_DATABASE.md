@@ -29,8 +29,15 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 23. `000023_branch_map_place.js`
 24. `000024_normalize_core_schema.js`
 25. `000025_staff_queue_assignment.js`
+26. `000026_bullmq_notification_dispatch.js`
+27. `000027_notification_dispatch_retry_nullable.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
+
+Migration `000027` makes `notifications.dispatch_next_retry_at` nullable. A notification that has
+been successfully dispatched to BullMQ no longer has a next dispatch retry, so `NULL` is the
+canonical terminal dispatch value. The down migration backfills the timestamp before restoring the
+older constraint.
 
 ## 2. Logical ERD
 

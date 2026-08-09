@@ -14,9 +14,9 @@ const connectionString =
 
 export const pool = new Pool({
   connectionString,
-  max: config.nodeEnv === 'test' ? 2 : 20,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  max: config.database.poolMax,
+  idleTimeoutMillis: config.database.poolIdleTimeoutMs,
+  connectionTimeoutMillis: config.database.poolConnectionTimeoutMs,
 });
 
 pool.on('error', (err) => {

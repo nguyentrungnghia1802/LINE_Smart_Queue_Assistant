@@ -616,3 +616,26 @@ remain unchanged.
 **Consequences:** Component state and Japanese long-copy layout can be reviewed quickly in
 isolation, with existing unit/E2E tests retaining behavioral authority. Visual regression and
 accessibility automation remain optional future work and are not introduced as a paid service.
+
+## ADR-036: Horizontal readiness is proven with an isolated two-replica harness
+
+**Status:** accepted (2026-08-09)
+
+**Context:** Redis, BullMQ, SSE, observability, and object storage had deterministic component tests,
+but package presence did not prove that two API replicas shared transient coordination correctly or
+that dependency interruption preserved PostgreSQL business truth. Per-process PostgreSQL pool size
+was also hard-coded, making aggregate connection budgeting implicit.
+
+**Decision:** Keep production deployment separate and add a destructive, local-only validation
+Compose topology: nginx balances two API replicas over shared PostgreSQL/Redis and a dedicated LINE
+worker. A dependency-free Node runner measures the public read path and injects cache loss, Redis,
+worker, API, and database interruption while checking shared authentication, rate limits,
+cross-instance SSE, durable outbox recovery, readiness, metrics, and resource snapshots. External
+LINE/S3/telemetry failures remain deterministic adapter tests so validation never contacts real
+providers. PostgreSQL pool maximum and timeouts are explicit per-process environment values.
+
+**Consequences:** The repository now has repeatable workstation evidence of horizontal behavior and
+safe degradation, not a production capacity claim. Production replica counts must use an aggregate
+database connection budget and staging soak/load evidence. The validation stack must never receive
+production credentials or data, and it remains a manual engineering gate rather than a mandatory
+Docker failure-injection step on every CI run.

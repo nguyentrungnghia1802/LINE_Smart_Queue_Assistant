@@ -1,0 +1,125 @@
+# Isolated TASK-11 validation topology. This stack is for local/staging evidence
+# only; it never calls real LINE, email, payment, maps, telemetry, or media providers.
+x-api-environment: &api-environment
+  NODE_ENV: production
+  API_PORT: 4000
+  API_HOST: 0.0.0.0
+  DATABASE_URL: postgresql://postgres:postgres@postgres:5432/line_queue_validation
+  DB_POOL_MAX: 5
+  DB_POOL_IDLE_TIMEOUT_MS: 10000
+  DB_POOL_CONNECTION_TIMEOUT_MS: 2000
+  REDIS_URL: redis://redis:6379
+  REDIS_KEY_PREFIX: sqa-validation
+  JWT_SECRET: task-11-local-validation-secret-not-for-production
+  CORS_ORIGIN: http://127.0.0.1:4180
+  LINE_ID_TOKEN_VERIFICATION_MODE: line
+  LINE_NOTIFICATION_DELIVERY_OWNER: bullmq
+  LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: ''
+  LINE_MESSAGING_CHANNEL_SECRET: validation-only-secret
+  EMAIL_TRANSPORT: mock
+  PAYMENT_MODE: demo
+  DEMO_PAYMENT_WEBHOOK_SECRET: validation-only-payment-secret
+  LOCATION_TRAVEL_PROVIDER: mock
+  MEDIA_STORAGE_PROVIDER: mock
+  OTEL_SDK_DISABLED: 'true'
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ''
+  SENTRY_DSN: ''
+  SSE_KEEP_ALIVE_MS: 1000
+  SSE_RETRY_MS: 500
+  SSE_MAX_CONNECTION_DURATION_MS: 30000
+
+x-api-service: &api-service
+  image: line-smart-queue-api:task-11-validation
+  restart: unless-stopped
+  environment: *api-environment
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  healthcheck:
+    test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/ready >/dev/null || exit 1']
+    interval: 5s
+    timeout: 3s
+    start_period: 15s
+    retries: 12
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: line_queue_validation
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d line_queue_validation']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - validation_postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7.4-alpine
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  setup:
+    image: line-smart-queue-validation-tools:task-11
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+      target: validation
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/line_queue_validation
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ['tools']
+
+  api-1:
+    <<: *api-service
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+      target: runner
+
+  api-2:
+    <<: *api-service
+
+  worker:
+    image: line-smart-queue-api:task-11-validation
+    restart: unless-stopped
+    command: ['node', 'apps/api/dist/worker.js']
+    environment: *api-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  gateway:
+    image: line-smart-queue-validation-gateway:task-11
+    build:
+      context: .
+      dockerfile: docker/validation/nginx.Dockerfile
+    ports:
+      - '127.0.0.1:4180:80'
+    depends_on:
+      api-1:
+        condition: service_healthy
+      api-2:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1/ready >/dev/null || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  validation_postgres_data:
