@@ -106,9 +106,11 @@ function s3PublicBaseUrl(provider: MediaStorageProvider): string {
 }
 
 const configuredMediaStorageProvider = mediaStorageProvider();
+const configuredNodeEnv = (process.env.NODE_ENV ?? 'development') as
+  'development' | 'production' | 'test';
 
 export const config = {
-  nodeEnv: (process.env.NODE_ENV ?? 'development') as 'development' | 'production' | 'test',
+  nodeEnv: configuredNodeEnv,
   port: Number.parseInt(process.env.API_PORT ?? '4000', 10),
   host: process.env.API_HOST ?? '0.0.0.0',
 
@@ -119,6 +121,9 @@ export const config = {
     name: process.env.DB_NAME ?? 'line_queue',
     user: process.env.DB_USER ?? 'postgres',
     password: process.env.DB_PASSWORD ?? '',
+    poolMax: positiveInteger('DB_POOL_MAX', configuredNodeEnv === 'test' ? 2 : 20),
+    poolIdleTimeoutMs: positiveInteger('DB_POOL_IDLE_TIMEOUT_MS', 30_000),
+    poolConnectionTimeoutMs: positiveInteger('DB_POOL_CONNECTION_TIMEOUT_MS', 5_000),
   },
 
   redis: {

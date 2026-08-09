@@ -388,6 +388,30 @@ not fail public reads; PostgreSQL is queried instead. A sustained low hit ratio 
 invalidation churn, while rising error counts with degraded Redis health indicate fallback load on
 PostgreSQL.
 
+### Replica and database connection budget
+
+Set `DB_POOL_MAX`, `DB_POOL_IDLE_TIMEOUT_MS`, and `DB_POOL_CONNECTION_TIMEOUT_MS` per API/worker
+process. Budget before scaling replicas:
+
+```text
+(API replicas x API pool max) + (worker replicas x worker pool max) + migration/admin headroom
+    <= PostgreSQL max_connections safety budget
+```
+
+The defaults are development-safe starting points, not a production sizing result. The TASK-11
+two-API topology used pool maximum 5 per process and observed no waiting clients during its local
+run. Rehearse the intended replica count and workload in staging, alert on waiting clients and
+connection saturation, then tune the aggregate rather than increasing each pool independently.
+
+### Controlled dependency recovery
+
+`npm run scale:validate` is a destructive local/staging rehearsal with mock providers. Its expected
+operator behavior is: Redis loss disables shared cache/Pub/Sub/BullMQ while PostgreSQL-backed reads
+continue; worker loss leaves durable notification rows pending; API loss is absorbed by the other
+replica; PostgreSQL loss makes `/ready` return `503`; restored dependencies recover without data
+reset. LINE timeout/429/5xx, S3 timeout/credential/upload/delete failures, and telemetry/Sentry
+outages are covered by deterministic adapter tests. Do not inject these failures into production.
+
 ## 6. Scheduled jobs operations
 
 LINE notification delivery is the only BullMQ-owned workload. The dedicated worker registers the

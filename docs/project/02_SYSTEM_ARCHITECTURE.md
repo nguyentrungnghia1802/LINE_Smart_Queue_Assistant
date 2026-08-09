@@ -52,6 +52,12 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 
 Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and local-provider `/media/*` to the internal `api:4000` service without stripping either prefix. S3-compatible media records return a stable absolute public/CDN URL and do not depend on the API filesystem or `/media` proxy. The Vite development server proxies these same prefixes to the local API, keeping local media URLs working at `localhost:5173`. Production API requests use an empty `VITE_API_URL` because service paths already include `/api/v1`.
 
+`docker-compose.validation.yml` is a destructive, isolated engineering topology rather than a
+deployment file. Its nginx gateway balances two API replicas that share PostgreSQL and Redis while
+a separate worker owns LINE dispatch/delivery. It is used to prove cross-replica authentication,
+rate limits, cache fallback, Redis Pub/Sub/SSE fan-out, worker recovery, API restart, and database
+readiness behavior without contacting real providers.
+
 Redis is backend-only and non-authoritative. One centralized `RedisService` owns connection,
 reconnect, command timeout, safe health, and shutdown behavior. Strict authentication/webhook,
 public-write, and authenticated-action rate limits share Redis counters across API replicas. The
@@ -331,17 +337,22 @@ The measured development baseline, process-local state inventory, representative
 initial SLOs, and staged target architecture are maintained in
 [`11_SCALABILITY_BASELINE.md`](11_SCALABILITY_BASELINE.md).
 
-The current design supports shared protected-write/auth rate-limit counters and cross-replica SSE
-fan-out. Other boundaries still require staged work before unrestricted horizontal scale:
+The current design supports shared protected-write/auth rate-limit counters, bounded public caches,
+cross-replica SSE fan-out, and a dedicated LINE worker. TASK-11 validated those boundaries with two
+API instances. Each API/worker process now takes `DB_POOL_MAX`, `DB_POOL_IDLE_TIMEOUT_MS`, and
+`DB_POOL_CONNECTION_TIMEOUT_MS`; operators must budget the aggregate across every replica and
+leave headroom for migrations, administration, and recovery. Other boundaries still require
+staging work before unrestricted horizontal scale:
 
 - move long-running/provider work out of the HTTP process while preserving advisory locks or safe
   row claims;
 - replace correctness-sensitive process-local idempotency responses with shared behavior;
-- bound aggregate PostgreSQL connections across API and worker replicas;
+- select and enforce an environment-specific aggregate PostgreSQL connection budget;
 - enforce queue capacity and order numbering under lock/sequence;
 - extend provider-specific settlement, refund, and operational reconciliation beyond the
   current abstraction and adapter boundary;
-- introduce Redis/BullMQ only for the documented coordination and workload-isolation needs;
-- add database pooling/monitoring, S3/R2-compatible storage, centralized logs, and tracing.
+- validate real provider quotas, production observability export, and S3/R2 credentials;
+- replace correctness-sensitive process-local idempotency response replay where a durable database
+  constraint alone is insufficient.
 
 These are constraints, not a requirement to rewrite the modular monolith.

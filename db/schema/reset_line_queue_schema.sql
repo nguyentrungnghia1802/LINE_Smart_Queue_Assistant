@@ -941,7 +941,7 @@ CREATE TABLE notifications (
   last_error        TEXT,
   dispatch_status   TEXT NOT NULL DEFAULT 'pending',
   dispatch_attempt_count INT NOT NULL DEFAULT 0,
-  dispatch_next_retry_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  dispatch_next_retry_at TIMESTAMPTZ DEFAULT NOW(),
   dispatch_started_at TIMESTAMPTZ,
   dispatch_job_id   TEXT,
   dispatched_at     TIMESTAMPTZ,

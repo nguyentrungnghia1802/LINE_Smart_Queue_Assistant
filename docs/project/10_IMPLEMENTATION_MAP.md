@@ -1,6 +1,6 @@
 # Current Implementation Map
 
-Last verified against the TASK-10 working tree on 2026-08-09.
+Last verified against the TASK-11 working tree on 2026-08-09.
 
 This document is the maintenance index for the current repository. It connects product roles and
 flows to source modules, routes, database history, runtime configuration, scheduled jobs, and
@@ -85,7 +85,9 @@ a source of current behavior.
 | `docker/nginx/default.conf`                                             | SPA fallback, same-origin API/media proxy, health and security headers | `02`, `08`, Docker tests                    |
 | `docker/api/Dockerfile`, `docker/web/Dockerfile`                        | Immutable API/Web build and runtime images                             | `07`, `08`, deployment scripts              |
 | `docker-compose.dev.yml`                                                | Hot-reload local stack                                                 | `07`                                        |
+| `docker-compose.validation.yml`, `docker/nginx/validation.conf`         | Isolated two-API shared-dependency and failure topology                | `02`, `07`, `08`, ADR-036                   |
 | `docker-compose.prod.yml`, `deploy/docker-compose.yml`                  | Image-based production-like stack                                      | `08`, Compose sync test                     |
+| `scripts/scalability`                                                   | Dependency-free HTTP load runner and integrated recovery orchestrator  | `07`, `08`, `11`, ADR-036                   |
 
 ## 4. Role and scope map
 
