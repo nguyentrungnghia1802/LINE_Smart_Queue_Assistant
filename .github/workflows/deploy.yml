@@ -1,104 +1,17 @@
-name: Build and Deploy Production
+name: 🚫 CD (Temporarily disabled)
 
 on:
-  workflow_run:
-    workflows: ['CI Quality Gates']
-    types: [completed]
-    branches: [main]
-
-concurrency:
-  group: production-deployment
-  cancel-in-progress: false
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  release:
-    name: Publish images and deploy
-    if: github.event.workflow_run.conclusion == 'success'
+  disabled:
+    name: ⏸️ Production deployment disabled
     runs-on: ubuntu-latest
-    environment: production
-    env:
-      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
-      VITE_LIFF_ID: ${{ vars.VITE_LIFF_ID }}
-      DEPLOY_PATH: ${{ vars.PRODUCTION_DEPLOY_PATH }}
-      SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-      SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
-      SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-      SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
-      SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
     steps:
-      - name: Validate release configuration
-        env:
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: ℹ️ Explain disabled state
         run: |
-          test -n "$DOCKERHUB_USERNAME" || { echo "::error::Missing production variable DOCKERHUB_USERNAME"; exit 1; }
-          test -n "$VITE_LIFF_ID" || { echo "::error::Missing production variable VITE_LIFF_ID"; exit 1; }
-          test -n "$DOCKERHUB_TOKEN" || { echo "::error::Missing production secret DOCKERHUB_TOKEN"; exit 1; }
-          test -n "$SSH_HOST" || { echo "::error::Missing production secret PRODUCTION_SSH_HOST"; exit 1; }
-          test -n "$SSH_USER" || { echo "::error::Missing production secret PRODUCTION_SSH_USER"; exit 1; }
-          test -n "$SSH_PRIVATE_KEY" || { echo "::error::Missing production secret PRODUCTION_SSH_PRIVATE_KEY"; exit 1; }
-          test -n "$SSH_KNOWN_HOSTS" || { echo "::error::Missing production secret PRODUCTION_SSH_KNOWN_HOSTS"; exit 1; }
-
-      - name: Checkout tested revision
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push API
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/api/Dockerfile
-          push: true
-          tags: |
-            ${{ env.DOCKERHUB_USERNAME }}/line-smart-queue-api:latest
-            ${{ env.DOCKERHUB_USERNAME }}/line-smart-queue-api:sha-${{ github.event.workflow_run.head_sha }}
-          cache-from: type=gha,scope=api
-          cache-to: type=gha,mode=max,scope=api
-
-      - name: Build and push Web
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/web/Dockerfile
-          push: true
-          build-args: |
-            VITE_LIFF_ID=${{ env.VITE_LIFF_ID }}
-          tags: |
-            ${{ env.DOCKERHUB_USERNAME }}/line-smart-queue-web:latest
-            ${{ env.DOCKERHUB_USERNAME }}/line-smart-queue-web:sha-${{ github.event.workflow_run.head_sha }}
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,mode=max,scope=web
-
-      - name: Configure SSH
-        run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
-
-      - name: Pull, migrate, and restart services
-        run: |
-          SSH_PORT="${SSH_PORT:-22}"
-          DEPLOY_PATH="${DEPLOY_PATH:-/opt/line-smart-queue}"
-          ssh -i ~/.ssh/id_ed25519 -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "cd '$DEPLOY_PATH' &&
-             docker compose pull api worker web &&
-             docker compose run --rm api npm run db:migrate &&
-             docker compose up -d --force-recreate api worker web &&
-             docker compose ps &&
-             docker compose exec -T api wget -qO- http://127.0.0.1:4000/ready >/dev/null &&
-             docker compose exec -T worker node -e \"const f='/tmp/sqa-worker-health',s=require('fs').statSync(f),h=JSON.parse(require('fs').readFileSync(f));process.exit(h.status==='ready'&&Date.now()-s.mtimeMs<60000?0:1)\" &&
-             docker compose exec -T web wget -qO- http://127.0.0.1/health >/dev/null"
+          echo "CD is intentionally disabled."
+          echo "This workflow does not build images, push Docker images, or connect to a server."

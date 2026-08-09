@@ -87,6 +87,7 @@ a source of current behavior.
 | `docker-compose.dev.yml`                                                | Hot-reload local stack                                                            | `07`                                        |
 | `docker-compose.validation.yml`, `docker/nginx/validation.conf`         | Isolated two-API shared-dependency and failure topology                           | `02`, `07`, `08`, ADR-036                   |
 | `docker-compose.prod.yml`, `deploy/docker-compose.yml`                  | Image-based production-like stack                                                 | `08`, Compose sync test                     |
+| `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`              | Split CI quality jobs; CD placeholder currently disabled                          | `07`, `08`                                  |
 | `scripts/scalability`                                                   | Dependency-free HTTP load runner and integrated recovery orchestrator             | `07`, `08`, `11`, ADR-036                   |
 
 ## 4. Role and scope map

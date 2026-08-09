@@ -242,12 +242,25 @@ npm run spell:check
 npm run e2e:all
 ```
 
+The GitHub Actions workflow runs these checks as separate jobs so a failure is isolated to one
+quality surface: secret scan, dependency audit, formatting, lint, type-check, OpenAPI, API tests,
+web/shared tests, migration/seed smoke, production build, and browser E2E. The API tests,
+migration smoke, and browser E2E jobs each use their own PostgreSQL service. Browser E2E prepares
+its own database and loads the explicit browser-only fixtures before starting Playwright. The E2E
+job waits for the static, unit, contract, migration, and build jobs, so it does not hide an earlier
+failure behind a browser timeout.
+
 `npm run audit:ci` audits dependencies shipped to production and fails on new
 high/critical advisories. Its single explicit allowlist entry is documented in
 `audit-ci.jsonc`: the React Router advisory requires RSC actions, which this
 Vite SPA does not use. Development tooling is validated by the test/lint gates
 but omitted from the production dependency audit. Do not add an advisory to the
 allowlist without recording why it is unreachable and when it can be removed.
+
+Continuous deployment is temporarily disabled. `.github/workflows/deploy.yml` is retained as a
+manual placeholder that only reports the disabled state; it does not build images, push Docker
+images, or connect to a server. Use the documented manual Docker/server commands until CD is
+explicitly re-enabled and reviewed.
 
 Target one workspace:
 
