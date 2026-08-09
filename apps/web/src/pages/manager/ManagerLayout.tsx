@@ -1,4 +1,5 @@
 import {
+  BellRing,
   Building2,
   ClipboardList,
   LayoutDashboard,
@@ -22,6 +23,7 @@ const BRANCH_MANAGER_NAV_ITEMS: RoleNavItem[] = [
   { to: '/manager/queues', labelKey: 'nav.queue', icon: ListOrdered },
   { to: '/manager/users', labelKey: 'nav.staff', icon: Users },
   { to: '/manager/qr', labelKey: 'nav.qr', icon: QrCode },
+  { to: '/manager/notifications', labelKey: 'nav.notificationOperations', icon: BellRing },
   { to: '/manager/settings', labelKey: 'nav.settings', icon: Settings },
 ];
 
@@ -30,6 +32,7 @@ const OWNER_MANAGER_NAV_ITEMS: RoleNavItem[] = [
   { to: '/manager/products', labelKey: 'nav.products', icon: PackageSearch },
   { to: '/manager/branches', labelKey: 'nav.branches', icon: Building2 },
   { to: '/manager/audit', labelKey: 'nav.audit', icon: ClipboardList },
+  { to: '/manager/notifications', labelKey: 'nav.notificationOperations', icon: BellRing },
   { to: '/manager/settings', labelKey: 'nav.settings', icon: Settings },
 ];
 
@@ -57,6 +60,7 @@ export function ManagerLayout() {
     location.pathname.startsWith('/manager/products') ||
     location.pathname.startsWith('/manager/branches') ||
     location.pathname.startsWith('/manager/audit') ||
+    location.pathname.startsWith('/manager/notifications') ||
     location.pathname.startsWith('/manager/settings');
   const branchPathForbidden =
     location.pathname.startsWith('/manager/branches') ||

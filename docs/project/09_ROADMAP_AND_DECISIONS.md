@@ -2,7 +2,7 @@
 
 # Roadmap and Decisions
 
-Last reviewed: 2026-08-09 at TASK-10 completion. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
+Last reviewed: 2026-08-10 at TASK-PROD-001 completion. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
 
 ## 1. Prioritized roadmap
 
@@ -10,8 +10,7 @@ Last reviewed: 2026-08-09 at TASK-10 completion. This file records current prior
 
 1. Rotate any previously exposed LINE/JWT/provider credential and enable secret scanning.
 2. Select and integrate a real Japan PSP adapter, including merchant secrets, refund execution, settlement reconciliation, and provider operations.
-3. Build a dashboard over the implemented notification operations API and delivery metrics.
-4. Complete native Japanese and legal/payment copy review.
+3. Complete native Japanese and legal/payment copy review.
 
 ### P1: Complete requested product capabilities
 

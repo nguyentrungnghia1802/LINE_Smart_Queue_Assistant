@@ -134,21 +134,29 @@ role and does not use branch-operation endpoints.
 
 ### LINE and notifications
 
-| ID          | Requirement                                                                                   | Status                                                                  |
-| ----------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| FR-LINE-001 | Messaging API sends a LINE chat message when the turn approaches                              | Implemented for authenticated LINE-linked tickets with durable delivery |
-| FR-LINE-002 | Messaging API sends called/completed and exceptional deferred/cancelled/no-show messages      | Implemented on authenticated LINE-linked tickets with durable delivery  |
-| FR-LINE-003 | Queue state remains successful even if LINE delivery fails                                    | Implemented                                                             |
-| FR-LINE-004 | Delivery is durable and deduplicated across restarts/replicas                                 | Implemented                                                             |
-| FR-LINE-005 | Follow/unfollow link state is persisted                                                       | Implemented                                                             |
-| FR-LINE-006 | Consent/preferences and opt-out controls are user-manageable                                  | Implemented                                                             |
-| FR-LINE-007 | LINE notification links open the correct LIFF ticket detail                                   | Implemented                                                             |
-| FR-LINE-008 | Ticket lifecycle notifications use a common Flex Message with text fallback                   | Implemented                                                             |
-| FR-LINE-009 | Booking success sends a LINE ticket notification when the entry has a verified LINE recipient | Implemented                                                             |
-| FR-LINE-010 | LINE Rich Menu opens LIFF Home, booking start, current ticket resolution, and usage guidance  | Implemented in code; LINE Console/E2E sync pending                      |
-| FR-LINE-011 | Rich Menu synchronization is explicit, idempotent, mockable, and never runs on API startup    | Implemented                                                             |
-| FR-LINE-012 | The standard approaching-turn notification is durably enqueued at exactly five people ahead   | Implemented                                                             |
-| FR-LINE-013 | LIFF detects a missing Official Account friendship and offers an in-app Add/Unblock action    | Implemented; real-device acceptance pending                             |
+| ID          | Requirement                                                                                                         | Status                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| FR-LINE-001 | Messaging API sends a LINE chat message when the turn approaches                                                    | Implemented for authenticated LINE-linked tickets with durable delivery |
+| FR-LINE-002 | Messaging API sends called/completed and exceptional deferred/cancelled/no-show messages                            | Implemented on authenticated LINE-linked tickets with durable delivery  |
+| FR-LINE-003 | Queue state remains successful even if LINE delivery fails                                                          | Implemented                                                             |
+| FR-LINE-004 | Delivery is durable and deduplicated across restarts/replicas                                                       | Implemented                                                             |
+| FR-LINE-005 | Follow/unfollow link state is persisted                                                                             | Implemented                                                             |
+| FR-LINE-006 | Consent/preferences and opt-out controls are user-manageable                                                        | Implemented                                                             |
+| FR-LINE-007 | LINE notification links open the correct LIFF ticket detail                                                         | Implemented                                                             |
+| FR-LINE-008 | Ticket lifecycle notifications use a common Flex Message with text fallback                                         | Implemented                                                             |
+| FR-LINE-009 | Booking success sends a LINE ticket notification when the entry has a verified LINE recipient                       | Implemented                                                             |
+| FR-LINE-010 | LINE Rich Menu opens LIFF Home, booking start, current ticket resolution, and usage guidance                        | Implemented in code; LINE Console/E2E sync pending                      |
+| FR-LINE-011 | Rich Menu synchronization is explicit, idempotent, mockable, and never runs on API startup                          | Implemented                                                             |
+| FR-LINE-012 | The standard approaching-turn notification is durably enqueued at exactly five people ahead                         | Implemented                                                             |
+| FR-LINE-013 | LIFF detects a missing Official Account friendship and offers an in-app Add/Unblock action                          | Implemented; real-device acceptance pending                             |
+| FR-LINE-014 | Authorized operators can diagnose scoped delivery failures and safely retry/cancel eligible rows without SQL access | Implemented                                                             |
+
+Notification operations authorization is server-derived: platform Admin can inspect all tenants,
+an organization owner is pinned to their organization, and a branch manager is pinned to their
+single active branch. The UI never receives raw notification payloads, unmasked LINE IDs, provider
+headers, or credentials. Retry is limited to retryable `failed` deliveries; cancellation is limited
+to `pending` deliveries whose related ticket is already terminal. Both actions require a reason and
+are audited.
 
 ### Location, prediction, and analytics
 

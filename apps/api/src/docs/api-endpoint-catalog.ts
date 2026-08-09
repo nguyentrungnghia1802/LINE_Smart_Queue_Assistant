@@ -135,6 +135,9 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     pagination: true,
     validator: 'ListNotificationOperationsQuerySchema',
   }),
+  endpoint('get', '/api/v1/notifications/operations/{id}', 'notifications', {
+    validator: 'NotificationOperationParamsSchema',
+  }),
   endpoint('post', '/api/v1/notifications/operations/{id}/retry', 'notifications', {
     validator: 'NotificationOperationBodySchema',
   }),

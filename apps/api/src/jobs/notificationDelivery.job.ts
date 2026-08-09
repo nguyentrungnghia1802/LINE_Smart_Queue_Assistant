@@ -179,16 +179,20 @@ export async function processOutboxNotificationJob(
   const row = await repository.claimForDelivery(notificationId, jobId);
   if (!row) return;
 
-  await deliverClaimedNotification(
-    row,
-    {
-      repository,
-      adapter: options.adapter ?? lineMessagingAdapter,
-      now: options.now ?? (() => new Date()),
-      random: options.random ?? Math.random,
-    },
-    true
-  );
+  try {
+    await deliverClaimedNotification(
+      row,
+      {
+        repository,
+        adapter: options.adapter ?? lineMessagingAdapter,
+        now: options.now ?? (() => new Date()),
+        random: options.random ?? Math.random,
+      },
+      true
+    );
+  } finally {
+    metricsService.setGauge('notification_worker_heartbeat_unixtime', Date.now() / 1_000);
+  }
 }
 
 export async function deliverOutboxNotification(
@@ -228,5 +232,10 @@ export async function runNotificationDelivery(
   metricsService.setGauge('notifications_outbox_backlog', Number(values.pending));
   metricsService.setGauge('notifications_outbox_retry_backlog', Number(values.retrying));
   metricsService.setGauge('notifications_outbox_failed', Number(values.failed));
+  metricsService.setGauge(
+    'notifications_oldest_pending_seconds',
+    Number(values.oldest_pending_seconds)
+  );
   metricsService.setGauge('notifications_delivery_latency_seconds', Number(values.latency_seconds));
+  metricsService.setGauge('notification_worker_heartbeat_unixtime', Date.now() / 1_000);
 }

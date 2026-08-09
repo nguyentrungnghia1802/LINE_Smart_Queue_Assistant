@@ -6,6 +6,7 @@ import { requireAuth, requireRole, validate } from '../../middlewares';
 
 import {
   cancelNotification,
+  getNotificationOperation,
   listNotificationOperations,
   listNotifications,
   retryNotification,
@@ -25,6 +26,13 @@ notificationsRouter.get(
   requireRole(UserRole.MANAGER, UserRole.ADMIN),
   validate(ListNotificationOperationsQuerySchema, 'query'),
   listNotificationOperations
+);
+notificationsRouter.get(
+  '/operations/:id',
+  requireAuth,
+  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  validate(NotificationOperationParamsSchema, 'params'),
+  getNotificationOperation
 );
 notificationsRouter.post(
   '/operations/:id/retry',
