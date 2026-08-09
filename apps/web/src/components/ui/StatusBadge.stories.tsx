@@ -9,7 +9,16 @@ const meta = {
   argTypes: {
     status: {
       control: 'select',
-      options: ['waiting', 'called', 'serving', 'completed', 'cancelled', 'skipped', 'no_show'],
+      options: [
+        'waiting',
+        'called',
+        'serving',
+        'served',
+        'completed',
+        'cancelled',
+        'skipped',
+        'no_show',
+      ],
     },
     size: { control: 'inline-radio', options: ['sm', 'md'] },
   },
@@ -28,5 +37,5 @@ export const CalledOnPhone: Story = {
 };
 
 export const Completed: Story = {
-  args: { status: 'completed', size: 'sm' },
+  args: { status: 'served', size: 'sm' },
 };

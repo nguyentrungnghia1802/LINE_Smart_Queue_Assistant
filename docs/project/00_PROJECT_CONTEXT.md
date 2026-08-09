@@ -55,8 +55,9 @@ The project is a working local/demo modular monolith, not yet a production-compl
 - LINE-only customer authentication: public organization slug/token entries redirect to LIFF, while local development uses the paired LIFF mock identity.
 - Localized customer, staff, manager, and admin portals with persisted language selection.
 - Storybook 10.5.7 component review environment with shared design tokens, i18n/provider
-  decorators, deterministic fixtures, Japanese/Vietnamese/English toolbar control, and phone/
-  desktop viewport states for selected reusable components.
+  decorators, deterministic queue/ticket/order fixtures, Japanese/Vietnamese/English toolbar
+  control, phone/desktop viewport states, and interaction coverage for selected reusable
+  components.
 - Shared responsive role navigation with full desktop tabs, icon-labelled mobile bottom navigation,
   safe-area spacing, and mobile card/list variants for dense manager operations.
 - Public business onboarding with organization/contact/address/usage/plan details, a work-email

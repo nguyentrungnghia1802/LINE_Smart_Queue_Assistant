@@ -96,10 +96,14 @@ Pages orchestrate data and interactions. Reusable visual patterns belong in comp
 
 The isolated component-review environment is `apps/web/.storybook/main.ts` and
 `apps/web/.storybook/preview.tsx`. Reusable stories use the `*.stories.tsx` convention beside the
-component, while deterministic shared fixtures live in `apps/web/src/storybook/fixtures.ts` and
-its tests. The preview owns the i18n locale toolbar (`ja`, `vi`, `en`), global CSS, TanStack Query
-provider, MemoryRouter, and phone/desktop viewport options. Story fixtures must not call real API,
-LINE, payment, maps, or object-storage services.
+component, while deterministic shared fixtures and the no-network authenticated story provider
+live in `apps/web/src/storybook/fixtures.ts` and `apps/web/src/storybook/providers.tsx`. The preview
+owns the i18n locale toolbar (`ja`, `vi`, `en`), global CSS, TanStack Query provider, MemoryRouter,
+autodocs defaults, story ordering, and phone/desktop viewport options. The current story set covers
+brand and language controls, role shell/login chrome, loading/empty/error/pagination feedback,
+queue and ticket states, manager time/location boundaries, customer order details, and LIFF
+friendship/QR interactions. Story fixtures must not call real API, LINE, payment, maps, camera, or
+object-storage services; integration-boundary behavior remains covered by isolated unit tests.
 
 Persisted product and organization image fields use the shared `StoredImageUrlSchema` from
 `modules/shared/shared.validator.ts`. It accepts only HTTP(S) URLs or generated same-origin

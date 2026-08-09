@@ -24,3 +24,7 @@ export const PausedOnPhone: Story = {
   args: { queue: queueFixtures.paused, sequence: 2 },
   globals: { viewport: { value: 'phone', isRotated: false } },
 };
+
+export const ClosedAndUnlimited: Story = {
+  args: { queue: queueFixtures.closed, sequence: 3 },
+};

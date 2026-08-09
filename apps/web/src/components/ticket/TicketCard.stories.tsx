@@ -23,3 +23,7 @@ export const CalledOnPhone: Story = {
   args: { ticket: ticketFixtures.called },
   globals: { viewport: { value: 'phone', isRotated: false } },
 };
+
+export const Completed: Story = {
+  args: { ticket: ticketFixtures.completed },
+};
