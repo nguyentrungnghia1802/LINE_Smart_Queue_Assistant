@@ -65,3 +65,12 @@ Tuân thủ AGENTS.md. Tôi có các yêu cầu sau:
 <MÔ TẢ YÊU CẦU>
 
 ```
+
+## Create Task
+
+```text
+Tuân thủ docs\agent\AGENTS.md. Tôi có các yêu cầu sau:
+- Sau khi hoàn thành toàn bộ task trong docs\agent\tasks\task.md, hãy viết 8 idea mới phù hợp với dự án hiện tại vào file docs\agent\tasks\idea.md (Xoá toàn bộ nội dung cũ đi). Nêu chức năng, ý tưởng của từng idea, lựa chọn các idea thực tế, khả thi, phù hợp nhất với dự án. Mỗi idea có mô tả không quá 45 dòng. Nếu chưa hoàn thành task trong docs\agent\tasks\task.md thì hãy toàn thiện nốt mới làm.
+- Sau khi có nội dung 8 idea trong file idea.md, hãy viết các task để thực hiện hoá 4 trong 8 idea tốt nhất vào trong file docs\agent\tasks\task.md (Xoá nội dung cũ của file đi). Các task được mô tả chi tiết, rõ ràng, kích thước mỗi task không quá 80 dòng, tổng khoảng 4 đến 6 task. Mỗi task có checklist rõ ràng để Agent theo dõi trạng thái và triển khai.
+
+```
