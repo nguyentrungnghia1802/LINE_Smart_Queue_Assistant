@@ -57,21 +57,31 @@ const baseRow = {
   updated_at: new Date('2026-08-10T01:01:00Z'),
 };
 
+const branchScope = {
+  organizationId: baseRow.organization_id,
+  branchId: baseRow.branch_id,
+};
+
+const staffScope = {
+  organizationId: baseRow.organization_id,
+  branchId: baseRow.branch_id,
+  queueId: '55555555-5555-4555-8555-555555555555',
+};
+
 describe('notificationOperationsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(withTransaction).mockImplementation(async (callback) => callback(client));
   });
 
-  it('passes tenant, branch, pagination, event, and time filters to the repository', async () => {
+  it('passes branch scope, pagination, event, and time filters to the repository', async () => {
     jest.mocked(notificationOperationsRepository.list).mockResolvedValue({
       rows: [{ ...baseRow, total_count: '1' }],
       total: 1,
     });
 
     const result = await notificationOperationsService.list({
-      organizationId: baseRow.organization_id,
-      branchId: baseRow.branch_id,
+      ...branchScope,
       status: 'failed',
       eventType: 'called',
       createdFrom: new Date('2026-08-01T00:00:00Z'),
@@ -92,6 +102,27 @@ describe('notificationOperationsService', () => {
     expect(result.items[0]).not.toHaveProperty('lastError');
   });
 
+  it('passes staff queue scope through to the repository', async () => {
+    jest.mocked(notificationOperationsRepository.list).mockResolvedValue({
+      rows: [{ ...baseRow, total_count: '1' }],
+      total: 1,
+    });
+
+    await notificationOperationsService.list({
+      ...staffScope,
+      page: 1,
+      limit: 20,
+    });
+
+    expect(notificationOperationsRepository.list).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: staffScope.organizationId,
+        branchId: staffScope.branchId,
+        queueId: staffScope.queueId,
+      })
+    );
+  });
+
   it('sanitizes recipient identifiers, tokens, emails, and URL queries in detail errors', async () => {
     jest.mocked(notificationOperationsRepository.findById).mockResolvedValue({
       ...baseRow,
@@ -99,9 +130,7 @@ describe('notificationOperationsService', () => {
         'failed U1234567890 Bearer token-123 user@example.com https://line.me/send?secret=value',
     });
 
-    const result = await notificationOperationsService.detail(baseRow.id, {
-      organizationId: baseRow.organization_id,
-    });
+    const result = await notificationOperationsService.detail(baseRow.id, branchScope);
 
     expect(result.sanitizedLastError).toContain('[LINE user redacted]');
     expect(result.sanitizedLastError).toContain('Bearer [redacted]');
@@ -121,7 +150,7 @@ describe('notificationOperationsService', () => {
 
     const result = await notificationOperationsService.retry({
       id: baseRow.id,
-      scope: { organizationId: baseRow.organization_id },
+      scope: branchScope,
       actorId: '55555555-5555-4555-8555-555555555555',
       reason: 'Provider recovered',
     });
@@ -138,6 +167,27 @@ describe('notificationOperationsService', () => {
     expect(result.status).toBe('pending');
   });
 
+  it('allows staff to retry with queue-scoped access', async () => {
+    jest.mocked(notificationOperationsRepository.findByIdForUpdate).mockResolvedValue(baseRow);
+    jest.mocked(notificationOperationsRepository.retryFailed).mockResolvedValue({
+      ...baseRow,
+      status: 'pending',
+      attempt_count: 0,
+      manual_retry_count: 1,
+      last_error: null,
+    });
+
+    const result = await notificationOperationsService.retry({
+      id: baseRow.id,
+      scope: staffScope,
+      actorId: 'staff-actor',
+      reason: 'Provider recovered',
+    });
+
+    expect(result.status).toBe('pending');
+    expect(notificationOperationsRepository.insertAudit).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects permanent recipient failures without mutating or auditing', async () => {
     jest.mocked(notificationOperationsRepository.findByIdForUpdate).mockResolvedValue({
       ...baseRow,
@@ -147,7 +197,7 @@ describe('notificationOperationsService', () => {
     await expect(
       notificationOperationsService.retry({
         id: baseRow.id,
-        scope: { organizationId: baseRow.organization_id },
+        scope: branchScope,
         actorId: 'actor',
         reason: 'Try again',
       })
@@ -166,7 +216,7 @@ describe('notificationOperationsService', () => {
 
     await notificationOperationsService.cancel({
       id: baseRow.id,
-      scope: { branchId: baseRow.branch_id },
+      scope: branchScope,
       actorId: 'actor',
       reason: 'Ticket already completed',
     });
@@ -181,7 +231,7 @@ describe('notificationOperationsService', () => {
     });
     const repeated = await notificationOperationsService.cancel({
       id: baseRow.id,
-      scope: { branchId: baseRow.branch_id },
+      scope: branchScope,
       actorId: 'actor',
       reason: 'Ticket already completed',
     });
@@ -200,7 +250,7 @@ describe('notificationOperationsService', () => {
     await expect(
       notificationOperationsService.cancel({
         id: baseRow.id,
-        scope: { organizationId: baseRow.organization_id },
+        scope: branchScope,
         actorId: 'actor',
         reason: 'Not needed',
       })

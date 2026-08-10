@@ -21,6 +21,7 @@ export const common = {
     branches: '支店',
     audit: '操作ログ',
     notificationOperations: 'LINE配信',
+    more: 'その他',
   },
   actions: {
     login: 'ログイン',

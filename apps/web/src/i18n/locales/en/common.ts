@@ -21,6 +21,7 @@ export const common = {
     branches: 'Branches',
     audit: 'Audit log',
     notificationOperations: 'LINE delivery',
+    more: 'More',
   },
   actions: {
     login: 'Log in',

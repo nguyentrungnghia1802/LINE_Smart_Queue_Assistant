@@ -13,8 +13,7 @@ export const ListNotificationsQuerySchema = PaginationSchema.extend({
 
 export const ListNotificationOperationsQuerySchema = PaginationSchema.extend({
   status: z.enum(['pending', 'processing', 'sent', 'failed', 'cancelled']).optional(),
-  organizationId: z.string().uuid().optional(),
-  branchId: z.string().uuid().optional(),
+  queueId: z.string().uuid().optional(),
   eventType: z
     .enum([
       'booking_created',

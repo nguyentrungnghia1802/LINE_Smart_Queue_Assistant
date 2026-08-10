@@ -1,4 +1,4 @@
-import { ClipboardList, PackageSearch, QrCode } from 'lucide-react';
+import { BellRing, ClipboardList, PackageSearch, QrCode } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
 
@@ -11,6 +11,7 @@ const STAFF_NAV_ITEMS: RoleNavItem[] = [
   { to: '/staff', labelKey: 'nav.orders', icon: ClipboardList, end: true },
   { to: '/staff/products', labelKey: 'nav.products', icon: PackageSearch },
   { to: '/staff/qr', labelKey: 'nav.qr', icon: QrCode },
+  { to: '/staff/notifications', labelKey: 'nav.notificationOperations', icon: BellRing },
 ];
 
 export function StaffLayout() {

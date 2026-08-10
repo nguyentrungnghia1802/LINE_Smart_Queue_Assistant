@@ -114,6 +114,7 @@ export const router = createBrowserRouter([
       { index: true, element: <StaffDashboardPage /> },
       { path: 'products', element: <StaffProductsPage /> },
       { path: 'qr', element: <StaffQRPage /> },
+      { path: 'notifications', element: <NotificationOperationsPage /> },
     ],
   },
 
@@ -147,7 +148,6 @@ export const router = createBrowserRouter([
       { path: 'orgs', element: <AdminOrganizationsPage /> },
       { path: 'applications', element: <AdminOrganizationApplicationsPage /> },
       { path: 'orgs/:orgId', element: <AdminOrganizationDetailPage /> },
-      { path: 'notifications', element: <NotificationOperationsPage /> },
     ],
   },
 

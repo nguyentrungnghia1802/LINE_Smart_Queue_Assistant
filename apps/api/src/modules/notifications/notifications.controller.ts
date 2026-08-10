@@ -3,32 +3,57 @@ import { Request, Response } from 'express';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
-import { requireBranchManager, requireOrganizationOwner } from '../branches/branch-scope';
+import { requireBranchManager } from '../branches/branch-scope';
 
 import type { NotificationOperationScope } from './notification-operations.repository';
 import { notificationOperationsService } from './notification-operations.service';
 import { notificationsService } from './notifications.service';
 
+/**
+ * Derive notification-operation scope entirely from authenticated server-side
+ * context.  Admin, organization-owner, and customer roles are rejected.
+ *
+ * - Branch Manager → sees all queues within their assigned branch.
+ * - Staff → sees only their single assigned queue.
+ *
+ * No client-supplied organizationId/branchId is trusted for authorization.
+ */
 export function resolveNotificationOperationScope(req: Request): NotificationOperationScope {
   if (!req.user) throw AppError.unauthorized();
+
+  // Admin and organization owner are explicitly denied.
   if (req.user.role === 'admin') {
-    return {
-      organizationId: req.query.organizationId as string | undefined,
-      branchId: req.query.branchId as string | undefined,
-    };
+    throw AppError.forbidden('Platform admin cannot access tenant notification operations');
   }
   if (req.user.isOrganizationOwner) {
+    throw AppError.forbidden('Organization owner cannot access notification operations');
+  }
+
+  // Staff: queue-scoped only
+  if (req.user.role === 'staff') {
+    if (!req.user.organizationId) throw AppError.badRequest('User has no organization');
+    const branchIds = req.user.branchIds ?? [];
+    if (branchIds.length !== 1) {
+      throw AppError.forbidden('Staff must have exactly one active branch assignment');
+    }
+    if (!req.user.assignedQueueId) {
+      throw AppError.forbidden('Staff must have an assigned queue');
+    }
     return {
-      organizationId: requireOrganizationOwner(req.user),
-      branchId: req.query.branchId as string | undefined,
+      organizationId: req.user.organizationId,
+      branchId: branchIds[0],
+      queueId: req.user.assignedQueueId,
     };
   }
+
+  // Branch Manager: branch-scoped (all queues within branch)
   const scope = requireBranchManager(req.user);
-  const requestedBranch = req.query.branchId as string | undefined;
-  if (requestedBranch && requestedBranch !== scope.branchId) {
-    throw AppError.forbidden('Notification is outside your assigned branch');
-  }
-  return scope;
+  // Allow optional queueId filter from query (within their branch)
+  const requestedQueue = req.query.queueId as string | undefined;
+  return {
+    ...scope,
+    queueId: requestedQueue || undefined,
+  };
 }
 
 /**
@@ -79,6 +104,12 @@ export const retryNotification = asyncHandler(async (req: Request, res: Response
 
 export const cancelNotification = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new Error('Authenticated user context is missing');
+
+  // Staff cannot cancel notifications — only branch managers can.
+  if (req.user.role === 'staff') {
+    throw AppError.forbidden('Staff cannot cancel notifications');
+  }
+
   const data = await notificationOperationsService.cancel({
     id: req.params.id,
     scope: resolveNotificationOperationScope(req),

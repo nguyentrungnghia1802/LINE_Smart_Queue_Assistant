@@ -58,8 +58,7 @@ export interface NotificationOperationFilters {
   page: number;
   limit: number;
   status?: string;
-  organizationId?: string;
-  branchId?: string;
+  queueId?: string;
   eventType?: string;
   createdFrom?: string;
   createdTo?: string;

@@ -19,7 +19,7 @@ Calibrated Demand Forecasting and Staff Planning.
 ## TASK-PROD-001: Notification Operations Center
 
 **Idea:** 1. Notification Operations Center
-**Status:** [x] Completed
+**Status:** [x] Completed (Note: Authorization corrected in subsequent PR to remove Admin/Owner access and add Staff queue-scoped access)
 **Priority:** P0
 **Dependencies:** Existing PostgreSQL notification outbox, BullMQ dispatcher, audit log, metrics
 

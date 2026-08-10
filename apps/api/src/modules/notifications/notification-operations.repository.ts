@@ -11,6 +11,7 @@ import type {
 export interface NotificationOperationScope {
   organizationId?: string;
   branchId?: string;
+  queueId?: string;
 }
 
 export interface NotificationOperationFilters extends NotificationOperationScope {
@@ -47,6 +48,7 @@ function buildWhere(filters: NotificationOperationFilters | NotificationOperatio
 
   if (filters.organizationId) add('n.organization_id = ?', filters.organizationId);
   if (filters.branchId) add('q.branch_id = ?', filters.branchId);
+  if (filters.queueId) add('qe.queue_id = ?', filters.queueId);
   if ('status' in filters && filters.status) add('n.status = ?', filters.status);
   if ('eventType' in filters && filters.eventType) add('n.event_type = ?', filters.eventType);
   if ('createdFrom' in filters && filters.createdFrom)
@@ -124,6 +126,10 @@ export class NotificationOperationsRepository extends BaseRepository {
     if (scope.branchId) {
       values.push(scope.branchId);
       where.push(`q.branch_id = $${values.length}`);
+    }
+    if (scope.queueId) {
+      values.push(scope.queueId);
+      where.push(`qe.queue_id = $${values.length}`);
     }
     return { values, where };
   }

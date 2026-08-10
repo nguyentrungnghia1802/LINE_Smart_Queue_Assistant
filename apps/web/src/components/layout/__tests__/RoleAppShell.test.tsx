@@ -1,5 +1,13 @@
-import { render, screen, within } from '@testing-library/react';
-import { LayoutDashboard, ListOrdered, PackageSearch, QrCode, Settings, Users } from 'lucide-react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  BellRing,
+  LayoutDashboard,
+  ListOrdered,
+  PackageSearch,
+  QrCode,
+  Settings,
+  Users,
+} from 'lucide-react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -19,11 +27,22 @@ const navItems: RoleNavItem[] = [
   { to: '/manager/queues', labelKey: 'nav.queue', icon: ListOrdered },
   { to: '/manager/users', labelKey: 'nav.staff', icon: Users },
   { to: '/manager/qr', labelKey: 'nav.qr', icon: QrCode },
+  { to: '/manager/notifications', labelKey: 'nav.notificationOperations', icon: BellRing },
   { to: '/manager/settings', labelKey: 'nav.settings', icon: Settings },
 ];
 
 describe('RoleAppShell', () => {
-  it('keeps every role destination available in desktop and mobile navigation', () => {
+  it('renders desktop navigation with all items (JSDOM fits all due to 0 width) and mobile navigation with More menu for >5 items', () => {
+    // JSDOM doesn't support ResizeObserver, so we mock it to just run once
+    vi.stubGlobal(
+      'ResizeObserver',
+      class ResizeObserver {
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      }
+    );
+
     render(
       <MemoryRouter initialEntries={['/manager']}>
         <RoleAppShell homePath="/manager" navItems={navItems}>
@@ -33,21 +52,39 @@ describe('RoleAppShell', () => {
     );
 
     const navigations = screen.getAllByRole('navigation', { name: 'メインナビゲーション' });
-    expect(navigations).toHaveLength(2);
+    expect(navigations).toHaveLength(2); // Desktop and Mobile
 
-    for (const navigation of navigations) {
-      expect(within(navigation).getByRole('link', { name: 'ダッシュボード' })).toHaveAttribute(
-        'href',
-        '/manager'
-      );
-      expect(within(navigation).getByRole('link', { name: '商品' })).toBeInTheDocument();
-      expect(within(navigation).getByRole('link', { name: 'キュー' })).toBeInTheDocument();
-      expect(within(navigation).getByRole('link', { name: 'スタッフ' })).toBeInTheDocument();
-      expect(within(navigation).getByRole('link', { name: 'QR表示' })).toBeInTheDocument();
-      expect(within(navigation).getByRole('link', { name: '設定' })).toBeInTheDocument();
-    }
+    const desktopNav = navigations[0];
+    const mobileNav = navigations[1];
 
-    expect(navigations[1]).toHaveClass('overflow-x-auto');
+    // Desktop nav in JSDOM will render all items because offsetWidth is 0
+    expect(within(desktopNav).getAllByRole('link', { name: 'ダッシュボード' })[0]).toHaveAttribute(
+      'href',
+      '/manager'
+    );
+    expect(within(desktopNav).getAllByRole('link', { name: '設定' })[0]).toBeInTheDocument();
+
+    // Mobile nav has > 5 items, so it should render 4 items + "その他" (More)
+    expect(within(mobileNav).getByRole('link', { name: 'ダッシュボード' })).toBeInTheDocument();
+    expect(within(mobileNav).getByRole('link', { name: '商品' })).toBeInTheDocument();
+    expect(within(mobileNav).getByRole('link', { name: 'キュー' })).toBeInTheDocument();
+    expect(within(mobileNav).getByRole('link', { name: 'スタッフ' })).toBeInTheDocument();
+
+    // Items beyond the 4th should NOT be in the main mobile nav initially
+    expect(within(mobileNav).queryByRole('link', { name: 'QR表示' })).not.toBeInTheDocument();
+
+    // Instead, there should be a "More" button
+    const moreButton = within(mobileNav).getByRole('button', { name: /その他/ });
+    expect(moreButton).toBeInTheDocument();
+
+    // Clicking "More" opens the dropdown with the remaining items
+    fireEvent.click(moreButton);
+
+    // Now the remaining items should be visible
+    expect(screen.getByRole('menuitem', { name: 'QR表示' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'LINE配信' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: '設定' })).toBeInTheDocument();
+
     expect(screen.getByRole('heading', { name: 'Manager content' })).toBeInTheDocument();
   });
 });

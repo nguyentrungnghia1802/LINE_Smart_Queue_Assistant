@@ -36,6 +36,20 @@ describe('NotificationOperationsRepository', () => {
     expect(values).toEqual(expect.arrayContaining(['failed', 'called', 20, 20]));
   });
 
+  it('adds queueId filter when scope includes queueId for staff access', async () => {
+    const repository = new NotificationOperationsRepository();
+    await repository.list({
+      organizationId: '11111111-1111-4111-8111-111111111111',
+      branchId: '22222222-2222-4222-8222-222222222222',
+      queueId: '33333333-3333-4333-8333-333333333333',
+      page: 1,
+      limit: 20,
+    });
+    const [sql, values] = jest.mocked(query).mock.calls[0];
+    expect(sql).toContain('qe.queue_id');
+    expect(values).toContain('33333333-3333-4333-8333-333333333333');
+  });
+
   it('locks one scoped row so concurrent operator mutations serialize', async () => {
     const repository = new NotificationOperationsRepository();
     const client = {} as never;
@@ -47,6 +61,19 @@ describe('NotificationOperationsRepository', () => {
     expect(sql).toContain('FOR UPDATE OF n');
     expect(sql).toContain('n.organization_id');
     expect(sql).toContain('q.branch_id');
+  });
+
+  it('scopes findByIdForUpdate to queue when queueId is provided', async () => {
+    const repository = new NotificationOperationsRepository();
+    const client = {} as never;
+    await repository.findByIdForUpdate(client, '11111111-1111-4111-8111-111111111111', {
+      organizationId: '22222222-2222-4222-8222-222222222222',
+      branchId: '33333333-3333-4333-8333-333333333333',
+      queueId: '44444444-4444-4444-8444-444444444444',
+    });
+    const [, sql, values] = jest.mocked(queryWithClient).mock.calls[0];
+    expect(sql).toContain('qe.queue_id');
+    expect(values).toContain('44444444-4444-4444-8444-444444444444');
   });
 
   it('resets dispatch state with a unique manual job id while preserving one event row', async () => {

@@ -9,7 +9,9 @@ export const notificationsPaths = {
   '/api/v1/notifications/operations': {
     get: {
       tags: ['notifications'],
-      summary: 'List tenant-scoped LINE notification deliveries',
+      summary: 'List branch- or queue-scoped LINE notification deliveries',
+      description:
+        'Branch managers see all queues within their assigned branch. Staff see only their assigned queue. Scope is derived from authenticated context.',
       operationId: 'listNotificationOperations',
       security: bearerSecurity,
       parameters: [
@@ -27,8 +29,12 @@ export const notificationsPaths = {
             enum: ['pending', 'processing', 'sent', 'failed', 'cancelled'],
           },
         },
-        { name: 'organizationId', in: 'query', schema: { type: 'string', format: 'uuid' } },
-        { name: 'branchId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+        {
+          name: 'queueId',
+          in: 'query',
+          description: 'Optional queue filter (branch managers only; staff scope is automatic)',
+          schema: { type: 'string', format: 'uuid' },
+        },
         { name: 'eventType', in: 'query', schema: { type: 'string' } },
         { name: 'createdFrom', in: 'query', schema: { type: 'string', format: 'date-time' } },
         { name: 'createdTo', in: 'query', schema: { type: 'string', format: 'date-time' } },

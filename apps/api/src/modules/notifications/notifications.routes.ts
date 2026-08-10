@@ -23,21 +23,21 @@ export const notificationsRouter = Router();
 notificationsRouter.get(
   '/operations',
   requireAuth,
-  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.MANAGER, UserRole.STAFF),
   validate(ListNotificationOperationsQuerySchema, 'query'),
   listNotificationOperations
 );
 notificationsRouter.get(
   '/operations/:id',
   requireAuth,
-  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.MANAGER, UserRole.STAFF),
   validate(NotificationOperationParamsSchema, 'params'),
   getNotificationOperation
 );
 notificationsRouter.post(
   '/operations/:id/retry',
   requireAuth,
-  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.MANAGER, UserRole.STAFF),
   validate(NotificationOperationParamsSchema, 'params'),
   validate(NotificationOperationBodySchema),
   retryNotification
@@ -45,7 +45,7 @@ notificationsRouter.post(
 notificationsRouter.post(
   '/operations/:id/cancel',
   requireAuth,
-  requireRole(UserRole.MANAGER, UserRole.ADMIN),
+  requireRole(UserRole.MANAGER, UserRole.STAFF),
   validate(NotificationOperationParamsSchema, 'params'),
   validate(NotificationOperationBodySchema),
   cancelNotification

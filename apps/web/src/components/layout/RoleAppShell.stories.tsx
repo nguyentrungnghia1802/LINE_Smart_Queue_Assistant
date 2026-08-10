@@ -1,5 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { LayoutDashboard, ListOrdered, PackageSearch, QrCode, Settings, Users } from 'lucide-react';
+import {
+  BellRing,
+  LayoutDashboard,
+  ListOrdered,
+  PackageSearch,
+  QrCode,
+  Settings,
+  Users,
+} from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -13,6 +21,7 @@ const navItems: RoleNavItem[] = [
   { to: '/manager/queues', labelKey: 'nav.queue', icon: ListOrdered },
   { to: '/manager/users', labelKey: 'nav.staff', icon: Users },
   { to: '/manager/qr', labelKey: 'nav.qr', icon: QrCode },
+  { to: '/manager/notifications', labelKey: 'nav.notificationOperations', icon: BellRing },
   { to: '/manager/settings', labelKey: 'nav.settings', icon: Settings },
 ];
 
@@ -25,7 +34,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Shared business navigation. Desktop renders the complete tab row; phone layouts keep every destination in the fixed, scrollable bottom navigation.',
+          'Shared business navigation. Desktop renders items responsively with a More dropdown for overflow; phone layouts use a bottom navigation with a More menu for >5 items.',
       },
     },
   },
@@ -54,6 +63,21 @@ function ShellPreview(args: ComponentProps<typeof RoleAppShell>) {
 export const Desktop: Story = {
   args: { homePath: '/manager', navItems, contentMode: 'contained' },
   render: (args) => <ShellPreview {...args} />,
+};
+
+// We can mock a narrow viewport using an inline style constraint for Storybook testing.
+export const DesktopNarrowOverflow: Story = {
+  args: { homePath: '/manager', navItems, contentMode: 'contained' },
+  render: (args) => (
+    <div style={{ maxWidth: '800px', width: '100%', borderRight: '1px solid #ccc' }}>
+      <ShellPreview {...args} />
+    </div>
+  ),
+  parameters: {
+    docs: {
+      description: { story: 'Constrained width to demonstrate the More dropdown in desktop.' },
+    },
+  },
 };
 
 export const PhoneWorkspace: Story = {

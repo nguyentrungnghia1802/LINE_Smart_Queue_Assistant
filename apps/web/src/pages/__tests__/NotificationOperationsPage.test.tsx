@@ -52,7 +52,12 @@ describe('NotificationOperationsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.setState({
-      user: { id: 'admin', role: UserRole.ADMIN },
+      user: {
+        id: 'branch-manager',
+        role: UserRole.MANAGER,
+        organizationId: 'org-1',
+        branchIds: ['branch-1'],
+      },
       isAuthenticated: true,
       isInitialized: true,
     });
@@ -108,6 +113,41 @@ describe('NotificationOperationsPage', () => {
     vi.mocked(notificationOperationsApi.list).mockRejectedValue(new Error('network'));
     renderPage();
     expect(await screen.findByText('通知配信を読み込めませんでした。')).toBeInTheDocument();
+  });
+
+  it('does not show organizationId or branchId filter inputs', () => {
+    renderPage();
+    // These filters were removed — scope is derived server-side
+    expect(screen.queryByPlaceholderText('UUID')).not.toBeInTheDocument();
+  });
+
+  it('hides cancel button for staff users', async () => {
+    useAuthStore.setState({
+      user: { id: 'staff-user', role: UserRole.STAFF },
+      isAuthenticated: true,
+      isInitialized: true,
+    });
+    vi.mocked(notificationOperationsApi.detail).mockResolvedValue({
+      ...summary,
+      canCancel: true,
+      eventKey: 'queue_entry:entry:called',
+      dispatchStatus: 'dispatched',
+      dispatchedAt: null,
+      processingStartedAt: null,
+      sanitizedLastError: 'provider 503',
+      operatorNote: null,
+    });
+
+    renderPage();
+    expect(await screen.findByText('A019')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('A019'));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+
+    // Staff should see retry but NOT cancel
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '再送を予約' })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: 'キャンセル' })).not.toBeInTheDocument();
   });
 });
 

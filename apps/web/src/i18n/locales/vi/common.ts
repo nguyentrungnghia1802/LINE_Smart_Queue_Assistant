@@ -21,6 +21,7 @@ export const common = {
     branches: 'Chi nhánh',
     audit: 'Nhật ký',
     notificationOperations: 'Gửi LINE',
+    more: 'Thêm',
   },
   actions: {
     login: 'Đăng nhập',

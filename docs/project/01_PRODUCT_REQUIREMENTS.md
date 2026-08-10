@@ -151,12 +151,7 @@ role and does not use branch-operation endpoints.
 | FR-LINE-013 | LIFF detects a missing Official Account friendship and offers an in-app Add/Unblock action                          | Implemented; real-device acceptance pending                             |
 | FR-LINE-014 | Authorized operators can diagnose scoped delivery failures and safely retry/cancel eligible rows without SQL access | Implemented                                                             |
 
-Notification operations authorization is server-derived: platform Admin can inspect all tenants,
-an organization owner is pinned to their organization, and a branch manager is pinned to their
-single active branch. The UI never receives raw notification payloads, unmasked LINE IDs, provider
-headers, or credentials. Retry is limited to retryable `failed` deliveries; cancellation is limited
-to `pending` deliveries whose related ticket is already terminal. Both actions require a reason and
-are audited.
+Notification operations authorization is server-derived: platform Admin and Organization Owner do not have access. A Branch Manager can manage notifications for all queues in their single active branch and can cancel obsolete notifications. Staff can manage notifications only for their assigned queue and cannot cancel them. The UI never receives raw notification payloads, unmasked LINE IDs, provider headers, or credentials. Retry is limited to retryable `failed` deliveries; cancellation is limited to `pending` deliveries whose related ticket is already terminal. Both actions require a reason and are audited.
 
 ### Location, prediction, and analytics
 

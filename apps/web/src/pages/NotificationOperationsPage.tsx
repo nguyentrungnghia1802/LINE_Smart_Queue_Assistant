@@ -43,6 +43,9 @@ export function NotificationOperationsPage() {
   const setFilter = (key: keyof NotificationOperationFilters, value: string) =>
     setFilters((current) => ({ ...current, page: 1, [key]: value || undefined }));
 
+  // Staff cannot cancel — only branch managers can.
+  const canCancel = user?.role !== 'staff';
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -67,7 +70,7 @@ export function NotificationOperationsPage() {
         </button>
       </header>
 
-      <section className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 sm:grid-cols-2 xl:grid-cols-4">
         <FilterSelect
           label={t('notificationOperations.filters.status')}
           value={filters.status ?? ''}
@@ -88,22 +91,6 @@ export function NotificationOperationsPage() {
           }))}
           allLabel={t('notificationOperations.filters.all')}
         />
-        {user?.role === 'admin' && (
-          <FilterInput
-            label={t('notificationOperations.filters.organization')}
-            value={filters.organizationId ?? ''}
-            onChange={(value) => setFilter('organizationId', value)}
-            placeholder={t('notificationOperations.filters.uuidPlaceholder')}
-          />
-        )}
-        {user?.role === 'admin' || user?.isOrganizationOwner ? (
-          <FilterInput
-            label={t('notificationOperations.filters.branch')}
-            value={filters.branchId ?? ''}
-            onChange={(value) => setFilter('branchId', value)}
-            placeholder={t('notificationOperations.filters.uuidPlaceholder')}
-          />
-        ) : null}
         <FilterInput
           type="datetime-local"
           label={t('notificationOperations.filters.from')}
@@ -167,6 +154,7 @@ export function NotificationOperationsPage() {
       {selectedId && (
         <OperationDetailDialog
           id={selectedId}
+          canCancel={canCancel}
           onClose={() => setSelectedId(null)}
           onSuccess={(message) => {
             setFeedback(message);
@@ -225,9 +213,15 @@ function OperationRow({
 
 function OperationDetailDialog({
   id,
+  canCancel,
   onClose,
   onSuccess,
-}: Readonly<{ id: string; onClose: () => void; onSuccess: (message: string) => void }>) {
+}: Readonly<{
+  id: string;
+  canCancel: boolean;
+  onClose: () => void;
+  onSuccess: (message: string) => void;
+}>) {
   const { t, i18n } = useTranslation('common');
   const client = useQueryClient();
   const [reason, setReason] = useState('');
@@ -250,6 +244,10 @@ function OperationDetailDialog({
     if (reason.trim().length < 3) return;
     action.mutate({ kind, value: reason.trim() });
   };
+
+  // Staff: can retry but cannot cancel.
+  const showCancel = canCancel && item?.canCancel;
+  const showRetry = item?.canRetry;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-gray-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-6">
@@ -288,7 +286,7 @@ function OperationDetailDialog({
                 <p className="mt-2 break-words text-sm text-rose-900">{item.sanitizedLastError}</p>
               </div>
             )}
-            {(item.canRetry || item.canCancel) && (
+            {(showRetry || showCancel) && (
               <div className="space-y-3 border-t border-gray-100 pt-5">
                 <label className="block text-sm font-bold text-gray-800" htmlFor="operation-reason">
                   {t('notificationOperations.actions.reason')}
@@ -309,7 +307,7 @@ function OperationDetailDialog({
                   </p>
                 )}
                 <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                  {item.canCancel && (
+                  {showCancel && (
                     <button
                       type="button"
                       disabled={reason.trim().length < 3 || action.isPending}
@@ -319,7 +317,7 @@ function OperationDetailDialog({
                       {t('notificationOperations.actions.cancel')}
                     </button>
                   )}
-                  {item.canRetry && (
+                  {showRetry && (
                     <button
                       type="button"
                       disabled={reason.trim().length < 3 || action.isPending}

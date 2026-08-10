@@ -422,17 +422,12 @@ another role.
 | PUT    | `/api/v1/line/location-consent`               | Authenticated customer            | Update location snapshot consent                                                          |
 | DELETE | `/api/v1/line/location-data`                  | Authenticated customer            | Revoke consent and anonymize stored snapshots                                             |
 | POST   | `/api/v1/line/location-snapshot`              | Verified LINE customer            | Save a consented snapshot only while an active ticket exists                              |
-| GET    | `/api/v1/notifications/operations`            | Manager/admin                     | Safe paginated delivery list; filters status, tenant, branch, event, and time range       |
-| GET    | `/api/v1/notifications/operations/:id`        | Manager/admin                     | Scoped detail with event key, ticket reference, attempts, timestamps, and sanitized error |
-| POST   | `/api/v1/notifications/operations/:id/retry`  | Manager/admin                     | Audited retry for retryable `failed` delivery; body requires `reason`                     |
-| POST   | `/api/v1/notifications/operations/:id/cancel` | Manager/admin                     | Audited cancellation for obsolete `pending` delivery whose ticket is terminal             |
+| GET    | `/api/v1/notifications/operations`            | Branch manager/staff              | Safe paginated delivery list; filters status, queue, event, and time range                |
+| GET    | `/api/v1/notifications/operations/:id`        | Branch manager/staff              | Scoped detail with event key, ticket reference, attempts, timestamps, and sanitized error |
+| POST   | `/api/v1/notifications/operations/:id/retry`  | Branch manager/staff              | Audited retry for retryable `failed` delivery; body requires `reason`                     |
+| POST   | `/api/v1/notifications/operations/:id/cancel` | Branch manager                    | Audited cancellation for obsolete `pending` delivery whose ticket is terminal             |
 
-Admin may supply `organizationId` and `branchId`. Organization owners are always constrained to
-their own organization, while branch managers are constrained to their single active branch even
-if a different query value is supplied. List/detail responses expose only normalized delivery
-metadata, masked recipient ID, and safe failure categories. Raw provider payloads, request headers,
-credentials, and full LINE user IDs are never returned. Manual action bodies are
-`{ "reason": "..." }` with 3-500 characters.
+Platform Admin and Organization Owner do not have access to notification operations. Branch managers are constrained to their single active branch and can cancel notifications. Staff members are constrained to their single assigned queue and can retry but not cancel notifications. List/detail responses expose only normalized delivery metadata, masked recipient ID, and safe failure categories. Raw provider payloads, request headers, credentials, and full LINE user IDs are never returned. Manual action bodies are `{ "reason": "..." }` with 3-500 characters.
 
 ### Health, docs, and metrics
 
