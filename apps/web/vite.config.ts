@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
-import { liffCspPlugin } from './vite-plugins/liffCspPlugin';
+import { liffCspPlugin } from './vite-plugins/liffCspPlugin.ts';
 
 const apiProxyTarget = process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:4000';
 
@@ -13,15 +13,15 @@ export default defineConfig(({ mode }) => ({
   plugins: [liffCspPlugin(), react(), tailwindcss()],
   // Share the repository-root .env with the API during native local development.
   // Vite only exposes variables prefixed with VITE_ to browser code.
-  envDir: resolve(__dirname, '../..'),
+  envDir: resolve(import.meta.dirname, '../..'),
 
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src'),
+      '@': resolve(import.meta.dirname, './src'),
       // Resolve shared package from TypeScript source so Rollup (vite build)
       // receives ESM-compatible input instead of the CJS dist output.
       // tsc (noEmit typecheck) still resolves via node_modules/dist typings.
-      '@line-queue/shared': resolve(__dirname, '../../packages/shared/src/index.ts'),
+      '@line-queue/shared': resolve(import.meta.dirname, '../../packages/shared/src/index.ts'),
     },
   },
 
