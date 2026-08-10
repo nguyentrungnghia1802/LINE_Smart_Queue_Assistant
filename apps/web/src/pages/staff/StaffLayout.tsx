@@ -1,6 +1,6 @@
 import { BellRing, ClipboardList, PackageSearch, QrCode } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
@@ -17,6 +17,7 @@ const STAFF_NAV_ITEMS: RoleNavItem[] = [
 export function StaffLayout() {
   const { t } = useTranslation('common');
   const { user, isAuthenticated } = useAuthStore();
+  const location = useLocation();
 
   if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
 
@@ -33,5 +34,13 @@ export function StaffLayout() {
     );
   }
 
-  return <RoleAppShell homePath="/staff" navItems={STAFF_NAV_ITEMS} contentMode="workspace" />;
+  const isWorkspace = location.pathname === '/staff';
+
+  return (
+    <RoleAppShell
+      homePath="/staff"
+      navItems={STAFF_NAV_ITEMS}
+      contentMode={isWorkspace ? 'workspace' : 'contained'}
+    />
+  );
 }

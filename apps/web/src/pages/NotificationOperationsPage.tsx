@@ -47,7 +47,7 @@ export function NotificationOperationsPage() {
   const canCancel = user?.role !== 'staff';
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase text-brand-700">
@@ -62,11 +62,18 @@ export function NotificationOperationsPage() {
         </div>
         <button
           type="button"
-          onClick={() => void list.refetch()}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 hover:bg-gray-50"
+          disabled={list.isFetching}
+          onClick={() => {
+            setFeedback('');
+            void list.refetch();
+          }}
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 transition hover:bg-gray-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <RefreshCw className="h-4 w-4" aria-hidden="true" />
-          {t('notificationOperations.refresh')}
+          <RefreshCw
+            className={`h-4 w-4 transition-transform ${list.isFetching ? 'animate-spin text-brand-600' : ''}`}
+            aria-hidden="true"
+          />
+          <span>{t('notificationOperations.refresh')}</span>
         </button>
       </header>
 

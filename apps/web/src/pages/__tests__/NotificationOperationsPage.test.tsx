@@ -149,6 +149,18 @@ describe('NotificationOperationsPage', () => {
     });
     expect(screen.queryByRole('button', { name: 'キャンセル' })).not.toBeInTheDocument();
   });
+
+  it('triggers list refetch when refresh button is clicked', async () => {
+    renderPage();
+    expect(await screen.findByText('A019')).toBeInTheDocument();
+
+    const refreshButton = screen.getByRole('button', { name: '更新' });
+    fireEvent.click(refreshButton);
+
+    await waitFor(() => {
+      expect(notificationOperationsApi.list).toHaveBeenCalledTimes(2);
+    });
+  });
 });
 
 function renderPage() {
