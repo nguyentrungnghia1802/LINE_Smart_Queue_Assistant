@@ -5,7 +5,7 @@
 #   base     — install all deps
 #   dev      — Vite dev server with HMR                   ← docker-compose.dev.yml
 #   builder  — Vite production build
-#   runner   — nginx:alpine serve static assets           ← docker-compose.yml
+#   runner   — nginx:alpine serve static assets           ← deploy/docker-compose.yml
 #
 # ⚠️  VITE_* variables are inlined at BUILD TIME by Vite (not runtime).
 #     Pass them as --build-arg in CI or via compose build.args.

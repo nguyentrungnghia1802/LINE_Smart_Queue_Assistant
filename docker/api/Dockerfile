@@ -6,7 +6,7 @@
 #   dev        — hot-reload dev server (ts-node-dev)       ← docker-compose.dev.yml
 #   prod-deps  — install production-only deps
 #   builder    — compile TypeScript
-#   runner     — minimal production image                  ← docker-compose.yml
+#   runner     — minimal production image                  ← deploy/docker-compose.yml
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ── base: install all workspace dependencies ───────────────────────────────────

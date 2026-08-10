@@ -25,7 +25,7 @@ worker source paths that must be reviewed together.
 |-- .github/workflows/       CI
 |-- docker-compose.dev.yml   Hot-reload local stack
 |-- docker-compose.validation.yml Isolated two-API failure/load topology
-\-- docker-compose.yml       Production-like stack
+\-- deploy/docker-compose.yml Production image-based stack
 ```
 
 ## 2. Backend layout

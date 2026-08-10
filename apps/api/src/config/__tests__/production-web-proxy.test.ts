@@ -58,9 +58,9 @@ describe('production web reverse proxy configuration', () => {
     expect(developmentCompose).toContain('./apps/web/public:/app/apps/web/public');
   });
 
-  it('passes all public production Vite build arguments to the web image', () => {
+  it('keeps the web image build arguments and deploy image contract aligned with production', () => {
     const dockerfile = readRepoFile('docker/web/Dockerfile');
-    const compose = readRepoFile('docker-compose.yml');
+    const compose = readRepoFile('deploy/docker-compose.yml');
 
     const publicBuildArgs = [
       'VITE_API_URL',
@@ -76,34 +76,27 @@ describe('production web reverse proxy configuration', () => {
     for (const arg of publicBuildArgs) {
       expect(dockerfile).toContain(`ARG ${arg}`);
       expect(dockerfile).toContain(`ENV ${arg}=$${arg}`);
-      expect(compose).toContain(`${arg}:`);
     }
 
-    expect(compose).toContain('VITE_API_URL: ${VITE_API_URL:-}');
-    expect(compose).not.toContain('VITE_API_URL: ${VITE_API_URL:-/api}');
-    expect(compose).toContain(
-      'VITE_LIFF_DEFAULT_BOOKING_PATH: ${VITE_LIFF_DEFAULT_BOOKING_PATH:-}'
-    );
-    expect(compose).not.toContain(
-      'VITE_LIFF_DEFAULT_BOOKING_PATH: ${VITE_LIFF_DEFAULT_BOOKING_PATH:-/liff/qr/'
-    );
+    expect(compose).toContain('image: ${LINE_QUEUE_WEB_IMAGE:-line-smart-queue-web:latest}');
+    expect(compose).not.toContain('build:');
+    expect(compose).not.toContain('VITE_API_URL: ${VITE_API_URL:-}');
     expect(dockerfile).toContain('ARG VITE_LIFF_DEFAULT_BOOKING_PATH=');
 
     const authStore = readRepoFile('apps/web/src/store/authStore.ts');
     expect(authStore).toContain("'/api/v1/auth/login'");
   });
 
-  it('keeps the deploy Compose stack synchronized with the canonical production stack', () => {
-    const canonicalCompose = readRepoFile('docker-compose.prod.yml');
+  it('keeps the deploy Compose stack aligned with the production image-based topology', () => {
     const deployCompose = readRepoFile('deploy/docker-compose.yml');
     const apiDockerfile = readRepoFile('docker/api/Dockerfile');
 
-    expect(deployCompose).toBe(canonicalCompose);
-    expect(canonicalCompose).not.toContain('media_data:/app/var/media');
-    expect(canonicalCompose).not.toContain('MEDIA_LOCAL_DIR: ${MEDIA_LOCAL_DIR:-/app/var/media}');
-    expect(canonicalCompose).toContain('image: redis:7.4-alpine');
-    expect(canonicalCompose).toContain('REDIS_URL: ${REDIS_URL:-redis://redis:6379}');
-    expect(canonicalCompose).toContain('redis_data:/data');
+    expect(deployCompose).not.toContain('build:');
+    expect(deployCompose).not.toContain('media_data:/app/var/media');
+    expect(deployCompose).not.toContain('MEDIA_LOCAL_DIR: ${MEDIA_LOCAL_DIR:-/app/var/media}');
+    expect(deployCompose).toContain('image: redis:7.4-alpine');
+    expect(deployCompose).toContain('REDIS_URL: ${REDIS_URL:-redis://redis:6379}');
+    expect(deployCompose).toContain('redis_data:/data');
     expect(apiDockerfile).toContain('mkdir -p /app/var/media');
     expect(apiDockerfile).toContain('chown appuser:appgroup /app/var/media');
     expect(apiDockerfile).toContain('/app/apps/api/node_modules');
