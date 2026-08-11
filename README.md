@@ -15,15 +15,11 @@ LINE Smart Queue Assistantは、日本の店舗、サロン、クリニック、
 
 > **図版プレースホルダー — 背景**
 >
-> TODO: 受付周辺で待ち続ける従来体験と、LINEで順番を確認して自由に行動できる体験を対比した図を追加します。
-
-<!-- TODO: Add a production-approved Japanese background illustration without using real customer data. -->
+> **延期（デモの非ブロッカー）：** 実在顧客データを使わない承認済み図版を将来追加します。
 
 > **図版プレースホルダー — 課題**
 >
-> TODO: 「待ち時間が見えない」「受付業務が分散」「通知が届かない」を示す課題図を追加します。
-
-<!-- TODO: Add a production-approved Japanese problem illustration without broken image links. -->
+> **延期（デモの非ブロッカー）：** 承認済みの課題図版を将来追加します。
 
 ### 解決方法と提供価値
 
@@ -40,9 +36,7 @@ LINE Smart Queue Assistantは、日本の店舗、サロン、クリニック、
 
 > **図版プレースホルダー — コンセプト**
 >
-> TODO: 「Branch QR → LINE Login → Queue選択 → Booking → Ticket → Staff対応 → LINE通知」の1枚図を追加します。
-
-<!-- TODO: Add a production-approved Japanese concept illustration. Keep the placeholder visible until the asset exists. -->
+> **延期（デモの非ブロッカー）：** 承認済みのフロー図版を将来追加します。
 
 ### 利用者と主な機能
 
@@ -141,15 +135,11 @@ In many in-person services, customers cannot see when their turn will arrive and
 
 > **Illustration placeholder — Background**
 >
-> TODO: Add a comparison between the traditional counter wait and a LINE-based experience in which customers can move freely while monitoring their turn.
-
-<!-- TODO: Add a production-approved English background illustration without real customer data. -->
+> **Deferred (non-blocking for the demo):** Add an approved illustration without real customer data in a future content release.
 
 > **Illustration placeholder — Problem**
 >
-> TODO: Add a visual for invisible wait time, fragmented counter work, and missed notifications.
-
-<!-- TODO: Add a production-approved English problem illustration without broken image links. -->
+> **Deferred (non-blocking for the demo):** Add an approved problem illustration in a future content release.
 
 ### Solution and value
 
@@ -166,9 +156,7 @@ The product provides:
 
 > **Illustration placeholder — Concept**
 >
-> TODO: Add a single flow visual: Branch QR → LINE Login → Queue selection → Booking → Ticket → Staff service → LINE notification.
-
-<!-- TODO: Add a production-approved English concept illustration and keep this visible until the asset exists. -->
+> **Deferred (non-blocking for the demo):** Add an approved flow illustration in a future content release.
 
 ### Roles and key features
 
@@ -267,15 +255,11 @@ Trong nhiều dịch vụ trực tiếp, khách không biết khi nào đến l�
 
 > **Placeholder minh họa — Bối cảnh**
 >
-> TODO: Bổ sung hình so sánh việc đứng chờ truyền thống với trải nghiệm theo dõi lượt qua LINE và tự do di chuyển.
-
-<!-- TODO: Add a production-approved Vietnamese background illustration without real customer data. -->
+> **Deferred (không chặn demo):** Bổ sung hình đã được duyệt và không dùng dữ liệu khách hàng thật trong một bản nội dung sau.
 
 > **Placeholder minh họa — Vấn đề**
 >
-> TODO: Bổ sung hình thể hiện thời gian chờ không rõ, nghiệp vụ quầy phân tán và thông báo bị bỏ lỡ.
-
-<!-- TODO: Add a production-approved Vietnamese problem illustration without broken image links. -->
+> **Deferred (không chặn demo):** Bổ sung hình minh họa vấn đề đã được duyệt trong một bản nội dung sau.
 
 ### Giải pháp và giá trị
 
@@ -292,9 +276,7 @@ Giá trị chính:
 
 > **Placeholder minh họa — Khái niệm**
 >
-> TODO: Bổ sung một sơ đồ: Branch QR → LINE Login → chọn Queue → Booking → Ticket → Staff phục vụ → LINE notification.
-
-<!-- TODO: Add a production-approved Vietnamese concept illustration and keep this placeholder visible until it exists. -->
+> **Deferred (không chặn demo):** Bổ sung sơ đồ luồng đã được duyệt trong một bản nội dung sau.
 
 ### Vai trò và chức năng chính
 

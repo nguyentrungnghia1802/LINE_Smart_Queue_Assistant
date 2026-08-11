@@ -347,7 +347,7 @@ At minimum verify rejection of:
 
 ## OPT-005: Final Maintainability, Documentation, and Demo Baseline
 
-**Status:** [ ] Not started  
+**Status:** [x] Completed (2026-08-11)
 **Priority:** P2  
 **Dependencies:** OPT-004 completed
 
@@ -360,18 +360,18 @@ This is a closure task, not a new feature task.
 
 ### Implementation Checklist
 
-- [ ] Review all optimization changes and confirm canonical docs match current implementation.
-- [ ] Synchronize README, architecture, implementation map, API, database, testing, operations, deployment, scalability, and demo guides where affected.
-- [ ] Remove or archive obsolete documentation that could be mistaken for current truth.
-- [ ] Review `.env.example` and deployment examples for obsolete, duplicated, unsafe, or misleading configuration.
-- [ ] Verify demo payment mode and deferred real-PSP acceptance are documented clearly.
-- [ ] Verify known limitations distinguish implementation defects from intentionally deferred commercial-production work.
-- [ ] Review remaining TODO/FIXME items and classify them as blocker, future work, or intentionally ignored.
-- [ ] Verify representative demo fixtures and demo accounts still reproduce the documented journey.
-- [ ] Verify the recommended demo path from onboarding through queue completion.
-- [ ] Verify Git repository hygiene: generated artifacts, temporary output, secrets, and local environment files are not tracked.
-- [ ] Do not add new major features or architecture during this task.
-- [ ] Record a concise optimization summary and final evidence map.
+- [x] Review all optimization changes and confirm canonical docs match current implementation.
+- [x] Synchronize README, architecture, implementation map, API, database, testing, operations, deployment, scalability, and demo guides where affected.
+- [x] Remove or archive obsolete documentation that could be mistaken for current truth.
+- [x] Review `.env.example` and deployment examples for obsolete, duplicated, unsafe, or misleading configuration.
+- [x] Verify demo payment mode and deferred real-PSP acceptance are documented clearly.
+- [x] Verify known limitations distinguish implementation defects from intentionally deferred commercial-production work.
+- [x] Review remaining TODO/FIXME items and classify them as blocker, future work, or intentionally ignored.
+- [x] Verify representative demo fixtures and demo accounts still reproduce the documented journey.
+- [x] Verify the recommended demo path from onboarding through queue completion.
+- [x] Verify Git repository hygiene: generated artifacts, temporary output, secrets, and local environment files are not tracked.
+- [x] Do not add new major features or architecture during this task.
+- [x] Record a concise optimization summary and final evidence map.
 
 ### Final Validation
 
@@ -396,12 +396,36 @@ unchanged evidence. Final completion must still have traceable evidence for ever
 
 ### Definition of Done
 
-- [ ] The optimized system is maintainable, documented, reproducible, and stable.
-- [ ] Critical business flows and authorization boundaries remain verified.
-- [ ] No major known blocker prevents reliable demonstration.
-- [ ] Documentation accurately distinguishes demo behavior, production-oriented architecture, and deferred commercial-production work.
-- [ ] No further optimization task is required unless future evidence identifies a specific problem.
-- [ ] The project is ready to be frozen as the next stable demo baseline.
+- [x] The optimized system is maintainable, documented, reproducible, and stable.
+- [x] Critical business flows and authorization boundaries remain verified.
+- [x] No major known blocker prevents reliable demonstration.
+- [x] Documentation accurately distinguishes demo behavior, production-oriented architecture, and deferred commercial-production work.
+- [x] No further optimization task is required unless future evidence identifies a specific problem.
+- [x] The project is ready to be frozen as the next stable demo baseline.
+
+### Completion Notes
+
+- Audited OPT-001 through OPT-004 against the implementation, route/OpenAPI inventory, 28
+  migrations, deterministic fixtures, runtime configuration, Compose topology, CI gates, and
+  canonical documentation. No API or database contract change was required.
+- Corrected the production environment template to require S3-compatible media storage because
+  production Compose has no API media volume. Strengthened the configuration regression so a
+  commented S3 example can no longer satisfy the production assertion.
+- Classified all eighteen README illustration TODO markers as deferred, non-blocking content work;
+  marked completed task history explicitly historical and removed one tracked zero-byte obsolete
+  idea file. Generated output, local environments, reports, coverage, and media remain untracked.
+- Full API validation passed 114 suites / 682 tests; Web passed 56 files / 185 tests; OpenAPI passed
+  4/4; browser E2E passed 16/16 across desktop and mobile. Lint, typecheck, formatting, production
+  build/CSP, Storybook, three Compose config checks, and dependency audit (0 vulnerabilities) passed.
+- A clean isolated PostgreSQL 16 database accepted all 28 migrations, reported no pending
+  migration, and accepted the browser fixture twice. The integrated two-API/Redis/worker recovery
+  rehearsal passed every check, including cross-instance auth/SSE, distributed rate limiting,
+  cache/Redis loss, worker recovery, API restart, and database interruption. Full-history Gitleaks
+  scanned 197 commits with no leaks found.
+- Demo payment/refund remains an explicit local fixture path. Real PSP, LINE device/account, SMTP,
+  maps, object-storage policy, legal, backup/restore, staging soak, and release-operations acceptance
+  remain deferred production work rather than demo defects. No dependency, migration, major feature,
+  or architecture expansion was introduced.
 
 ---
 

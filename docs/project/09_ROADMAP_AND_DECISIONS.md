@@ -747,3 +747,23 @@ controls were retained and revalidated. No dependency vulnerability required rem
 | Rate-limit IP resolution independently trusted the left-most raw forwarded address.                                                  | Use only Express `req.ip`, which applies the configured trusted-proxy hop count, and test that a raw spoofed header cannot replace it.                                                                                            |
 
 The hardening adds no WAF, SIEM, enterprise IAM, dependency, schema migration, or external runtime.
+
+## OPT-005 final baseline audit (2026-08-11)
+
+The closure audit compared README and canonical documents with routes, endpoint catalog,
+migrations/reset schema, runtime configuration, Compose topology, CI gates, fixtures, browser
+journeys, and the prior OPT-001 through OPT-004 evidence before changing the baseline.
+
+| Class    | Demonstrated finding                                                                                                                                | Decision                                                                                                                                                                |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `P0`     | `deploy/.env.example` actively selected local media even though production Compose mounts no API media volume and canonical deployment requires S3. | Select S3 in the production template, expose required provider fields, remove misleading local paths, and make the config test match active lines rather than comments. |
+| `P1`     | Project Context, Implementation Map, and Scalability headers stopped at OPT-002/003/004 despite later verified changes.                             | Consolidate their verification statements and production media topology at OPT-005 without rewriting historical measurements.                                           |
+| `P2`     | README contained eighteen visible/hidden TODO markers for three optional illustrations repeated across three languages.                             | Keep visible placeholders but classify each asset as deferred and non-blocking; do not manufacture unapproved product imagery during closure.                           |
+| `P2`     | Completed task plans remained beside the active task, and one referenced idea file was empty.                                                       | Mark completed plans explicitly historical and remove only the empty obsolete file; retain implementation evidence.                                                     |
+| `Ignore` | Dependency review shows current-compatible patches and multiple major upgrades, but the audit reports no vulnerability requiring change.            | Freeze versions for the stable baseline; major framework/tool migrations require a separate evidence-backed task.                                                       |
+
+No source TODO/FIXME remains outside historical/task instructions after README classification.
+Generated output, populated environment files, test reports, coverage, media, and local validation
+artifacts are ignored and untracked. The final executable evidence map is maintained in
+`docs/guide/DEMO_ACCEPTANCE.md`; external LINE, PSP, SMTP, maps, object-storage policy, legal,
+backup/restore, staging soak, and release-operations acceptance remain intentionally deferred.

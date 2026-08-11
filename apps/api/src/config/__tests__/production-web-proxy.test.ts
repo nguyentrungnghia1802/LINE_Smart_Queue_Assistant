@@ -108,8 +108,10 @@ describe('production web reverse proxy configuration', () => {
 
     expect(deployEnvironment).toContain('WEB_ORIGIN=https://smartqueue.io.vn');
     expect(deployEnvironment).toContain('EMAIL_FROM_ADDRESS=no-reply@smartqueue.io.vn');
-    expect(deployEnvironment).toContain('MEDIA_STORAGE_PROVIDER=s3');
-    expect(deployEnvironment).toContain('S3_PUBLIC_BASE_URL=');
+    expect(deployEnvironment).toMatch(/^MEDIA_STORAGE_PROVIDER=s3$/m);
+    expect(deployEnvironment).not.toMatch(/^MEDIA_STORAGE_PROVIDER=local$/m);
+    expect(deployEnvironment).not.toMatch(/^MEDIA_LOCAL_DIR=/m);
+    expect(deployEnvironment).toMatch(/^S3_PUBLIC_BASE_URL=$/m);
     expect(deployEnvironment).not.toMatch(/playmcjava(?:21)?\.io\.vn/i);
   });
 });

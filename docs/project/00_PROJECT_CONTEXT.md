@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-08-11 after the OPT-004 security hardening pass.
+Last verified against the repository on 2026-08-11 during the OPT-005 stable demo baseline closure.
 
 ## 1. Problem
 

@@ -101,6 +101,20 @@ orders so prior refund acceptance runs do not leave contradictory fixture state.
 | Realtime, Redis recovery, worker restart, dependency failure                   | `npm run scale:validate`                          |
 | Static component states and viewports                                          | `npm run storybook:build`                         |
 
+### Optimization baseline map
+
+| Phase   | Closure evidence                                                                                                          |
+| ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| OPT-001 | Persisted enum contract alignment, dead-code/dependency review, targeted queue/Staff regressions                          |
+| OPT-002 | Bounded Staff query shape, recoverable location claims, PostgreSQL plan evidence, isolated two-API recovery rehearsal     |
+| OPT-003 | Lazy role routes, deferred media decoding, reduced-motion behavior, Storybook and responsive browser coverage             |
+| OPT-004 | User-response allowlist, Admin/tenant boundary tests, trusted-proxy rate-limit keys, dependency and secret scans          |
+| OPT-005 | Canonical/config reconciliation, deterministic fixtures, full quality gates, browser demo journey, and repository hygiene |
+
+This map points to executable evidence, not release-environment claims. Exact suite counts and
+the final closure decision are recorded in `docs/agent/tasks/task.md`; deferred commercial and
+physical-device acceptance remains in section 8 and `docs/checklists/PRODUCTION_READINESS.md`.
+
 ## 7. Acceptance commands
 
 ```powershell

@@ -1,9 +1,9 @@
 # Scalability Baseline and Target Architecture
 
-Verified against the OPT-002 working tree on 2026-08-11. This document records the current runtime
-boundary, reproducible local evidence, target SLOs, and remaining production acceptance work. It
-does not claim production capacity. Redis, bounded public caches, BullMQ LINE delivery,
-cross-replica SSE, optional observability, and S3-compatible media are implemented.
+Last consolidated during OPT-005 on 2026-08-11. This document records the current runtime boundary,
+reproducible local evidence, target SLOs, and remaining production acceptance work. It does not
+claim production capacity. Redis, bounded public caches, BullMQ LINE delivery, cross-replica SSE,
+optional observability, and S3-compatible media are implemented.
 
 ## 1. Scope and evidence
 
@@ -15,7 +15,7 @@ The audit covered:
   cleanup, and counter-reset jobs;
 - frontend customer, ticket, staff, manager, and location polling;
 - PostgreSQL advisory locks, row locks, `FOR UPDATE SKIP LOCKED`, indexes, and durable outboxes;
-- LINE, SMTP, Google Routes, payOS, local media, Docker Compose, Nginx, and GitHub deployment;
+- LINE, SMTP, Google Routes, payOS, local/S3 media adapters, Docker Compose, Nginx, and GitHub deployment;
 - process-local state that changes behavior when more than one API instance is introduced.
 
 Primary evidence lives in:
@@ -33,7 +33,7 @@ LINE / browser
        |
 host TLS proxy -> web Nginx -> Express API process -> PostgreSQL 16
                                   |       |
-                                  |       +-> local media volume
+                                  |       +-> S3-compatible media provider (production)
                                   |
                                   +-> API-owned interval scheduler
                                   +-> LINE Messaging API
@@ -48,7 +48,9 @@ PostgreSQL outbox -> dispatcher -> private Redis/BullMQ -> dedicated LINE worker
 
 The production Compose definition contains one API service, one dedicated worker, one Web service,
 PostgreSQL, and a private Redis service. The API, worker, and Redis ports are private to the Compose
-network. Only LINE notification delivery runs through BullMQ; all other scheduled work remains in
+network. Production media uses an external S3-compatible provider because the stack has no API
+media volume; local/mock media remains limited to development and tests. Only LINE notification
+delivery runs through BullMQ; all other scheduled work remains in
 the API process. PostgreSQL remains authoritative for domain state, sessions, payment events,
 notification/email outboxes, inventory reservations, and job-run health. Redis coordinates
 protected rate-limit counters, two performance-only public read models, and BullMQ orchestration.

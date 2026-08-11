@@ -1,8 +1,8 @@
 # Current Implementation Map
 
-Last verified during OPT-003 on 2026-08-11. Route-level loading, responsive navigation,
-localization, Storybook states, SSE/polling reconciliation, notification operations, and
-payment/refund fixtures were re-verified against the executable application and browser checks.
+Last verified during OPT-005 on 2026-08-11. The final baseline rechecks route/API/migration
+inventories, runtime configuration, demo fixtures, role journeys, Storybook/browser evidence,
+security gates, and isolated recovery behavior against the executable repository.
 
 This document is the maintenance index for the current repository. It connects product roles and
 flows to source modules, routes, database history, runtime configuration, scheduled jobs, and
@@ -245,7 +245,9 @@ API runtime and Compose values and intentionally omits `VITE_*` because those va
 into the immutable Web image. Production uses an empty `VITE_API_URL`; the browser already calls
 `/api/v1/...` and the Web nginx proxy preserves `/api`. Docker Web currently exposes build args
 for production public values in `docker/web/Dockerfile`; mock-only `VITE_LIFF_MOCK_*` variables
-are not needed in the production image.
+are not needed in the production image. The production Compose stack has no API media volume, so
+its template actively requires `MEDIA_STORAGE_PROVIDER=s3` plus the complete S3-compatible
+provider configuration; local media is a development/test boundary only.
 
 Legacy `LINE_CHANNEL_ID`, `LINE_LIFF_ID`, `LINE_CHANNEL_SECRET`, and
 `LINE_CHANNEL_ACCESS_TOKEN` aliases are accepted temporarily by backend config. New deployments

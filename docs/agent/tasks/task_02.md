@@ -1,3 +1,5 @@
+# THIS FILE TASK IS DONE, so don't follow it for future tasks. It is preserved here for historical reference.
+
 # Production Capability Implementation Tasks
 
 These tasks implement the four highest-priority proposals from `idea.md`: Notification Operations
