@@ -128,6 +128,13 @@ The API entry is `apps/api/src/server.ts`; `app.ts` composes middleware, health 
 | `media`             | Validated image upload, compression, and storage adapters      |
 | `notifications`     | Durable LINE outbox, templates, delivery, and operations       |
 
+The `admin` module also owns a Platform Admin-only operational health read model. It composes
+existing probes and safe aggregates without entering tenant repositories: PostgreSQL/Redis state,
+API scheduler or dedicated-worker heartbeat, SSE state, LINE configuration, payment runtime, and
+notification backlog. Dedicated worker heartbeat is ephemeral Redis data with a TTL and contains
+only `status` and `updatedAt`. Failure to read observability data is represented in the response
+and never participates in queue/order/payment transactions.
+
 Notification operations preserve the outbox boundary: read models join tickets/queues/branches for
 server-derived scope. Branch Managers are pinned to their single active branch, Staff are pinned to
 their assigned queue, and platform Admin/Organization Owner are rejected. Manual retry updates the

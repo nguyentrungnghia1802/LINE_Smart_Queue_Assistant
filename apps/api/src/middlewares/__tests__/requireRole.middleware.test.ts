@@ -44,4 +44,18 @@ describe('requireRole', () => {
 
     expect(nextMock).toHaveBeenCalledWith();
   });
+
+  it.each([UserRole.MANAGER, UserRole.STAFF, UserRole.CUSTOMER])(
+    'denies %s access to platform-admin-only operations',
+    (role) => {
+      const middleware = requireRole(UserRole.ADMIN);
+      const req = { user: { id: 'user-1', role } } as Request;
+      const next = jest.fn() as unknown as NextFunction;
+      const nextMock = next as unknown as jest.Mock;
+
+      middleware(req, {} as Response, next);
+
+      expect((nextMock.mock.calls[0] ?? [])[0]).toMatchObject({ statusCode: 403 });
+    }
+  );
 });

@@ -5,6 +5,7 @@ import { AccountLifecyclePage } from './pages/AccountLifecyclePage';
 import { AccountPage } from './pages/AccountPage';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
+import { AdminOperationsPage } from './pages/admin/AdminOperationsPage';
 import { AdminOrganizationApplicationsPage } from './pages/admin/AdminOrganizationApplicationsPage';
 import { AdminOrganizationDetailPage } from './pages/admin/AdminOrganizationDetailPage';
 import { AdminOrganizationsPage } from './pages/admin/AdminOrganizationsPage';
@@ -147,6 +148,7 @@ export const router = createBrowserRouter([
       { index: true, element: <AdminDashboardPage /> },
       { path: 'orgs', element: <AdminOrganizationsPage /> },
       { path: 'applications', element: <AdminOrganizationApplicationsPage /> },
+      { path: 'operations', element: <AdminOperationsPage /> },
       { path: 'orgs/:orgId', element: <AdminOrganizationDetailPage /> },
     ],
   },

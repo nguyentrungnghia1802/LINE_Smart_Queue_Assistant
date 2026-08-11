@@ -5,9 +5,14 @@ import { sendNoContent, sendSuccess } from '../../utils/response';
 
 import { adminService } from './admin.service';
 import { UpdateOwnerEmailDto } from './admin.validator';
+import { operationalHealthService } from './operational-health.service';
 
 export const getDashboard = asyncHandler(async (_req: Request, res: Response) => {
   sendSuccess(res, await adminService.getDashboard());
+});
+
+export const getOperationalHealth = asyncHandler(async (_req: Request, res: Response) => {
+  sendSuccess(res, await operationalHealthService.getSnapshot());
 });
 
 export const listOrganizations = asyncHandler(async (_req: Request, res: Response) => {

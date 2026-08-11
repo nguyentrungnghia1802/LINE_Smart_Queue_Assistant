@@ -142,7 +142,7 @@ customer authentication or business surfaces.
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Manager | `/manager`, `/manager/products`, `/manager/products/new`, `/manager/products/:id`, `/manager/products/:id/edit`, `/manager/queues`, `/manager/queues/new`, `/manager/queues/:id`, `/manager/queues/:id/manage`, `/manager/queues/:id/settings`, `/manager/users`, `/manager/users/:userId`, `/manager/branches`, `/manager/branches/:branchId`, `/manager/audit`, `/manager/notifications`, `/manager/qr`, `/manager/settings` |
 | Staff   | `/staff`, `/staff/products`, `/staff/notifications`, `/staff/qr`                                                                                                                                                                                                                                                                                                                                                               |
-| Admin   | `/admin`, `/admin/orgs`, `/admin/applications`, `/admin/orgs/:orgId`                                                                                                                                                                                                                                                                                                                                                           |
+| Admin   | `/admin`, `/admin/orgs`, `/admin/applications`, `/admin/operations`, `/admin/orgs/:orgId`                                                                                                                                                                                                                                                                                                                                      |
 
 The Manager layout renders owner navigation or branch-manager navigation from the authenticated
 capability. The same global `manager` role must not be treated as permission to cross that
@@ -161,13 +161,13 @@ verified LINE identity when Home or Rich Menu opens without a fixed entry ID.
 
 ## 6. API inventory
 
-The executable catalog in `apps/api/src/docs/api-endpoint-catalog.ts` currently contains 111
+The executable catalog in `apps/api/src/docs/api-endpoint-catalog.ts` currently contains 112
 versioned operations. The OpenAPI contract test compares it with mounted Express routes and the
 assembled Swagger document. Current operation counts by tag are:
 
 | Tag                         | Operations |
 | --------------------------- | ---------: |
-| `admin`                     |          5 |
+| `admin`                     |          6 |
 | `auth`                      |          8 |
 | `bookings`                  |          2 |
 | `branches`                  |         12 |

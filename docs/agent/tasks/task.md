@@ -110,7 +110,7 @@ webhooks, audited refunds, and explicit demo-mode isolation.
 
 ## TASK-PROD-003: Operational Health and Runtime Visibility
 
-**Status:** [ ] Not started
+**Status:** [x] Completed
 **Priority:** P1
 **Dependencies:** Existing health checks, logs, metrics, Redis, worker, notification outbox, and payment runtime
 
@@ -128,37 +128,37 @@ building a full enterprise observability platform or exposing tenant/customer bu
 
 ### Implementation Checklist
 
-- [ ] Audit existing health checks, logs, metrics, OpenTelemetry/Sentry, worker heartbeat, and provider status before adding new logic.
-- [ ] Provide health/status visibility for API, PostgreSQL, Redis, background worker, SSE/realtime, and LINE notification delivery.
-- [ ] Show safe aggregate notification backlog, oldest pending age, and worker heartbeat without tenant/customer detail.
-- [ ] Show active payment mode/provider clearly.
-- [ ] Treat intentionally configured `demo` payment mode without real PSP credentials as a valid healthy state.
-- [ ] Only report missing/invalid real PSP configuration as an error when that real provider is explicitly enabled.
-- [ ] Add environment/release/version identifiers useful for deployment troubleshooting.
-- [ ] Add basic latency/error indicators for critical flows using existing telemetry where practical.
-- [ ] Represent dependencies consistently as `healthy`, `degraded`, `unavailable`, or `not configured/not applicable`.
-- [ ] Build a responsive Platform Admin operations dashboard with loading, healthy, degraded, unavailable, and error states.
-- [ ] Add concise operator guidance for common database, Redis, worker, LINE, and payment configuration failures.
-- [ ] Reuse existing observability infrastructure; add only instrumentation needed for trustworthy dashboard states.
-- [ ] Do not expand this task into enterprise SLO/error-budget/on-call infrastructure or complex monitoring platforms.
+- [x] Audit existing health checks, logs, metrics, OpenTelemetry/Sentry, worker heartbeat, and provider status before adding new logic.
+- [x] Provide health/status visibility for API, PostgreSQL, Redis, background worker, SSE/realtime, and LINE notification delivery.
+- [x] Show safe aggregate notification backlog, oldest pending age, and worker heartbeat without tenant/customer detail.
+- [x] Show active payment mode/provider clearly.
+- [x] Treat intentionally configured `demo` payment mode without real PSP credentials as a valid healthy state.
+- [x] Only report missing/invalid real PSP configuration as an error when that real provider is explicitly enabled.
+- [x] Add environment/release/version identifiers useful for deployment troubleshooting.
+- [x] Add basic latency/error indicators for critical flows using existing telemetry where practical.
+- [x] Represent dependencies consistently as `healthy`, `degraded`, `unavailable`, or `not configured/not applicable`.
+- [x] Build a responsive Platform Admin operations dashboard with loading, healthy, degraded, unavailable, and error states.
+- [x] Add concise operator guidance for common database, Redis, worker, LINE, and payment configuration failures.
+- [x] Reuse existing observability infrastructure; add only instrumentation needed for trustworthy dashboard states.
+- [x] Do not expand this task into enterprise SLO/error-budget/on-call infrastructure or complex monitoring platforms.
 
 ### Tests and Validation
 
-- [ ] Test Platform Admin authorization and denial for all other roles.
-- [ ] Test response sanitization and absence of cross-tenant/business data.
-- [ ] Test healthy, degraded, unavailable, and intentionally-not-configured states.
-- [ ] Test demo payment mode without real PSP credentials as healthy.
-- [ ] Test Redis, worker, and provider failure states with controlled mocks/failure injection.
-- [ ] Test responsive dashboard states and locale behavior where applicable.
-- [ ] Run required validation according to `AGENTS.md`.
+- [x] Test Platform Admin authorization and denial for all other roles.
+- [x] Test response sanitization and absence of cross-tenant/business data.
+- [x] Test healthy, degraded, unavailable, and intentionally-not-configured states.
+- [x] Test demo payment mode without real PSP credentials as healthy.
+- [x] Test Redis, worker, and provider failure states with controlled mocks/failure injection.
+- [x] Test responsive dashboard states and locale behavior where applicable.
+- [x] Run required validation according to `AGENTS.md`.
 
 ### Definition of Done
 
-- [ ] Platform Admin can quickly identify the health of critical runtime components from one approved surface.
-- [ ] Demo-only configuration is not incorrectly reported as a production failure.
-- [ ] Dashboard exposes no tenant/customer operational detail or secrets.
-- [ ] Observability failure cannot break core business operations.
-- [ ] Canonical architecture, operations, deployment, security, API, and codebase docs match verified behavior.
+- [x] Platform Admin can quickly identify the health of critical runtime components from one approved surface.
+- [x] Demo-only configuration is not incorrectly reported as a production failure.
+- [x] Dashboard exposes no tenant/customer operational detail or secrets.
+- [x] Observability failure cannot break core business operations.
+- [x] Canonical architecture, operations, deployment, security, API, and codebase docs match verified behavior.
 
 ---
 

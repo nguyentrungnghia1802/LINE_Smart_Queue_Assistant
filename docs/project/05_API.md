@@ -115,6 +115,7 @@ All paths require `admin`.
 | Method | Path                                                  | Purpose                                                   |
 | ------ | ----------------------------------------------------- | --------------------------------------------------------- |
 | GET    | `/api/v1/admin/dashboard`                             | Plan adoption and platform subscription revenue metrics   |
+| GET    | `/api/v1/admin/operations/health`                     | Sanitized platform runtime and delivery health aggregates |
 | GET    | `/api/v1/admin/organizations`                         | List organizations without tenant operational data        |
 | DELETE | `/api/v1/admin/organizations/:orgId`                  | Soft-deactivate organization and every tenant account     |
 | GET    | `/api/v1/admin/organizations/:orgId/managers`         | Read only the immutable organization-owner manager        |
@@ -124,6 +125,13 @@ The owner recovery PATCH accepts the strict body `{ "email": "owner@example.jp" 
 including `displayName`, `password`, and `isActive`, fail validation. A successful email change
 revokes the owner's existing refresh sessions so the recovered address becomes the next login
 authority.
+
+The operations health response is Platform Admin-only. It exposes component states for API,
+PostgreSQL, Redis, the notification worker, SSE, LINE configuration, and payment runtime plus
+aggregate outbox/latency/error indicators. It never returns organization IDs, customer identities,
+notification rows, payment transactions, provider payloads, or credentials. Component reasons are
+stable codes translated by the Web client. Demo payment is healthy without real PSP credentials;
+external payment configuration is validated before the API starts.
 
 ### Organization service applications
 

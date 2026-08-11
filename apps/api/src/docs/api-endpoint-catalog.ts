@@ -66,6 +66,7 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
   }),
   endpoint('delete', '/api/v1/branches/{branchId}/managers/{userId}', 'branches'),
   endpoint('get', '/api/v1/admin/dashboard', 'admin'),
+  endpoint('get', '/api/v1/admin/operations/health', 'admin'),
   endpoint('get', '/api/v1/admin/organizations', 'admin'),
   endpoint('post', '/api/v1/organization-applications', 'organization-applications', {
     auth: false,

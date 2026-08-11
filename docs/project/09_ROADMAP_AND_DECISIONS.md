@@ -661,3 +661,24 @@ Real merchant onboarding, commercial/legal approval, production credentials, pro
 real-money payment/refund acceptance, settlement, and operational reconciliation remain deferred
 external gates. Enabling external mode is an explicit release action and fails safely when
 configuration is incomplete.
+
+## ADR-038: Platform operations health is a sanitized Admin read model
+
+**Status:** accepted (2026-08-11)
+
+**Context:** Public liveness/readiness and Prometheus metrics support infrastructure, but Platform
+Admin lacked one approved UI for diagnosing database, Redis, worker, realtime, LINE, notification,
+and payment runtime state. Directly exposing provider records or tenant rows would violate the
+platform/tenant boundary.
+
+**Decision:** Add an Admin-only `/admin/operations` surface backed by
+`GET /api/v1/admin/operations/health`. Reuse PostgreSQL probes, Redis health, process metrics,
+notification outbox aggregates, scheduler state, and the payment activation boundary. A dedicated
+worker publishes only status and timestamp to a short-lived Redis heartbeat key. Responses use
+stable status/reason codes and contain no tenant, customer, transaction, payload, or credential
+data. Optional unconfigured integrations and the explicit demo payment runtime are not failures.
+
+**Consequences:** Operators gain a lightweight deployment diagnostic without introducing a second
+monitoring stack. Values are current-process or safe aggregate indicators, not enterprise SLOs.
+Prometheus/logs/traces remain authoritative for detailed incident investigation; dashboard failure
+cannot affect queue, order, notification, or payment business transactions.

@@ -450,6 +450,26 @@ to use session-level PostgreSQL advisory locks and safe `scheduler_job_runs` sta
 API and BullMQ ownership for LINE delivery at the same time. A worker or Redis outage grows the
 durable outbox backlog but does not roll back or reject queue/order transactions.
 
+Platform Admin can inspect the same safe operational signals at `/admin/operations`. The page
+reads `GET /api/v1/admin/operations/health`, refreshes every 30 seconds, and shows only sanitized
+component states and cross-tenant aggregates. Dedicated workers publish a credential-free
+`{ status, updatedAt }` heartbeat to `${REDIS_KEY_PREFIX}:worker:heartbeat` with a short TTL while
+retaining the container health file. A missing heartbeat marks worker delivery unavailable but
+does not interrupt queue/order writes. When notification delivery is owned by the API, scheduler
+state is used instead.
+
+Operational status interpretation:
+
+- `healthy`: the dependency probe or configured runtime is operating;
+- `degraded`: local fallback or partial service remains available;
+- `unavailable`: the critical probe or current worker heartbeat failed;
+- `not_configured`: an optional integration, such as LINE or Redis, is intentionally absent;
+- `not_applicable`: reserved for components that do not apply to the active runtime.
+
+Set `APP_RELEASE` or `SENTRY_RELEASE` to the immutable image/commit identifier so the page can
+identify a deployment. A demo payment runtime is healthy without `PAYOS_*`; only explicit
+`PAYMENT_MODE=external` requires those server-side credentials.
+
 Daily counters are checked hourly and reset when the organization-local date changes. Keep organization timezone configuration accurate and monitor `scheduler_job_runs` for missed cycles.
 
 ## 7. Backup and recovery

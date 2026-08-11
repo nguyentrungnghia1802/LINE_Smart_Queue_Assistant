@@ -57,6 +57,14 @@ Payment runtime ownership is concentrated in `config/index.ts` (strict mode/cred
 (server-authoritative intent, callback, reconciliation, and refund orchestration). Frontend
 checkout code may present or poll these flows but cannot set transaction state.
 
+Operational health is concentrated in
+`modules/admin/operational-health.service.ts`, exposed by the already Admin-protected
+`admin.routes.ts`, and rendered by `pages/admin/AdminOperationsPage.tsx`. The service may read
+infrastructure probes, process metrics, and aggregate outbox counts only. Never add tenant IDs,
+customer records, notification payloads, payment transactions, or secret values to this contract.
+`infrastructure/bullmq/worker-heartbeat.ts` maintains both the container health file and the
+short-lived Redis heartbeat consumed by this read model.
+
 ### Layer rules
 
 | Layer               | May do                                                  | Must not do                                         |

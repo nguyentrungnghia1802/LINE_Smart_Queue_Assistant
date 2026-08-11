@@ -13,6 +13,7 @@ export const common = {
     products: '商品',
     organizations: '組織',
     applications: '導入審査',
+    operations: '稼働状況',
     users: 'ユーザー',
     admin: '管理者',
     staff: 'スタッフ',

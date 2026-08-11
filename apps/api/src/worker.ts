@@ -4,13 +4,25 @@ import { config } from './config';
 import { closePool } from './db/client';
 import { bullMqRuntime } from './infrastructure/bullmq';
 import { WorkerHeartbeat } from './infrastructure/bullmq/worker-heartbeat';
+import { redisService } from './infrastructure/redis';
 import { captureException, shutdownObservability } from './observability/runtime';
 import { logger } from './utils/logger';
 
 const heartbeat = new WorkerHeartbeat(
   config.bullmq.heartbeatFile,
   config.bullmq.heartbeatIntervalMs,
-  () => (bullMqRuntime.status().status === 'ready' ? 'ready' : 'degraded')
+  () => (bullMqRuntime.status().status === 'ready' ? 'ready' : 'degraded'),
+  async (payload) => {
+    if (!redisService.isReady) return;
+    await redisService.execute((client) =>
+      client.set(
+        `${config.redis.keyPrefix}:worker:heartbeat`,
+        JSON.stringify(payload),
+        'PX',
+        config.bullmq.heartbeatIntervalMs * 3
+      )
+    );
+  }
 );
 
 let shuttingDown = false;
@@ -21,6 +33,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   logger.info({ signal }, 'Worker shutdown started');
   await bullMqRuntime.stop();
   await heartbeat.stop();
+  await redisService.stop();
   await closePool();
   await shutdownObservability();
   logger.info('Worker shutdown complete');
@@ -31,6 +44,7 @@ export async function startWorkerProcess(): Promise<void> {
   if (config.bullmq.notificationDeliveryOwner !== 'bullmq') {
     throw new Error('Worker requires LINE_NOTIFICATION_DELIVERY_OWNER=bullmq');
   }
+  await redisService.start();
   await bullMqRuntime.start();
   await heartbeat.start();
   logger.info('Dedicated background worker started');

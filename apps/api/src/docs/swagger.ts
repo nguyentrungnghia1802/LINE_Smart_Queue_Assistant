@@ -14,6 +14,7 @@ import { NUMERIC_LIMITS } from '@line-queue/shared';
 import { config } from '../config';
 
 import { buildCatalogPaths } from './api-endpoint-catalog';
+import { adminOperationsPaths } from './paths/admin-operations.paths';
 import { linePaths } from './paths/line.paths';
 import { notificationsPaths } from './paths/notifications.paths';
 import { paymentsPaths } from './paths/payments.paths';
@@ -173,6 +174,7 @@ export const swaggerSpec = {
 
   paths: {
     ...buildCatalogPaths(),
+    ...adminOperationsPaths,
     ...queueEntryPaths,
     ...queuesAdminPaths,
     ...notificationsPaths,

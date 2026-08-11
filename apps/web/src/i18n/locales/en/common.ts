@@ -13,6 +13,7 @@ export const common = {
     products: 'Products',
     organizations: 'Organizations',
     applications: 'Applications',
+    operations: 'Operations',
     users: 'Users',
     admin: 'Admin',
     staff: 'Staff',

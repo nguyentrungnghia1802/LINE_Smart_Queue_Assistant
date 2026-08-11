@@ -11,6 +11,7 @@ import {
 
 import {
   getDashboard,
+  getOperationalHealth,
   listManagers,
   listOrganizations,
   removeOrganization,
@@ -27,6 +28,7 @@ export const adminRouter = Router();
 adminRouter.use(requireAuth, requireRole(UserRole.ADMIN));
 
 adminRouter.get('/dashboard', getDashboard);
+adminRouter.get('/operations/health', getOperationalHealth);
 adminRouter.get('/organizations', listOrganizations);
 adminRouter.delete(
   '/organizations/:orgId',

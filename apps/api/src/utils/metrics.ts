@@ -133,6 +133,10 @@ export const metricsService = {
     return { ...counters };
   },
 
+  gaugeSnapshot(): Record<GaugeName, number> {
+    return { ...gauges };
+  },
+
   setGauge(name: GaugeName, value: number): void {
     gauges[name] = Number.isFinite(value) ? value : 0;
   },

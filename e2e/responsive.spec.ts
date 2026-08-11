@@ -65,6 +65,10 @@ test('admin destinations remain available without horizontal overflow', async ({
   });
   await expect(activeNavigation.getByRole('link', { name: 'ダッシュボード' })).toBeVisible();
   await expect(activeNavigation.getByRole('link', { name: '組織' })).toBeVisible();
+  await expect(activeNavigation.getByRole('link', { name: '稼働状況' })).toBeVisible();
+
+  await activeNavigation.getByRole('link', { name: '稼働状況' }).click();
+  await expect(page.getByRole('heading', { name: '稼働状況' })).toBeVisible();
 
   const widths = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,

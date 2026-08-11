@@ -11,7 +11,11 @@ export class WorkerHeartbeat {
   constructor(
     private readonly filePath: string,
     private readonly intervalMs: number,
-    private readonly statusProvider: () => WorkerHealthStatus = () => 'ready'
+    private readonly statusProvider: () => WorkerHealthStatus = () => 'ready',
+    private readonly publisher?: (payload: {
+      status: WorkerHealthStatus;
+      updatedAt: string;
+    }) => Promise<void>
   ) {}
 
   async start(): Promise<void> {
@@ -35,11 +39,19 @@ export class WorkerHeartbeat {
   }
 
   private async write(): Promise<void> {
+    const payload = {
+      status: this.statusProvider(),
+      updatedAt: new Date().toISOString(),
+    };
     await mkdir(path.dirname(this.filePath), { recursive: true });
-    await writeFile(
-      this.filePath,
-      JSON.stringify({ status: this.statusProvider(), updatedAt: new Date().toISOString() }),
-      'utf8'
-    );
+    await writeFile(this.filePath, JSON.stringify(payload), 'utf8');
+    try {
+      await this.publisher?.(payload);
+    } catch (error) {
+      logger.warn(
+        { errorType: error instanceof Error ? error.name : 'UnknownError' },
+        'Shared worker heartbeat publish failed'
+      );
+    }
   }
 }
