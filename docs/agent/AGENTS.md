@@ -414,7 +414,10 @@ Uploaded data URLs/files require:
 - size validation;
 - content validation as appropriate.
 
-Production media should use object storage rather than container-local persistence.
+Production media must use durable storage outside the writable container layer. The current
+production-oriented demo uses the production Compose `media_data` named volume mounted at
+`/app/var/media`; S3-compatible object storage remains an optional provider for a later external or
+multi-host deployment. Never rely on an unmounted path inside the API container.
 
 ## Location
 

@@ -55,6 +55,57 @@ describe('media storage configuration', () => {
     }).toThrow('S3_ACCESS_KEY_ID must be set when media storage is s3');
   });
 
+  it('supports production local storage without requiring S3 credentials', () => {
+    process.env = {
+      ...originalEnv,
+      NODE_ENV: 'production',
+      MEDIA_STORAGE_PROVIDER: 'local',
+      MEDIA_LOCAL_DIR: '/app/var/media',
+      MEDIA_PUBLIC_BASE_URL: '/media',
+    };
+    delete process.env.S3_ENDPOINT;
+    delete process.env.S3_REGION;
+    delete process.env.S3_BUCKET;
+    delete process.env.S3_ACCESS_KEY_ID;
+    delete process.env.S3_SECRET_ACCESS_KEY;
+    delete process.env.S3_PUBLIC_BASE_URL;
+    delete process.env.S3_FORCE_PATH_STYLE;
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { config } = require('../index') as typeof import('../index');
+
+      expect(config.media.provider).toBe('local');
+      expect(config.media.publicBaseUrl).toBe('/media');
+      expect(config.media.localDir.replace(/\\/g, '/')).toMatch(/\/app\/var\/media$/);
+      expect(config.media.s3).toMatchObject({
+        endpoint: '',
+        region: '',
+        bucket: '',
+        accessKeyId: '',
+        secretAccessKey: '',
+        publicBaseUrl: '',
+        forcePathStyle: false,
+      });
+    });
+  });
+
+  it('fails fast when production local storage has no durable mount path contract', () => {
+    process.env = {
+      ...originalEnv,
+      NODE_ENV: 'production',
+      MEDIA_STORAGE_PROVIDER: 'local',
+    };
+    delete process.env.MEDIA_LOCAL_DIR;
+
+    expect(() => {
+      jest.isolateModules(() => {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        require('../index');
+      });
+    }).toThrow('MEDIA_LOCAL_DIR must be set when media storage is local in production');
+  });
+
   it('keeps local storage as the default for development', () => {
     process.env = { ...originalEnv, NODE_ENV: 'development' };
     delete process.env.MEDIA_STORAGE_PROVIDER;

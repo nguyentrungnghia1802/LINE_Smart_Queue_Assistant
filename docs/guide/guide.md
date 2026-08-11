@@ -803,7 +803,7 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
 - **LINE Rich Menu**：利用可否は運用中のOfficial Account設定とdeep link設定に依存します。
 - **Google Routes／位置情報**：実距離／routeの利用には有効なcredentialsと適切なprivacy同意が必要です。
 - **ETA／forecast**：運用データに基づく測定heuristicであり、学習済みmachine learningモデルではありません。データが少ない場合や対応時間が変動する場合は結果も変わります。
-- **media／object storage**：メディアの保存、lifecycle、アクセス制御は運用環境の構成に依存します。
+- **media storage**：現在のVPS demoはpersistent Docker volumeを使用します。volumeのoff-host backup／restoreと容量監視が必要です。S3-compatible storageは将来のoptional構成です。
 - **運用基盤**：監視、backup／restore、メディア保存などの機能は運用環境の構成に依存します。
 - **大規模運用**：利用可能な処理量は運用環境の構成と契約内容に依存します。
 - **Notification operations UI**：Branch Managerと割り当てられたStaffは配信状態を確認し、許可された再送／取消を

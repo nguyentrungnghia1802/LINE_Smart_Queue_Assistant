@@ -805,7 +805,7 @@ Khi sử dụng từng ngôn ngữ:
 - **LINE Rich Menu:** khả năng sử dụng phụ thuộc cấu hình Official Account và deep link đang vận hành.
 - **Google Routes/vị trí:** khoảng cách và route thực cần credentials hợp lệ cùng chấp thuận privacy phù hợp.
 - **ETA/forecast:** là heuristic đo từ dữ liệu vận hành, không phải mô hình machine learning đã huấn luyện; kết quả có thể thay đổi khi dữ liệu ít hoặc thời lượng phục vụ biến động.
-- **Media/object storage:** khả năng lưu trữ, lifecycle và quyền truy cập phụ thuộc cấu hình môi trường vận hành.
+- **Media storage:** demo VPS hiện tại dùng Docker volume bền vững. Cần backup off-host, diễn tập restore và theo dõi dung lượng; S3-compatible storage là cấu hình optional trong tương lai.
 - **Hạ tầng vận hành:** quan sát, backup/restore và các quy trình liên quan phụ thuộc cấu hình môi trường.
 - **Vận hành quy mô lớn:** lưu lượng hỗ trợ phụ thuộc cấu hình môi trường và gói dịch vụ.
 - **Notification operations UI:** Branch Manager và Staff được gán có thể xem delivery trong phạm vi và

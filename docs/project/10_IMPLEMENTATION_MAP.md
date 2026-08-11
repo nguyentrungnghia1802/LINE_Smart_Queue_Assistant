@@ -1,8 +1,9 @@
 # Current Implementation Map
 
-Last verified during OPT-005 on 2026-08-11. The final baseline rechecks route/API/migration
-inventories, runtime configuration, demo fixtures, role journeys, Storybook/browser evidence,
-security gates, and isolated recovery behavior against the executable repository.
+Last verified on 2026-08-11 after the persistent VPS-local media decision. The baseline rechecks
+route/API/migration inventories, runtime configuration, demo fixtures, role journeys,
+Storybook/browser evidence, security gates, media recreate behavior, and isolated recovery against
+the executable repository.
 
 This document is the maintenance index for the current repository. It connects product roles and
 flows to source modules, routes, database history, runtime configuration, scheduled jobs, and
@@ -32,71 +33,71 @@ a source of current behavior.
 
 ## 2. Current product baseline
 
-| Area                    | Current implementation                                                                                                                                | Acceptance boundary                                                                   |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Customer identity       | LINE/LIFF ID token exchanged for a server JWT; customer email login is not supported                                                                  | LINE Console and real-device acceptance remain deployment work                        |
-| Business identity       | Shared email/password login for Admin, Organization Owner, Branch Manager, and Staff                                                                  | Role and tenant scope are reloaded from PostgreSQL                                    |
-| Business session        | 15-minute access JWT, rotating HttpOnly refresh session, 15-minute business idle timeout, 12-hour absolute limit                                      | Refresh and terminal cleanup are centralized in the auth service/client interceptor   |
-| Customer session        | LINE-linked refresh session with a 30-day absolute limit                                                                                              | LIFF can re-authenticate with a fresh ID token                                        |
-| Organization onboarding | Public application, server-priced demo payment, Admin review, Owner activation email                                                                  | Approval creates no branch or queue                                                   |
-| Organization Owner      | Organization catalog/pricing, branches, owner managers, audit, aggregate analytics                                                                    | Owner is a `manager` with `isOrganizationOwner=true`, not a new global role           |
-| Branch Manager          | One assigned branch, queues, queue catalog assignments, branch inventory, Staff, QR, calendar                                                         | Branch-only authorization is server-enforced                                          |
-| Staff                   | One assigned branch and exactly one assigned queue; one queue may have many Staff                                                                     | Queue selector is not a Staff authority                                               |
-| Customer booking        | One stable Branch QR, queue selection, quantity/stock, required prepayment, one active order per LINE user and queue                                  | Terminal bookings remain separate historical records                                  |
-| Queue operation         | Auto-call when an active slot is free, next eight entries in the Staff board, defer/no-show policy, completion modal                                  | Third absence cancels/refunds according to queue policy                               |
-| Payment                 | Production-oriented demo with Demo provider active; payOS/provider/refund boundaries retained                                                         | No real money; merchant credentials, settlement, and provider acceptance are deferred |
-| LINE messaging          | Durable PostgreSQL outbox, localized Flex/text fallback, event-key deduplication, retry/backoff                                                       | Real Official Account delivery and physical-device verification remain pending        |
-| Browser realtime        | Shared authenticated SSE, query invalidation, bounded reconnect, lifecycle cleanup, retained REST polling fallback                                    | Production device/proxy capacity acceptance remains pending                           |
-| Forecasting             | PostgreSQL measured heuristic for wait and staffing recommendations                                                                                   | It is not a generative-AI or trained ML model                                         |
-| Media                   | Local/mock plus S3/R2-compatible server-mediated storage; WebP compression and stable URLs                                                            | Signed delivery/upload and automated orphan cleanup remain future hardening           |
-| Component review        | Storybook 10.5.7 with i18n/provider decorators, deterministic queue/ticket/order fixtures, 21 story modules / 65 entries, and phone/desktop viewports | Static build and interaction stories are local/CI review gates; no real integrations  |
+| Area                    | Current implementation                                                                                                                                | Acceptance boundary                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Customer identity       | LINE/LIFF ID token exchanged for a server JWT; customer email login is not supported                                                                  | LINE Console and real-device acceptance remain deployment work                          |
+| Business identity       | Shared email/password login for Admin, Organization Owner, Branch Manager, and Staff                                                                  | Role and tenant scope are reloaded from PostgreSQL                                      |
+| Business session        | 15-minute access JWT, rotating HttpOnly refresh session, 15-minute business idle timeout, 12-hour absolute limit                                      | Refresh and terminal cleanup are centralized in the auth service/client interceptor     |
+| Customer session        | LINE-linked refresh session with a 30-day absolute limit                                                                                              | LIFF can re-authenticate with a fresh ID token                                          |
+| Organization onboarding | Public application, server-priced demo payment, Admin review, Owner activation email                                                                  | Approval creates no branch or queue                                                     |
+| Organization Owner      | Organization catalog/pricing, branches, owner managers, audit, aggregate analytics                                                                    | Owner is a `manager` with `isOrganizationOwner=true`, not a new global role             |
+| Branch Manager          | One assigned branch, queues, queue catalog assignments, branch inventory, Staff, QR, calendar                                                         | Branch-only authorization is server-enforced                                            |
+| Staff                   | One assigned branch and exactly one assigned queue; one queue may have many Staff                                                                     | Queue selector is not a Staff authority                                                 |
+| Customer booking        | One stable Branch QR, queue selection, quantity/stock, required prepayment, one active order per LINE user and queue                                  | Terminal bookings remain separate historical records                                    |
+| Queue operation         | Auto-call when an active slot is free, next eight entries in the Staff board, defer/no-show policy, completion modal                                  | Third absence cancels/refunds according to queue policy                                 |
+| Payment                 | Production-oriented demo with Demo provider active; payOS/provider/refund boundaries retained                                                         | No real money; merchant credentials, settlement, and provider acceptance are deferred   |
+| LINE messaging          | Durable PostgreSQL outbox, localized Flex/text fallback, event-key deduplication, retry/backoff                                                       | Real Official Account delivery and physical-device verification remain pending          |
+| Browser realtime        | Shared authenticated SSE, query invalidation, bounded reconnect, lifecycle cleanup, retained REST polling fallback                                    | Production device/proxy capacity acceptance remains pending                             |
+| Forecasting             | PostgreSQL measured heuristic for wait and staffing recommendations                                                                                   | It is not a generative-AI or trained ML model                                           |
+| Media                   | Persistent VPS-local production-demo storage plus mock and optional S3/R2 adapters; WebP compression and stable URLs                                  | Off-host volume backup/restore and optional object-provider acceptance remain hardening |
+| Component review        | Storybook 10.5.7 with i18n/provider decorators, deterministic queue/ticket/order fixtures, 21 story modules / 65 entries, and phone/desktop viewports | Static build and interaction stories are local/CI review gates; no real integrations    |
 
 ## 3. Repository and runtime map
 
-| Path                                                                    | Responsibility                                                                     | Change with                                 |
-| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------- |
-| `apps/api/src/app.ts`                                                   | Express middleware, health, docs, and API composition                              | `02`, `05`, security tests                  |
-| `apps/api/src/server.ts`                                                | API startup/shutdown and scheduler lifecycle                                       | `02`, `07`, `08`                            |
-| `apps/api/src/worker.ts`                                                | Dedicated BullMQ worker startup, heartbeat, and graceful shutdown                  | `02`, `07`, `08`, ADR-030                   |
-| `apps/api/src/config/index.ts`                                          | Backend environment parsing and defaults                                           | env examples, `08`                          |
-| `apps/api/src/modules/payments`                                         | Runtime provider selection, intents, signed callbacks, reconciliation, and refunds | `01`, `02`, `03`, `05`, `07`, `08`, ADR-037 |
-| `apps/api/src/infrastructure/redis`                                     | Shared Redis lifecycle and resilient distributed rate-limit store                  | `02`, `07`, `08`, ADR-028                   |
-| `apps/api/src/infrastructure/bullmq`                                    | Versioned LINE dispatcher/delivery contracts and BullMQ runtime                    | `02`, `07`, `08`, ADR-030/031               |
-| `apps/api/src/observability`                                            | OTel/Sentry lifecycle, trace helpers, and sensitive-data sanitization              | `02`, `06`, `07`, `08`, ADR-033             |
-| `apps/api/src/modules/media`                                            | Image validation/compression, storage adapters, metadata cleanup                   | `02`, `04`, `05`, `06`, `07`, `08`, ADR-034 |
-| `apps/api/src/modules/notifications/notification-dispatcher.service.ts` | PostgreSQL-to-BullMQ deterministic outbox dispatch                                 | `02`, `04`, `08`, ADR-031                   |
-| `apps/api/src/modules/notifications/notification-operations.*`          | Scoped safe delivery diagnostics and audited retry/cancel                          | `01`, `04`, `05`, `08`                      |
-| `apps/web/src/pages/NotificationOperationsPage.tsx`                     | Responsive Branch Manager/Staff LINE delivery operations UI                        | `01`, `05`, `08`                            |
-| `apps/api/src/modules/realtime`                                         | Authorized SSE streams and transient Redis Pub/Sub event fan-out                   | `02`, `05`, `07`, `08`, ADR-032             |
-| `apps/api/src/routes/v1.routes.ts`                                      | `/api/v1` module mounting and ordering                                             | route modules, `05`, OpenAPI test           |
-| `apps/api/src/modules/*`                                                | Domain route/controller/validator/service/repository code                          | relevant `01`, `03`, `04`, `05`, tests      |
-| `apps/api/src/modules/queue/queue.service.ts`                           | Queue-locked join/transition concurrency and active-ticket replay                  | `03`, `04`, `07`, `11`                      |
-| `apps/api/src/modules/shared/__tests__/shared-domain-contract.test.ts`  | Shared persisted enum parity with PostgreSQL/runtime notification constraints      | `04`, `06`, migrations, reset schema        |
-| `apps/api/src/db/repositories`                                          | Parameterized SQL and row mapping                                                  | `04`, service tests, migrations             |
-| `apps/api/src/jobs`                                                     | API-owned recurring jobs and shared LINE outbox delivery service                   | `02`, `03`, `07`, `08`                      |
-| `apps/api/src/docs/api-endpoint-catalog.ts`                             | Runtime API catalog and OpenAPI metadata                                           | routes, validators, `05`                    |
-| `apps/web/src/router.tsx`                                               | Lazy SPA page/layout modules plus synchronous compatibility redirects              | `02`, `05`, `06`, `07`, UI tests            |
-| `apps/web/src/pages`                                                    | Role and customer page orchestration                                               | `01`, `03`, `06`, UI tests                  |
-| `apps/web/src/components`                                               | Reusable layout, queue, ticket, product, i18n, and LIFF UI                         | `06`, UI tests, Storybook stories           |
-| `apps/web/.storybook`                                                   | Storybook framework, global providers, locale toolbar, and viewports               | `06`, `07`, ADR-035                         |
-| `apps/web/src/storybook`                                                | Deterministic Storybook fixtures, authenticated story provider, and fixture tests  | `07`, Storybook stories                     |
-| `apps/web/src/services`                                                 | API clients, auth interceptor, LIFF and payment adapters                           | `02`, `05`, tests                           |
-| `apps/web/src/observability`                                            | Sanitized browser Sentry initialization and runtime error capture                  | `06`, `07`, `08`, ADR-033                   |
-| `apps/web/src/services/realtime`, `apps/web/src/hooks/useRealtime.ts`   | Shared SSE streams and authoritative REST-query reconciliation                     | `02`, `06`, `07`, `08`, ADR-032             |
-| `apps/web/src/store` and `contexts`                                     | Auth state, session bootstrap, LIFF runtime state                                  | `02`, `06`, auth/LIFF tests                 |
-| `apps/web/src/i18n/locales`                                             | `ja`, `vi`, `en` visible UI resources by domain                                    | `01`, `06`, locale tests                    |
-| `packages/shared/src/types/enums.ts`                                    | Serializable persisted state values shared by API and web                          | migrations, reset schema, contract test     |
-| `db/migrations/node-pg-migrate`                                         | Ordered executable schema history                                                  | `04`, repository/service tests              |
-| `db/schema/reset_line_queue_schema.sql`                                 | Destructive local/dev schema snapshot                                              | every schema migration                      |
-| `db/seeds`                                                              | Administrator-only baseline seed                                                   | `07`, `08`                                  |
-| `db/fixtures/e2e`                                                       | Explicit isolated tenant and operational test data                                 | E2E tests only                              |
-| `docker/nginx/default.conf`                                             | SPA fallback, same-origin API/media proxy, health and security headers             | `02`, `08`, Docker tests                    |
-| `docker/api/Dockerfile`, `docker/web/Dockerfile`                        | Immutable API/Web build and runtime images                                         | `07`, `08`, deployment scripts              |
-| `docker-compose.dev.yml`                                                | Hot-reload local stack                                                             | `07`                                        |
-| `docker-compose.validation.yml`, `docker/nginx/validation.conf`         | Isolated two-API shared-dependency and failure topology                            | `02`, `07`, `08`, ADR-036                   |
-| `deploy/docker-compose.yml`                                             | Production image-based stack                                                       | `08`, Compose validation                    |
-| `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`              | Split CI quality/Compose jobs; manual environment-gated immutable-image CD         | `07`, `08`, ADR-039                         |
-| `scripts/scalability`                                                   | Cross-platform HTTP load runner and integrated recovery orchestrator               | `07`, `08`, `11`, ADR-036                   |
+| Path                                                                    | Responsibility                                                                     | Change with                                   |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------- |
+| `apps/api/src/app.ts`                                                   | Express middleware, health, docs, and API composition                              | `02`, `05`, security tests                    |
+| `apps/api/src/server.ts`                                                | API startup/shutdown and scheduler lifecycle                                       | `02`, `07`, `08`                              |
+| `apps/api/src/worker.ts`                                                | Dedicated BullMQ worker startup, heartbeat, and graceful shutdown                  | `02`, `07`, `08`, ADR-030                     |
+| `apps/api/src/config/index.ts`                                          | Backend environment parsing and defaults                                           | env examples, `08`                            |
+| `apps/api/src/modules/payments`                                         | Runtime provider selection, intents, signed callbacks, reconciliation, and refunds | `01`, `02`, `03`, `05`, `07`, `08`, ADR-037   |
+| `apps/api/src/infrastructure/redis`                                     | Shared Redis lifecycle and resilient distributed rate-limit store                  | `02`, `07`, `08`, ADR-028                     |
+| `apps/api/src/infrastructure/bullmq`                                    | Versioned LINE dispatcher/delivery contracts and BullMQ runtime                    | `02`, `07`, `08`, ADR-030/031                 |
+| `apps/api/src/observability`                                            | OTel/Sentry lifecycle, trace helpers, and sensitive-data sanitization              | `02`, `06`, `07`, `08`, ADR-033               |
+| `apps/api/src/modules/media`                                            | Image validation/compression, storage adapters, metadata cleanup                   | `02`, `04`, `05`, `06`, `07`, `08`, ADR-034   |
+| `apps/api/src/modules/notifications/notification-dispatcher.service.ts` | PostgreSQL-to-BullMQ deterministic outbox dispatch                                 | `02`, `04`, `08`, ADR-031                     |
+| `apps/api/src/modules/notifications/notification-operations.*`          | Scoped safe delivery diagnostics and audited retry/cancel                          | `01`, `04`, `05`, `08`                        |
+| `apps/web/src/pages/NotificationOperationsPage.tsx`                     | Responsive Branch Manager/Staff LINE delivery operations UI                        | `01`, `05`, `08`                              |
+| `apps/api/src/modules/realtime`                                         | Authorized SSE streams and transient Redis Pub/Sub event fan-out                   | `02`, `05`, `07`, `08`, ADR-032               |
+| `apps/api/src/routes/v1.routes.ts`                                      | `/api/v1` module mounting and ordering                                             | route modules, `05`, OpenAPI test             |
+| `apps/api/src/modules/*`                                                | Domain route/controller/validator/service/repository code                          | relevant `01`, `03`, `04`, `05`, tests        |
+| `apps/api/src/modules/queue/queue.service.ts`                           | Queue-locked join/transition concurrency and active-ticket replay                  | `03`, `04`, `07`, `11`                        |
+| `apps/api/src/modules/shared/__tests__/shared-domain-contract.test.ts`  | Shared persisted enum parity with PostgreSQL/runtime notification constraints      | `04`, `06`, migrations, reset schema          |
+| `apps/api/src/db/repositories`                                          | Parameterized SQL and row mapping                                                  | `04`, service tests, migrations               |
+| `apps/api/src/jobs`                                                     | API-owned recurring jobs and shared LINE outbox delivery service                   | `02`, `03`, `07`, `08`                        |
+| `apps/api/src/docs/api-endpoint-catalog.ts`                             | Runtime API catalog and OpenAPI metadata                                           | routes, validators, `05`                      |
+| `apps/web/src/router.tsx`                                               | Lazy SPA page/layout modules plus synchronous compatibility redirects              | `02`, `05`, `06`, `07`, UI tests              |
+| `apps/web/src/pages`                                                    | Role and customer page orchestration                                               | `01`, `03`, `06`, UI tests                    |
+| `apps/web/src/components`                                               | Reusable layout, queue, ticket, product, i18n, and LIFF UI                         | `06`, UI tests, Storybook stories             |
+| `apps/web/.storybook`                                                   | Storybook framework, global providers, locale toolbar, and viewports               | `06`, `07`, ADR-035                           |
+| `apps/web/src/storybook`                                                | Deterministic Storybook fixtures, authenticated story provider, and fixture tests  | `07`, Storybook stories                       |
+| `apps/web/src/services`                                                 | API clients, auth interceptor, LIFF and payment adapters                           | `02`, `05`, tests                             |
+| `apps/web/src/observability`                                            | Sanitized browser Sentry initialization and runtime error capture                  | `06`, `07`, `08`, ADR-033                     |
+| `apps/web/src/services/realtime`, `apps/web/src/hooks/useRealtime.ts`   | Shared SSE streams and authoritative REST-query reconciliation                     | `02`, `06`, `07`, `08`, ADR-032               |
+| `apps/web/src/store` and `contexts`                                     | Auth state, session bootstrap, LIFF runtime state                                  | `02`, `06`, auth/LIFF tests                   |
+| `apps/web/src/i18n/locales`                                             | `ja`, `vi`, `en` visible UI resources by domain                                    | `01`, `06`, locale tests                      |
+| `packages/shared/src/types/enums.ts`                                    | Serializable persisted state values shared by API and web                          | migrations, reset schema, contract test       |
+| `db/migrations/node-pg-migrate`                                         | Ordered executable schema history                                                  | `04`, repository/service tests                |
+| `db/schema/reset_line_queue_schema.sql`                                 | Destructive local/dev schema snapshot                                              | every schema migration                        |
+| `db/seeds`                                                              | Administrator-only baseline seed                                                   | `07`, `08`                                    |
+| `db/fixtures/e2e`                                                       | Explicit isolated tenant and operational test data                                 | E2E tests only                                |
+| `docker/nginx/default.conf`                                             | SPA fallback, same-origin API/media proxy, health and security headers             | `02`, `08`, Docker tests                      |
+| `docker/api/Dockerfile`, `docker/web/Dockerfile`                        | Immutable API/Web build and runtime images                                         | `07`, `08`, deployment scripts                |
+| `docker-compose.dev.yml`                                                | Hot-reload local stack                                                             | `07`                                          |
+| `docker-compose.validation.yml`, `docker/nginx/validation.conf`         | Isolated two-API shared-dependency and failure topology                            | `02`, `07`, `08`, ADR-036                     |
+| `deploy/docker-compose.yml`                                             | Production image stack and persistent API `media_data` volume                      | `08`, ADR-040, Compose/persistence validation |
+| `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`              | Split CI quality/Compose jobs; manual environment-gated immutable-image CD         | `07`, `08`, ADR-039                           |
+| `scripts/scalability`                                                   | Cross-platform HTTP load runner and integrated recovery orchestrator               | `07`, `08`, `11`, ADR-036                     |
 
 ## 4. Role and scope map
 
@@ -245,9 +246,10 @@ API runtime and Compose values and intentionally omits `VITE_*` because those va
 into the immutable Web image. Production uses an empty `VITE_API_URL`; the browser already calls
 `/api/v1/...` and the Web nginx proxy preserves `/api`. Docker Web currently exposes build args
 for production public values in `docker/web/Dockerfile`; mock-only `VITE_LIFF_MOCK_*` variables
-are not needed in the production image. The production Compose stack has no API media volume, so
-its template actively requires `MEDIA_STORAGE_PROVIDER=s3` plus the complete S3-compatible
-provider configuration; local media is a development/test boundary only.
+are not needed in the production image. The current production-oriented demo selects local media,
+fixes `MEDIA_LOCAL_DIR=/app/var/media`, and mounts the persistent Compose `media_data` volume at
+that path. S3-compatible storage remains optional; its complete server-only configuration is
+required only when `MEDIA_STORAGE_PROVIDER=s3` is selected.
 
 Legacy `LINE_CHANNEL_ID`, `LINE_LIFF_ID`, `LINE_CHANNEL_SECRET`, and
 `LINE_CHANNEL_ACCESS_TOKEN` aliases are accepted temporarily by backend config. New deployments
@@ -294,6 +296,7 @@ npm run build
 npm run format:check
 npm run openapi:check
 npm run db:migrate:status
+npm run media:persistence:verify
 ```
 
 For database changes, also apply migrations to a clean database and run the relevant migration,

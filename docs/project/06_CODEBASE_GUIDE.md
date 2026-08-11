@@ -136,6 +136,10 @@ validation/compression and metadata failure semantics, `media-storage.ts` contai
 providers, `s3-media-storage.ts` contains the AWS S3/R2-compatible adapter, and
 `media.factory.ts` selects the provider from server-only configuration. Do not import the S3 SDK
 from catalog, organization, or browser modules, and do not add browser direct-upload credentials.
+The current production-oriented demo selects `local`; `deploy/docker-compose.yml` fixes
+`MEDIA_LOCAL_DIR=/app/var/media` and mounts the named `media_data` volume there. Keep that path,
+Compose mount, production configuration guard, and persistence regression aligned. Selecting `s3`
+continues to require its complete server-only credential set, while local mode must not require it.
 
 Shared text limits and API field-error extraction live in `apps/web/src/utils/formValidation.ts`.
 Numeric domain bounds live in `packages/shared/src/constants/numericLimits.ts` and are consumed by

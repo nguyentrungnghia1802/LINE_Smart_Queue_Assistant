@@ -2,7 +2,7 @@
 
 # Roadmap and Decisions
 
-Last reviewed: 2026-08-11 after the TASK-PROD-002 demo-runtime correction. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
+Last reviewed: 2026-08-11 after adopting persistent VPS-local media for the current production-oriented demo. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
 
 ## 1. Prioritized roadmap
 
@@ -573,7 +573,7 @@ provider payloads are not observability data.
 
 ## ADR-034: S3-compatible media is server-mediated and production-default
 
-**Status:** accepted (2026-08-09)
+**Status:** accepted (2026-08-09); production-default selection superseded by ADR-040
 
 **Context:** The original media boundary validated and compressed uploads but stored production
 objects on the API container filesystem. A container replacement could therefore lose uploaded
@@ -594,6 +594,10 @@ authorization stay centralized. Operators must configure bucket lifecycle/versio
 privilege, CDN/public access, scanning, backups, and a reviewed orphan grace-period process.
 Signed direct upload and automated destructive orphan cleanup remain future work and are not part
 of TASK-09.
+
+ADR-040 supersedes only the production-provider selection and Compose-volume consequence. The
+server-mediated adapter boundary and all S3 implementation, credential, key, failure, and cleanup
+semantics remain accepted.
 
 ## ADR-035: Storybook is a development-only component review boundary
 
@@ -705,6 +709,30 @@ operator must supply Docker Hub/SSH configuration and approve each production de
 scanning, signed provenance, staged sandbox deployment, rollback automation, and backup/restore
 rehearsal remain follow-up hardening rather than hidden guarantees.
 
+## ADR-040: Persistent VPS-local media for the production-oriented demo
+
+**Status:** accepted (2026-08-11)
+
+**Context:** The current deployment is a single-VPS production-oriented demo. Requiring an external
+S3 account adds credentials, provider operations, and cost that are not necessary for this bounded
+topology. Container-local writable storage is still unsafe because recreating the API container
+would lose uploaded organization and product images.
+
+**Decision:** Select `MEDIA_STORAGE_PROVIDER=local` in `deploy/.env.example`. Mount the production
+Compose named volume `media_data` at the fixed API path `/app/var/media`, serve it through the
+existing same-origin `/media/*` proxy, and require `MEDIA_LOCAL_DIR` when local storage runs in
+production. Normal CD recreates services without deleting volumes. Validate the mount contract in
+configuration tests and prove that a second non-root API container can read data written through
+the same named volume. Retain `S3CompatibleMediaStorage` and its fail-fast credential validation as
+an optional future/external provider; `S3_*` is required only when `s3` is explicitly selected.
+
+**Consequences:** Uploaded media survives API container recreation and normal single-VPS redeploys
+without an external object-storage dependency. Operators must monitor disk capacity, back up the
+volume off-host, test media restore together with database metadata, preserve the Compose project
+and volume name, and never use `docker compose down -v` during rollout. The volume is not shared
+multi-host or high-availability storage; moving to S3/R2 later requires a reviewed data migration,
+URL/rollback plan, provider security policy, and acceptance testing.
+
 ## OPT-001 cleanup audit (2026-08-11)
 
 The audit compared source imports, package scripts/dependencies, executable migrations, the reset
@@ -783,6 +811,10 @@ journeys, and the prior OPT-001 through OPT-004 evidence before changing the bas
 | `P2`     | README contained eighteen visible/hidden TODO markers for three optional illustrations repeated across three languages.                             | Keep visible placeholders but classify each asset as deferred and non-blocking; do not manufacture unapproved product imagery during closure.                           |
 | `P2`     | Completed task plans remained beside the active task, and one referenced idea file was empty.                                                       | Mark completed plans explicitly historical and remove only the empty obsolete file; retain implementation evidence.                                                     |
 | `Ignore` | Dependency review shows current-compatible patches and multiple major upgrades, but the audit reports no vulnerability requiring change.            | Freeze versions for the stable baseline; major framework/tool migrations require a separate evidence-backed task.                                                       |
+
+The OPT-005 media row records the finding and decision made at that time. ADR-040 later supersedes
+its S3-mandatory production selection after adding and validating the missing persistent API media
+volume; the historical audit evidence is intentionally retained.
 
 No source TODO/FIXME remains outside historical/task instructions after README classification.
 Generated output, populated environment files, test reports, coverage, media, and local validation

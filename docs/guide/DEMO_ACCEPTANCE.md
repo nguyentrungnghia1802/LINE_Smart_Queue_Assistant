@@ -13,7 +13,7 @@ It does not prove real LINE-device delivery, merchant settlement, or real-money 
 | Payments          | Server-authoritative Demo Payment Provider          | Merchant onboarding, PSP credentials, settlement, and refund acceptance |
 | Email             | Durable outbox with disabled/mock transport allowed | SMTP credentials and delivered-email acceptance                         |
 | Location          | Consent and mock/deterministic routing paths        | Approved travel provider, quota, privacy, and legal acceptance          |
-| Media             | Mock/local test storage                             | Approved object storage, scanning, retention, and CDN policy            |
+| Media             | Persistent VPS-local Compose volume; mock in tests  | Off-host backup/restore and scanning; optional S3 migration acceptance  |
 
 ## 2. Isolated setup
 
@@ -135,6 +135,8 @@ npm run db:migrate:status
 npm run db:fixture:e2e
 npm run e2e:all
 npm run scale:validate
+docker build --target runner -t line-smart-queue-api:media-persistence-validation -f docker/api/Dockerfile .
+npm run media:persistence:verify
 ```
 
 Also validate the development, validation, and production Compose files with `docker compose config`
@@ -153,8 +155,9 @@ server-side `deploy/.env`; the workflow does not copy them.
   notification sound, and native Japanese copy review.
 - Real PSP merchant onboarding, credentials, webhook registration, settlement, reconciliation,
   chargeback handling, and real-money refund verification.
-- SMTP delivery reputation, production object storage/CDN/scanning, approved maps/travel provider,
-  privacy/legal review, and production-data forecast calibration.
+- SMTP delivery reputation, VPS media off-host backup/restore and scanning, optional S3/CDN
+  migration acceptance, approved maps/travel provider, privacy/legal review, and production-data
+  forecast calibration.
 - Production-like soak/capacity evidence, aggregate database pool sizing, SLO dashboards, alert
   routing, on-call ownership, backup/restore drill, and rollback rehearsal.
 

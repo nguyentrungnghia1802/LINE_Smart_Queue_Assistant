@@ -104,7 +104,7 @@ _Staffは顧客、注文、Ticket状態、残金、対応操作を1画面で扱�
 - LINE Login同意、友だち追加、Rich Menu、Flex Message、native QR scanner、通知バナーは実機確認が必要です。
 - Google Routesの実利用にはproduction credentialとprivacy同意が必要です。
 - ETAは運用データによるheuristicで、学習済みMLモデルではありません。
-- production object storage、運用監視、backup／restore、production-scale負荷試験は追加hardening・受入が必要です。
+- 現在のVPS demoではmediaをpersistent Docker volumeに保存します。off-host backup／restore、scanning、production-scale負荷試験は追加受入が必要で、S3-compatible storageは将来のoptional構成です。
 - LINE配信運用画面はBranch Managerと割り当てられたStaffが利用できます。実LINE端末、友だち状態、通知表示、
   retention・監視運用は別途受入が必要です。
 
@@ -226,7 +226,7 @@ _Staff sees customer, order, Ticket state, balance, and service actions together
 - LINE Login consent, Add Friend, Rich Menu, Flex Message, native QR scanner, and notification banners require physical-device testing.
 - Real Google Routes use requires production credentials and privacy consent.
 - ETA is an operational heuristic, not a trained ML model.
-- Production object storage, observability, backup/restore, and production-scale load testing require further hardening and acceptance.
+- The current VPS demo persists media in a Docker named volume. Off-host backup/restore, scanning, and production-scale load testing require further acceptance; S3-compatible storage remains optional for a future deployment.
 - The LINE delivery operations page is available to Branch Managers and assigned Staff. Physical LINE
   devices, friend state, rendered notifications, retention, and monitoring still require separate acceptance.
 
@@ -348,7 +348,7 @@ _Staff xem khách, đơn, trạng thái Ticket, số dư và thao tác phục v�
 - LINE Login consent, Add Friend, Rich Menu, Flex Message, native QR scanner và notification banner cần kiểm thử trên thiết bị thật.
 - Google Routes thực cần production credentials và chấp thuận privacy.
 - ETA là heuristic vận hành, không phải mô hình ML đã huấn luyện.
-- Object storage, observability, backup/restore production và kiểm thử tải quy mô production cần hardening/nghiệm thu thêm.
+- Demo VPS hiện tại lưu media trong Docker named volume bền vững. Backup/restore off-host, scanning và kiểm thử tải production vẫn cần nghiệm thu; S3-compatible storage là lựa chọn optional cho tương lai.
 - Màn hình vận hành LINE dành cho Branch Manager và Staff được gán đã có. Thiết bị LINE thật, trạng thái kết bạn,
   hiển thị notification, retention và monitoring vẫn cần nghiệm thu riêng.
 

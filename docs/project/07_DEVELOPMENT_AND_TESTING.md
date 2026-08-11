@@ -142,6 +142,11 @@ ignored artifacts may be removed after their process has stopped. Do not treat `
 `apps/web/.env.local`, `deploy/.env`, `node_modules`, PostgreSQL volumes, or local media under `var`
 as disposable cleanup targets unless an explicit environment reset is intended.
 
+The production-oriented VPS demo also treats the Compose `media_data` volume as durable data.
+Normal release commands may recreate `api`, but must not use `docker compose down --volumes` or
+remove that named volume. `MEDIA_LOCAL_DIR` is fixed to `/app/var/media` in production Compose so
+the local provider cannot drift onto the container's writable layer.
+
 Before removing a tracked source, asset, Compose file, migration, fixture, or canonical document,
 verify imports, runtime/static references, package scripts, tests, Docker `COPY` instructions, and
 documentation links. `deploy/docker-compose.yml` is the one canonical production image stack and
@@ -257,12 +262,26 @@ npm run format:check
 npm run openapi:check
 npm run spell:check
 npm run e2e:all
+npm run media:persistence:verify
 ```
+
+The media persistence command expects the production API runner image. Build it first when the
+validation tag is not already present:
+
+```bash
+docker build --target runner -t line-smart-queue-api:media-persistence-validation -f docker/api/Dockerfile .
+npm run media:persistence:verify
+```
+
+The check creates a uniquely named temporary Docker volume, writes through the non-root API image,
+starts a second container against the same volume, verifies the file, and removes only its temporary
+containers and volume.
 
 The GitHub Actions workflow runs these checks as separate jobs so a failure is isolated to one
 quality surface: secret scan, dependency audit, formatting, spelling, lint, type-check, OpenAPI,
 development/validation/production Compose config, API tests, web/shared tests, migration/seed
-smoke, production build, and browser E2E. The API tests, migration smoke, and browser E2E jobs each
+smoke, production build, local-media named-volume persistence, and browser E2E. The API tests,
+migration smoke, and browser E2E jobs each
 use their own PostgreSQL service. Browser E2E prepares its own database and loads the explicit
 browser-only fixtures before starting Playwright. The E2E job waits for the static, unit, contract,
 Compose, migration, and build jobs, so it does not hide an earlier failure behind a browser timeout.
@@ -283,7 +302,10 @@ Production CD is manual and environment-gated. Type `DEPLOY` in the workflow dis
 workflow builds and pushes immutable API/Web images tagged with the selected commit, waits for
 approval on the `production` environment, validates the remote Compose file, migrates the database,
 waits for healthy services, and probes Web health. Runtime secrets stay on the server in
-`deploy/.env`; CD never copies them from GitHub.
+`deploy/.env`; CD never copies them from GitHub. The rollout uses `up -d` without `--volumes`, so the
+VPS `media_data` volume survives API image replacement and container recreation. CD also inspects
+the live API mount type and, in local mode, verifies the fixed path is writable before declaring the
+release healthy.
 
 Target one workspace:
 
@@ -382,7 +404,9 @@ Critical regression scenarios:
 - LIFF Home authentication, active-ticket/no-ticket states, Rich Menu route resolution, and Rich Menu sync idempotency/mock behavior.
 - Media validation/compression, local/mock providers, S3/R2 command mapping, generated-key collision
   retry, tenant authorization, database registration failure cleanup, missing-object idempotency,
-  and provider failure recovery.
+  provider failure recovery, production local-mode startup without `S3_*`, the production Compose
+  mount contract, and a non-root API image reading a file written by an earlier container through
+  the same named volume.
 - Organization registration transaction and duplicate email/slug.
 - Mobile staff rail/detail layout, Staff/Manager QR parity, LIFF booking availability states, and
   the body-portal QR camera dialog.

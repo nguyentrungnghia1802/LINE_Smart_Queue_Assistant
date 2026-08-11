@@ -1,8 +1,9 @@
 # Production image stack.
 # Build immutable images in CI/CD, then deploy this file with real secrets from
 # the environment or a secret manager. VITE_* values are already compiled into
-# the web image; build that image with an empty VITE_API_URL. Production media
-# is stored in the configured S3-compatible provider, not in the API container.
+# the web image; build that image with an empty VITE_API_URL. The current
+# production-oriented demo keeps media in a named Docker volume on the VPS.
+# S3-compatible storage remains an optional provider selected through deploy/.env.
 
 services:
   postgres:
@@ -45,6 +46,11 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       LINE_NOTIFICATION_DELIVERY_OWNER: bullmq
       CORS_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN must be set}
+      # Keep the local-provider path aligned with the persistent mount even if
+      # deploy/.env is incomplete or contains an obsolete host-specific path.
+      MEDIA_LOCAL_DIR: /app/var/media
+    volumes:
+      - media_data:/app/var/media
     depends_on:
       postgres:
         condition: service_healthy
@@ -100,3 +106,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  media_data:

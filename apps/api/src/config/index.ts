@@ -160,6 +160,14 @@ function s3PublicBaseUrl(provider: MediaStorageProvider): string {
   return value.replace(/\/$/, '');
 }
 
+function localMediaDir(provider: MediaStorageProvider): string {
+  const configured = process.env.MEDIA_LOCAL_DIR?.trim();
+  if (provider === 'local' && process.env.NODE_ENV === 'production' && !configured) {
+    throw new Error('MEDIA_LOCAL_DIR must be set when media storage is local in production');
+  }
+  return path.resolve(__dirname, configured || '../../../../var/media');
+}
+
 const configuredMediaStorageProvider = mediaStorageProvider();
 const configuredNodeEnv = (process.env.NODE_ENV ?? 'development') as
   'development' | 'production' | 'test';
@@ -355,7 +363,7 @@ export const config = {
 
   media: {
     provider: configuredMediaStorageProvider,
-    localDir: path.resolve(__dirname, process.env.MEDIA_LOCAL_DIR ?? '../../../../var/media'),
+    localDir: localMediaDir(configuredMediaStorageProvider),
     publicBaseUrl: process.env.MEDIA_PUBLIC_BASE_URL ?? '/media',
     maxOriginalBytes: Number.parseInt(process.env.MEDIA_MAX_ORIGINAL_BYTES ?? '5242880', 10),
     requestBodyLimit: process.env.MEDIA_REQUEST_BODY_LIMIT ?? '8mb',

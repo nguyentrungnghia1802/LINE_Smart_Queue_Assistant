@@ -94,6 +94,21 @@ jobs:
           trap 'rm -f deploy/.env' EXIT
           docker compose --env-file deploy/.env.example -f deploy/docker-compose.yml config -q
 
+  media-persistence:
+    name: 💾 Local media persistence
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: 🐳 Build production API runner
+        run: docker build --target runner -t line-smart-queue-api:media-persistence-validation -f docker/api/Dockerfile .
+      - name: 💾 Verify named-volume persistence across container recreation
+        run: npm run media:persistence:verify
+
   lint:
     name: 🧹 Lint
     runs-on: ubuntu-latest
@@ -268,6 +283,7 @@ jobs:
       - formatting
       - spelling
       - compose-validation
+      - media-persistence
       - lint
       - typecheck
       - openapi

@@ -6,6 +6,10 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Made persistent VPS-local media the official production-oriented demo configuration. Production
+  Compose mounts `media_data` at `/app/var/media`, configuration/tests keep S3 optional, and CI
+  verifies a recreated non-root API container can read data written through the same volume.
+
 - Added a Storybook 10.5.7 React/Vite component-review environment with shared CSS/design tokens,
   Japanese/Vietnamese/English locale controls, phone/desktop viewports, TanStack Query/MemoryRouter
   providers, deterministic fixtures, and isolated stories for queue, ticket, status, product-picker,
@@ -47,9 +51,10 @@ All notable project changes should be recorded here. This file tracks delivered 
 - Added authenticated cross-device booking history, tenant staff related-booking views, Japan address fields, weekly hours, exception days, and Japan-localized seed data.
 - Added measured heuristic wait forecasts and staffing recommendations with hourly aggregates, confidence, explanations, retention, manager APIs, dashboard output, and a PostgreSQL-locked scheduler job.
 - Added a media storage boundary with validated/compressed image uploads, local and mock providers, an object-storage-compatible interface, metadata tracking, deletion, and URL-based organization/product forms.
-- Added the production S3/R2-compatible media adapter with server-generated keys, cache headers,
+- Added the optional S3/R2-compatible media adapter with server-generated keys, cache headers,
   stable public/CDN URLs, provider configuration, collision-safe upload retries, recoverable
-  database/provider failure semantics, and local media volumes only for development Compose stacks.
+  database/provider failure semantics, while retaining persistent local media volumes for the
+  development and current VPS production-demo Compose stacks.
 - Added complete runtime OpenAPI operation coverage with auth, pagination, standard envelopes, validator metadata, specification validation, and route-drift contract tests.
 - Added Playwright desktop/mobile coverage for LIFF mock login, demo payment, booking/ticket, staff/outbox, receipt, admin registration, manager QR/settings, and responsive layouts.
 - Fixed demo payment enum updates, multi-queue staff selection, repeatable seed counters/business dates, and Japanese fallback errors/demo identities found by browser testing.

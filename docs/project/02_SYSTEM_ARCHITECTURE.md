@@ -44,13 +44,13 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | `web`             | React/Vite in dev, nginx static SPA in prod | Routes, i18next UI, browser state, API calls, LIFF adapter                             |
 | `api`             | Node/Express                                | HTTP contracts, auth, business services, SQL repositories, LINE adapter, scheduler     |
 | `worker`          | Node/BullMQ                                 | Dispatches committed LINE outbox rows and processes one notification per delivery job  |
-| Media adapter     | Local/mock plus S3-compatible adapter       | Validates/compresses image ingress; isolates local or durable object persistence       |
+| Media adapter     | Persistent local, mock, plus S3-compatible  | Validates/compresses image ingress; isolates mounted-volume or object persistence      |
 | `postgres`        | PostgreSQL 16                               | Tenant, identity, queue, order, inventory, payment, notification, audit, forecast data |
 | `redis`           | Redis 7.4                                   | Rate limits, public read caches, transient Pub/Sub, and BullMQ orchestration           |
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
 | Payment provider  | Demo active; payOS adapter retained         | Server-authoritative demo completion or explicitly enabled hosted/QR PSP webhook       |
 
-Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and local-provider `/media/*` to the internal `api:4000` service without stripping either prefix. S3-compatible media records return a stable absolute public/CDN URL and do not depend on the API filesystem or `/media` proxy. The Vite development server proxies these same prefixes to the local API, keeping local media URLs working at `localhost:5173`. Production API requests use an empty `VITE_API_URL` because service paths already include `/api/v1`.
+Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In the current production-oriented VPS demo, the API uses the local provider at `/app/var/media`, backed by the production Compose `media_data` named volume. The volume outlives API container recreation and deployment while nginx reverse-proxies `/media/*` to `api:4000` without stripping the prefix. The web image likewise proxies `/api/*`, and production API requests use an empty `VITE_API_URL` because service paths already include `/api/v1`. S3-compatible media remains selectable for a future external/multi-host deployment; those records return a stable absolute public/CDN URL and do not depend on `/media`. The Vite development server proxies both same-origin prefixes to the local API.
 
 `docker-compose.validation.yml` is a destructive, isolated engineering topology rather than a
 deployment file. Its nginx gateway balances two API replicas that share PostgreSQL and Redis while
@@ -161,10 +161,12 @@ ticket is terminal. Neither operation calls LINE inside the request transaction 
 
 `MediaService` owns image validation, pixel limits, orientation-safe rotation, WebP compression, generated
 keys, tenant authorization, and metadata registration. It depends only on `MediaStorage`; the
-catalog and organization modules never import an S3 SDK. `LocalMediaStorage` is used for local
-development, `MockMediaStorage` is used by tests, and `S3CompatibleMediaStorage` uses the AWS SDK
-transport for AWS S3, Cloudflare R2, or another compatible endpoint. Credentials remain in the API
-runtime. The browser sends a data URL to the API and cannot select a bucket, object key, or
+catalog and organization modules never import an S3 SDK. `LocalMediaStorage` is used by development
+and the current production-oriented VPS demo; production Compose mounts its directory from the
+durable `media_data` volume. `MockMediaStorage` is used by tests, and
+`S3CompatibleMediaStorage` uses the AWS SDK transport for optional AWS S3, Cloudflare R2, or another
+compatible endpoint. S3 credentials are required only when that provider is selected and remain in
+the API runtime. The browser sends a data URL to the API and cannot select a bucket, object key, or
 credential.
 
 Dependency direction:
@@ -386,7 +388,8 @@ staging work before unrestricted horizontal scale:
 - enforce queue capacity and order numbering under lock/sequence;
 - extend provider-specific settlement, refund, and operational reconciliation beyond the
   current abstraction and adapter boundary;
-- validate real provider quotas, production observability export, and S3/R2 credentials;
+- validate real provider quotas and production observability export; validate S3/R2 credentials
+  only before explicitly enabling the optional external media provider;
 - replace correctness-sensitive process-local idempotency response replay where a durable database
   constraint alone is insufficient.
 

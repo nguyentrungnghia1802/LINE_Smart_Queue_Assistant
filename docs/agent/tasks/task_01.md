@@ -1572,6 +1572,10 @@ Remove production dependence on API-container local storage for uploaded media.
 
 # TASK-09 — S3 / Cloudflare R2-Compatible Media Storage
 
+> Historical task contract. Its adapter implementation and tests remain valid, but ADR-040
+> supersedes the production-provider selection: the current single-VPS production-oriented demo
+> uses the persistent Compose `media_data` volume, and S3-compatible storage is optional.
+
 **Status:** [x] Completed (2026-08-09)
 **Priority:** P1
 

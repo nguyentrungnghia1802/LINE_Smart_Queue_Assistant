@@ -149,6 +149,15 @@ jobs:
           "${compose[@]}" up -d postgres redis
           "${compose[@]}" run --rm api npm run db:migrate
           "${compose[@]}" up -d --remove-orphans --wait api worker web
+          api_container=$("${compose[@]}" ps -q api)
+          media_mount_type=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/app/var/media"}}{{.Type}}{{end}}{{end}}' "$api_container")
+          test "$media_mount_type" = volume
+          "${compose[@]}" exec -T api sh -eu -c '
+            if [ "${MEDIA_STORAGE_PROVIDER:-}" = local ]; then
+              test "$MEDIA_LOCAL_DIR" = /app/var/media
+              test -w /app/var/media
+            fi
+          '
           "${compose[@]}" exec -T web wget -qO- http://127.0.0.1/health >/dev/null
           "${compose[@]}" ps
           REMOTE

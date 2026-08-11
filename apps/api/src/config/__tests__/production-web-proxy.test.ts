@@ -98,8 +98,10 @@ describe('production web reverse proxy configuration', () => {
     const apiDockerfile = readRepoFile('docker/api/Dockerfile');
 
     expect(deployCompose).not.toContain('build:');
-    expect(deployCompose).not.toContain('media_data:/app/var/media');
-    expect(deployCompose).not.toContain('MEDIA_LOCAL_DIR: ${MEDIA_LOCAL_DIR:-/app/var/media}');
+    expect(deployCompose).toContain('media_data:/app/var/media');
+    expect(deployCompose).toContain('MEDIA_LOCAL_DIR: /app/var/media');
+    expect(deployCompose.match(/media_data:\/app\/var\/media/g)).toHaveLength(1);
+    expect(deployCompose).toMatch(/volumes:\s*[\s\S]*?media_data:/);
     expect(deployCompose).toContain('image: redis:7.4-alpine');
     expect(deployCompose).toContain('REDIS_URL: ${REDIS_URL:-redis://redis:6379}');
     expect(deployCompose).toContain('redis_data:/data');
@@ -114,10 +116,11 @@ describe('production web reverse proxy configuration', () => {
 
     expect(deployEnvironment).toContain('WEB_ORIGIN=https://smartqueue.io.vn');
     expect(deployEnvironment).toContain('EMAIL_FROM_ADDRESS=no-reply@smartqueue.io.vn');
-    expect(deployEnvironment).toMatch(/^MEDIA_STORAGE_PROVIDER=s3$/m);
-    expect(deployEnvironment).not.toMatch(/^MEDIA_STORAGE_PROVIDER=local$/m);
-    expect(deployEnvironment).not.toMatch(/^MEDIA_LOCAL_DIR=/m);
-    expect(deployEnvironment).toMatch(/^S3_PUBLIC_BASE_URL=$/m);
+    expect(deployEnvironment).toMatch(/^MEDIA_STORAGE_PROVIDER=local$/m);
+    expect(deployEnvironment).toMatch(/^MEDIA_LOCAL_DIR=\/app\/var\/media$/m);
+    expect(deployEnvironment).toMatch(/^MEDIA_PUBLIC_BASE_URL=\/media$/m);
+    expect(deployEnvironment).not.toMatch(/^S3_[A-Z_]+=/m);
+    expect(deployEnvironment).toMatch(/^# S3_PUBLIC_BASE_URL=$/m);
     expect(deployEnvironment).not.toMatch(/playmcjava(?:21)?\.io\.vn/i);
   });
 });

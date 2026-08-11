@@ -1,9 +1,10 @@
 # Scalability Baseline and Target Architecture
 
-Last consolidated during OPT-005 on 2026-08-11. This document records the current runtime boundary,
-reproducible local evidence, target SLOs, and remaining production acceptance work. It does not
-claim production capacity. Redis, bounded public caches, BullMQ LINE delivery, cross-replica SSE,
-optional observability, and S3-compatible media are implemented.
+Last consolidated on 2026-08-11 after adopting persistent VPS-local media for the current
+production-oriented demo. This document records the current runtime boundary, reproducible local
+evidence, target SLOs, and remaining production acceptance work. It does not claim production
+capacity. Redis, bounded public caches, BullMQ LINE delivery, cross-replica SSE, optional
+observability, persistent local media, and an optional S3-compatible adapter are implemented.
 
 ## 1. Scope and evidence
 
@@ -33,7 +34,8 @@ LINE / browser
        |
 host TLS proxy -> web Nginx -> Express API process -> PostgreSQL 16
                                   |       |
-                                  |       +-> S3-compatible media provider (production)
+                                  |       +-> VPS media_data volume (current demo)
+                                  |       +-> S3-compatible provider (optional/future)
                                   |
                                   +-> API-owned interval scheduler
                                   +-> LINE Messaging API
@@ -48,8 +50,9 @@ PostgreSQL outbox -> dispatcher -> private Redis/BullMQ -> dedicated LINE worker
 
 The production Compose definition contains one API service, one dedicated worker, one Web service,
 PostgreSQL, and a private Redis service. The API, worker, and Redis ports are private to the Compose
-network. Production media uses an external S3-compatible provider because the stack has no API
-media volume; local/mock media remains limited to development and tests. Only LINE notification
+network. The current production-oriented VPS demo mounts the named `media_data` volume at
+`/app/var/media` on the API; it survives container recreation but is neither shared multi-host nor
+high-availability storage. S3-compatible media remains an optional future/external provider. Only LINE notification
 delivery runs through BullMQ; all other scheduled work remains in
 the API process. PostgreSQL remains authoritative for domain state, sessions, payment events,
 notification/email outboxes, inventory reservations, and job-run health. Redis coordinates
@@ -166,13 +169,14 @@ therefore consume pool capacity even when their inner query is idle or waiting o
 
 ## 8. External provider boundaries
 
-| Provider       | Current protection                                                                  | Capacity/availability risk                                                                   |
-| -------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| LINE Messaging | Durable outbox, bounded timeout, provider-aware retry/backoff and retry key         | Real quota/account/device acceptance remains external                                        |
-| SMTP           | Durable outbox, max attempts, backoff                                               | Sequential batches; throughput and timeout behavior depend on the SMTP adapter/provider      |
-| Google Routes  | 10-second request timeout, bounded location batch                                   | One request per claimed alert; external calls currently occur inside a DB transaction        |
-| payOS          | 10-second intent timeout, signed webhook, idempotency                               | Intent creation is synchronous on the API request; provider quota and outage affect checkout |
-| S3/R2 media    | Server validation/compression, bounded adapter, stable object key and failure tests | Real bucket/CDN credentials, lifecycle, scanning, and recovery acceptance remain external    |
+| Provider        | Current protection                                                                       | Capacity/availability risk                                                                             |
+| --------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| LINE Messaging  | Durable outbox, bounded timeout, provider-aware retry/backoff and retry key              | Real quota/account/device acceptance remains external                                                  |
+| SMTP            | Durable outbox, max attempts, backoff                                                    | Sequential batches; throughput and timeout behavior depend on the SMTP adapter/provider                |
+| Google Routes   | 10-second request timeout, bounded location batch                                        | One request per claimed alert; external calls currently occur inside a DB transaction                  |
+| payOS           | 10-second intent timeout, signed webhook, idempotency                                    | Intent creation is synchronous on the API request; provider quota and outage affect checkout           |
+| VPS local media | Server validation/compression, non-root API writes, named-volume mount and recreate test | Single-host capacity, off-host backup/restore, scanning, and recovery acceptance remain operational    |
+| S3/R2 media     | Retained bounded adapter, stable object key and failure tests; disabled by default       | Credentials, lifecycle, CDN, scanning, migration, and recovery acceptance are required before enabling |
 
 Provider rate limits and quotas must be read from the contracted provider account before setting
 worker concurrency. Retry logic must respect provider retry guidance and jitter; blindly increasing
@@ -299,17 +303,18 @@ production capacity multiplier.
 
 The same run established these failure/recovery facts:
 
-| Injection/verification               | Customer/staff impact                                                    | Business truth and recovery                                         | Operator evidence/action                             |
-| ------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------- | ---------------------------------------------------- |
-| Cache deletion                       | Next read may be slower                                                  | PostgreSQL fallback returned `200`                                  | Cache miss/error metrics; no action unless sustained |
-| Redis stop/restart                   | Reads stayed available; realtime/limits degraded per fallback policy     | PostgreSQL state remained intact; cache/Pub/Sub reconnected         | Redis health/reconnect metrics; restore promptly     |
-| Worker stop/restart                  | LINE delivery delayed                                                    | Outbox row remained pending and became `sent` after worker recovery | Backlog age/depth and worker heartbeat               |
-| Cross-instance SSE                   | No visible loss in tested transition                                     | API 2 commit reached a client on API 1; REST remained authoritative | SSE/Pub/Sub metrics and reconnect logs               |
-| API 1 restart                        | Gateway continued through API 2                                          | Restarted replica recovered REST service                            | Per-replica health and gateway upstream headers      |
-| PostgreSQL stop/restart              | API readiness returned `503`; domain requests unavailable                | No reset/corruption; readiness recovered after restart              | Database health, pool, and recovery runbook          |
-| LINE timeout/429/5xx                 | Notification delayed, business transition succeeds                       | Durable bounded retry/final state in PostgreSQL                     | Provider/error/retry metrics and sanitized logs      |
-| S3 timeout/credentials/upload/delete | Media action fails safely; existing metadata/object behavior is explicit | No domain authorization bypass; retry/reconciliation path retained  | Adapter errors/metrics; fix credentials/provider     |
-| OTel/Sentry outage                   | No customer/staff business interruption                                  | Fail-open instrumentation; domain transaction unchanged             | Local logs, exporter/Sentry diagnostics              |
+| Injection/verification               | Customer/staff impact                                                | Business truth and recovery                                         | Operator evidence/action                             |
+| ------------------------------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------- |
+| Cache deletion                       | Next read may be slower                                              | PostgreSQL fallback returned `200`                                  | Cache miss/error metrics; no action unless sustained |
+| Redis stop/restart                   | Reads stayed available; realtime/limits degraded per fallback policy | PostgreSQL state remained intact; cache/Pub/Sub reconnected         | Redis health/reconnect metrics; restore promptly     |
+| Worker stop/restart                  | LINE delivery delayed                                                | Outbox row remained pending and became `sent` after worker recovery | Backlog age/depth and worker heartbeat               |
+| Cross-instance SSE                   | No visible loss in tested transition                                 | API 2 commit reached a client on API 1; REST remained authoritative | SSE/Pub/Sub metrics and reconnect logs               |
+| API 1 restart                        | Gateway continued through API 2                                      | Restarted replica recovered REST service                            | Per-replica health and gateway upstream headers      |
+| PostgreSQL stop/restart              | API readiness returned `503`; domain requests unavailable            | No reset/corruption; readiness recovered after restart              | Database health, pool, and recovery runbook          |
+| LINE timeout/429/5xx                 | Notification delayed, business transition succeeds                   | Durable bounded retry/final state in PostgreSQL                     | Provider/error/retry metrics and sanitized logs      |
+| Local volume recreate                | Second non-root API container reads the first container's probe file | Named volume retains bytes outside the container writable layer     | Preserve mount/name; restore from volume backup      |
+| S3 timeout/credentials/upload/delete | Optional media action fails safely when that provider is selected    | No domain authorization bypass; retry/reconciliation path retained  | Adapter errors/metrics; fix credentials/provider     |
+| OTel/Sentry outage                   | No customer/staff business interruption                              | Fail-open instrumentation; domain transaction unchanged             | Local logs, exporter/Sentry diagnostics              |
 
 TASK-PROD-004 repeated the isolated recovery rehearsal on 2026-08-11 after adding a post-lock
 active-ticket recheck for direct queue joins. All topology checks passed: both API replicas served
@@ -373,8 +378,10 @@ PostgreSQL remains the source of truth throughout the target evolution.
    clients reconnect and refetch PostgreSQL-backed REST, so event loss does not lose state.
 5. **OpenTelemetry and Sentry:** optional sanitized tracing/error boundaries are implemented and
    fail open. Production exporters, dashboards, alerts, and release correlation remain deployment work.
-6. **S3/R2-compatible storage:** server-mediated immutable object keys and the adapter boundary are
-   implemented. Real bucket/CDN lifecycle, scanning, backup, and recovery acceptance remain external.
+6. **Media storage:** the current VPS demo uses a persistent named volume with a fixed non-root API
+   mount and recreate validation. The S3/R2 server-mediated adapter remains implemented for a later
+   external/multi-host migration. Off-host volume backup/restore, scanning, and any future
+   bucket/CDN lifecycle and migration acceptance remain operational work.
 
 The modular monolith remains one codebase. API and worker processes should reuse the existing
 services/repositories and be separated by entry point and deployment role, not duplicated business

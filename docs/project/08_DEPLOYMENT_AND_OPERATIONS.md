@@ -26,7 +26,7 @@ Backend-only secrets:
 - `LINE_MESSAGING_CHANNEL_SECRET`
 - `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`
 - `LINE_RICH_MENU_IMAGE_PATH` or an equivalent deployment-mounted Rich Menu PNG/JPEG asset path
-- `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` (or the equivalent secret-manager fields)
+- `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` only when the optional `s3` media provider is enabled
 - payOS merchant keys, future PSP secrets, and the current demo payment webhook secret
 - `GOOGLE_ROUTES_API_KEY` for server-side branch geocoding and walking-route estimates
 
@@ -212,8 +212,8 @@ The stack builds:
 - API TypeScript build/Node runner reachable inside the Compose network as `api:4000`;
 - a dedicated worker from the same API image, with no published port, for BullMQ-owned LINE delivery;
 - Vite static bundle served by nginx on `WEB_PORT`, including same-origin `/api/*` proxying to the API service.
-- S3-compatible media storage configured outside the API container; the production Compose files do
-  not mount a media filesystem volume.
+- VPS-local media in the persistent `media_data` named volume mounted only into the API at
+  `/app/var/media`; it survives API container recreation and normal image-based redeployment.
 
 Image-based production Compose:
 
@@ -308,15 +308,41 @@ this path, especially `proxy_buffering off` and a read timeout longer than
 `SSE_MAX_CONNECTION_DURATION_MS`; otherwise the inner proxy cannot prevent the outer hop from
 buffering or closing the stream. Do not add a trailing slash to `proxy_pass http://api:4000`.
 
-Local/mock media remains available for development and tests. The local Compose stacks persist
-development files in `media_data`/`media_dev_data`, and nginx/Vite proxy `/media/*` to the API. The
-image-based production stacks set `MEDIA_STORAGE_PROVIDER=s3`, remove the API media volume, and
-require `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and
-`S3_PUBLIC_BASE_URL`. `S3_ENDPOINT` is empty for AWS S3 and set to the provider endpoint for R2 or
-another compatible service. `S3_PUBLIC_BASE_URL` should point to a controlled public bucket origin
-or CDN; it must be HTTPS in production.
+The current production-oriented VPS demo sets `MEDIA_STORAGE_PROVIDER=local`, serves stable
+same-origin `/media/*` URLs through nginx/API, and fixes `MEDIA_LOCAL_DIR=/app/var/media` in Compose.
+The named `media_data` volume is outside the API container writable layer. `docker compose up -d`,
+`--force-recreate`, image replacement, and the CD workflow preserve it; `docker compose down -v` or
+explicit volume removal destroys it and is prohibited during normal rollout.
 
-### Object-storage operations
+S3-compatible storage remains implemented and optional. To enable it later, explicitly set
+`MEDIA_STORAGE_PROVIDER=s3` plus `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`,
+`S3_SECRET_ACCESS_KEY`, and `S3_PUBLIC_BASE_URL`. `S3_ENDPOINT` is empty for AWS S3 and set to the
+provider endpoint for R2 or another compatible service. `S3_PUBLIC_BASE_URL` must use HTTPS in
+production. Local mode does not require or read a complete `S3_*` credential set; do not add fake
+values merely to satisfy an obsolete deployment assumption. The unused local volume may remain
+mounted during a future S3 migration so rollback does not discard existing VPS media.
+
+### VPS-local media operations
+
+1. Keep the production Compose project/deploy path stable and confirm `media_data` appears in
+   `docker compose ... config` before rollout. Do not rename the volume casually.
+2. Verify ownership by uploading an image through the API. The runner creates `/app/var/media` for
+   UID/GID `1001`; a new named volume copies that safe directory metadata on first mount.
+3. Before and after an API recreate, verify the same `/media/...` URL and a reviewed storage object.
+   Repository validation uses a fresh non-root API container twice against one temporary volume:
+
+   ```bash
+   docker build --target runner -t line-smart-queue-api:media-persistence-validation -f docker/api/Dockerfile .
+   npm run media:persistence:verify
+   ```
+
+4. Back up `media_data` together with the database release record and test restoration into an
+   isolated volume. Store backups off the VPS according to the approved RPO/RTO.
+5. For disk pressure, identify reviewed unreferenced objects by comparing dated purpose prefixes
+   with active `media_assets.storage_key` rows. Never delete the whole volume or run an automated
+   orphan sweep without a backup and grace period.
+
+### Optional S3-compatible object-storage operations
 
 1. Create a dedicated production bucket per environment or an equivalent isolated prefix. Enable
    provider versioning/retention when the business recovery policy requires it.
@@ -337,7 +363,10 @@ or CDN; it must be HTTPS in production.
    prefixes and remove only reviewed unreferenced objects. Do not run an automated destructive
    orphan sweep without a backup and an explicit grace period.
 
-For a real production environment, use managed PostgreSQL/object storage, TLS ingress, restricted network/security groups, centralized secrets/logs, and a deployment orchestrator. Compose is a packaging baseline, not high-availability infrastructure.
+For a higher-availability or multi-host production environment, evaluate managed PostgreSQL and
+S3-compatible object storage, plus TLS ingress, restricted network/security groups, centralized
+secrets/logs, and a deployment orchestrator. The current VPS-local volume is the official
+production-oriented demo baseline, not shared multi-host or high-availability storage.
 
 ## 4. Deployment sequence
 
@@ -514,11 +543,16 @@ Daily counters are checked hourly and reset when the organization-local date cha
 
 ### Backup
 
-Use encrypted PostgreSQL logical/managed backups with access controls and off-host retention. Include migration version, application commit, deployment configuration references, and object-storage media when introduced.
+Use encrypted PostgreSQL logical/managed backups with access controls and off-host retention.
+Include migration version, application commit, deployment configuration references, and a
+consistent backup of the production `media_data` volume. Database metadata and stored media must be
+recoverable from the same documented restore point.
 
-Local development media is written under `MEDIA_LOCAL_DIR` and served from `MEDIA_PUBLIC_BASE_URL`.
-Production media is described in the object-storage operations section above and is not a container
-filesystem durability boundary.
+Local-provider media is written under `MEDIA_LOCAL_DIR` and served from `MEDIA_PUBLIC_BASE_URL`.
+In production Compose that directory is the persistent `media_data` volume, not the API container
+filesystem. Stop or quiesce media writes for a filesystem-level snapshot, and copy the volume to
+encrypted off-host storage with a restricted operator account. If S3 is enabled later, use the
+provider's versioning/export/backup controls instead.
 
 Example logical backup:
 
@@ -543,6 +577,8 @@ Post-restore checks:
 4. active queue/ticket state and counters;
 5. API `/ready`, login, booking, and staff smoke tests;
 6. LINE/provider endpoints remain pointed at the intended environment.
+7. restored `media_assets` URLs resolve to the restored volume objects, and an API container
+   recreate does not remove them.
 
 Run a documented restore drill on a schedule. Define RPO/RTO with the business before launch.
 
@@ -642,6 +678,11 @@ GitHub `production` environment before connecting to the server. The SSH host ke
 `PRODUCTION_SSH_KNOWN_HOSTS`. The remote sequence validates Compose, pulls only the selected API
 and Web images, applies canonical migrations, waits for healthy services, and probes the Web health
 endpoint. It never copies, prints, or regenerates the server-side `deploy/.env`.
+The remote rollout does not run `down -v` or remove volumes: `postgres_data`, `redis_data`, and the
+production `media_data` volume remain attached across API/Web image updates. A release that changes
+the media volume name or mount target requires a separate migration and backup plan.
+After recreation, CD inspects the live API mount as a Docker volume and, when local media is active,
+verifies that `/app/var/media` is both the configured path and writable by the non-root process.
 
 Production GitHub Actions variables:
 
@@ -682,6 +723,7 @@ inferred from mock CI.
 - Real secrets rotated and managed outside Git.
 - HTTPS, secure domain/CORS, rate/edge protection, and restricted metrics/docs.
 - Managed PostgreSQL backups and restore drill.
+- Encrypted off-host `media_data` backup and an isolated media restore/recreate drill.
 - Durable notification outbox/retry/idempotency and operational visibility for failed rows.
 - Real Rich Menu image asset synced and verified on a physical LINE client.
 - Verified payment intent/webhook/refund/reconciliation.

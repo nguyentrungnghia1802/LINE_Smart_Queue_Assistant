@@ -411,6 +411,9 @@ unchanged evidence. Final completion must still have traceable evidence for ever
 - Corrected the production environment template to require S3-compatible media storage because
   production Compose has no API media volume. Strengthened the configuration regression so a
   commented S3 example can no longer satisfy the production assertion.
+  This OPT-005 evidence is historical: ADR-040 later supersedes the provider selection after the
+  production Compose stack gained a tested persistent `media_data` mount. The current template uses
+  local VPS storage and requires `S3_*` only when the optional `s3` provider is selected.
 - Classified all eighteen README illustration TODO markers as deferred, non-blocking content work;
   marked completed task history explicitly historical and removed one tracked zero-byte obsolete
   idea file. Generated output, local environments, reports, coverage, and media remain untracked.

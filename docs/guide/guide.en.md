@@ -804,7 +804,7 @@ For each language:
 - **LINE Rich Menu:** Availability depends on the active Official Account and deep-link configuration.
 - **Google Routes/location:** Production credentials and appropriate privacy consent are required before accepting real distance/route behavior.
 - **ETA/forecast:** It is a measured operating heuristic, not a trained machine-learning model; results vary with sparse data and changing service duration.
-- **Media/object storage:** Media persistence, lifecycle, and access controls depend on the operating environment.
+- **Media storage:** The current VPS demo uses a persistent Docker volume. Operate off-host backups, restore tests, and capacity monitoring; S3-compatible storage is an optional future configuration.
 - **Operating infrastructure:** Observability, backup/restore, and related procedures depend on the operating environment.
 - **Large-scale operation:** Available throughput depends on the operating environment and service plan.
 - **Notification operations UI:** Branch Managers and assigned Staff can inspect scoped delivery status
