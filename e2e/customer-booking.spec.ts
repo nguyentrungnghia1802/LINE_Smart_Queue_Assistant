@@ -3,7 +3,14 @@ import { expect, test } from '@playwright/test';
 test('LIFF mock authenticates, pays required items, books, and opens the ticket', async ({
   page,
 }) => {
+  const friendshipResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/v1/line/friendship') && response.request().method() === 'POST'
+  );
   await page.goto('/liff/qr/demo-queue-lab-2026');
+
+  const friendshipResponse = await friendshipResponsePromise;
+  expect(friendshipResponse.ok(), await friendshipResponse.text()).toBeTruthy();
 
   await expect(page.getByRole('heading', { name: '商品 / サービス' })).toBeVisible();
 

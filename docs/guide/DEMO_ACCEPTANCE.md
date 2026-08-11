@@ -1,0 +1,137 @@
+# Demo Acceptance Guide
+
+This guide is the executable acceptance path for the current production-oriented demonstration.
+It uses isolated PostgreSQL data, mock LINE identity and delivery, and the Demo Payment Provider.
+It does not prove real LINE-device delivery, merchant settlement, or real-money refunds.
+
+## 1. Runtime boundary
+
+| Capability        | Demo acceptance runtime                             | External production acceptance                                          |
+| ----------------- | --------------------------------------------------- | ----------------------------------------------------------------------- |
+| Customer identity | LIFF mock with a verified backend session           | Real LINE Login/LIFF channel and physical device                        |
+| Notifications     | Durable PostgreSQL outbox, BullMQ, mock adapter     | Real Official Account quota, token, recipient, and device delivery      |
+| Payments          | Server-authoritative Demo Payment Provider          | Merchant onboarding, PSP credentials, settlement, and refund acceptance |
+| Email             | Durable outbox with disabled/mock transport allowed | SMTP credentials and delivered-email acceptance                         |
+| Location          | Consent and mock/deterministic routing paths        | Approved travel provider, quota, privacy, and legal acceptance          |
+| Media             | Mock/local test storage                             | Approved object storage, scanning, retention, and CDN policy            |
+
+## 2. Isolated setup
+
+Use only a disposable local database. Never load E2E fixtures into shared, staging, or production
+data.
+
+```powershell
+docker compose -f docker-compose.dev.yml up -d postgres redis
+npm run db:migrate
+npm run db:migrate:status
+npm run db:fixture:e2e
+npm run e2e:all
+```
+
+For manual review, start the normal development processes after loading the fixture:
+
+```powershell
+npm run dev
+```
+
+The stable customer discovery URL is
+`http://localhost:5173/qr/demo-queue-lab-2026`. Browser E2E uses isolated ports `5174` and `4100`
+instead and never contacts LINE or a PSP.
+
+## 3. Demo identities
+
+All business-role fixture accounts use the local-only password `123456`.
+
+| Role               | Email                | Scope                                                      |
+| ------------------ | -------------------- | ---------------------------------------------------------- |
+| Platform Admin     | `admin@gmail.com`    | Global application review and sanitized operational health |
+| Organization Owner | `manager2@gmail.com` | Organization-wide branches, catalog, audit, and reporting  |
+| Branch Manager     | `manager@gmail.com`  | Tokyo Main branch only                                     |
+| Branch Manager     | `manager3@gmail.com` | Tokyo Priority branch only                                 |
+| Staff              | `staff@gmail.com`    | Tokyo Main / Reception Counter A only                      |
+| Staff              | `staff3@gmail.com`   | Tokyo Priority / Priority Reception only                   |
+
+Customers do not use fixture email login. Open the LIFF route with mock mode enabled; the backend
+verifies the configured mock ID token and creates the customer session.
+
+## 4. Representative data
+
+The E2E fixture provides two branches, two open queues, organization-owned products, branch stock,
+and Staff assignments. It also provides eight deterministic orders/tickets spanning:
+
+- waiting, called, serving, served, cancelled, and no-show queue states;
+- unpaid, paid, fully refunded, and failed payment states;
+- matching order, item, and demo transaction payment records;
+- sent, pending, and failed LINE delivery records;
+- cancellation and no-show penalty records.
+
+Re-running `npm run db:fixture:e2e` restores the deterministic payment records for those eight
+orders so prior refund acceptance runs do not leave contradictory fixture state.
+
+## 5. Recommended demonstration
+
+1. Open `/apply`, submit a business application, sign in as Platform Admin, and approve it. Confirm
+   that provisioning happens only after approval and that activation delivery is queued.
+2. Sign in as Organization Owner and review organization-wide branches, catalog, audit, and
+   reporting. Confirm branch-management features remain separate from Platform Admin authority.
+3. Sign in as Branch Manager and review the assigned branch, queue catalog, Staff assignments, QR,
+   LINE delivery operations, and settings. Confirm another branch is not visible.
+4. Open `/liff/qr/demo-queue-lab-2026`, select services, enter the required customer details,
+   complete Demo Payment when required, create the booking, and reach `/liff/tickets/:entryId`.
+5. Sign in as Staff, process the assigned queue, print the receipt, and complete the ticket. Verify
+   the committed queue transition remains successful while delivery is observed through the mock
+   outbox.
+6. Sign in as Platform Admin and open Operational Health. Confirm payment reports `demo / demo`,
+   components expose only safe aggregates, and tenant/customer details are absent.
+7. Exercise the seeded paid order refund twice with the same idempotency key. Confirm one
+   server-authoritative refund result and a final `refunded` order state.
+8. Review the Staff, Manager, Admin, and Customer flows at desktop and phone widths, then switch the
+   login language through Japanese, English, and Vietnamese and reload to confirm persistence.
+
+## 6. Automated evidence map
+
+| Acceptance area                                                                | Primary evidence                                  |
+| ------------------------------------------------------------------------------ | ------------------------------------------------- |
+| LIFF booking, Demo Payment, ticket redirect                                    | `e2e/customer-booking.spec.ts`                    |
+| Staff transition, notification scope, application approval, health, refund, QR | `e2e/operations.spec.ts`                          |
+| Desktop/mobile navigation and overflow                                         | `e2e/responsive.spec.ts`                          |
+| Japanese, English, Vietnamese, persisted locale                                | `e2e/localization.spec.ts` and i18n unit tests    |
+| Tenant/branch/assigned-queue authorization                                     | API service/controller tests and operations E2E   |
+| Payment authority, callback/refund idempotency                                 | Payment provider/service tests and operations E2E |
+| Realtime, Redis recovery, worker restart, dependency failure                   | `npm run scale:validate`                          |
+| Static component states and viewports                                          | `npm run storybook:build`                         |
+
+## 7. Acceptance commands
+
+```powershell
+npm run audit:ci
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm run format:check
+npm run openapi:check
+npm run storybook:build
+npm run db:migrate
+npm run db:migrate:status
+npm run db:fixture:e2e
+npm run e2e:all
+npm run scale:validate
+```
+
+Also validate both Compose files with `docker compose config` before deployment. Record any command
+that cannot run and its residual risk; do not substitute a mock check for external acceptance.
+
+## 8. Intentionally deferred external acceptance
+
+- Real LINE Console webhook, Official Account friendship, physical-device login, push delivery,
+  notification sound, and native Japanese copy review.
+- Real PSP merchant onboarding, credentials, webhook registration, settlement, reconciliation,
+  chargeback handling, and real-money refund verification.
+- SMTP delivery reputation, production object storage/CDN/scanning, approved maps/travel provider,
+  privacy/legal review, and production-data forecast calibration.
+- Production-like soak/capacity evidence, aggregate database pool sizing, SLO dashboards, alert
+  routing, on-call ownership, backup/restore drill, and rollback rehearsal.
+
+These items are release-environment acceptance requirements, not hidden implementation claims or
+reasons to add fake credentials to the demo runtime.

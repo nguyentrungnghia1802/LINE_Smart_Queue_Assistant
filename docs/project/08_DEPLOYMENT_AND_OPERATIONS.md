@@ -39,8 +39,8 @@ Role-aware session settings are non-secret runtime values:
 - `AUTH_SESSION_CLEANUP_INTERVAL_MS=3600000`
 - `AUTH_REVOKED_SESSION_RETENTION_DAYS=7`
 
-Deploy the complete ordered migration history through `000025` before serving the updated API.
-Migrations `000021` through `000025` are additive/normalization changes that preserve business
+Deploy the complete ordered migration history through `000028` before serving the updated API.
+Migrations `000021` through `000028` are additive/normalization changes that preserve business
 data when applied through the forward migration command; they do not require seed/reset. Access
 tokens issued by older releases have no session-family claim and are intentionally rejected; users
 sign in once after rollout. The same-origin production proxy
@@ -657,7 +657,10 @@ metadata, and tested production backup/restore procedures.
 
 ## 11. Production readiness checklist
 
-The canonical executable release gate is `docs/checklists/PRODUCTION_READINESS.md`. Physical LINE client acceptance is intentionally separate in `docs/checklists/LINE_REAL_DEVICE_E2E.md` and must not be inferred from mock CI.
+The canonical executable release gate is `docs/checklists/PRODUCTION_READINESS.md`. The isolated
+production-oriented demo procedure is `docs/guide/DEMO_ACCEPTANCE.md`. Physical LINE client
+acceptance is intentionally separate in `docs/checklists/LINE_REAL_DEVICE_E2E.md` and must not be
+inferred from mock CI.
 
 - Real secrets rotated and managed outside Git.
 - HTTPS, secure domain/CORS, rate/edge protection, and restricted metrics/docs.

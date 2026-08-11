@@ -233,7 +233,7 @@ complex recovery systems, or theoretical scalability mechanisms without evidence
 
 ## TASK-PROD-005: End-to-End Demo Readiness and Final Acceptance
 
-**Status:** [ ] Not started
+**Status:** [x] Completed (2026-08-11)
 **Priority:** P1
 **Dependencies:** TASK-PROD-004 completed; representative demo data and deployable environment
 
@@ -251,35 +251,56 @@ issues; document non-blocking future enhancements instead of expanding project s
 
 ### Implementation Checklist
 
-- [ ] Audit critical journeys for Platform Admin, Organization Owner, Branch Manager, Staff, and Customer.
-- [ ] Validate organization lifecycle: application → Admin approval → Owner activation → organization setup.
-- [ ] Validate business setup: branch → catalog → queue → staff assignment → QR/customer entry.
-- [ ] Validate customer journey: QR/LIFF → queue/service selection → order → demo payment → ticket → LINE notification → queue processing → completion/history.
-- [ ] Validate Branch Manager and Staff queue operations, including Notification Operations and strict branch/assigned-queue authorization.
-- [ ] Validate Platform Admin Operational Health Dashboard without exposing tenant/customer detail.
-- [ ] Validate demo payment/refund behavior and clearly distinguish it from retained real-PSP production architecture.
-- [ ] Review desktop/mobile responsive behavior and fix blocking navigation, overflow, loading, empty, error, disabled, and success-state issues.
-- [ ] Validate critical journeys in `ja`, `vi`, and `en` with Japanese fallback.
-- [ ] Review representative demo fixtures so normal, busy queue, failed notification, payment/refund, and recovery scenarios can be demonstrated consistently.
-- [ ] Run final security regression for authentication, tenant isolation, role/scope enforcement, browser-authoritative fields, secrets, and sensitive responses.
-- [ ] Run final deployment smoke tests for Web, API, PostgreSQL, Redis, worker, SSE/realtime, LINE/mock integration, and demo payment.
-- [ ] Review remaining TODO/FIXME/known limitations that affect critical demo flows and resolve only blockers or material correctness issues.
-- [ ] Update README/demo guide with setup, demo accounts/data, recommended demonstration flow, known limitations, and intentionally deferred commercial-production capabilities.
-- [ ] Document real PSP merchant acceptance, settlement/reconciliation, enterprise SLO/on-call infrastructure, and production-data forecast calibration as future production work where relevant.
+- [x] Audit critical journeys for Platform Admin, Organization Owner, Branch Manager, Staff, and Customer.
+- [x] Validate organization lifecycle: application → Admin approval → Owner activation → organization setup.
+- [x] Validate business setup: branch → catalog → queue → staff assignment → QR/customer entry.
+- [x] Validate customer journey: QR/LIFF → queue/service selection → order → demo payment → ticket → LINE notification → queue processing → completion/history.
+- [x] Validate Branch Manager and Staff queue operations, including Notification Operations and strict branch/assigned-queue authorization.
+- [x] Validate Platform Admin Operational Health Dashboard without exposing tenant/customer detail.
+- [x] Validate demo payment/refund behavior and clearly distinguish it from retained real-PSP production architecture.
+- [x] Review desktop/mobile responsive behavior and fix blocking navigation, overflow, loading, empty, error, disabled, and success-state issues.
+- [x] Validate critical journeys in `ja`, `vi`, and `en` with Japanese fallback.
+- [x] Review representative demo fixtures so normal, busy queue, failed notification, payment/refund, and recovery scenarios can be demonstrated consistently.
+- [x] Run final security regression for authentication, tenant isolation, role/scope enforcement, browser-authoritative fields, secrets, and sensitive responses.
+- [x] Run final deployment smoke tests for Web, API, PostgreSQL, Redis, worker, SSE/realtime, LINE/mock integration, and demo payment.
+- [x] Review remaining TODO/FIXME/known limitations that affect critical demo flows and resolve only blockers or material correctness issues.
+- [x] Update README/demo guide with setup, demo accounts/data, recommended demonstration flow, known limitations, and intentionally deferred commercial-production capabilities.
+- [x] Document real PSP merchant acceptance, settlement/reconciliation, enterprise SLO/on-call infrastructure, and production-data forecast calibration as future production work where relevant.
 
 ### Tests and Validation
 
-- [ ] Ensure automated E2E covers the highest-value critical journeys and authorization boundaries.
-- [ ] Run lint, typecheck, tests, build, format, OpenAPI, Storybook/browser tests, migration checks, and deployment validation required by `AGENTS.md`.
-- [ ] Perform final smoke validation against a clean isolated demo environment.
-- [ ] Verify representative demo data can reproduce the intended demonstration flow.
-- [ ] Record remaining external acceptance requirements separately from implementation defects.
+- [x] Ensure automated E2E covers the highest-value critical journeys and authorization boundaries.
+- [x] Run lint, typecheck, tests, build, format, OpenAPI, Storybook/browser tests, migration checks, and deployment validation required by `AGENTS.md`.
+- [x] Perform final smoke validation against a clean isolated demo environment.
+- [x] Verify representative demo data can reproduce the intended demonstration flow.
+- [x] Record remaining external acceptance requirements separately from implementation defects.
+
+### Completion Evidence
+
+- The browser acceptance suite verifies mock-LIFF friendship synchronization and booking/payment
+  return, Staff queue transitions and receipt access, strict LINE delivery scope, public application
+  approval, sanitized Admin health, server-authoritative idempotent demo refunds, branch QR/settings,
+  desktop/mobile navigation, and persisted Japanese/English/Vietnamese locale selection.
+- The E2E fixture is repeatable and provides deterministic paid, unpaid, failed, and fully refunded
+  orders with matching item and demo transaction state. A clean migration through `000028` produces
+  the same 44 application tables, 602 application column signatures, and 188 application indexes as
+  the synchronized reset schema.
+- A LIFF friendship consent-source mismatch found during the end-to-end audit was corrected with a
+  forward migration and reset-schema parity. The customer flow now fails visibly in E2E if backend
+  friendship synchronization regresses.
+- Required repository validation passed: dependency audit, formatting, lint, typecheck, OpenAPI,
+  109 API suites/664 tests, 54 Web files/181 tests, production build/CSP, Storybook static build,
+  16 Playwright scenarios, migration/fixture repeatability, all Compose configuration renders, and
+  the isolated TASK-11 runtime/recovery smoke topology.
+- `docs/guide/DEMO_ACCEPTANCE.md` records the executable demo journey, identities, evidence map,
+  known runtime boundaries, and external LINE/merchant/SMTP/storage/legal/operational acceptance
+  gates. Those deferred gates are not represented as implementation defects or mock acceptance.
 
 ### Definition of Done
 
-- [ ] The complete primary business journey can be demonstrated reliably from onboarding through queue completion.
-- [ ] All primary roles have verified authorization boundaries and usable critical journeys.
-- [ ] Critical queue, inventory, payment, notification, realtime, and recovery behavior has regression coverage.
-- [ ] Demo deployment is stable and documentation accurately distinguishes implemented behavior from deferred commercial-production acceptance.
-- [ ] No known blocker prevents LINE Smart Queue Assistant from being presented as a production-oriented demo.
-- [ ] No further major production capability is required for the current project scope.
+- [x] The complete primary business journey can be demonstrated reliably from onboarding through queue completion.
+- [x] All primary roles have verified authorization boundaries and usable critical journeys.
+- [x] Critical queue, inventory, payment, notification, realtime, and recovery behavior has regression coverage.
+- [x] Demo deployment is stable and documentation accurately distinguishes implemented behavior from deferred commercial-production acceptance.
+- [x] No known blocker prevents LINE Smart Queue Assistant from being presented as a production-oriented demo.
+- [x] No further major production capability is required for the current project scope.

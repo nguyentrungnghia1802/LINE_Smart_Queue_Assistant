@@ -1,8 +1,8 @@
 # Current Implementation Map
 
-Last verified against the Storybook UI documentation audit on 2026-08-09. TASK-PROD-001
-notification operations paths and contracts were re-verified against revision `d05c2de` on
-2026-08-11.
+Last verified against the end-to-end demo acceptance audit on 2026-08-11. Notification operations,
+payment/refund fixtures, responsive navigation, localization, and schema parity were re-verified
+during TASK-PROD-005.
 
 This document is the maintenance index for the current repository. It connects product roles and
 flows to source modules, routes, database history, runtime configuration, scheduled jobs, and
@@ -206,9 +206,12 @@ paths and `_form` for non-field issues.
 | `000023`          | Branch Google place identity and formatted map address                                                   |
 | `000024`          | Core schema normalization: branch-owned stock, tenant counters, notification cleanup                     |
 | `000025`          | One active Staff queue assignment in `branch_memberships.queue_id`                                       |
+| `000026`          | Durable BullMQ notification dispatch ownership, retry, recovery fields, and due/claim indexes            |
+| `000027`          | Nullable next-retry timestamp after notification dispatch completes                                      |
+| `000028`          | LIFF friendship as a valid LINE notification consent source                                              |
 
-After `000025`, the reset schema contains 44 application tables, 594 application column
-signatures, and 186 application index definitions; the `pgmigrations` bookkeeping table is not
+After `000028`, the reset schema contains 44 application tables, 602 application column
+signatures, and 188 application index definitions; the `pgmigrations` bookkeeping table is not
 included in those counts. `branch_memberships.queue_id` is nullable for managers, required for
 active Staff, references a queue in the same organization and branch, and has a partial unique
 index that prevents one Staff user from holding multiple current Staff assignments.
@@ -293,7 +296,8 @@ For database changes, also apply migrations to a clean database and run the rele
 repository, service, and fixture tests. For release acceptance, use `npm run e2e:all` after
 loading only the explicit E2E fixtures. `docs/project/07_DEVELOPMENT_AND_TESTING.md` contains the
 full local/CI sequence; `docs/project/08_DEPLOYMENT_AND_OPERATIONS.md` contains rollout and
-incident procedures; production and real-device checklists remain separate.
+incident procedures; `docs/guide/DEMO_ACCEPTANCE.md` contains the production-oriented demo
+acceptance journey; production and real-device checklists remain separate.
 
 When this map changes, update its verification revision/date and check the affected canonical
 documents. Do not mark a feature as production-accepted merely because mock tests pass; record

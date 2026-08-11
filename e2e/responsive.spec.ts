@@ -1,4 +1,17 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, test } from '@playwright/test';
+
+async function expectNavigationDestination(navigation: Locator, label: string) {
+  const directLink = navigation.getByRole('link', { name: label, exact: true });
+  if ((await directLink.count()) > 0) {
+    await expect(directLink).toBeVisible();
+    return;
+  }
+
+  const more = navigation.getByRole('button', { name: 'その他', exact: true });
+  await more.click();
+  await expect(navigation.getByRole('menuitem', { name: label, exact: true })).toBeVisible();
+  await more.click();
+}
 
 test('staff board reflows its queue selector and avoids horizontal page overflow', async ({
   page,
@@ -42,8 +55,16 @@ test('manager keeps every primary destination available at the active viewport',
   });
   await expect(activeNavigation).toHaveCount(1);
 
-  for (const label of ['ダッシュボード', '商品', 'キュー', 'スタッフ', 'QR表示', '設定']) {
-    await expect(activeNavigation.getByRole('link', { name: label, exact: true })).toBeVisible();
+  for (const label of [
+    'ダッシュボード',
+    '商品',
+    'キュー',
+    'スタッフ',
+    'QR表示',
+    'LINE配信',
+    '設定',
+  ]) {
+    await expectNavigationDestination(activeNavigation, label);
   }
 
   const widths = await page.evaluate(() => ({

@@ -31,6 +31,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 25. `000025_staff_queue_assignment.js`
 26. `000026_bullmq_notification_dispatch.js`
 27. `000027_notification_dispatch_retry_nullable.js`
+28. `000028_liff_friendship_consent_source.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -292,9 +293,13 @@ event type in payload metadata. Migration `000025_staff_queue_assignment` adds t
 `branch_memberships.queue_id`, backfills active Staff to the first active queue, deactivates active
 Staff that cannot be assigned safely, enforces same-branch queue scope, and creates the partial
 unique Staff assignment index. Managers may remain unassigned; every active Staff membership must
-have exactly one queue, while a queue may be shared by multiple Staff members. The reset schema
-produces the same 44 application tables (excluding `pgmigrations`), 594 application column
-signatures, and 186 application index definitions as the ordered migration history.
+have exactly one queue, while a queue may be shared by multiple Staff members. Migrations `000026`
+and `000027` add durable BullMQ dispatch ownership/recovery fields and indexes to `notifications`,
+then allow a completed dispatch to clear its next-retry timestamp. Migration `000028` aligns the
+LINE notification consent constraint with the verified LIFF friendship synchronization source used
+by the API. The reset schema produces the
+same 44 application tables (excluding `pgmigrations`), 602 application column signatures, and 188
+application index definitions as the ordered migration history.
 
 ## 10. Seed baseline
 
@@ -304,7 +309,9 @@ notification, or penalty data. Production seeding requires `SEED_ADMIN_PASSWORD`
 fallback password exists only for development.
 
 `npm run db:fixture:e2e` explicitly loads the isolated browser-test organization, identities,
-branches, queue catalogs, orders, and notification fixtures. It is not a production seed and must
+branches, queue catalogs, orders, payment transactions/items, and notification fixtures. Payment
+states are synchronized across order, item, and deterministic demo transaction rows so refund and
+reconciliation scenarios remain repeatable. It is not a production seed and must
 not run as part of server startup. `db:seed:reset` truncates application data before restoring only
 the administrator; it is blocked in production and requires
 `ALLOW_DESTRUCTIVE_SEED_RESET=true` for a non-loopback isolated development database.
