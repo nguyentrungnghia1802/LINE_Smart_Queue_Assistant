@@ -1,4 +1,5 @@
 import { config } from '../../config';
+import { AppError } from '../../utils/AppError';
 
 import { ExternalPaymentProvider, PaymentProviderId } from './payments.types';
 import { demoPaymentProvider } from './providers/demo-payment.provider';
@@ -13,7 +14,13 @@ const externalProviders: Record<Exclude<PaymentProviderId, 'demo'>, ExternalPaym
 };
 
 export function getPaymentProvider(provider: PaymentProviderId): ExternalPaymentProvider {
-  if (provider === 'demo') return demoPaymentProvider;
-  if (config.payments.mode !== 'external') return demoPaymentProvider;
+  if (config.payments.mode === 'demo') return demoPaymentProvider;
+  if (provider === 'demo') {
+    throw new AppError(
+      'Demo payment is disabled when PAYMENT_MODE=external',
+      409,
+      'PAYMENT_PROVIDER_DISABLED'
+    );
+  }
   return externalProviders[provider];
 }

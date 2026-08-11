@@ -49,6 +49,11 @@ describe('GET /health', () => {
         enabled: false,
         status: 'disabled',
       },
+      paymentService: {
+        mode: 'demo',
+        activeProvider: 'demo',
+        realPspConfigured: false,
+      },
     });
     expect(typeof res.body.timestamp).toBe('string');
     expect(typeof res.body.uptime).toBe('number');

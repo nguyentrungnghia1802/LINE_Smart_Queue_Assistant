@@ -1,3 +1,4 @@
+import { config } from '../../../config';
 import { pool } from '../../../db/client';
 import { organizationsRepository } from '../../../db/repositories/organizations.repository';
 import { paymentTransactionsRepository } from '../../../db/repositories/payment-transactions.repository';
@@ -5,6 +6,7 @@ import { productsRepository } from '../../../db/repositories/products.repository
 import { queuesRepository } from '../../../db/repositories/queues.repository';
 import { branchesRepository } from '../../branches/branches.repository';
 import { canApplyPaymentEvent, paymentsService, resolveRefundState } from '../payments.service';
+import { payosPaymentProvider } from '../providers/payos-payment.provider';
 
 jest.mock('../../../db/client', () => ({
   pool: {
@@ -70,7 +72,11 @@ const baseTransaction = {
 };
 
 describe('paymentsService', () => {
+  const paymentConfig = config.payments as { mode: 'demo' | 'external' };
+  const originalPaymentMode = paymentConfig.mode;
+
   beforeEach(() => {
+    paymentConfig.mode = 'demo';
     jest.clearAllMocks();
     jest.mocked(organizationsRepository.findBySlug).mockResolvedValue(org as never);
     jest.mocked(queuesRepository.findById).mockResolvedValue({
@@ -96,6 +102,10 @@ describe('paymentsService', () => {
       .mockImplementation(
         async (_id, data) => ({ ...baseTransaction, ...data, status: data.status }) as never
       );
+  });
+
+  afterAll(() => {
+    paymentConfig.mode = originalPaymentMode;
   });
 
   it('creates a server-side payment intent from product prices and prepayment rules', async () => {
@@ -124,6 +134,47 @@ describe('paymentsService', () => {
     expect(intent.status).toBe('pending');
     expect(intent.coveredProductIds).toEqual([prepaidProduct.id]);
     expect(intent.demoToken).toHaveLength(64);
+  });
+
+  it('does not call a real PSP when demo mode receives an external provider selection', async () => {
+    const payosCreateSpy = jest.spyOn(payosPaymentProvider, 'createPaymentIntent');
+
+    const intent = await paymentsService.createIntent({
+      orgSlug: org.slug,
+      branchId,
+      queueId,
+      items: [{ productId: prepaidProduct.id, quantity: 1 }],
+      scope: 'required_items',
+      provider: 'payos',
+      method: 'vietqr',
+      currency: 'JPY',
+    });
+
+    expect(intent.provider).toBe('demo');
+    expect(intent.demoToken).toHaveLength(64);
+    expect(payosCreateSpy).not.toHaveBeenCalled();
+    payosCreateSpy.mockRestore();
+  });
+
+  it('rejects external provider webhooks while demo mode is active', async () => {
+    await expect(
+      paymentsService.handleWebhook('payos', Buffer.from('{}'), {})
+    ).rejects.toMatchObject({
+      code: 'PAYMENT_PROVIDER_DISABLED',
+      statusCode: 409,
+    });
+  });
+
+  it('rejects demo completion when external mode is explicitly active', async () => {
+    paymentConfig.mode = 'external';
+
+    await expect(
+      paymentsService.completeDemoPayment(baseTransaction.id, 'unused-demo-token')
+    ).rejects.toMatchObject({
+      code: 'PAYMENT_PROVIDER_DISABLED',
+      statusCode: 409,
+    });
+    expect(paymentTransactionsRepository.findById).not.toHaveBeenCalled();
   });
 
   it('does not create a payment intent when no queue is accepting bookings', async () => {
@@ -507,5 +558,35 @@ describe('paymentsService', () => {
     );
     expect(reconcileSpy).toHaveBeenCalledWith(refundedTransaction, client);
     reconcileSpy.mockRestore();
+  });
+
+  it('does not apply an automatic cancellation refund twice', async () => {
+    const orderId = '33333333-3333-4333-8333-333333333333';
+    const client = {
+      query: jest.fn().mockResolvedValue({
+        rows: [{ id: orderId, organization_id: org.id }],
+      }),
+    };
+    const paidTransaction = {
+      ...baseTransaction,
+      order_id: orderId,
+      status: 'paid',
+      amount: '1500.00',
+      refunded_amount: '0.00',
+    };
+    jest
+      .mocked(paymentTransactionsRepository.findRefundableByOrderForUpdate)
+      .mockResolvedValue([paidTransaction] as never);
+    jest.mocked(paymentTransactionsRepository.recordReconciliation).mockResolvedValue(false);
+
+    const result = await paymentsService.refundOrderOnCancellationInClient({
+      orderId,
+      organizationId: org.id,
+      reason: 'Duplicate cancellation delivery',
+      client: client as never,
+    });
+
+    expect(result).toEqual({ refundedAmount: 0, transactionCount: 0 });
+    expect(paymentTransactionsRepository.updateStatus).not.toHaveBeenCalled();
   });
 });

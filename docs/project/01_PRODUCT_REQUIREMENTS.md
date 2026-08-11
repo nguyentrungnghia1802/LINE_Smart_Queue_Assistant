@@ -106,12 +106,13 @@ role and does not use branch-operation endpoints.
 | FR-BOOK-010 | A branch QR resolves all active branch queues; customer selects one through a compact dropdown before its catalog                                | Implemented                                             |
 | FR-BOOK-011 | Customer product cards expose a full localized detail view before quantity selection                                                             | Implemented                                             |
 | FR-BOOK-012 | LIFF Home uses LINE `scanCodeV2` first, validates the decoded branch route, and retains a browser-camera fallback                                | Implemented                                             |
-| FR-PAY-001  | Demo mode completes automatically without paid third-party services                                                                              | Implemented                                             |
-| FR-PAY-002  | Production provider creates a server-side payment intent and redirects securely                                                                  | payOS VND adapter implemented; credentials/E2E pending  |
+| FR-PAY-001  | Demo mode completes through a server-verified provider without real money, real PSP credentials, or real PSP calls                               | Implemented; current deployment                         |
+| FR-PAY-002  | An explicitly enabled production provider creates a server-side payment intent and redirects securely; missing required credentials fail startup | payOS VND adapter retained; external acceptance pending |
 | FR-PAY-003  | Webhook verification is authoritative for paid/refunded/failed status                                                                            | Implemented for demo and signed payOS callbacks         |
 | FR-PAY-004  | Staff records final payment and prints a scoped receipt with subtotal, prepaid amount, balance, operator, branch, queue, and time                | Implemented                                             |
 | FR-PAY-005  | Cancelling a paid order/ticket automatically refunds every collected transaction                                                                 | Implemented for demo/manual providers; real PSP pending |
 | FR-PAY-006  | Staff payment summaries and receipts show every net amount already collected, including full-cart checkout on items without mandatory prepayment | Implemented                                             |
+| FR-PAY-007  | Provider selection is server-configured; browser callback or local state can never declare a payment paid/refunded                               | Implemented                                             |
 
 ### Queue and staff operation
 

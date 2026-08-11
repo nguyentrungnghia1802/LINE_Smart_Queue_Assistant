@@ -51,6 +51,12 @@ apps/api/src/
 \-- worker.ts                Dedicated BullMQ worker process entry point
 ```
 
+Payment runtime ownership is concentrated in `config/index.ts` (strict mode/credential parsing),
+`modules/payments/payment-provider.registry.ts` (active adapter selection),
+`modules/payments/providers` (demo and payOS transports), and `modules/payments/payments.service.ts`
+(server-authoritative intent, callback, reconciliation, and refund orchestration). Frontend
+checkout code may present or poll these flows but cannot set transaction state.
+
 ### Layer rules
 
 | Layer               | May do                                                  | Must not do                                         |
@@ -245,8 +251,10 @@ Known issue: some shared enum names/descriptions are legacy and differ from curr
 - `apps/api/src/modules/notifications/**`: LINE notification templates and durable PostgreSQL
   outbox/delivery semantics. `notification-operations.repository.ts` owns scoped diagnostic SQL;
   `notification-operations.service.ts` owns sanitization, failure categories, and guarded audited
-  retry/cancel transitions. The responsive operator UI is
-  `apps/web/src/pages/NotificationOperationsPage.tsx` and must use the safe operations API only.
+  retry/cancel transitions. `notifications.controller.ts` derives Branch Manager branch scope and
+  Staff queue scope from authenticated membership; Admin/Owner access is rejected. The responsive
+  operator UI is `apps/web/src/pages/NotificationOperationsPage.tsx` and must use the safe
+  operations API only.
 - `apps/api/src/modules/realtime/**`: versioned minimal events, authorized SSE lifecycle, bounded
   local subscriptions, and dedicated Redis Pub/Sub transport. PostgreSQL/REST remains authoritative.
 - `scripts/scalability/**`, `docker-compose.validation.yml`, and `docker/nginx/validation.conf`:

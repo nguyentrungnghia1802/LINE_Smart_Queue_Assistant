@@ -135,6 +135,12 @@ Order and ticket states are related but separate. A queue completion should not 
 
 Order/item summary values include `unpaid` and `paid`; provider transaction values use the Phase 6 state machine: `pending`, `authorized`, `paid`, `failed`, `cancelled`, and `refunded`. Public create-order validation accepts only a server-created payment `transactionId`; it does not accept browser-supplied amount, status, method code, or covered product IDs.
 
+The current deployment is a production-oriented demo. `PAYMENT_MODE=demo` activates only
+`DemoPaymentProvider`, processes no real money, requires no payOS merchant credentials, and does
+not call the payOS transport even if a client requests that provider. `PAYMENT_MODE=external` is an
+explicit future activation boundary: startup requires the complete payOS credential set, demo
+completion is disabled, and only signed server/provider evidence may advance transaction state.
+
 Webhook transitions are serialized by locking the payment transaction. Duplicate provider events are ignored by `(provider, event_id)`, older events and regressive transitions are recorded as ignored reconciliation operations, and provider payload fields with secret/card/token-shaped keys are redacted before persistence. Partial refunds keep the transaction/order paid while recording cumulative `refunded_amount`; a full refund transitions to `refunded`. Staff manual paid/refund operations require an idempotency key and create an audited reconciliation row. If an older paid order has no transaction, the server creates and reconciles an audited manual transaction before applying the refund; it never accepts browser payment state as proof. Receipt data is available only when the order is both `completed` and fully `paid`.
 
 Per-item state determines prepaid coverage. The order header is `paid` only when every selected item is paid. Required-only checkout leaves the overall order `unpaid` until remaining balance is collected.
@@ -162,7 +168,9 @@ through guarded reservation transitions.
    consent-screen Add Friend option receives a localized, non-blocking Add/Unblock prompt inside
    LIFF. The prompt uses LINE's native friendship subwindow, rechecks the result, and synchronizes
    the backend preference state.
-4. Customer selects products/services, optionally completes demo checkout for required prepayment, and creates the booking within the same LIFF flow.
+4. Customer selects products/services, completes the current server-verified demo checkout when
+   prepayment is required, and creates the booking within the same LIFF flow. This demonstration
+   does not move real money; the retained external-provider path is not active.
 5. The backend uses server-verified identity, not browser profile data or public request body fields, to attach the LINE recipient.
 6. On success, LIFF navigates to `/liff/tickets/:entryId` and shows ticket code, status, people ahead, and ETA.
 7. Rich Menu opens `/liff/home` or `/liff/home` with mode/section query parameters. LIFF Home resolves the current active ticket and renders localized empty/usage states with Japanese fallback.

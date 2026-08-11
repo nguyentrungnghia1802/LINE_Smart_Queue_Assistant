@@ -2,7 +2,7 @@
 
 # Roadmap and Decisions
 
-Last reviewed: 2026-08-10 at TASK-PROD-001 completion. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
+Last reviewed: 2026-08-11 after the TASK-PROD-002 demo-runtime correction. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
 
 ## 1. Prioritized roadmap
 
@@ -35,18 +35,18 @@ Last reviewed: 2026-08-10 at TASK-PROD-001 completion. This file records current
 
 ## 2. Technical debt and risks
 
-| ID     | Issue                                                               | Impact                                 | Planned control                                                      |
-| ------ | ------------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------------- |
-| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places      | Incorrect assumptions/contracts        | Align shared types and add serialization tests                       |
-| TD-002 | Notification operations have API but no dashboard                   | Support workflow remains technical     | Owner/admin operations dashboard                                     |
-| TD-003 | Inventory lifecycle needs production load validation                | Rare race behavior may be undiscovered | Staged concurrent integration/load tests                             |
-| TD-004 | payOS collection exists but settlement/refund E2E is incomplete     | Production refund/operations risk      | Merchant E2E, refund adapter, settlement runbook                     |
-| TD-007 | Forecast heuristic lacks production calibration                     | Confidence may not reflect real error  | Measure prediction error before model upgrades                       |
-| TD-008 | Google travel adapter needs production privacy/quota acceptance     | Cost, consent, and estimate risk       | Legal review, restricted key, staged calibration                     |
-| TD-009 | Some OpenAPI operations use generic request/response schemas        | Generated clients have weaker typing   | Incrementally model detailed component schemas                       |
-| TD-011 | Metrics reset per process and `/metrics` is public in app           | Weak operations/security               | Scrape/protect endpoint and expand metrics                           |
-| TD-012 | Native Japanese/legal copy review is pending                        | Customer wording may be unsuitable     | Native review before external production launch                      |
-| TD-013 | Media object inventory/reconciliation is operational, not automated | Orphans can consume storage            | Review provider inventory against `media_assets` with a grace period |
+| ID     | Issue                                                               | Impact                                  | Planned control                                                      |
+| ------ | ------------------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------- |
+| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places      | Incorrect assumptions/contracts         | Align shared types and add serialization tests                       |
+| TD-002 | Notification operations retention is policy-driven, not automated   | Old terminal delivery rows require care | Add reviewed archival after legal and operational retention approval |
+| TD-003 | Inventory lifecycle needs production load validation                | Rare race behavior may be undiscovered  | Staged concurrent integration/load tests                             |
+| TD-004 | payOS collection exists but settlement/refund E2E is incomplete     | Production refund/operations risk       | Merchant E2E, refund adapter, settlement runbook                     |
+| TD-007 | Forecast heuristic lacks production calibration                     | Confidence may not reflect real error   | Measure prediction error before model upgrades                       |
+| TD-008 | Google travel adapter needs production privacy/quota acceptance     | Cost, consent, and estimate risk        | Legal review, restricted key, staged calibration                     |
+| TD-009 | Some OpenAPI operations use generic request/response schemas        | Generated clients have weaker typing    | Incrementally model detailed component schemas                       |
+| TD-011 | Metrics reset per process and `/metrics` is public in app           | Weak operations/security                | Scrape/protect endpoint and expand metrics                           |
+| TD-012 | Native Japanese/legal copy review is pending                        | Customer wording may be unsuitable      | Native review before external production launch                      |
+| TD-013 | Media object inventory/reconciliation is operational, not automated | Orphans can consume storage             | Review provider inventory against `media_assets` with a grace period |
 
 ## 3. Decision record format
 
@@ -638,3 +638,26 @@ safe degradation, not a production capacity claim. Production replica counts mus
 database connection budget and staging soak/load evidence. The validation stack must never receive
 production credentials or data, and it remains a manual engineering gate rather than a mandatory
 Docker failure-injection step on every CI run.
+
+## ADR-037: Production-oriented payment architecture uses an explicit demo runtime
+
+**Status:** accepted (2026-08-11)
+
+**Context:** TASK-PROD-002 established a server-authoritative PSP adapter, webhook, reconciliation,
+and refund architecture. The current deployment is a production-oriented demonstration and has no
+merchant account or approved real-money provider environment. Treating missing payOS credentials as
+a fault in demo mode would misrepresent the intended deployment and encourage unsafe placeholder
+secrets.
+
+**Decision:** Keep `PAYMENT_MODE` as the single backend activation boundary. `demo` always selects
+`DemoPaymentProvider`, performs no real PSP call, and is healthy without `PAYOS_*`. `external`
+disables demo completion and requires the complete payOS credential set during configuration load.
+Payment status remains derived only from signed server/provider evidence; the browser return path
+cannot declare `paid` or `refunded`. Preserve the payOS adapter and provider-neutral refund,
+idempotency, audit, and reconciliation boundaries for future activation.
+
+**Consequences:** The current deployment processes no real money and needs no merchant credentials.
+Real merchant onboarding, commercial/legal approval, production credentials, provider-side
+real-money payment/refund acceptance, settlement, and operational reconciliation remain deferred
+external gates. Enabling external mode is an explicit release action and fails safely when
+configuration is incomplete.

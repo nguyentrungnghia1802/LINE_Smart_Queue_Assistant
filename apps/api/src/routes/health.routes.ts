@@ -42,6 +42,17 @@ healthRouter.get('/health', async (_req, res) => {
       jobs: dbStatus === 'connected' ? await schedulerHealth().catch(() => []) : [],
     },
     notificationService: notificationConfigured ? 'configured' : 'not_configured',
+    paymentService: {
+      mode: config.payments.mode,
+      activeProvider: config.payments.mode === 'demo' ? 'demo' : 'payos',
+      realPspConfigured:
+        config.payments.mode === 'external' &&
+        Boolean(
+          config.payments.payos.clientId &&
+          config.payments.payos.apiKey &&
+          config.payments.payos.checksumKey
+        ),
+    },
   });
 });
 

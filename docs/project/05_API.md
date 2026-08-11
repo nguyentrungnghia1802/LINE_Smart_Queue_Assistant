@@ -350,6 +350,12 @@ amount/coverage. Demo mode returns a `demoToken`; the browser must send it to
 Its signed webhook is authoritative and updates the same transaction, item, and order state
 machine. Browser return URLs are constrained to the trusted web origin and remain a UX signal only.
 
+The current deployment uses `PAYMENT_MODE=demo`. The provider registry resolves every intent to
+`DemoPaymentProvider`, does not call payOS, and accepts only signed demo completion. payOS
+credentials are optional and ignored in this mode. Enabling `PAYMENT_MODE=external` disables demo
+completion and requires the complete backend-only payOS credential set during API startup; an
+incomplete external configuration fails before the API serves traffic.
+
 Manual payment updates use `PATCH /api/v1/orders/:id/payment` with `paymentStatus: paid | refunded`, optional refund `amount` and `reason`, and an `Idempotency-Key` header. Every accepted operation writes an audited reconciliation row. For a legacy paid order without a transaction, the refund path first backfills a server-side manual transaction with covered order products and records a separate reconciliation operation. Branch-manager reconciliation verifies both organization and branch from the linked order or server-created intent metadata. `GET /api/v1/orders/:id/receipt` is assigned-staff/branch-manager only and returns receipt source data only for a completed, fully paid order.
 
 Customer and operator cancellation paths automatically refund all remaining collected amounts for
@@ -431,13 +437,13 @@ Platform Admin and Organization Owner do not have access to notification operati
 
 ### Health, docs, and metrics
 
-| Method | Path             | Access                 | Purpose                                                 |
-| ------ | ---------------- | ---------------------- | ------------------------------------------------------- |
-| GET    | `/health`        | Public probe           | Process, DB, scheduler, LINE configuration summary      |
-| GET    | `/ready`         | Public probe           | DB readiness                                            |
-| GET    | `/metrics`       | Public in current code | Prometheus text metrics; protect at infrastructure edge |
-| GET    | `/api/docs`      | Non-production         | Swagger UI                                              |
-| GET    | `/api/docs.json` | Non-production         | Raw Swagger JSON                                        |
+| Method | Path             | Access                 | Purpose                                                        |
+| ------ | ---------------- | ---------------------- | -------------------------------------------------------------- |
+| GET    | `/health`        | Public probe           | Process, DB, scheduler, LINE, and safe payment runtime summary |
+| GET    | `/ready`         | Public probe           | DB readiness                                                   |
+| GET    | `/metrics`       | Public in current code | Prometheus text metrics; protect at infrastructure edge        |
+| GET    | `/api/docs`      | Non-production         | Swagger UI                                                     |
+| GET    | `/api/docs.json` | Non-production         | Raw Swagger JSON                                               |
 
 ## 5. Idempotency, rate limits, and pagination
 

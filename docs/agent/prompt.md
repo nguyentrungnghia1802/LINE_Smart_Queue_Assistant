@@ -3,7 +3,7 @@
 ## Task tiếp theo
 
 ```text
-Tuân thủ AGENTS.md. Tôi có các yêu cầu sau:
+Tuân thủ docs\agent\AGENTS.md. Tôi có các yêu cầu sau:
 
 Đọc `docs/agent/tasks/task.md` và thực hiện duy nhất 1 task chưa đánh dấu hoàn thành, không Deferred tiếp theo.
 
@@ -16,7 +16,7 @@ Không commit/merge/push.
 ## Resume task dang dở
 
 ```text
-Tuân thủ AGENTS.md. Tôi có các yêu cầu sau:
+Tuân thủ docs\agent\AGENTS.md. Tôi có các yêu cầu sau:
 
 Đọc `docs/agent/tasks/task.md` và tiếp tục task đang dang dở.
 
@@ -26,13 +26,13 @@ Không làm lại phần đã đúng và không chuyển sang task tiếp theo.
 
 Hoàn thành task, tests, canonical docs, task status và validation.
 
-Không commit/merge/push.
+Sau khi hoàn thành hãy commit/merge/push.
 ```
 
 ## Finalize Git
 
 ```text
-Tuân thủ workflow Git/Remote Finalization trong AGENTS.md.
+Tuân thủ workflow Git/Remote Finalization trong docs\agent\AGENTS.md.
 
 Validate công việc hiện tại, commit, merge an toàn vào `chore/dev`, push `chore/dev`, merge vào `main`, push `main`, xác minh remote, sau đó xoá các branch task đã hoàn thành và đã merge an toàn ở cả local/remote.
 
@@ -46,7 +46,7 @@ Báo cáo trạng thái Git cuối cùng.
 ## Build + push Docker
 
 ```text
-Tuân thủ AGENTS.md. Tôi có các yêu cầu sau:
+Tuân thủ docs\agent\AGENTS.md. Tôi có các yêu cầu sau:
 
 Kiểm tra Docker/Compose/CI/deployment configuration và revision hiện tại.
 
@@ -60,7 +60,7 @@ Báo cáo đầy đủ image và tag đã push.
 ## Task riêng
 
 ```text
-Tuân thủ AGENTS.md. Tôi có các yêu cầu sau:
+Tuân thủ docs\agent\AGENTS.md. Tôi có các yêu cầu sau:
 
 <MÔ TẢ YÊU CẦU>
 

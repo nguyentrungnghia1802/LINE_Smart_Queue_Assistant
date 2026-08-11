@@ -355,6 +355,13 @@ npm run e2e:all
 `LINE_ID_TOKEN_VERIFICATION_MODE=mock` is an explicit local/CI setting and is
 rejected when `NODE_ENV=production`. Browser E2E never contacts LINE or a PSP.
 
+Payment configuration tests must prove both sides of the runtime boundary. `PAYMENT_MODE=demo`
+must start without `PAYOS_*`, select only `DemoPaymentProvider`, and keep signed completion,
+duplicate callback, refund, and order-authority tests green. `PAYMENT_MODE=external` must fail
+configuration loading when any required payOS credential is absent. Do not add placeholder PSP
+credentials to CI to bypass this check. The customer booking Playwright scenario is the current
+end-to-end demo-payment acceptance path and does not prove merchant or real-money acceptance.
+
 Keep `OTEL_SDK_DISABLED=true` and Sentry DSNs empty in local/CI unless a test collector/project is
 intentionally available. Targeted observability tests cover backend/browser sanitization,
 fail-open capture, no-exporter spans, and BullMQ trace-carrier compatibility. In staging, verify
@@ -445,7 +452,9 @@ Use a PNG/JPEG asset prepared for Rich Menu and rerun `npm run line:rich-menu:sy
 
 ### Payment always succeeds
 
-Expected when `VITE_PAYMENT_MODE=demo` or no external redirect base is configured. This is not a production payment proof.
+Expected when both frontend and API are explicitly configured for demo. Completion still requires
+the API-issued signed token and server transaction state; browser state is not payment authority.
+This is a production-oriented demonstration, not proof of real-money PSP acceptance.
 
 ## 12. Definition of done
 

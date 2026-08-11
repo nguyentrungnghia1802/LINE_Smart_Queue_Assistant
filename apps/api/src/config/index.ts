@@ -7,12 +7,65 @@ if (!process.env.JEST_WORKER_ID) {
   dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 }
 
-function positiveInteger(name: string, fallback: number): number {
-  const value = Number.parseInt(process.env[name] ?? String(fallback), 10);
+function positiveInteger(
+  name: string,
+  fallback: number,
+  environment: NodeJS.ProcessEnv = process.env
+): number {
+  const value = Number.parseInt(environment[name] ?? String(fallback), 10);
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer`);
   }
   return value;
+}
+
+export type PaymentRuntimeMode = 'demo' | 'external';
+
+export interface PaymentRuntimeConfiguration {
+  mode: PaymentRuntimeMode;
+  demoWebhookSecret: string;
+  externalRedirectBaseUrl: string;
+  maxWebhookAgeSeconds: number;
+  payos: {
+    clientId: string;
+    apiKey: string;
+    checksumKey: string;
+  };
+}
+
+export function resolvePaymentConfiguration(
+  environment: NodeJS.ProcessEnv = process.env
+): PaymentRuntimeConfiguration {
+  const rawMode = (environment.PAYMENT_MODE ?? 'demo').trim().toLowerCase();
+  if (rawMode !== 'demo' && rawMode !== 'external') {
+    throw new Error('PAYMENT_MODE must be demo or external');
+  }
+
+  const payos = {
+    clientId: environment.PAYOS_CLIENT_ID?.trim() ?? '',
+    apiKey: environment.PAYOS_API_KEY?.trim() ?? '',
+    checksumKey: environment.PAYOS_CHECKSUM_KEY?.trim() ?? '',
+  };
+
+  if (rawMode === 'external') {
+    const missing = [
+      !payos.clientId && 'PAYOS_CLIENT_ID',
+      !payos.apiKey && 'PAYOS_API_KEY',
+      !payos.checksumKey && 'PAYOS_CHECKSUM_KEY',
+    ].filter(Boolean);
+    if (missing.length > 0) {
+      throw new Error(`${missing.join(', ')} must be set when PAYMENT_MODE=external`);
+    }
+  }
+
+  return {
+    mode: rawMode,
+    demoWebhookSecret:
+      environment.DEMO_PAYMENT_WEBHOOK_SECRET ?? environment.JWT_SECRET ?? 'demo-payment-secret',
+    externalRedirectBaseUrl: environment.PAYMENT_EXTERNAL_REDIRECT_BASE_URL?.trim() ?? '',
+    maxWebhookAgeSeconds: positiveInteger('PAYMENT_WEBHOOK_MAX_AGE_SECONDS', 300, environment),
+    payos,
+  };
 }
 
 function optionalRedisUrl(): string {
@@ -110,6 +163,7 @@ function s3PublicBaseUrl(provider: MediaStorageProvider): string {
 const configuredMediaStorageProvider = mediaStorageProvider();
 const configuredNodeEnv = (process.env.NODE_ENV ?? 'development') as
   'development' | 'production' | 'test';
+const configuredPayments = resolvePaymentConfiguration();
 
 export const config = {
   nodeEnv: configuredNodeEnv,
@@ -267,18 +321,7 @@ export const config = {
     ),
   },
 
-  payments: {
-    mode: (process.env.PAYMENT_MODE ?? 'demo') as 'demo' | 'external',
-    demoWebhookSecret:
-      process.env.DEMO_PAYMENT_WEBHOOK_SECRET ?? process.env.JWT_SECRET ?? 'demo-payment-secret',
-    externalRedirectBaseUrl: process.env.PAYMENT_EXTERNAL_REDIRECT_BASE_URL ?? '',
-    maxWebhookAgeSeconds: Number.parseInt(process.env.PAYMENT_WEBHOOK_MAX_AGE_SECONDS ?? '300', 10),
-    payos: {
-      clientId: process.env.PAYOS_CLIENT_ID ?? '',
-      apiKey: process.env.PAYOS_API_KEY ?? '',
-      checksumKey: process.env.PAYOS_CHECKSUM_KEY ?? '',
-    },
-  },
+  payments: configuredPayments,
 
   inventory: {
     reservationTtlMinutes: Number.parseInt(

@@ -400,6 +400,13 @@ export const paymentsService = {
   },
 
   async completeDemoPayment(transactionId: string, demoToken: string) {
+    if (config.payments.mode !== 'demo') {
+      throw new AppError(
+        'Demo payment is disabled when PAYMENT_MODE=external',
+        409,
+        'PAYMENT_PROVIDER_DISABLED'
+      );
+    }
     const transaction = await paymentTransactionsRepository.findById(transactionId);
     if (!transaction) throw AppError.notFound('Payment transaction');
     if (transaction.provider !== 'demo') throw AppError.badRequest('Payment provider is not demo');
@@ -431,6 +438,13 @@ export const paymentsService = {
     rawBody: Buffer,
     headers: IncomingHttpHeaders
   ) {
+    if (config.payments.mode === 'demo' && providerId !== 'demo') {
+      throw new AppError(
+        'External payment webhooks are disabled when PAYMENT_MODE=demo',
+        409,
+        'PAYMENT_PROVIDER_DISABLED'
+      );
+    }
     const provider = getPaymentProvider(providerId);
     const signatureValid = provider.verifyWebhookSignature(rawBody, headers);
     if (!signatureValid) throw AppError.unauthorized('Invalid payment webhook signature');

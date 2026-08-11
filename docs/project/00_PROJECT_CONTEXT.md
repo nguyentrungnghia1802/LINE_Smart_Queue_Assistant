@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-08-09 at TASK-11 completion.
+Last verified against the repository on 2026-08-11 after the TASK-PROD-002 runtime correction.
 
 ## 1. Problem
 
@@ -29,7 +29,8 @@ Physical queues make customers wait near a counter with little visibility. Busin
 
 ## 4. Current system status
 
-The project is a working local/demo modular monolith, not yet a production-complete payment or notification platform.
+The project is a production-oriented demo modular monolith, not yet a production-accepted
+real-money payment or notification platform.
 
 | Area                      | Status                                              | Meaning                                                                                                                                                                                                                                                                                                 |
 | ------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -37,7 +38,7 @@ The project is a working local/demo modular monolith, not yet a production-compl
 | Catalog and QR booking    | Implemented                                         | One stable QR per branch, customer queue selection, queue-specific products/services, stock display, quantity selection, and LIFF-first booking                                                                                                                                                         |
 | Queue and staff operation | Implemented                                         | Ticket lifecycle, staff board, call/serve/complete/no-show/cancel                                                                                                                                                                                                                                       |
 | Orders and inventory      | Operational lifecycle implemented                   | Atomic reserve/decrement, consume on fulfillment, release/restore on cancellation or no-show, expiry worker, transition history, and idempotent guarded transitions                                                                                                                                     |
-| Payment                   | Phase 6 foundation implemented                      | Server-created payment intents, demo provider, signed demo completion, provider abstraction, payment state machine, webhook idempotency log, and reconciliation exist; no real PSP account is connected yet                                                                                             |
+| Payment                   | Production-oriented demo active                     | Demo Payment Provider is active and moves no real money; server-created intents, signed completion, provider abstraction, payOS adapter, state machine, webhook idempotency, reconciliation, and audited refund boundaries are retained for future external activation                                  |
 | LINE                      | Customer login deployed; message acceptance partial | LIFF login verifies ID tokens, customer booking requires linked LINE identity, webhook events are signature-checked, lifecycle push uses the durable PostgreSQL outbox with Flex/text fallback, and Rich Menu/LIFF Home code exists; full notification and Rich Menu physical-device acceptance remains |
 | Location alerts           | Provider-ready flow implemented                     | Explicit verified-user consent, active-ticket snapshots, Google Routes walking adapter, durable LINE enqueue, retry state, configurable retention and deletion exist; restricted production credentials and provider acceptance remain pending                                                          |
 | Booking history           | Implemented                                         | Authenticated server-side group history is paginated across devices; customers and tenant staff can inspect independent orders/tickets without merging payment, cancellation, or receipt state                                                                                                          |
@@ -70,7 +71,9 @@ The project is a working local/demo modular monolith, not yet a production-compl
   three-slot absence deferral, ETA configuration, and branches that can start without a queue.
 - Atomic order, queue-entry, order-item, payment-transaction, inventory-reservation, and optional location writes.
 - Per-item payment status and full-order payment status for required-only or all-item checkout.
-- Server-side payment intent boundary with demo provider, localized payment method UI, webhook callback, return status, and reconciliation hooks.
+- Server-side payment intent boundary with the Demo Payment Provider active, localized payment
+  method UI, signed demo completion, return status, and reconciliation hooks. Demo mode requires
+  no real PSP credentials and makes no real PSP call.
 - Staff order details with booking name, telephone, verified LINE display name, item images, manual payment/status controls, queue actions, and receipt printing.
 - Staff product cards open a read-only detail dialog with a prominent, accessible close control.
 - Customer ticket and Staff queue views share a centralized authenticated SSE client. Events only
@@ -81,8 +84,10 @@ The project is a working local/demo modular monolith, not yet a production-compl
   that contain a verified linked LINE user ID.
 - Centralized Japanese, Vietnamese, and English LINE Flex Message and text fallback templates for ticket lifecycle notifications, with Japanese as the final locale fallback.
 - Durable LINE notification outbox/delivery log in PostgreSQL with unique event keys, worker claim, retry/backoff, sent/failed state, and mock-mode delivery.
-- Tenant-scoped LINE notification operations center for safe diagnosis, sanitized failure categories,
-  audited retry of recoverable failures, and cancellation of obsolete pending deliveries.
+- Tenant-scoped LINE notification operations center for Branch Managers and assigned Staff, with
+  safe diagnosis, sanitized failure categories, audited retry of recoverable failures, and
+  Branch-Manager-only cancellation of obsolete pending deliveries. Platform Admin and Organization
+  Owner do not receive tenant operational access.
 - LINE notification ticket deeplinks that open `/liff/tickets/:entryId`.
 - LIFF Home at `/liff/home` as the common customer entry point from Rich Menu, including active-ticket resolution, ticket opening, booking start, and localized empty states.
 - Central Rich Menu definition for `ホーム`, `予約する`, `現在の受付`, and `利用案内`, plus an explicit idempotent `npm run line:rich-menu:sync` command with mock mode.
@@ -102,9 +107,10 @@ The project is a working local/demo modular monolith, not yet a production-compl
 
 ## 6. Incomplete features
 
-- payOS VND collection has signed requests, hosted/QR checkout, and callback verification.
-  Merchant credential acceptance, settlement operations, and provider-side refund execution remain
-  incomplete; Japan PSP selection also remains open.
+- payOS VND collection code retains signed requests, hosted/QR checkout, and callback verification,
+  but it is inactive in the current demo runtime. Merchant onboarding, provider production
+  credentials, real-money payment/refund acceptance, settlement/reconciliation operations, and
+  Japan PSP selection remain external launch gates.
 - LINE operator APIs and customer preferences are implemented; production Rich Menu asset/E2E verification, an operator dashboard, and multi-organization channel configuration remain pending.
 - Location alerts support deterministic mock travel time and a Google Routes walking adapter.
   Restricted provider credentials, quota monitoring, privacy/legal review, and physical-device E2E

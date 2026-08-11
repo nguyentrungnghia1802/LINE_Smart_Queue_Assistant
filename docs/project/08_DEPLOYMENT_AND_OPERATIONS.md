@@ -122,6 +122,21 @@ Browser-visible configuration:
 - `VITE_LIFF_DEFAULT_BOOKING_PATH`
 - payment mode/redirect base URL and webhook timing limits (identifiers/URLs only, never keys)
 
+### Payment runtime
+
+The current deployment is intentionally a production-oriented demo. Keep API
+`PAYMENT_MODE=demo` and Web `VITE_PAYMENT_MODE=demo`. This activates `DemoPaymentProvider`, moves
+no real money, requires no `PAYOS_*` value, and makes no payOS request. `/health` reports
+`paymentService.mode=demo`, `activeProvider=demo`, and `realPspConfigured=false` without degrading
+overall health.
+
+Do not place placeholder merchant credentials in deployment files. External activation is a
+separate release decision after merchant onboarding and legal/commercial acceptance. It requires
+`PAYMENT_MODE=external`, all three backend-only `PAYOS_*` values, an aligned external Web build,
+provider webhook configuration, and sandbox/production acceptance. The API fails startup if the
+external credential set is incomplete. Browser return state never marks a transaction paid or
+refunded.
+
 For production web builds, keep `VITE_API_URL` empty, set `VITE_LIFF_ENDPOINT_PATH=/liff`, provide
 a real `VITE_LIFF_ID`, and keep `VITE_LIFF_DEFAULT_BOOKING_PATH` empty for multi-organization
 deployments. Frontend request
@@ -134,7 +149,7 @@ Rotate any credential that has appeared in Git history, logs, screenshots, ticke
 
 ### payOS and Google Maps
 
-To enable real VND checkout, set `PAYMENT_MODE=external`, configure
+To enable real VND checkout after external acceptance, set `PAYMENT_MODE=external`, configure
 `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, and `PAYOS_CHECKSUM_KEY`, and configure the payOS webhook as
 `https://<web-origin>/api/v1/payments/webhooks/payos`. Branch payment settings must use provider
 `payos` and currency `VND`. These values are backend secrets and must never be exposed through
@@ -495,8 +510,10 @@ Remove instance from readiness, inspect credentials/network/storage/connections,
 
 Check linked `line_user_id`, Official Account relationship, access token, channel pairing, `/health`, API logs/metrics, recipient block status, and device notification settings. Inspect the `notifications` outbox rows for the ticket: `pending` means waiting for the worker, `processing` means claimed, `sent` means delivery succeeded, and `failed` means retry limit was reached. Errors are sanitized; do not paste access tokens into tickets/logs.
 
-Use **LINE delivery** in the Admin or Manager navigation before querying PostgreSQL. Filter by
-status/event/time and tenant or branch as permitted, then open the row detail. Failure categories
+Use **LINE delivery** in the Branch Manager or Staff navigation before querying PostgreSQL. Branch
+Managers see their assigned branch and Staff see only their assigned queue; platform Admin and
+Organization Owner are intentionally denied. Filter by status/event/time, then open the row
+detail. Failure categories
 `timeout`, `rate_limited`, `provider_5xx`, `network`, and `unknown` may be manually retried after the
 provider or network has recovered. `blocked_recipient`, `invalid_recipient`, and `provider_4xx` are
 permanent until the recipient/account/configuration is corrected and cannot be manually retried.

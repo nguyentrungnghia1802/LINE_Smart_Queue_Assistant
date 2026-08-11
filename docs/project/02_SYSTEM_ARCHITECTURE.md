@@ -48,7 +48,7 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 | `postgres`        | PostgreSQL 16                               | Tenant, identity, queue, order, inventory, payment, notification, audit, forecast data |
 | `redis`           | Redis 7.4                                   | Rate limits, public read caches, transient Pub/Sub, and BullMQ orchestration           |
 | LINE platform     | LINE Login/LIFF and Messaging API           | Customer identity and chat delivery                                                    |
-| Payment provider  | Demo adapter or payOS                       | Hosted/payment redirect, QR payload, and authoritative webhook                         |
+| Payment provider  | Demo active; payOS adapter retained         | Server-authoritative demo completion or explicitly enabled hosted/QR PSP webhook       |
 
 Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In production-style web images, nginx serves the built SPA and reverse-proxies `/api/*` and local-provider `/media/*` to the internal `api:4000` service without stripping either prefix. S3-compatible media records return a stable absolute public/CDN URL and do not depend on the API filesystem or `/media` proxy. The Vite development server proxies these same prefixes to the local API, keeping local media URLs working at `localhost:5173`. Production API requests use an empty `VITE_API_URL` because service paths already include `/api/v1`.
 
@@ -129,7 +129,9 @@ The API entry is `apps/api/src/server.ts`; `app.ts` composes middleware, health 
 | `notifications`     | Durable LINE outbox, templates, delivery, and operations       |
 
 Notification operations preserve the outbox boundary: read models join tickets/queues/branches for
-server-derived scope, while manual retry updates the same event-key row and schedules a new
+server-derived scope. Branch Managers are pinned to their single active branch, Staff are pinned to
+their assigned queue, and platform Admin/Organization Owner are rejected. Manual retry updates the
+same event-key row and schedules a new
 deterministic dispatch generation. Cancellation is permitted only for pending delivery rows whose
 ticket is terminal. Neither operation calls LINE inside the request transaction or mutates queue/order state.
 | `observability` | OTel/Sentry lifecycle, safe spans, correlation, and sanitization |
@@ -312,9 +314,16 @@ both owners for LINE delivery.
 `apps/api/src/modules/payments` owns the payment boundary. The API creates `payment_transactions`
 before checkout, computes payable coverage from server-side product data, and exposes provider
 adapters through `ExternalPaymentProvider`. `DemoPaymentProvider` returns a server-signed
-completion token for local/dev auto-success. `PayosPaymentProvider` creates VND checkout links and
+completion token for the current production-oriented demonstration runtime. It moves no real money,
+requires no payOS merchant credentials, and cannot call the payOS transport. `PayosPaymentProvider`
+creates VND checkout links and
 QR payloads and verifies signed webhooks; future Japan PSP adapters plug into the same intent,
 return, webhook, and reconciliation flow.
+
+`PAYMENT_MODE` is the single backend activation boundary. `demo` always selects the demo adapter,
+rejects external webhooks, and remains a healthy configured state without `PAYOS_*`. `external`
+disables demo completion and requires the full payOS credential set during startup. The safe health
+projection exposes only mode, active provider, and a credential-completeness boolean.
 
 Production target:
 
