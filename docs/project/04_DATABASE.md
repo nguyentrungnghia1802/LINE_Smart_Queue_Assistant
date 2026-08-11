@@ -203,7 +203,9 @@ An insufficient-stock update affects zero rows, raises a conflict, and rolls bac
 - LINE user creation and account linking use one transaction.
 - Organization application approval locks the application and creates the organization, initial
   manager, membership, and reviewed state in one transaction.
-- Queue join counter, entry creation, and booking-created notification outbox enqueue use one transaction.
+- Queue join locks the queue row, rechecks the verified actor's active ticket, enforces capacity,
+  increments the counter, creates the entry, and enqueues the booking-created notification in one
+  transaction. The post-lock recheck makes simultaneous retries for the same actor idempotent.
 - Queue/order lifecycle transitions that produce customer LINE notifications write the state change and outbox row in the same transaction. External LINE API delivery happens only after commit through the worker.
 - Customer/operator cancellation locks the order and refundable payment transactions, records
   idempotent reconciliation operations, updates transaction/item/order refund summaries, releases

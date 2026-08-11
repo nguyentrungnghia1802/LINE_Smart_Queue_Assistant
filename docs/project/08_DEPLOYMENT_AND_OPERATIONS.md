@@ -427,6 +427,28 @@ replica; PostgreSQL loss makes `/ready` return `503`; restored dependencies reco
 reset. LINE timeout/429/5xx, S3 timeout/credential/upload/delete failures, and telemetry/Sentry
 outages are covered by deterministic adapter tests. Do not inject these failures into production.
 
+Recovery procedure for the validated topology:
+
+1. Record `/health`, `/ready`, worker heartbeat, outbox backlog/oldest age, and sanitized logs before
+   restarting anything. Never reset PostgreSQL to recover an optional dependency.
+2. Restore Redis first when cache, Pub/Sub, shared rate limits, and BullMQ are all degraded. API
+   domain reads/writes remain PostgreSQL-authoritative; expect temporary per-instance limits and
+   REST polling while Redis is unavailable.
+3. Restore the dedicated worker after Redis is healthy. Pending PostgreSQL outbox rows are
+   redispatched with deterministic job IDs; confirm backlog age falls and rows become `sent`.
+4. Restart API replicas one at a time behind the gateway. Existing refresh sessions and committed
+   queue/order state survive because they are stored in PostgreSQL. Confirm `/ready` and one
+   authenticated REST read before restarting the next replica.
+5. After SSE reconnect, force an authoritative REST refetch. Never replay a staff/customer command
+   merely because an event was missed; use its stable idempotency key or current domain state.
+6. For PostgreSQL interruption, keep instances out of readiness until the database is healthy.
+   Resume writes only after migration status and queue/order/payment/inventory consistency checks.
+
+On 2026-08-11 the isolated two-API validation passed Redis stop/start, worker backlog recovery,
+cross-replica SSE, one-API restart, PostgreSQL stop/start, distributed rate limiting, cache loss,
+and 160 public reads with zero errors. The rehearsal also verified that its Docker/psql command
+arguments are preserved on Windows; this is recovery evidence, not a production capacity claim.
+
 ## 6. Scheduled jobs operations
 
 LINE notification delivery is the only BullMQ-owned workload. The dedicated worker registers the

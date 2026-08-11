@@ -52,14 +52,15 @@ function formatTicketCode(prefix: string, ticketNumber: number): string {
 async function findActiveEntry(
   userId: string | undefined,
   lineUserId: string | undefined,
-  queueId: string
+  queueId: string,
+  client?: PoolClient
 ) {
   if (userId) {
-    const byUser = await queueEntriesRepository.findActiveByUser(userId, queueId);
+    const byUser = await queueEntriesRepository.findActiveByUser(userId, queueId, client);
     if (byUser) return byUser;
   }
   if (lineUserId) {
-    return queueEntriesRepository.findActiveByLineUser(lineUserId, queueId);
+    return queueEntriesRepository.findActiveByLineUser(lineUserId, queueId, client);
   }
   return null;
 }
@@ -169,10 +170,9 @@ export const queueService = {
    * the transaction. PostgreSQL's implicit row-level lock on the updated row
    * serialises concurrent joins, guaranteeing unique ticket numbers.
    *
-   * **Capacity check** is optimistic (evaluated before the transaction).
-   * Under extreme concurrency the queue could momentarily exceed `max_capacity`
-   * by a small margin. Acceptable for MVP; add `SELECT … FOR UPDATE` inside
-   * the transaction for strict enforcement.
+   * The queue row lock serialises the active-ticket recheck, capacity check,
+   * counter increment and insert. This prevents duplicate active tickets for
+   * the same verified actor and enforces `max_capacity` under concurrency.
    */
   async joinQueue(
     dto: JoinQueueDto & { userId?: string; lineUserId?: string }
@@ -221,6 +221,19 @@ export const queueService = {
       if (!lockedQueue || lockedQueue.status !== 'open') {
         throw AppError.conflict('Queue is not accepting entries');
       }
+      const concurrentExisting = await findActiveEntry(userId, lineUserId, queueId, client);
+      if (concurrentExisting) {
+        const aheadCount = await getWaitingPositionInTransaction(client, concurrentExisting);
+        return {
+          entry: concurrentExisting,
+          aheadCount,
+          estimatedWaitSeconds: etaService.calculate({
+            aheadCount,
+            avgServiceSeconds: lockedQueue.avg_service_seconds,
+          }).estimatedWaitSeconds,
+          isExisting: true as const,
+        };
+      }
       if (lockedQueue.max_capacity !== null) {
         const activeCount = await queuesRepository.countWaiting(queueId, client);
         if (activeCount >= lockedQueue.max_capacity) {
@@ -267,8 +280,10 @@ export const queueService = {
         autoCalled,
         aheadCount: autoCalled?.id === entry.id ? 0 : aheadCount,
         estimatedWaitSeconds: autoCalled?.id === entry.id ? 0 : estimatedWaitSeconds,
+        isExisting: false as const,
       };
     });
+    if (created.isExisting) return created;
     await invalidateQueueReadModels(queue);
     await publishQueueMutation(queue, 'ticket_created', [
       { name: 'ticket.created', entry: created.createdEntry, aheadCount: created.aheadCount },

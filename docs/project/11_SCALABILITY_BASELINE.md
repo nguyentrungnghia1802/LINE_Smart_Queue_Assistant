@@ -280,6 +280,15 @@ The same run established these failure/recovery facts:
 | S3 timeout/credentials/upload/delete | Media action fails safely; existing metadata/object behavior is explicit | No domain authorization bypass; retry/reconciliation path retained  | Adapter errors/metrics; fix credentials/provider     |
 | OTel/Sentry outage                   | No customer/staff business interruption                                  | Fail-open instrumentation; domain transaction unchanged             | Local logs, exporter/Sentry diagnostics              |
 
+TASK-PROD-004 repeated the isolated recovery rehearsal on 2026-08-11 after adding a post-lock
+active-ticket recheck for direct queue joins. All topology checks passed: both API replicas served
+authenticated traffic; 160 public reads at concurrency 10 returned `200` with zero errors; Redis
+stop/start preserved public and authenticated reads; a pending LINE row became `sent` after worker
+startup; cross-replica SSE delivered the tested transition; API restart recovered REST with `200`;
+and PostgreSQL interruption produced readiness `503` before recovery. The harness now executes
+Docker directly rather than through a platform shell, preserving `psql -tAc` SQL arguments on both
+Windows and Linux. These results verify recovery behavior only and do not revise capacity limits.
+
 The run observed two PostgreSQL connections with no waiting clients after recovery; API pools were
 capped at five per process. API memory snapshots were about 89.77 MiB and 57.35 MiB, worker memory
 59.55 MiB; CPU snapshots were below 0.1% for APIs and the active worker. The oldest

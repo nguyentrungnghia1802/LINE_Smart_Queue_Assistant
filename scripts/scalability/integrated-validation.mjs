@@ -1,6 +1,6 @@
+import { spawnSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { runLoadTest } from './http-load.mjs';
@@ -21,7 +21,6 @@ function run(command, args, options = {}) {
     cwd: root,
     encoding: 'utf8',
     env: { ...process.env, ...options.env },
-    shell: process.platform === 'win32',
     stdio: options.capture ? 'pipe' : 'inherit',
   });
   if (result.status !== 0 && !options.allowFailure) {

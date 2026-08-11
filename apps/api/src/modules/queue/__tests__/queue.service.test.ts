@@ -286,6 +286,30 @@ describe('queueService.joinQueue', () => {
     expect(mockCreateEntry).not.toHaveBeenCalled();
   });
 
+  it('rechecks the active ticket after locking the queue to make concurrent joins idempotent', async () => {
+    mockFindQueueById.mockResolvedValue(openQueue);
+    mockFindActiveByUser.mockResolvedValueOnce(null).mockResolvedValueOnce(waitingEntry);
+    mockGetWaitingPosition.mockResolvedValue(1);
+    mockTx();
+
+    const result = await queueService.joinQueue({
+      queueId: QUEUE_ID,
+      userId: USER_ID,
+    });
+
+    expect(result).toMatchObject({
+      entry: waitingEntry,
+      aheadCount: 2,
+      estimatedWaitSeconds: 2 * openQueue.avg_service_seconds,
+      isExisting: true,
+    });
+    expect(mockFindActiveByUser).toHaveBeenNthCalledWith(2, USER_ID, QUEUE_ID, expect.anything());
+    expect(mockIncrementCounter).not.toHaveBeenCalled();
+    expect(mockCreateEntry).not.toHaveBeenCalled();
+    expect(mockQueueNotificationService.notifyBookingCreated).not.toHaveBeenCalled();
+    expect(publicReadModelCache.invalidateQueue).not.toHaveBeenCalled();
+  });
+
   it('throws 404 when the queue does not exist', async () => {
     mockFindQueueById.mockResolvedValue(null);
 

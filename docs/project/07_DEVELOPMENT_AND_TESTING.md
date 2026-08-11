@@ -328,6 +328,8 @@ Critical regression scenarios:
 - Finite stock race/rollback and unlimited stock behavior.
 - Cross-organization access attempts for every staff/manager command.
 - Ticket transition races and duplicate call-next requests.
+- Concurrent direct queue joins recheck active ownership after acquiring the queue lock; the losing
+  request reuses the committed ticket and cannot increment the counter or enqueue a duplicate event.
 - LINE token absent, success, failure, duplicate dispatch/job/worker execution, crash before/after
   enqueue, Redis outage, provider timeout/429/5xx/4xx, exhausted retry, multi-worker scheduler
   idempotency, and process restart/backlog semantics.
@@ -354,6 +356,11 @@ npm run e2e:all
 
 `LINE_ID_TOKEN_VERIFICATION_MODE=mock` is an explicit local/CI setting and is
 rejected when `NODE_ENV=production`. Browser E2E never contacts LINE or a PSP.
+
+`npm run scale:validate` is intentionally cross-platform and invokes Docker without an intermediary
+shell so SQL passed through `docker compose exec ... psql -tAc` remains one argument on Windows and
+Linux. A successful run is the recovery acceptance gate; do not infer success from container startup
+alone. The generated `var/scalability/task-11-report.json` must show every check as `passed`.
 
 Payment configuration tests must prove both sides of the runtime boundary. `PAYMENT_MODE=demo`
 must start without `PAYOS_*`, select only `DemoPaymentProvider`, and keep signed completion,

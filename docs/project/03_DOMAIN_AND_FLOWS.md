@@ -278,6 +278,13 @@ API returns the stable `PAYMENT_ALREADY_USED` conflict code.
 
 Anonymous browser drafts may still use a local grouping key, but cross-device history requires authenticated LINE/system identity.
 
+Direct `POST /queue/join` retries use the same PostgreSQL correctness boundary. The service first
+performs a fast active-ticket lookup, then locks the queue row and repeats that lookup inside the
+transaction before checking capacity or incrementing the counter. Concurrent requests from the
+same verified user/LINE identity therefore return the committed active ticket instead of creating a
+second ticket. Anonymous requests without a verified identity cannot use identity-based replay and
+must supply a stable HTTP idempotency key when retried.
+
 ## 7. Staff queue flow
 
 1. Staff or a branch manager authenticates and the API resolves one active organization membership

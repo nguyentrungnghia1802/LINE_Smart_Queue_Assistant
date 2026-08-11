@@ -164,7 +164,7 @@ building a full enterprise observability platform or exposing tenant/customer bu
 
 ## TASK-PROD-004: Production-Oriented Demo Hardening and Recovery
 
-**Status:** [ ] Not started
+**Status:** [x] Completed (2026-08-11)
 **Priority:** P1
 **Dependencies:** TASK-PROD-003 completed; existing transaction, idempotency, Redis, BullMQ, SSE, and recovery foundations
 
@@ -182,36 +182,52 @@ complex recovery systems, or theoretical scalability mechanisms without evidence
 
 ### Implementation Checklist
 
-- [ ] Audit existing concurrency, transaction, idempotency, retry, timeout, fallback, and recovery behavior before modifying implementation.
-- [ ] Verify Redis outage/recovery keeps PostgreSQL authoritative and uses existing safe fallback behavior.
-- [ ] Verify LINE worker outage preserves durable notification backlog and resumes delivery safely after recovery.
-- [ ] Verify API/web/worker restart does not corrupt committed domain state or persistent sessions.
-- [ ] Verify SSE disconnect/reconnect and REST fallback recover authoritative state without duplicate business actions.
-- [ ] Verify duplicate booking, order, payment, refund, webhook/callback, and notification operations remain idempotent.
-- [ ] Verify concurrent queue operations cannot double-call customers, corrupt ticket state, bypass assigned scope, or create invalid transitions.
-- [ ] Verify concurrent inventory/order operations cannot oversell or leave committed inventory inconsistent.
-- [ ] Verify LINE, email, routes, payment, and media timeout/failure cannot incorrectly commit provider-dependent success.
-- [ ] Review critical transaction boundaries, locks, timeouts, bounded retries, and cleanup behavior.
-- [ ] Preserve demo payment as the current runtime; real PSP availability is not required for this task.
-- [ ] Fix only correctness/recovery gaps demonstrated by tests or implementation audit.
-- [ ] Add concise recovery/runbook guidance for validated failure scenarios.
+- [x] Audit existing concurrency, transaction, idempotency, retry, timeout, fallback, and recovery behavior before modifying implementation.
+- [x] Verify Redis outage/recovery keeps PostgreSQL authoritative and uses existing safe fallback behavior.
+- [x] Verify LINE worker outage preserves durable notification backlog and resumes delivery safely after recovery.
+- [x] Verify API/web/worker restart does not corrupt committed domain state or persistent sessions.
+- [x] Verify SSE disconnect/reconnect and REST fallback recover authoritative state without duplicate business actions.
+- [x] Verify duplicate booking, order, payment, refund, webhook/callback, and notification operations remain idempotent.
+- [x] Verify concurrent queue operations cannot double-call customers, corrupt ticket state, bypass assigned scope, or create invalid transitions.
+- [x] Verify concurrent inventory/order operations cannot oversell or leave committed inventory inconsistent.
+- [x] Verify LINE, email, routes, payment, and media timeout/failure cannot incorrectly commit provider-dependent success.
+- [x] Review critical transaction boundaries, locks, timeouts, bounded retries, and cleanup behavior.
+- [x] Preserve demo payment as the current runtime; real PSP availability is not required for this task.
+- [x] Fix only correctness/recovery gaps demonstrated by tests or implementation audit.
+- [x] Add concise recovery/runbook guidance for validated failure scenarios.
 
 ### Tests and Validation
 
-- [ ] Add or extend deterministic failure/recovery tests for the critical scenarios above.
-- [ ] Test Redis and worker outage/recovery using the existing Docker/validation topology where practical.
-- [ ] Test duplicate and concurrent requests for critical state transitions.
-- [ ] Test restart/reconnect behavior for applicable API, worker, and realtime flows.
-- [ ] Confirm failures do not leak credentials, secrets, raw provider payloads, or unnecessary PII.
-- [ ] Run required repository, security, Compose, migration, application, and concurrency validation according to `AGENTS.md`.
+- [x] Add or extend deterministic failure/recovery tests for the critical scenarios above.
+- [x] Test Redis and worker outage/recovery using the existing Docker/validation topology where practical.
+- [x] Test duplicate and concurrent requests for critical state transitions.
+- [x] Test restart/reconnect behavior for applicable API, worker, and realtime flows.
+- [x] Confirm failures do not leak credentials, secrets, raw provider payloads, or unnecessary PII.
+- [x] Run required repository, security, Compose, migration, application, and concurrency validation according to `AGENTS.md`.
+
+### Completion Evidence
+
+- The audit retained existing PostgreSQL outbox/event-key authority, queue transition locks,
+  conditional finite-stock updates, payment/refund/webhook reconciliation, Redis fallback, BullMQ
+  restart behavior, SSE REST reconciliation, bounded provider retries, and sanitized telemetry.
+- A demonstrated direct-join race was fixed by repeating the active-ticket lookup after the queue
+  row lock. Deterministic tests prove the losing concurrent request cannot increment the ticket
+  counter, create an entry, enqueue a notification, or publish a duplicate realtime mutation.
+- The integrated validation runner now invokes Docker without a platform shell, preserving SQL
+  arguments on Windows and Linux. The 2026-08-11 isolated run passed Redis stop/start, worker
+  backlog recovery, cross-replica SSE, API restart, PostgreSQL stop/start, cache loss, distributed
+  rate limiting, and 160 public reads with zero errors.
+- Validation passed: security audit, format, lint, typecheck, OpenAPI, 109 API suites/664 tests,
+  54 Web files/181 tests, production build/CSP, validation config tests, and development,
+  validation, and deployment Compose config rendering. No migration was added or changed.
 
 ### Definition of Done
 
-- [ ] Tested infrastructure/provider failures degrade safely without corrupting PostgreSQL-authoritative business state.
-- [ ] Recovery does not create duplicate booking, payment, refund, notification, order, inventory, or queue transitions.
-- [ ] Critical concurrency and idempotency boundaries have deterministic regression coverage.
-- [ ] No unnecessary infrastructure was added solely for theoretical production scale.
-- [ ] Canonical operations, architecture, testing, security, deployment, and scalability docs contain verified behavior rather than theoretical claims.
+- [x] Tested infrastructure/provider failures degrade safely without corrupting PostgreSQL-authoritative business state.
+- [x] Recovery does not create duplicate booking, payment, refund, notification, order, inventory, or queue transitions.
+- [x] Critical concurrency and idempotency boundaries have deterministic regression coverage.
+- [x] No unnecessary infrastructure was added solely for theoretical production scale.
+- [x] Canonical operations, architecture, testing, security, deployment, and scalability docs contain verified behavior rather than theoretical claims.
 
 ---
 

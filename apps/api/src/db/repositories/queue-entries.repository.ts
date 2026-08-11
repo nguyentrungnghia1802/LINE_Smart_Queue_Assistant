@@ -61,22 +61,32 @@ export class QueueEntriesRepository extends BaseRepository {
     return rows[0] ?? null;
   }
 
-  async findActiveByLineUser(lineUserId: string, queueId: string): Promise<QueueEntryRow | null> {
-    return this.queryOne<QueueEntryRow>(
-      `SELECT * FROM queue_entries
+  async findActiveByLineUser(
+    lineUserId: string,
+    queueId: string,
+    client?: PoolClient
+  ): Promise<QueueEntryRow | null> {
+    const sql = `SELECT * FROM queue_entries
        WHERE line_user_id = $1 AND queue_id = $2
-         AND status IN ('waiting', 'called', 'serving')`,
-      [lineUserId, queueId]
-    );
+         AND status IN ('waiting', 'called', 'serving')`;
+    const rows = client
+      ? await this.queryTx<QueueEntryRow>(client, sql, [lineUserId, queueId])
+      : await this.query<QueueEntryRow>(sql, [lineUserId, queueId]);
+    return rows[0] ?? null;
   }
 
-  async findActiveByUser(userId: string, queueId: string): Promise<QueueEntryRow | null> {
-    return this.queryOne<QueueEntryRow>(
-      `SELECT * FROM queue_entries
+  async findActiveByUser(
+    userId: string,
+    queueId: string,
+    client?: PoolClient
+  ): Promise<QueueEntryRow | null> {
+    const sql = `SELECT * FROM queue_entries
        WHERE user_id = $1 AND queue_id = $2
-         AND status IN ('waiting', 'called', 'serving')`,
-      [userId, queueId]
-    );
+         AND status IN ('waiting', 'called', 'serving')`;
+    const rows = client
+      ? await this.queryTx<QueueEntryRow>(client, sql, [userId, queueId])
+      : await this.query<QueueEntryRow>(sql, [userId, queueId]);
+    return rows[0] ?? null;
   }
 
   async listWaiting(

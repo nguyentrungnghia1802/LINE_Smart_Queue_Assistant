@@ -70,6 +70,7 @@ a source of current behavior.
 | `apps/api/src/modules/realtime`                                         | Authorized SSE streams and transient Redis Pub/Sub event fan-out                   | `02`, `05`, `07`, `08`, ADR-032             |
 | `apps/api/src/routes/v1.routes.ts`                                      | `/api/v1` module mounting and ordering                                             | route modules, `05`, OpenAPI test           |
 | `apps/api/src/modules/*`                                                | Domain route/controller/validator/service/repository code                          | relevant `01`, `03`, `04`, `05`, tests      |
+| `apps/api/src/modules/queue/queue.service.ts`                           | Queue-locked join/transition concurrency and active-ticket replay                  | `03`, `04`, `07`, `11`                      |
 | `apps/api/src/db/repositories`                                          | Parameterized SQL and row mapping                                                  | `04`, service tests, migrations             |
 | `apps/api/src/jobs`                                                     | API-owned recurring jobs and shared LINE outbox delivery service                   | `02`, `03`, `07`, `08`                      |
 | `apps/api/src/docs/api-endpoint-catalog.ts`                             | Runtime API catalog and OpenAPI metadata                                           | routes, validators, `05`                    |
@@ -93,7 +94,7 @@ a source of current behavior.
 | `docker-compose.validation.yml`, `docker/nginx/validation.conf`         | Isolated two-API shared-dependency and failure topology                            | `02`, `07`, `08`, ADR-036                   |
 | `deploy/docker-compose.yml`                                             | Production image-based stack                                                       | `08`, Compose validation                    |
 | `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`              | Split CI quality jobs; CD placeholder currently disabled                           | `07`, `08`                                  |
-| `scripts/scalability`                                                   | Dependency-free HTTP load runner and integrated recovery orchestrator              | `07`, `08`, `11`, ADR-036                   |
+| `scripts/scalability`                                                   | Cross-platform HTTP load runner and integrated recovery orchestrator               | `07`, `08`, `11`, ADR-036                   |
 
 ## 4. Role and scope map
 
