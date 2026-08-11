@@ -202,7 +202,7 @@ Production-like Compose:
 
 ```bash
 npm run docker:prod:d
-docker compose ps
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps
 ```
 
 The stack builds:
@@ -231,7 +231,11 @@ Docker Hub repositories are `trungnghia2703/line-smart-queue-api` and
 `trungnghia2703/line-smart-queue-web`; production deployments should prefer an immutable
 `git-<commit>` tag while optionally updating `latest`.
 
-`deploy/docker-compose.yml` is the canonical production Compose file. It expects prebuilt `LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` values and does not publish PostgreSQL or API port `4000` to the host. Always replace image tags with immutable images built from the intended release commit; changing source code does not update an already-pushed tag automatically.
+`deploy/docker-compose.yml` is the canonical production Compose file. It requires prebuilt
+`LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` values (there is no silent `latest` fallback) and
+does not publish PostgreSQL or API port `4000` to the host. Always replace the template tags with
+immutable images built from the intended release commit; changing source code does not update an
+already-pushed tag automatically.
 
 Use `--env-file deploy/.env` when invoking the file from the repository root. Without it, Compose interpolation may read a different `.env` from the current working directory even though the API container's `env_file` is resolved from the deploy directory.
 
@@ -616,7 +620,8 @@ gate into independent jobs so failures are easy to locate:
 
 - full-history Gitleaks secret scanning;
 - dependency audit;
-- formatting, lint, type-check, and OpenAPI contract checks;
+- formatting, spelling, lint, type-check, and OpenAPI contract checks;
+- development, validation, and production Compose configuration checks;
 - API tests with coverage thresholds;
 - Web/shared tests;
 - clean PostgreSQL migration/status and repeated administrator seed smoke;
@@ -624,26 +629,27 @@ gate into independent jobs so failures are easy to locate:
 - mock-integration Playwright desktop/mobile browser E2E.
 
 The API tests, migration smoke, and browser E2E jobs use separate PostgreSQL services. Browser E2E
-waits for the earlier quality jobs, applies migrations, loads only the explicit browser fixtures,
-and then starts the API/Web test servers. CI uses PostgreSQL 16 and does not receive real LINE,
-PSP, SMTP, SSH, or customer credentials. `npm run audit:ci` blocks new high/critical advisories
-in production dependencies and keeps its single narrow, reviewed exception in `audit-ci.jsonc`.
+waits for the earlier quality and Compose jobs, applies migrations, loads only the explicit browser
+fixtures, and then starts the API/Web test servers. CI uses PostgreSQL 16 and does not receive real
+LINE, PSP, SMTP, SSH, or customer credentials. `npm run audit:ci` blocks new high/critical
+advisories in production dependencies and keeps its single narrow, reviewed exception in
+`audit-ci.jsonc`.
 
-Continuous deployment is temporarily disabled. `.github/workflows/deploy.yml` exposes only a
-manual placeholder that reports the disabled state. It does not build images, push Docker images,
-or connect to the production server. Docker image publishing and server updates remain manual
-until CD is explicitly re-enabled and reviewed.
-
-The production variables and secrets below are retained as a future-CD reference only; the
-disabled workflow does not read or use them.
+Production delivery is manual and environment-gated. `.github/workflows/deploy.yml` requires the
+operator to type `DEPLOY`, builds the API and Web `runner` images from the selected commit, pushes
+immutable tags (`git-<commit SHA>` by default) to Docker Hub, and waits for approval on the
+GitHub `production` environment before connecting to the server. The SSH host key is pinned with
+`PRODUCTION_SSH_KNOWN_HOSTS`. The remote sequence validates Compose, pulls only the selected API
+and Web images, applies canonical migrations, waits for healthy services, and probes the Web health
+endpoint. It never copies, prints, or regenerates the server-side `deploy/.env`.
 
 Production GitHub Actions variables:
 
-| Variable                 | Example                 | Purpose                             |
-| ------------------------ | ----------------------- | ----------------------------------- |
-| `DOCKERHUB_USERNAME`     | `trungnghia2703`        | Docker Hub image namespace          |
-| `VITE_LIFF_ID`           | LINE Login LIFF ID      | Public Web build-time configuration |
-| `PRODUCTION_DEPLOY_PATH` | `/opt/line-smart-queue` | Server directory containing Compose |
+| Variable                 | Example                 | Purpose                                               |
+| ------------------------ | ----------------------- | ----------------------------------------------------- |
+| `DOCKERHUB_USERNAME`     | `trungnghia2703`        | Docker Hub image namespace                            |
+| `VITE_LIFF_ID`           | LINE Login LIFF ID      | Public Web build-time configuration                   |
+| `PRODUCTION_DEPLOY_PATH` | `/opt/line-smart-queue` | Server directory containing Compose and `deploy/.env` |
 
 Production GitHub Actions secrets:
 
@@ -656,12 +662,11 @@ Production GitHub Actions secrets:
 | `PRODUCTION_SSH_PRIVATE_KEY` | Private half of a dedicated deployment key             |
 | `PRODUCTION_SSH_KNOWN_HOSTS` | Pinned server host-key line from trusted `ssh-keyscan` |
 
-The matching public key belongs in the deployment user's
-`~/.ssh/authorized_keys`. Give that user only the Docker/Compose permissions
-needed under the deploy directory. Keep runtime values such as database, JWT,
-LINE Messaging, SMTP, and payment secrets in the server-side `.env`; the
-workflow does not copy or regenerate that file. If Docker Hub repositories are
-private, log the server into Docker Hub once with a read-only token.
+The matching public key belongs in the deployment user's `~/.ssh/authorized_keys`. Give that user
+only the Docker/Compose permissions needed under the deploy directory. Keep runtime values such as
+database, JWT, LINE Messaging, SMTP, and payment secrets in the server-side `.env`; the workflow
+does not copy or regenerate that file. If Docker Hub repositories are private, log the server into
+Docker Hub once with a read-only token.
 
 Remaining delivery hardening includes container/image scanning, signed image
 provenance, staging deployment against sandbox integrations, automated rollback

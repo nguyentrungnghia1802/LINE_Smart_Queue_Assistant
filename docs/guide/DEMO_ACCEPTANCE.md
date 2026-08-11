@@ -75,7 +75,10 @@ orders so prior refund acceptance runs do not leave contradictory fixture state.
 2. Sign in as Organization Owner and review organization-wide branches, catalog, audit, and
    reporting. Confirm branch-management features remain separate from Platform Admin authority.
 3. Sign in as Branch Manager and review the assigned branch, queue catalog, Staff assignments, QR,
-   LINE delivery operations, and settings. Confirm another branch is not visible.
+   LINE delivery operations, and settings. In **LINE配信**, filter a seeded delivery, open its detail,
+   verify the masked recipient and sanitized error, and use a reason of at least three characters for a
+   permitted retry/cancel action. Confirm another branch is not visible. Sign in as Staff separately and
+   confirm the same page is limited to the assigned queue and cannot cancel a delivery.
 4. Open `/liff/qr/demo-queue-lab-2026`, select services, enter the required customer details,
    complete Demo Payment when required, create the booking, and reach `/liff/tickets/:entryId`.
 5. Sign in as Staff, process the assigned queue, print the receipt, and complete the ticket. Verify
@@ -90,16 +93,17 @@ orders so prior refund acceptance runs do not leave contradictory fixture state.
 
 ## 6. Automated evidence map
 
-| Acceptance area                                                                | Primary evidence                                  |
-| ------------------------------------------------------------------------------ | ------------------------------------------------- |
-| LIFF booking, Demo Payment, ticket redirect                                    | `e2e/customer-booking.spec.ts`                    |
-| Staff transition, notification scope, application approval, health, refund, QR | `e2e/operations.spec.ts`                          |
-| Desktop/mobile navigation and overflow                                         | `e2e/responsive.spec.ts`                          |
-| Japanese, English, Vietnamese, persisted locale                                | `e2e/localization.spec.ts` and i18n unit tests    |
-| Tenant/branch/assigned-queue authorization                                     | API service/controller tests and operations E2E   |
-| Payment authority, callback/refund idempotency                                 | Payment provider/service tests and operations E2E |
-| Realtime, Redis recovery, worker restart, dependency failure                   | `npm run scale:validate`                          |
-| Static component states and viewports                                          | `npm run storybook:build`                         |
+| Acceptance area                                                                | Primary evidence                                                                 |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| LIFF booking, Demo Payment, ticket redirect                                    | `e2e/customer-booking.spec.ts`                                                   |
+| Staff transition, notification scope, application approval, health, refund, QR | `e2e/operations.spec.ts`                                                         |
+| Desktop/mobile navigation and overflow                                         | `e2e/responsive.spec.ts`                                                         |
+| Japanese, English, Vietnamese, persisted locale                                | `e2e/localization.spec.ts` and i18n unit tests                                   |
+| Tenant/branch/assigned-queue authorization                                     | API service/controller tests and operations E2E                                  |
+| LINE delivery operations UI, sanitized detail, retry/cancel scope              | `NotificationOperationsPage` and notification operation service/controller tests |
+| Payment authority, callback/refund idempotency                                 | Payment provider/service tests and operations E2E                                |
+| Realtime, Redis recovery, worker restart, dependency failure                   | `npm run scale:validate`                                                         |
+| Static component states and viewports                                          | `npm run storybook:build`                                                        |
 
 ### Optimization baseline map
 
@@ -133,8 +137,15 @@ npm run e2e:all
 npm run scale:validate
 ```
 
-Also validate both Compose files with `docker compose config` before deployment. Record any command
-that cannot run and its residual risk; do not substitute a mock check for external acceptance.
+Also validate the development, validation, and production Compose files with `docker compose config`
+before deployment. Record any command that cannot run and its residual risk; do not substitute a mock
+check for external acceptance.
+
+The GitHub Actions CI workflow runs the same static, test, migration, build, browser, and Compose
+configuration gates on pushes and pull requests. Production CD is a manual workflow: type `DEPLOY`,
+approve the `production` environment, then let it publish immutable commit-tagged API/Web images and
+run remote Compose validation, migrations, and health checks. Runtime secrets remain only in the
+server-side `deploy/.env`; the workflow does not copy them.
 
 ## 8. Intentionally deferred external acceptance
 

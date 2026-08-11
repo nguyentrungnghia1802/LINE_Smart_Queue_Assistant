@@ -18,7 +18,7 @@
 | サポートメール           | `trungnghia180205@gmail.com`                           |
 | LINE公式アカウント       | [Smart Queue](https://line.me/R/ti/p/@081llngs)        |
 | Branch QR                | `[利用するBranch QRを掲載]`                            |
-| ガイド更新日／バージョン | `01/08/2026`                                           |
+| ガイド更新日／バージョン | `11/08/2026`                                           |
 
 Branch QRは店舗ごとに異なります。正しいBranch名を確認してから掲示・共有してください。
 
@@ -666,7 +666,16 @@ CustomerがLIFFを開いたままにしなくても、重要な受付イベン�
 
 ### 画像について
 
-現在、Webには利用者向けの「Notification operations」画面がないため、`47-notification-operation.png`は作成していません。API出力や偽のLINEチャット画像で成功を装ってはいません。
+Branch Managerは `/manager/notifications`、Staffは `/staff/notifications` の **LINE配信** から、
+自分の権限範囲にある配信を確認できます。状態（待機中、処理中、送信済み、失敗、取消済み）、
+イベント、日時で絞り込み、行を開くと受付番号、Branch／Queue、試行回数、冪等イベントキー、
+ディスパッチ状態、安全化された直近エラーを確認できます。再送可能な失敗には3文字以上の理由を
+入力して **再送を予約**、Branch Managerだけが取消可能な配信に **不要な配信を取り消す** を実行できます。
+Platform AdminとOrganization Ownerはテナント配信行を閲覧できず、Adminの `/admin/operations` は
+安全化された集約状態だけを表示します。実LINE端末の配信・チャット表示は別途受入が必要です。
+
+このリポジトリでは認証済み運用テナントの個人情報を画像として保存していないため、図47は追加して
+いません。API出力や偽のLINEチャット画像を成功の証跡として使用しません。
 
 ## 16. Payment
 
@@ -773,7 +782,21 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
 9. 対応を完了し、必要に応じて残金と領収書を処理します。
 10. Customer側のTicket状態とLINE通知を確認します。
 
-## 21. 現在の制限事項
+## 21. CI/CD とデプロイの要点
+
+- ローカルでは `.env.example` を `.env` にコピーし、`npm run docker:dev:d`、`npm run db:migrate`、
+  `npm run db:fixture:e2e` の順で確認します。デモURLは
+  `http://localhost:5173/qr/demo-queue-lab-2026` です。
+- Push／Pull Requestごとに、secret scan、audit、format、spell、lint、type-check、OpenAPI、
+  3種類のCompose設定、API／Webテスト、migration／seed、build、browser E2EをCIで実行します。
+- 本番CDは自動Pushではなく手動dispatchです。`DEPLOY` の明示確認とGitHub `production` Environmentの
+  approval後、選択したcommitからAPI／Webのrunner imageを不変タグ（既定は `git-<commit SHA>`）で公開し、
+  サーバーでCompose検証、migration、health checkを行います。
+- 本番のDB、JWT、LINE、SMTP、payment、storage secretはサーバーの `deploy/.env` に残し、CDはコピーも
+  再生成もしません。サーバー更新前は `docker compose --env-file deploy/.env -f deploy/docker-compose.yml config -q`
+  を実行します。
+
+## 22. 現在の制限事項
 
 - **実決済**：Demo Paymentは実際の決済ではありません。実運用では、画面に表示される決済事業者の結果を確認し、内部状態だけを実返金の証拠としないでください。
 - **LINE実機**：各画面と通知の表示は、LINEアプリ、Official Account、端末の通知設定に依存します。
@@ -783,9 +806,10 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
 - **media／object storage**：メディアの保存、lifecycle、アクセス制御は運用環境の構成に依存します。
 - **運用基盤**：監視、backup／restore、メディア保存などの機能は運用環境の構成に依存します。
 - **大規模運用**：利用可能な処理量は運用環境の構成と契約内容に依存します。
-- **Notification operations UI**：配信状態を閲覧する利用者向けdashboardは現時点でありません。LINEチャットの証跡は実機または権限を持つ運用経路で取得します。
+- **Notification operations UI**：Branch Managerと割り当てられたStaffは配信状態を確認し、許可された再送／取消を
+  実行できます。実LINE端末、友だち追加、通知表示、保持期間・監視運用の受入は別途必要です。
 
-## 22. 簡単なトラブルシューティング
+## 23. 簡単なトラブルシューティング
 
 | 症状                      | 利用者が確認すること                                                                                                              |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -802,7 +826,7 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
 
 token、cookie、価格、payment statusを含むURLを編集して「直そう」としないでください。次の様式で報告してください。
 
-## 23. サポート依頼時に伝える情報
+## 24. サポート依頼時に伝える情報
 
 サポートへ連絡する場合は、次の情報を可能な範囲で記載してください。
 
@@ -819,7 +843,7 @@ token、cookie、価格、payment statusを含むURLを編集して「直そう�
 
 パスワード、認証リンク、token、secret、実在顧客の不要な個人情報は送信しないでください。
 
-## 24. サポート窓口
+## 25. サポート窓口
 
 - サポートメール：[trungnghia180205@gmail.com](mailto:trungnghia180205@gmail.com)
 - LINE公式アカウント：[Smart Queue](https://line.me/R/ti/p/@081llngs)

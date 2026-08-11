@@ -683,6 +683,28 @@ monitoring stack. Values are current-process or safe aggregate indicators, not e
 Prometheus/logs/traces remain authoritative for detailed incident investigation; dashboard failure
 cannot affect queue, order, notification, or payment business transactions.
 
+## ADR-039: Manual environment-gated immutable-image CD
+
+**Status:** accepted (2026-08-11)
+
+**Context:** The repository had a documented production Compose stack but its GitHub Actions CD
+workflow was only a disabled placeholder. A release needs reproducible API/Web artifacts without
+moving runtime credentials into CI or silently deploying every branch push.
+
+**Decision:** Keep CD manual. The workflow requires an explicit `DEPLOY` confirmation, builds the
+API and Web `runner` images from the selected commit, publishes immutable Docker Hub tags (the
+default is `git-<commit SHA>`), and pauses at the GitHub `production` environment approval. The
+server connection uses a restricted SSH key and pinned known-hosts value, validates
+`deploy/docker-compose.yml`, pulls the selected images, runs canonical migrations, waits for healthy
+services, and probes Web health. Database, JWT, LINE, SMTP, payment, and storage values remain in
+the server-side `deploy/.env`; the workflow never copies or logs them. Production is not triggered
+by a normal push.
+
+**Consequences:** Releases are auditable and rollback can select a previous immutable tag, while an
+operator must supply Docker Hub/SSH configuration and approve each production deployment. Image
+scanning, signed provenance, staged sandbox deployment, rollback automation, and backup/restore
+rehearsal remain follow-up hardening rather than hidden guarantees.
+
 ## OPT-001 cleanup audit (2026-08-11)
 
 The audit compared source imports, package scripts/dependencies, executable migrations, the reset

@@ -78,7 +78,13 @@ describe('production web reverse proxy configuration', () => {
       expect(dockerfile).toContain(`ENV ${arg}=$${arg}`);
     }
 
-    expect(compose).toContain('image: ${LINE_QUEUE_WEB_IMAGE:-line-smart-queue-web:latest}');
+    expect(compose).toContain(
+      'image: ${LINE_QUEUE_WEB_IMAGE:?LINE_QUEUE_WEB_IMAGE must be set to an immutable Web image}'
+    );
+    expect(compose).toContain(
+      'image: ${LINE_QUEUE_API_IMAGE:?LINE_QUEUE_API_IMAGE must be set to an immutable API image}'
+    );
+    expect(compose).not.toContain(':latest');
     expect(compose).not.toContain('build:');
     expect(compose).not.toContain('VITE_API_URL: ${VITE_API_URL:-}');
     expect(dockerfile).toContain('ARG VITE_LIFF_DEFAULT_BOOKING_PATH=');

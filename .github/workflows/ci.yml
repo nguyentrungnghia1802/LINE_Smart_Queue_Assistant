@@ -59,6 +59,41 @@ jobs:
       - name: ✨ Check formatting
         run: npm run format:check
 
+  spelling:
+    name: 🔤 Spelling
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: 📦 Install dependencies
+        run: npm ci
+      - name: 🔤 Check spelling
+        run: npm run spell:check
+
+  compose-validation:
+    name: 🐳 Compose configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🐳 Validate development Compose
+        run: |
+          cp .env.example .env
+          trap 'rm -f .env' EXIT
+          docker compose --env-file .env.example -f docker-compose.dev.yml config -q
+      - name: 🐳 Validate isolated validation Compose
+        run: docker compose -f docker-compose.validation.yml config -q
+      - name: 🐳 Validate production Compose template
+        run: |
+          cp deploy/.env.example deploy/.env
+          trap 'rm -f deploy/.env' EXIT
+          docker compose --env-file deploy/.env.example -f deploy/docker-compose.yml config -q
+
   lint:
     name: 🧹 Lint
     runs-on: ubuntu-latest
@@ -231,6 +266,8 @@ jobs:
     name: 🎭 Browser E2E
     needs:
       - formatting
+      - spelling
+      - compose-validation
       - lint
       - typecheck
       - openapi

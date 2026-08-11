@@ -18,7 +18,7 @@ Use the information supplied by your system administrator for the relevant envir
 | Support email         | `trungnghia180205@gmail.com`                           |
 | LINE Official Account | [Smart Queue](https://line.me/R/ti/p/@081llngs)        |
 | Branch QR             | `[ADD THE BRANCH QR IN USE]`                           |
-| Guide date/version    | `01/08/2026`                                           |
+| Guide date/version    | `11/08/2026`                                           |
 
 Each Branch has its own stable QR. Confirm the Branch name before displaying or sharing it.
 
@@ -666,7 +666,16 @@ Notify Customers at important milestones without requiring LIFF to remain open.
 
 ### Screenshots
 
-There is currently no end-user Notification Operations page to capture as `47-notification-operation.png`. No API output or fabricated LINE chat screenshot is used to imply success.
+Branch Managers use **LINE配信** at `/manager/notifications`; Staff use `/staff/notifications`.
+Within the assigned scope, filter delivery rows by status, event, and time, then open a row to inspect
+the Ticket, Branch/Queue, attempt count, idempotency event key, dispatch state, and sanitized last
+error. A retryable failure requires a reason of at least three characters before **Retry** is queued;
+only Branch Managers can cancel a cancellable delivery. Platform Admin and Organization Owner cannot
+read tenant delivery rows; Admin `/admin/operations` exposes only sanitized aggregate health. Physical
+LINE delivery and chat rendering remain separate acceptance evidence.
+
+This repository does not store an authenticated operational tenant's personal data as a screenshot,
+so Figure 47 is not fabricated. API output or a fake LINE chat is never used to imply success.
 
 ## 16. Payment
 
@@ -773,7 +782,22 @@ For each language:
 9. Complete service and handle any remaining balance and receipt.
 10. View the updated Customer Ticket and available LINE notification.
 
-## 21. Current limitations
+## 21. CI/CD and deployment essentials
+
+- For local review, copy `.env.example` to `.env`, then run `npm run docker:dev:d`,
+  `npm run db:migrate`, and `npm run db:fixture:e2e`. The demo URL is
+  `http://localhost:5173/qr/demo-queue-lab-2026`.
+- Every push and pull request runs secret scanning, audit, formatting, spelling, lint, type-check,
+  OpenAPI, all three Compose configuration checks, API/Web tests, migration/seed smoke, build, and
+  browser E2E.
+- Production CD is manual, not push-triggered. After typing `DEPLOY` and receiving approval from the
+  GitHub `production` environment, it publishes immutable API/Web runner images (default tag:
+  `git-<commit SHA>`), then validates Compose, migrates, waits for health, and probes the server.
+- Database, JWT, LINE, SMTP, payment, and storage secrets remain in the server's `deploy/.env`; CD
+  never copies or regenerates them. Before a server update, run
+  `docker compose --env-file deploy/.env -f deploy/docker-compose.yml config -q`.
+
+## 22. Current limitations
 
 - **Real payment:** Demo Payment is not a real transaction. In operation, rely on the payment provider result and do not treat an internal status alone as proof of a real refund.
 - **Physical LINE device:** LINE Login consent, Add Friend/Unblock, Rich Menu, Flex Message, native QR scanner, and notification banner require device operational confirmation.
@@ -783,9 +807,11 @@ For each language:
 - **Media/object storage:** Media persistence, lifecycle, and access controls depend on the operating environment.
 - **Operating infrastructure:** Observability, backup/restore, and related procedures depend on the operating environment.
 - **Large-scale operation:** Available throughput depends on the operating environment and service plan.
-- **Notification operations UI:** No end-user dashboard currently shows delivery status. Obtain LINE chat evidence through a physical device or authorized operations channel.
+- **Notification operations UI:** Branch Managers and assigned Staff can inspect scoped delivery status
+  and perform permitted retry/cancel actions. Physical LINE delivery, friend state, rendered messages,
+  retention, and monitoring acceptance remain separate.
 
-## 22. Simple troubleshooting
+## 23. Simple troubleshooting
 
 | Symptom                        | User-level action                                                                                                              |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
@@ -802,7 +828,7 @@ For each language:
 
 Do not edit URLs containing tokens, cookies, prices, or payment status in an attempt to fix the issue. Report it with the template below.
 
-## 23. Information to include in a support request
+## 24. Information to include in a support request
 
 When contacting support, include as much of the following information as possible:
 
@@ -819,7 +845,7 @@ When contacting support, include as much of the following information as possibl
 
 Do not send passwords, activation links, tokens, secrets, or unnecessary personal information from real customers.
 
-## 24. Support contact
+## 25. Support contact
 
 - Support email: [trungnghia180205@gmail.com](mailto:trungnghia180205@gmail.com)
 - LINE Official Account: [Smart Queue](https://line.me/R/ti/p/@081llngs)

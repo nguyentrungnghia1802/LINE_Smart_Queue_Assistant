@@ -144,8 +144,10 @@ as disposable cleanup targets unless an explicit environment reset is intended.
 
 Before removing a tracked source, asset, Compose file, migration, fixture, or canonical document,
 verify imports, runtime/static references, package scripts, tests, Docker `COPY` instructions, and
-documentation links. The canonical and deploy production Compose files intentionally have identical
-content and are both required by the documented deployment workflow.
+documentation links. `deploy/docker-compose.yml` is the one canonical production image stack and
+fails closed unless both immutable image variables are supplied; `docker-compose.dev.yml` and
+`docker-compose.validation.yml` are separate local/validation topologies and must not be treated as
+production overlays.
 
 ## 4. Run natively
 
@@ -258,12 +260,12 @@ npm run e2e:all
 ```
 
 The GitHub Actions workflow runs these checks as separate jobs so a failure is isolated to one
-quality surface: secret scan, dependency audit, formatting, lint, type-check, OpenAPI, API tests,
-web/shared tests, migration/seed smoke, production build, and browser E2E. The API tests,
-migration smoke, and browser E2E jobs each use their own PostgreSQL service. Browser E2E prepares
-its own database and loads the explicit browser-only fixtures before starting Playwright. The E2E
-job waits for the static, unit, contract, migration, and build jobs, so it does not hide an earlier
-failure behind a browser timeout.
+quality surface: secret scan, dependency audit, formatting, spelling, lint, type-check, OpenAPI,
+development/validation/production Compose config, API tests, web/shared tests, migration/seed
+smoke, production build, and browser E2E. The API tests, migration smoke, and browser E2E jobs each
+use their own PostgreSQL service. Browser E2E prepares its own database and loads the explicit
+browser-only fixtures before starting Playwright. The E2E job waits for the static, unit, contract,
+Compose, migration, and build jobs, so it does not hide an earlier failure behind a browser timeout.
 
 `npm run audit:ci` audits dependencies shipped to production and fails on new
 high/critical advisories. Its single explicit allowlist entry is documented in
@@ -277,10 +279,11 @@ historical test-password literals and obsolete example-environment placeholders.
 whole rule or path; a new finding must be investigated as a potential credential before any exact
 fingerprint is added.
 
-Continuous deployment is temporarily disabled. `.github/workflows/deploy.yml` is retained as a
-manual placeholder that only reports the disabled state; it does not build images, push Docker
-images, or connect to a server. Use the documented manual Docker/server commands until CD is
-explicitly re-enabled and reviewed.
+Production CD is manual and environment-gated. Type `DEPLOY` in the workflow dispatch form; the
+workflow builds and pushes immutable API/Web images tagged with the selected commit, waits for
+approval on the `production` environment, validates the remote Compose file, migrates the database,
+waits for healthy services, and probes Web health. Runtime secrets stay on the server in
+`deploy/.env`; CD never copies them from GitHub.
 
 Target one workspace:
 

@@ -18,7 +18,7 @@ Sử dụng thông tin do quản trị viên hệ thống cung cấp cho môi tr
 | Email hỗ trợ            | `trungnghia180205@gmail.com`                           |
 | LINE Official Account   | [Smart Queue](https://line.me/R/ti/p/@081llngs)        |
 | Branch QR               | `[CHÈN QR CỦA BRANCH ĐANG SỬ DỤNG]`                    |
-| Ngày/phiên bản tài liệu | `01/08/2026`                                           |
+| Ngày/phiên bản tài liệu | `11/08/2026`                                           |
 
 Mỗi Branch có một QR ổn định riêng. Hãy xác nhận đúng tên Branch trước khi in, trưng bày hoặc chia sẻ QR.
 
@@ -668,7 +668,16 @@ Thông báo cho khách tại các mốc quan trọng mà không yêu cầu khác
 
 ### Ảnh minh họa
 
-Hiện không có màn hình người dùng “Notification operations” trong Web để chụp an toàn thành `47-notification-operation.png`. Không tạo ảnh giả từ API hoặc giả lập chat LINE.
+Branch Manager mở **LINE配信** tại `/manager/notifications`, Staff mở `/staff/notifications`.
+Trong phạm vi được cấp quyền, có thể lọc delivery theo trạng thái, event và thời gian; mở từng dòng để
+xem Ticket, Branch/Queue, số lần thử, idempotency event key, dispatch state và lỗi gần nhất đã được
+làm sạch. Delivery thất bại có thể retry phải kèm lý do ít nhất 3 ký tự; chỉ Branch Manager được hủy
+delivery đủ điều kiện. Platform Admin và Organization Owner không đọc được các dòng delivery của tenant;
+`/admin/operations` của Admin chỉ hiển thị health aggregate đã làm sạch. Giao tin LINE thật và hiển thị
+chat trên thiết bị vẫn là hạng mục nghiệm thu riêng.
+
+Repository không lưu ảnh tenant vận hành đã xác thực có dữ liệu cá nhân, nên không tạo Hình 47 giả. Không
+dùng output API hoặc ảnh chat LINE giả để chứng minh thành công.
 
 ## 16. Payment
 
@@ -775,7 +784,21 @@ Khi sử dụng từng ngôn ngữ:
 9. Hoàn thành phục vụ, xử lý số dư và biên nhận nếu có.
 10. Xem trạng thái Ticket đã cập nhật và thông báo LINE khả dụng.
 
-## 21. Các giới hạn hiện tại
+## 21. CI/CD và triển khai
+
+- Khi kiểm tra local, copy `.env.example` thành `.env`, chạy `npm run docker:dev:d`,
+  `npm run db:migrate`, rồi `npm run db:fixture:e2e`. URL demo là
+  `http://localhost:5173/qr/demo-queue-lab-2026`.
+- Mỗi push và pull request chạy secret scan, audit, format, spell, lint, type-check, OpenAPI, kiểm tra
+  cấu hình cả ba Compose, test API/Web, migration/seed, build và browser E2E.
+- CD production không chạy theo push. Sau khi nhập `DEPLOY` và được duyệt ở GitHub Environment
+  `production`, workflow build/push runner image API/Web bằng tag bất biến (mặc định `git-<commit SHA>`),
+  kiểm tra Compose, chạy migration, chờ health và probe server.
+- Database, JWT, LINE, SMTP, payment và storage secret vẫn ở `deploy/.env` trên server; CD không sao chép
+  hoặc tạo lại file này. Trước khi cập nhật server, chạy
+  `docker compose --env-file deploy/.env -f deploy/docker-compose.yml config -q`.
+
+## 22. Các giới hạn hiện tại
 
 - **Thanh toán thật:** Demo Payment không phải giao dịch thật. Khi vận hành, dựa vào kết quả của payment provider và không xem trạng thái nội bộ là bằng chứng tiền thật đã hoàn.
 - **LINE trên thiết bị thật:** Khả năng hiển thị LINE Login consent, Add Friend/Unblock, Rich Menu, Flex Message, native QR scanner và notification banner phụ thuộc ứng dụng LINE, Official Account và cài đặt thiết bị.
@@ -785,9 +808,11 @@ Khi sử dụng từng ngôn ngữ:
 - **Media/object storage:** khả năng lưu trữ, lifecycle và quyền truy cập phụ thuộc cấu hình môi trường vận hành.
 - **Hạ tầng vận hành:** quan sát, backup/restore và các quy trình liên quan phụ thuộc cấu hình môi trường.
 - **Vận hành quy mô lớn:** lưu lượng hỗ trợ phụ thuộc cấu hình môi trường và gói dịch vụ.
-- **Notification operations UI:** hiện chưa có dashboard người dùng để xem delivery status; bằng chứng chat LINE phải lấy trên thiết bị thật hoặc qua vận hành được cấp quyền.
+- **Notification operations UI:** Branch Manager và Staff được gán có thể xem delivery trong phạm vi và
+  thực hiện retry/cancel được phép. Delivery LINE thật, trạng thái kết bạn, hiển thị message, retention và
+  monitoring vẫn cần nghiệm thu riêng.
 
-## 22. Xử lý sự cố đơn giản
+## 23. Xử lý sự cố đơn giản
 
 | Hiện tượng                   | Cách xử lý ở mức người dùng                                                                                                   |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -804,7 +829,7 @@ Khi sử dụng từng ngôn ngữ:
 
 Không tự sửa URL chứa token, cookie, giá hoặc payment status để “khắc phục”; hãy gửi báo lỗi theo mẫu bên dưới.
 
-## 23. Thông tin cần cung cấp khi yêu cầu hỗ trợ
+## 24. Thông tin cần cung cấp khi yêu cầu hỗ trợ
 
 Khi liên hệ hỗ trợ, hãy cung cấp tối đa các thông tin sau:
 
@@ -821,7 +846,7 @@ Khi liên hệ hỗ trợ, hãy cung cấp tối đa các thông tin sau:
 
 Không gửi mật khẩu, liên kết kích hoạt, token, secret hoặc thông tin cá nhân không cần thiết của khách hàng thật.
 
-## 24. Liên hệ hỗ trợ
+## 25. Liên hệ hỗ trợ
 
 - Email hỗ trợ: [trungnghia180205@gmail.com](mailto:trungnghia180205@gmail.com)
 - LINE Official Account: [Smart Queue](https://line.me/R/ti/p/@081llngs)

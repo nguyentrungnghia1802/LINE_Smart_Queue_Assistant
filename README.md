@@ -88,14 +88,15 @@ _Staffは顧客、注文、Ticket状態、残金、対応操作を1画面で扱�
 
 ### 現在の状態
 
-| 領域                                    | 状態                                                    |
-| --------------------------------------- | ------------------------------------------------------- |
-| 法人申込み・Admin審査・Owner有効化      | 実装済み、ローカルfixtureで検証済み                     |
-| Owner／Branch Manager／Staff画面        | 実装済み、役割境界と主要フローを検証済み                |
-| QR／Mock LIFF／Customer Booking／Ticket | 実装済み、browserテストで検証済み                       |
-| Demo Payment                            | ローカルで検証済み                                      |
-| LINE Login／Messaging／Rich Menu        | 実装あり。一部はLINE実機・production OAで受入確認が必要 |
-| 3言語UI                                 | 日本語既定・fallback、ベトナム語、英語を実装済み        |
+| 領域                                    | 状態                                                          |
+| --------------------------------------- | ------------------------------------------------------------- |
+| 法人申込み・Admin審査・Owner有効化      | 実装済み、ローカルfixtureで検証済み                           |
+| Owner／Branch Manager／Staff画面        | 実装済み、役割境界と主要フローを検証済み                      |
+| QR／Mock LIFF／Customer Booking／Ticket | 実装済み、browserテストで検証済み                             |
+| Demo Payment                            | ローカルで検証済み                                            |
+| LINE Login／Messaging／Rich Menu        | 実装あり。一部はLINE実機・production OAで受入確認が必要       |
+| LINE配信運用                            | Branch Manager／割り当てStaff向けに実装済み、実LINEは別途受入 |
+| 3言語UI                                 | 日本語既定・fallback、ベトナム語、英語を実装済み              |
 
 ### 現在の制限
 
@@ -104,11 +105,12 @@ _Staffは顧客、注文、Ticket状態、残金、対応操作を1画面で扱�
 - Google Routesの実利用にはproduction credentialとprivacy同意が必要です。
 - ETAは運用データによるheuristicで、学習済みMLモデルではありません。
 - production object storage、運用監視、backup／restore、production-scale負荷試験は追加hardening・受入が必要です。
-- 利用者向け通知配信ステータスdashboardは現在ありません。
+- LINE配信運用画面はBranch Managerと割り当てられたStaffが利用できます。実LINE端末、友だち状態、通知表示、
+  retention・監視運用は別途受入が必要です。
 
 ### 短い技術情報
 
-システムはReact/ViteのWeb UI、Express/TypeScript API、PostgreSQLで構成され、Docker Composeで隔離されたローカル検証ができます。Customer認証のLINE Login/LIFFと通知のLINE Messaging APIは別機能です。価格、Organization、Branch、LINE User ID、payment status、権限範囲はbrowser入力を信用せず、server側で確認します。
+システムはReact/ViteのWeb UI、Express/TypeScript API、PostgreSQLで構成され、Docker Composeで隔離されたローカル検証ができます。Customer認証のLINE Login/LIFFと通知のLINE Messaging APIは別機能です。価格、Organization、Branch、LINE User ID、payment status、権限範囲はbrowser入力を信用せず、server側で確認します。CIはpush／PRでsecret、依存、format、spell、Compose、test、build、browser E2Eを検証します。本番CDは`DEPLOY`確認と`production` approvalが必要な手動workflowで、不変image tagを配布し、サーバーの`deploy/.env`はコピーしません。
 
 ### ガイドと連絡先
 
@@ -208,14 +210,15 @@ _Staff sees customer, order, Ticket state, balance, and service actions together
 
 ### Current status
 
-| Area                                                 | Status                                                                  |
-| ---------------------------------------------------- | ----------------------------------------------------------------------- |
-| Business application, Admin review, Owner activation | Implemented and verified with local fixtures                            |
-| Owner, Branch Manager, and Staff workspaces          | Implemented; role boundaries and primary flows verified                 |
-| QR, Mock LIFF, Customer Booking, and Ticket          | Implemented and browser-tested                                          |
-| Demo Payment                                         | Verified locally                                                        |
-| LINE Login, Messaging, and Rich Menu                 | Implemented; selected acceptance remains on physical LINE/production OA |
-| Three-language UI                                    | Japanese default/fallback plus Vietnamese and English implemented       |
+| Area                                                 | Status                                                                                        |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Business application, Admin review, Owner activation | Implemented and verified with local fixtures                                                  |
+| Owner, Branch Manager, and Staff workspaces          | Implemented; role boundaries and primary flows verified                                       |
+| QR, Mock LIFF, Customer Booking, and Ticket          | Implemented and browser-tested                                                                |
+| Demo Payment                                         | Verified locally                                                                              |
+| LINE Login, Messaging, and Rich Menu                 | Implemented; selected acceptance remains on physical LINE/production OA                       |
+| LINE delivery operations                             | Implemented for Branch Managers and assigned Staff; physical LINE remains separate acceptance |
+| Three-language UI                                    | Japanese default/fallback plus Vietnamese and English implemented                             |
 
 ### Current limitations
 
@@ -224,11 +227,12 @@ _Staff sees customer, order, Ticket state, balance, and service actions together
 - Real Google Routes use requires production credentials and privacy consent.
 - ETA is an operational heuristic, not a trained ML model.
 - Production object storage, observability, backup/restore, and production-scale load testing require further hardening and acceptance.
-- There is currently no end-user notification-delivery status dashboard.
+- The LINE delivery operations page is available to Branch Managers and assigned Staff. Physical LINE
+  devices, friend state, rendered notifications, retention, and monitoring still require separate acceptance.
 
 ### Short technical note
 
-The system uses a React/Vite web UI, an Express/TypeScript API, and PostgreSQL, and supports isolated local verification through Docker Compose. LINE Login/LIFF customer authentication and LINE Messaging API notification delivery are separate. The server revalidates price, Organization, Branch, LINE User ID, payment status, and authorization rather than trusting browser input.
+The system uses a React/Vite web UI, an Express/TypeScript API, and PostgreSQL, and supports isolated local verification through Docker Compose. LINE Login/LIFF customer authentication and LINE Messaging API notification delivery are separate. The server revalidates price, Organization, Branch, LINE User ID, payment status, and authorization rather than trusting browser input. CI validates secrets, dependencies, formatting, spelling, Compose files, tests, build, and browser E2E on pushes and pull requests. Production CD is a manual workflow requiring `DEPLOY` confirmation and `production` approval; it publishes immutable image tags and never copies the server's `deploy/.env`.
 
 ### Guide and contact
 
@@ -328,14 +332,15 @@ _Staff xem khách, đơn, trạng thái Ticket, số dư và thao tác phục v�
 
 ### Trạng thái hiện tại
 
-| Phạm vi                                                | Trạng thái                                                         |
-| ------------------------------------------------------ | ------------------------------------------------------------------ |
-| Đăng ký doanh nghiệp, Admin xét duyệt, Owner kích hoạt | Đã triển khai và xác minh bằng fixture local                       |
-| Workspace Owner, Branch Manager và Staff               | Đã triển khai; đã xác minh quyền và luồng chính                    |
-| QR, Mock LIFF, Customer Booking và Ticket              | Đã triển khai và kiểm thử browser                                  |
-| Demo Payment                                           | Đã xác minh trên local                                             |
-| LINE Login, Messaging và Rich Menu                     | Đã có; một số phần còn cần nghiệm thu bằng LINE thật/OA production |
-| UI ba ngôn ngữ                                         | Japanese mặc định/fallback, Vietnamese và English đã triển khai    |
+| Phạm vi                                                | Trạng thái                                                             |
+| ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Đăng ký doanh nghiệp, Admin xét duyệt, Owner kích hoạt | Đã triển khai và xác minh bằng fixture local                           |
+| Workspace Owner, Branch Manager và Staff               | Đã triển khai; đã xác minh quyền và luồng chính                        |
+| QR, Mock LIFF, Customer Booking và Ticket              | Đã triển khai và kiểm thử browser                                      |
+| Demo Payment                                           | Đã xác minh trên local                                                 |
+| LINE Login, Messaging và Rich Menu                     | Đã có; một số phần còn cần nghiệm thu bằng LINE thật/OA production     |
+| Vận hành LINE delivery                                 | Đã có cho Branch Manager và Staff được gán; LINE thật nghiệm thu riêng |
+| UI ba ngôn ngữ                                         | Japanese mặc định/fallback, Vietnamese và English đã triển khai        |
 
 ### Giới hạn hiện tại
 
@@ -344,11 +349,12 @@ _Staff xem khách, đơn, trạng thái Ticket, số dư và thao tác phục v�
 - Google Routes thực cần production credentials và chấp thuận privacy.
 - ETA là heuristic vận hành, không phải mô hình ML đã huấn luyện.
 - Object storage, observability, backup/restore production và kiểm thử tải quy mô production cần hardening/nghiệm thu thêm.
-- Hiện chưa có dashboard người dùng cho trạng thái delivery notification.
+- Màn hình vận hành LINE dành cho Branch Manager và Staff được gán đã có. Thiết bị LINE thật, trạng thái kết bạn,
+  hiển thị notification, retention và monitoring vẫn cần nghiệm thu riêng.
 
 ### Ghi chú kỹ thuật ngắn
 
-Hệ thống dùng Web UI React/Vite, API Express/TypeScript và PostgreSQL; có thể kiểm thử local cô lập bằng Docker Compose. LINE Login/LIFF dùng để xác thực Customer, còn LINE Messaging API dùng để gửi notification — đây là hai capability riêng. Server xác minh lại price, Organization, Branch, LINE User ID, payment status và authorization thay vì tin dữ liệu browser gửi lên.
+Hệ thống dùng Web UI React/Vite, API Express/TypeScript và PostgreSQL; có thể kiểm thử local cô lập bằng Docker Compose. LINE Login/LIFF dùng để xác thực Customer, còn LINE Messaging API dùng để gửi notification — đây là hai capability riêng. Server xác minh lại price, Organization, Branch, LINE User ID, payment status và authorization thay vì tin dữ liệu browser gửi lên. CI kiểm tra secret, dependency, format, spell, Compose, test, build và browser E2E trên push/pull request. CD production là workflow thủ công cần nhập `DEPLOY` và được duyệt ở Environment `production`; workflow phát hành image tag bất biến và không sao chép `deploy/.env` trên server.
 
 ### Hướng dẫn và liên hệ
 
