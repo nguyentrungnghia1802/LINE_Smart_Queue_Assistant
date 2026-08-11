@@ -105,7 +105,7 @@ npm run storybook:build
 ```
 
 The toolbar provides Japanese, Vietnamese, and English locale selection plus phone and desktop
-viewports. The 20 colocated story modules expose 64 entries covering shared brand/layout/i18n
+viewports. The 21 colocated story modules expose 65 entries covering shared brand/layout/i18n
 controls, role shell and login chrome, loading/empty/error/pagination feedback, queue/ticket/order
 states, manager form/map boundaries, and LIFF friendship/QR flows. Stories that change state use
 Storybook interaction tests
@@ -115,6 +115,21 @@ for pagination, dismissible alerts, product selection, friendship requests, and 
 storage, or network calls. Camera, maps, and API integration boundaries stay in Vitest tests with
 explicit mocks. A Storybook static build is a development/CI review artifact and is not copied into
 the production web image.
+
+OPT-003 measured the production Web build before and after route-level splitting. The same
+`npm run build -w apps/web` command (including the CSP scan) produced this local comparison:
+
+| Evidence                      | Before                  | After                   |
+| ----------------------------- | ----------------------- | ----------------------- |
+| Eager page entry              | 728.14 kB / 156.56 gzip | 23.74 kB / 7.02 gzip    |
+| Router chunk                  | 371.73 kB / 115.54 gzip | 92.11 kB / 30.59 gzip   |
+| Catch-all eager vendor chunk  | 684.87 kB / 195.13 gzip | removed                 |
+| Largest route-only LIFF chunk | included eagerly        | 542.78 kB / 146.09 gzip |
+
+Sizes are minified Vite output, not network timing or a production capacity claim. Page chunks may
+change hashes and sizes as features evolve. Review the generated `dist/index.html` preload list and
+chunk table whenever adding a dependency: a large route-only chunk is acceptable when it is not
+preloaded for unrelated roles, while a growing eager entry requires investigation.
 
 `npm run docker:clean` also removes development database volumes and is destructive.
 
@@ -358,6 +373,8 @@ Critical regression scenarios:
   the body-portal QR camera dialog.
 - Production web bundles contain no `eval(` or `new Function`; `npm run build -w apps/web` performs
   this CSP check after Vite emits the bundle.
+- Critical public, LIFF, Staff, Manager, and Admin page modules remain lazy route elements under the
+  shared accessible loading fallback; the router unit test guards those role-level boundaries.
 
 Playwright uses API/web ports `4100`/`5174`, a unique mock LINE user for each run,
 the demo payment provider, and the mock LINE messaging adapter. Prepare a migrated,

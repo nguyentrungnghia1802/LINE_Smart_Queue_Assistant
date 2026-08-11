@@ -1,56 +1,19 @@
-import { createBrowserRouter, Navigate, redirect } from 'react-router-dom';
+import { type ComponentType, createElement, lazy } from 'react';
+import { createBrowserRouter, Navigate, redirect, type RouteObject } from 'react-router-dom';
 
-import { LiffLayout } from './components/layout/LiffLayout';
-import { AccountLifecyclePage } from './pages/AccountLifecyclePage';
-import { AccountPage } from './pages/AccountPage';
-import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
-import { AdminLayout } from './pages/admin/AdminLayout';
-import { AdminOperationsPage } from './pages/admin/AdminOperationsPage';
-import { AdminOrganizationApplicationsPage } from './pages/admin/AdminOrganizationApplicationsPage';
-import { AdminOrganizationDetailPage } from './pages/admin/AdminOrganizationDetailPage';
-import { AdminOrganizationsPage } from './pages/admin/AdminOrganizationsPage';
-import { CustomerLineEntryPage, LiffCustomerJoinPage } from './pages/customer/CustomerJoinPage';
-import { HistoryPage } from './pages/liff/HistoryPage';
-import { HomePage } from './pages/liff/HomePage';
-import { LiffInitPage } from './pages/liff/LiffInitPage';
-import { MyTicketsPage } from './pages/liff/MyTicketsPage';
-import { PreferencesPage } from './pages/liff/PreferencesPage';
-import { QueueJoinPage } from './pages/liff/QueueJoinPage';
-import { TicketStatusPage } from './pages/liff/TicketStatusPage';
-import { LoginPage } from './pages/LoginPage';
-import { CreateQueuePage } from './pages/manager/CreateQueuePage';
-import { ManagerAuditPage } from './pages/manager/ManagerAuditPage';
-import { ManagerBranchDetailPage } from './pages/manager/ManagerBranchDetailPage';
-import { ManagerBranchesPage } from './pages/manager/ManagerBranchesPage';
-import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
-import { ManagerLayout } from './pages/manager/ManagerLayout';
-import { ManagerProductDetailPage } from './pages/manager/ManagerProductDetailPage';
-import { ManagerProductFormPage } from './pages/manager/ManagerProductFormPage';
-import { ManagerProductsPage } from './pages/manager/ManagerProductsPage';
-import { ManagerQRPage } from './pages/manager/ManagerQRPage';
-import { ManagerSettingsRoute } from './pages/manager/ManagerSettingsRoute';
-import { ManagerUserDetailPage } from './pages/manager/ManagerUserDetailPage';
-import { ManagerUsersPage } from './pages/manager/ManagerUsersPage';
-import { QueueSettingsPage } from './pages/manager/QueueSettingsPage';
-import { BusinessRegistrationPage } from './pages/marketing/BusinessRegistrationPage';
-import { MarketingHomePage } from './pages/marketing/MarketingHomePage';
-import { NotFoundPage } from './pages/NotFoundPage';
-import { NotificationOperationsPage } from './pages/NotificationOperationsPage';
-import { PaymentDemoPage } from './pages/PaymentDemoPage';
-import { QueueDetailPage } from './pages/QueueDetailPage';
-import { QueuesPage } from './pages/QueuesPage';
-import { RoleRedirectPage } from './pages/RoleRedirectPage';
-import { StaffDashboardPage } from './pages/staff/StaffDashboardPage';
-import { StaffLayout } from './pages/staff/StaffLayout';
-import { StaffProductsPage } from './pages/staff/StaffProductsPage';
-import { StaffQRPage } from './pages/staff/StaffQRPage';
-import { StaffQueuePage } from './pages/StaffQueuePage';
+function lazyElement<TModule, TKey extends keyof TModule>(
+  load: () => Promise<TModule>,
+  exportName: TKey
+) {
+  const Component = lazy(async () => ({ default: (await load())[exportName] as ComponentType }));
+  return createElement(Component);
+}
 
-export const router = createBrowserRouter([
+export const appRoutes = [
   // ── Auth ──────────────────────────────────────────────────────────────────
   {
     path: '/login',
-    element: <LoginPage />,
+    element: lazyElement(() => import('./pages/LoginPage'), 'LoginPage'),
   },
   {
     path: '/register',
@@ -58,15 +21,27 @@ export const router = createBrowserRouter([
   },
   {
     path: '/business/register',
-    element: <BusinessRegistrationPage />,
+    element: lazyElement(
+      () => import('./pages/marketing/BusinessRegistrationPage'),
+      'BusinessRegistrationPage'
+    ),
   },
   {
     path: '/account',
-    element: <AccountPage />,
+    element: lazyElement(() => import('./pages/AccountPage'), 'AccountPage'),
   },
-  { path: '/activate-account', element: <AccountLifecyclePage /> },
-  { path: '/forgot-password', element: <AccountLifecyclePage /> },
-  { path: '/reset-password', element: <AccountLifecyclePage /> },
+  {
+    path: '/activate-account',
+    element: lazyElement(() => import('./pages/AccountLifecyclePage'), 'AccountLifecyclePage'),
+  },
+  {
+    path: '/forgot-password',
+    element: lazyElement(() => import('./pages/AccountLifecyclePage'), 'AccountLifecyclePage'),
+  },
+  {
+    path: '/reset-password',
+    element: lazyElement(() => import('./pages/AccountLifecyclePage'), 'AccountLifecyclePage'),
+  },
 
   // ── Public (no auth required) ─────────────────────────────────────────────
   {
@@ -77,45 +52,165 @@ export const router = createBrowserRouter([
     path: '/ticket/:entryId',
     loader: ({ params }) => redirect(`/liff/tickets/${encodeURIComponent(params.entryId ?? '')}`),
   },
-  { path: '/checkout/demo/:sessionId', element: <PaymentDemoPage /> },
-  { path: '/q/:orgSlug', element: <CustomerLineEntryPage /> },
-  { path: '/qr/:token', element: <CustomerLineEntryPage /> },
+  {
+    path: '/checkout/demo/:sessionId',
+    element: lazyElement(() => import('./pages/PaymentDemoPage'), 'PaymentDemoPage'),
+  },
+  {
+    path: '/q/:orgSlug',
+    element: lazyElement(
+      () => import('./pages/customer/CustomerJoinPage'),
+      'CustomerLineEntryPage'
+    ),
+  },
+  {
+    path: '/qr/:token',
+    element: lazyElement(
+      () => import('./pages/customer/CustomerJoinPage'),
+      'CustomerLineEntryPage'
+    ),
+  },
 
   // ── Manager ───────────────────────────────────────────────────────────────
   {
     path: '/manager',
-    element: <ManagerLayout />,
+    element: lazyElement(() => import('./pages/manager/ManagerLayout'), 'ManagerLayout'),
     children: [
-      { index: true, element: <ManagerDashboardPage /> },
-      { path: 'products', element: <ManagerProductsPage /> },
-      { path: 'products/new', element: <ManagerProductFormPage /> },
-      { path: 'products/:id', element: <ManagerProductDetailPage /> },
-      { path: 'products/:id/edit', element: <ManagerProductFormPage /> },
-      { path: 'queues', element: <QueuesPage /> },
-      { path: 'queues/new', element: <CreateQueuePage /> },
-      { path: 'queues/:id', element: <QueueDetailPage /> },
-      { path: 'queues/:id/manage', element: <StaffQueuePage /> },
-      { path: 'queues/:id/settings', element: <QueueSettingsPage /> },
-      { path: 'users', element: <ManagerUsersPage /> },
-      { path: 'users/:userId', element: <ManagerUserDetailPage /> },
-      { path: 'branches', element: <ManagerBranchesPage /> },
-      { path: 'branches/:branchId', element: <ManagerBranchDetailPage /> },
-      { path: 'audit', element: <ManagerAuditPage /> },
-      { path: 'notifications', element: <NotificationOperationsPage /> },
-      { path: 'qr', element: <ManagerQRPage /> },
-      { path: 'settings', element: <ManagerSettingsRoute /> },
+      {
+        index: true,
+        element: lazyElement(
+          () => import('./pages/manager/ManagerDashboardPage'),
+          'ManagerDashboardPage'
+        ),
+      },
+      {
+        path: 'products',
+        element: lazyElement(
+          () => import('./pages/manager/ManagerProductsPage'),
+          'ManagerProductsPage'
+        ),
+      },
+      {
+        path: 'products/new',
+        element: lazyElement(
+          () => import('./pages/manager/ManagerProductFormPage'),
+          'ManagerProductFormPage'
+        ),
+      },
+      {
+        path: 'products/:id',
+        element: lazyElement(
+          () => import('./pages/manager/ManagerProductDetailPage'),
+          'ManagerProductDetailPage'
+        ),
+      },
+      {
+        path: 'products/:id/edit',
+        element: lazyElement(
+          () => import('./pages/manager/ManagerProductFormPage'),
+          'ManagerProductFormPage'
+        ),
+      },
+      {
+        path: 'queues',
+        element: lazyElement(() => import('./pages/QueuesPage'), 'QueuesPage'),
+      },
+      {
+        path: 'queues/new',
+        element: lazyElement(() => import('./pages/manager/CreateQueuePage'), 'CreateQueuePage'),
+      },
+      {
+        path: 'queues/:id',
+        element: lazyElement(() => import('./pages/QueueDetailPage'), 'QueueDetailPage'),
+      },
+      {
+        path: 'queues/:id/manage',
+        element: lazyElement(() => import('./pages/StaffQueuePage'), 'StaffQueuePage'),
+      },
+      {
+        path: 'queues/:id/settings',
+        element: lazyElement(
+          () => import('./pages/manager/QueueSettingsPage'),
+          'QueueSettingsPage'
+        ),
+      },
+      {
+        path: 'users',
+        element: lazyElement(() => import('./pages/manager/ManagerUsersPage'), 'ManagerUsersPage'),
+      },
+      {
+        path: 'users/:userId',
+        element: lazyElement(
+          () => import('./pages/manager/ManagerUserDetailPage'),
+          'ManagerUserDetailPage'
+        ),
+      },
+      {
+        path: 'branches',
+        element: lazyElement(
+          () => import('./pages/manager/ManagerBranchesPage'),
+          'ManagerBranchesPage'
+        ),
+      },
+      {
+        path: 'branches/:branchId',
+        element: lazyElement(
+          () => import('./pages/manager/ManagerBranchDetailPage'),
+          'ManagerBranchDetailPage'
+        ),
+      },
+      {
+        path: 'audit',
+        element: lazyElement(() => import('./pages/manager/ManagerAuditPage'), 'ManagerAuditPage'),
+      },
+      {
+        path: 'notifications',
+        element: lazyElement(
+          () => import('./pages/NotificationOperationsPage'),
+          'NotificationOperationsPage'
+        ),
+      },
+      {
+        path: 'qr',
+        element: lazyElement(() => import('./pages/manager/ManagerQRPage'), 'ManagerQRPage'),
+      },
+      {
+        path: 'settings',
+        element: lazyElement(
+          () => import('./pages/manager/ManagerSettingsRoute'),
+          'ManagerSettingsRoute'
+        ),
+      },
     ],
   },
 
   // ── Staff ─────────────────────────────────────────────────────────────────
   {
     path: '/staff',
-    element: <StaffLayout />,
+    element: lazyElement(() => import('./pages/staff/StaffLayout'), 'StaffLayout'),
     children: [
-      { index: true, element: <StaffDashboardPage /> },
-      { path: 'products', element: <StaffProductsPage /> },
-      { path: 'qr', element: <StaffQRPage /> },
-      { path: 'notifications', element: <NotificationOperationsPage /> },
+      {
+        index: true,
+        element: lazyElement(
+          () => import('./pages/staff/StaffDashboardPage'),
+          'StaffDashboardPage'
+        ),
+      },
+      {
+        path: 'products',
+        element: lazyElement(() => import('./pages/staff/StaffProductsPage'), 'StaffProductsPage'),
+      },
+      {
+        path: 'qr',
+        element: lazyElement(() => import('./pages/staff/StaffQRPage'), 'StaffQRPage'),
+      },
+      {
+        path: 'notifications',
+        element: lazyElement(
+          () => import('./pages/NotificationOperationsPage'),
+          'NotificationOperationsPage'
+        ),
+      },
     ],
   },
 
@@ -125,48 +220,119 @@ export const router = createBrowserRouter([
   // ── LIFF customer flow ────────────────────────────────────────────────────
   {
     path: '/liff',
-    element: <LiffLayout />,
+    element: lazyElement(() => import('./components/layout/LiffLayout'), 'LiffLayout'),
     children: [
-      { index: true, element: <LiffInitPage /> },
-      { path: 'home', element: <HomePage /> },
-      { path: 'join/:queueId', element: <QueueJoinPage /> },
-      { path: 'q/:orgSlug', element: <LiffCustomerJoinPage /> },
-      { path: 'qr/:token', element: <LiffCustomerJoinPage /> },
-      { path: 'checkout/demo/:sessionId', element: <PaymentDemoPage /> },
-      { path: 'tickets', element: <MyTicketsPage /> },
-      { path: 'tickets/:entryId', element: <TicketStatusPage /> },
-      { path: 'history', element: <HistoryPage /> },
-      { path: 'preferences', element: <PreferencesPage /> },
+      {
+        index: true,
+        element: lazyElement(() => import('./pages/liff/LiffInitPage'), 'LiffInitPage'),
+      },
+      {
+        path: 'home',
+        element: lazyElement(() => import('./pages/liff/HomePage'), 'HomePage'),
+      },
+      {
+        path: 'join/:queueId',
+        element: lazyElement(() => import('./pages/liff/QueueJoinPage'), 'QueueJoinPage'),
+      },
+      {
+        path: 'q/:orgSlug',
+        element: lazyElement(
+          () => import('./pages/customer/CustomerJoinPage'),
+          'LiffCustomerJoinPage'
+        ),
+      },
+      {
+        path: 'qr/:token',
+        element: lazyElement(
+          () => import('./pages/customer/CustomerJoinPage'),
+          'LiffCustomerJoinPage'
+        ),
+      },
+      {
+        path: 'checkout/demo/:sessionId',
+        element: lazyElement(() => import('./pages/PaymentDemoPage'), 'PaymentDemoPage'),
+      },
+      {
+        path: 'tickets',
+        element: lazyElement(() => import('./pages/liff/MyTicketsPage'), 'MyTicketsPage'),
+      },
+      {
+        path: 'tickets/:entryId',
+        element: lazyElement(() => import('./pages/liff/TicketStatusPage'), 'TicketStatusPage'),
+      },
+      {
+        path: 'history',
+        element: lazyElement(() => import('./pages/liff/HistoryPage'), 'HistoryPage'),
+      },
+      {
+        path: 'preferences',
+        element: lazyElement(() => import('./pages/liff/PreferencesPage'), 'PreferencesPage'),
+      },
     ],
   },
 
   // ── Admin ─────────────────────────────────────────────────────────────────
   {
     path: '/admin',
-    element: <AdminLayout />,
+    element: lazyElement(() => import('./pages/admin/AdminLayout'), 'AdminLayout'),
     children: [
-      { index: true, element: <AdminDashboardPage /> },
-      { path: 'orgs', element: <AdminOrganizationsPage /> },
-      { path: 'applications', element: <AdminOrganizationApplicationsPage /> },
-      { path: 'operations', element: <AdminOperationsPage /> },
-      { path: 'orgs/:orgId', element: <AdminOrganizationDetailPage /> },
+      {
+        index: true,
+        element: lazyElement(
+          () => import('./pages/admin/AdminDashboardPage'),
+          'AdminDashboardPage'
+        ),
+      },
+      {
+        path: 'orgs',
+        element: lazyElement(
+          () => import('./pages/admin/AdminOrganizationsPage'),
+          'AdminOrganizationsPage'
+        ),
+      },
+      {
+        path: 'applications',
+        element: lazyElement(
+          () => import('./pages/admin/AdminOrganizationApplicationsPage'),
+          'AdminOrganizationApplicationsPage'
+        ),
+      },
+      {
+        path: 'operations',
+        element: lazyElement(
+          () => import('./pages/admin/AdminOperationsPage'),
+          'AdminOperationsPage'
+        ),
+      },
+      {
+        path: 'orgs/:orgId',
+        element: lazyElement(
+          () => import('./pages/admin/AdminOrganizationDetailPage'),
+          'AdminOrganizationDetailPage'
+        ),
+      },
     ],
   },
 
   // ── Staff / manager dashboard ─────────────────────────────────────────────
   {
     path: '/',
-    element: <MarketingHomePage />,
+    element: lazyElement(() => import('./pages/marketing/MarketingHomePage'), 'MarketingHomePage'),
   },
 
   { path: '/app/*', element: <Navigate to="/dashboard" replace /> },
 
   // ── Convenience redirect ──────────────────────────────────────────────────
-  { path: '/dashboard', element: <RoleRedirectPage /> },
+  {
+    path: '/dashboard',
+    element: lazyElement(() => import('./pages/RoleRedirectPage'), 'RoleRedirectPage'),
+  },
 
   // ── 404 ───────────────────────────────────────────────────────────────────
   {
     path: '*',
-    element: <NotFoundPage />,
+    element: lazyElement(() => import('./pages/NotFoundPage'), 'NotFoundPage'),
   },
-]);
+] satisfies RouteObject[];
+
+export const router = createBrowserRouter(appRoutes);

@@ -183,7 +183,7 @@ Targets are engineering guidance, not unsupported production capacity claims.
 
 ## OPT-003: Frontend Performance and UX Polish
 
-**Status:** [ ] Not started  
+**Status:** [x] Completed (2026-08-11)
 **Priority:** P1  
 **Dependencies:** OPT-002 completed
 
@@ -211,34 +211,52 @@ Inspect:
 
 ### Implementation Checklist
 
-- [ ] Capture current production bundle/build evidence before changes.
-- [ ] Identify measurable duplicate fetches, rerender hotspots, or unnecessarily eager code loading.
-- [ ] Apply route/component lazy loading only where it provides real value and does not harm reliability.
-- [ ] Tune query stale/refetch/polling behavior without weakening realtime recovery.
-- [ ] Keep REST authoritative; SSE remains an invalidation/reconciliation mechanism.
-- [ ] Remove unnecessary renders/state duplication where demonstrated.
-- [ ] Improve image/media loading behavior where needed.
-- [ ] Verify shared navigation remains scalable with additional destinations and long localized labels.
-- [ ] Fix page-level overflow, modal clipping, hidden controls, and mobile layout issues found during audit.
-- [ ] Improve accessibility for keyboard navigation, focus, labels, ARIA, and reduced-motion behavior where gaps are found.
-- [ ] Keep all visible copy localized in `ja`, `vi`, and `en` with Japanese fallback.
-- [ ] Do not introduce a new frontend framework or redesign major information architecture.
+- [x] Capture current production bundle/build evidence before changes.
+- [x] Identify measurable duplicate fetches, rerender hotspots, or unnecessarily eager code loading.
+- [x] Apply route/component lazy loading only where it provides real value and does not harm reliability.
+- [x] Tune query stale/refetch/polling behavior without weakening realtime recovery.
+- [x] Keep REST authoritative; SSE remains an invalidation/reconciliation mechanism.
+- [x] Remove unnecessary renders/state duplication where demonstrated.
+- [x] Improve image/media loading behavior where needed.
+- [x] Verify shared navigation remains scalable with additional destinations and long localized labels.
+- [x] Fix page-level overflow, modal clipping, hidden controls, and mobile layout issues found during audit.
+- [x] Improve accessibility for keyboard navigation, focus, labels, ARIA, and reduced-motion behavior where gaps are found.
+- [x] Keep all visible copy localized in `ja`, `vi`, and `en` with Japanese fallback.
+- [x] Do not introduce a new frontend framework or redesign major information architecture.
 
 ### Tests and Validation
 
-- [ ] Add/update component tests for changed interactions.
-- [ ] Update Storybook stories for changed reusable UI states.
-- [ ] Run representative desktop/mobile browser E2E.
-- [ ] Verify no critical route has page-level horizontal overflow.
-- [ ] Verify customer LIFF, Staff, Manager, and Admin critical flows still work.
-- [ ] Run lint, typecheck, tests, Storybook build, production build/CSP, and required validation.
+- [x] Add/update component tests for changed interactions.
+- [x] Update Storybook stories for changed reusable UI states.
+- [x] Run representative desktop/mobile browser E2E.
+- [x] Verify no critical route has page-level horizontal overflow.
+- [x] Verify customer LIFF, Staff, Manager, and Admin critical flows still work.
+- [x] Run lint, typecheck, tests, Storybook build, production build/CSP, and required validation.
+
+### Completion Evidence (2026-08-11)
+
+- Production Vite evidence reduced the eager page entry from 728.14 kB / 156.56 kB gzip to
+  23.74 kB / 7.02 kB gzip and removed the catch-all 684.87 kB eager vendor chunk. The LIFF-only
+  dependency graph is now deferred to the LIFF route instead of loading for every role.
+- Public, LIFF, Staff, Manager, and Admin pages/layouts use route-level React lazy loading with one
+  localized accessible fallback. Repeated list/order images use native lazy loading and async
+  decoding; the shared spinner respects reduced-motion preference.
+- Existing TanStack Query stale/refetch policy and SSE-aware degraded polling were retained because
+  the audit found no correctness or duplicate-fetch defect. REST remains authoritative and SSE
+  remains an invalidation/reconciliation hint.
+- Full API validation passed 112 suites / 672 tests; Web passed 56 files / 185 tests. Lint,
+  typecheck, formatting, OpenAPI 4/4, production build/CSP, migration status, and Storybook static
+  build passed.
+- Playwright passed 8/8 desktop/mobile responsive cases across Customer LIFF, Staff, Manager, and
+  Admin, including navigation availability and page-level horizontal-overflow assertions.
+- No dependency, API, authorization, workflow, database schema, or migration change was required.
 
 ### Definition of Done
 
-- [ ] Demonstrated frontend inefficiencies or usability issues have been improved.
-- [ ] Critical flows remain stable across desktop/mobile and all supported locales.
-- [ ] Accessibility and responsive behavior do not regress.
-- [ ] No unnecessary frontend architecture rewrite was introduced.
+- [x] Demonstrated frontend inefficiencies or usability issues have been improved.
+- [x] Critical flows remain stable across desktop/mobile and all supported locales.
+- [x] Accessibility and responsive behavior do not regress.
+- [x] No unnecessary frontend architecture rewrite was introduced.
 
 ---
 

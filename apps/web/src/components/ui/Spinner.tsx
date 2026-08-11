@@ -13,7 +13,7 @@ export function Spinner({ size = 'md', className = '' }: SpinnerProps) {
   const { t } = useTranslation('common');
   return (
     <svg
-      className={`animate-spin text-brand-primary ${SIZE_CLASSES[size]} ${className}`}
+      className={`animate-spin text-brand-primary motion-reduce:animate-none ${SIZE_CLASSES[size]} ${className}`}
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"

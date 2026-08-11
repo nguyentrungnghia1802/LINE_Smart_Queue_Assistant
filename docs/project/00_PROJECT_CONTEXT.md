@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-08-11 after the OPT-002 backend performance pass.
+Last verified against the repository on 2026-08-11 after the OPT-003 frontend performance pass.
 
 ## 1. Problem
 
@@ -59,6 +59,9 @@ real-money payment or notification platform.
   decorators, deterministic queue/ticket/order fixtures, Japanese/Vietnamese/English toolbar
   control, phone/desktop viewport states, and interaction coverage for selected reusable
   components.
+- Route-level React lazy loading with a localized accessible fallback keeps Customer, Staff,
+  Manager, Admin, and public page code out of unrelated initial navigation; repeated catalog and
+  order images use deferred browser loading/decoding while visible identity imagery stays eager.
 - Shared responsive role navigation with full desktop tabs, icon-labelled mobile bottom navigation,
   safe-area spacing, and mobile card/list variants for dense manager operations.
 - Public business onboarding with organization/contact/address/usage/plan details, a work-email

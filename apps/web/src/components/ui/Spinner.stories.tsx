@@ -21,3 +21,10 @@ export const Default: Story = { args: { size: 'md' } };
 export const LargeLoadingIndicator: Story = {
   args: { size: 'lg' },
 };
+
+export const ReducedMotion: Story = {
+  args: { size: 'lg' },
+  parameters: {
+    chromatic: { prefersReducedMotion: 'reduce' },
+  },
+};

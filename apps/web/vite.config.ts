@@ -52,7 +52,9 @@ export default defineConfig(({ mode }) => ({
         manualChunks(id) {
           if (id.includes('react-router-dom')) return 'router';
           if (id.includes('@tanstack/react-query')) return 'query';
-          if (id.includes('node_modules')) return 'vendor';
+          if (id.includes('@sentry/')) return 'observability';
+          if (id.includes('/react/') || id.includes('/react-dom/')) return 'react';
+          if (id.includes('i18next')) return 'i18n';
           return undefined;
         },
       },

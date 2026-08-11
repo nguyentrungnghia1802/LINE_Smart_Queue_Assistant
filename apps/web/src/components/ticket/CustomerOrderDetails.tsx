@@ -85,6 +85,8 @@ export function CustomerOrderDetails({ order }: Readonly<CustomerOrderDetailsPro
               <img
                 src={item.product_image_url}
                 alt={item.product_name}
+                loading="lazy"
+                decoding="async"
                 className="h-12 w-12 rounded-md object-cover sm:h-14 sm:w-14"
               />
             ) : (

@@ -677,6 +677,8 @@ export function StaffDashboardPage() {
                                 <img
                                   src={item.product_image_url}
                                   alt={item.product_name}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="h-16 w-16 rounded-xl object-cover sm:h-[72px] sm:w-[72px]"
                                 />
                               ) : (

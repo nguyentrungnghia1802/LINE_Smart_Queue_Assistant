@@ -143,6 +143,8 @@ function Logo({ src, name }: Readonly<{ src: string | null; name: string }>) {
       <img
         src={src}
         alt={t('organizations.logoAlt', { name })}
+        loading="lazy"
+        decoding="async"
         className="h-12 w-12 rounded-md border border-gray-200 object-cover"
       />
     );

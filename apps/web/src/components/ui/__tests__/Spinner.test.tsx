@@ -34,4 +34,9 @@ describe('Spinner', () => {
     expect(svg.getAttribute('class')).toContain('h-10');
     expect(svg.getAttribute('class')).toContain('w-10');
   });
+
+  it('stops animation when the user prefers reduced motion', () => {
+    render(<Spinner />);
+    expect(screen.getByRole('status')).toHaveClass('motion-reduce:animate-none');
+  });
 });

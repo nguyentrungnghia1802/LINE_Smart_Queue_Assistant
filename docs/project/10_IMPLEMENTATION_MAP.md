@@ -1,8 +1,8 @@
 # Current Implementation Map
 
-Last verified during OPT-001 on 2026-08-11. Notification operations, payment/refund fixtures,
-responsive navigation, localization, schema parity, and shared persisted enum contracts were
-re-verified against the executable migrations/runtime constraints.
+Last verified during OPT-003 on 2026-08-11. Route-level loading, responsive navigation,
+localization, Storybook states, SSE/polling reconciliation, notification operations, and
+payment/refund fixtures were re-verified against the executable application and browser checks.
 
 This document is the maintenance index for the current repository. It connects product roles and
 flows to source modules, routes, database history, runtime configuration, scheduled jobs, and
@@ -49,7 +49,7 @@ a source of current behavior.
 | Browser realtime        | Shared authenticated SSE, query invalidation, bounded reconnect, lifecycle cleanup, retained REST polling fallback                                    | Production device/proxy capacity acceptance remains pending                           |
 | Forecasting             | PostgreSQL measured heuristic for wait and staffing recommendations                                                                                   | It is not a generative-AI or trained ML model                                         |
 | Media                   | Local/mock plus S3/R2-compatible server-mediated storage; WebP compression and stable URLs                                                            | Signed delivery/upload and automated orphan cleanup remain future hardening           |
-| Component review        | Storybook 10.5.7 with i18n/provider decorators, deterministic queue/ticket/order fixtures, 20 story modules / 64 entries, and phone/desktop viewports | Static build and interaction stories are local/CI review gates; no real integrations  |
+| Component review        | Storybook 10.5.7 with i18n/provider decorators, deterministic queue/ticket/order fixtures, 21 story modules / 65 entries, and phone/desktop viewports | Static build and interaction stories are local/CI review gates; no real integrations  |
 
 ## 3. Repository and runtime map
 
@@ -75,7 +75,7 @@ a source of current behavior.
 | `apps/api/src/db/repositories`                                          | Parameterized SQL and row mapping                                                  | `04`, service tests, migrations             |
 | `apps/api/src/jobs`                                                     | API-owned recurring jobs and shared LINE outbox delivery service                   | `02`, `03`, `07`, `08`                      |
 | `apps/api/src/docs/api-endpoint-catalog.ts`                             | Runtime API catalog and OpenAPI metadata                                           | routes, validators, `05`                    |
-| `apps/web/src/router.tsx`                                               | All SPA route paths and compatibility redirects                                    | `02`, `05`, UI tests                        |
+| `apps/web/src/router.tsx`                                               | Lazy SPA page/layout modules plus synchronous compatibility redirects              | `02`, `05`, `06`, `07`, UI tests            |
 | `apps/web/src/pages`                                                    | Role and customer page orchestration                                               | `01`, `03`, `06`, UI tests                  |
 | `apps/web/src/components`                                               | Reusable layout, queue, ticket, product, i18n, and LIFF UI                         | `06`, UI tests, Storybook stories           |
 | `apps/web/.storybook`                                                   | Storybook framework, global providers, locale toolbar, and viewports               | `06`, `07`, ADR-035                         |

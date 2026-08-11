@@ -160,6 +160,8 @@ export function ManagerProductsPage() {
                     <img
                       src={product.image_url}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                       className="h-14 w-14 shrink-0 rounded-lg object-cover"
                     />
                   ) : (
@@ -286,7 +288,13 @@ export function ManagerProductsPage() {
                   <td className="px-4 py-3">
                     <div className="flex min-w-0 items-center gap-3">
                       {p.image_url ? (
-                        <img src={p.image_url} alt="" className="w-8 h-8 rounded object-cover" />
+                        <img
+                          src={p.image_url}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="h-8 w-8 rounded object-cover"
+                        />
                       ) : (
                         <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-gray-400 text-xs">
                           ?

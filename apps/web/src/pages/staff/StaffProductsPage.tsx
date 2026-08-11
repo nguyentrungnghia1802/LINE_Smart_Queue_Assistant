@@ -83,7 +83,13 @@ export function StaffProductsPage() {
             className="overflow-hidden rounded-lg border border-gray-200 bg-white text-left shadow-sm transition hover:border-brand-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             {p.image_url ? (
-              <img src={p.image_url} alt={p.name} className="aspect-square w-full object-cover" />
+              <img
+                src={p.image_url}
+                alt={p.name}
+                loading="lazy"
+                decoding="async"
+                className="aspect-square w-full object-cover"
+              />
             ) : (
               <div className="flex aspect-square w-full items-center justify-center bg-gray-100 text-xl font-bold text-gray-400">
                 {p.name.slice(0, 1)}

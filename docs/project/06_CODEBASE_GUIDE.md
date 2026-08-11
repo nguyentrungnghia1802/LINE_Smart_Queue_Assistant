@@ -108,6 +108,13 @@ apps/web/src/
 
 Pages orchestrate data and interactions. Reusable visual patterns belong in components, server calls in services/hooks, and non-React transformations in utils. `FormValidationManager` converts native browser constraints into one localized inline error per invalid control; API `fieldErrors` remain mapped by each form because their paths follow request contracts. Browser storage is for drafts and convenience, never authorization/payment truth.
 
+`router.tsx` uses `React.lazy` for page and role-layout modules under one localized `Suspense`
+fallback in `App.tsx`. Keep compatibility redirects synchronous, but add new page routes through the
+same lazy helper so Admin, Manager, Staff, LIFF, and public code do not become one eager entry bundle.
+Vite may isolate framework dependencies into stable manual chunks; do not force every
+`node_modules` dependency into one vendor chunk because that makes route-only LIFF, QR, and other
+feature dependencies part of every initial navigation.
+
 The isolated component-review environment is `apps/web/.storybook/main.ts` and
 `apps/web/.storybook/preview.tsx`. Reusable stories use the `*.stories.tsx` convention beside the
 component, while deterministic shared fixtures and the no-network authenticated story provider
@@ -231,6 +238,9 @@ and `shared-domain-contract.test.ts` together when adding or renaming a persiste
 12. Consume authenticated SSE through `services/realtime` and `hooks/useRealtime.ts`. Treat events
     as invalidation hints, reconcile through TanStack Query/REST, retain a polling fallback, and
     release subscriptions on route, visibility, network, logout, and session-expiry changes.
+13. Lazy-load new page modules through `router.tsx`, retain the shared localized route-loading
+    fallback, and use native lazy image loading for repeated off-screen catalog/list media. Keep
+    above-the-fold identity/brand imagery eager when it contributes to the first useful render.
 
 ## 9. Error, logging, and transactions
 
