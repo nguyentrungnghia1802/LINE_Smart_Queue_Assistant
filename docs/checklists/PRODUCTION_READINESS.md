@@ -1,6 +1,6 @@
 # Production Readiness Checklist
 
-Last reviewed: 2026-08-09. This checklist distinguishes repository verification from external production acceptance. A checked code item does not prove that LINE, a payment provider, or production infrastructure is configured.
+Last reviewed: 2026-08-11. This checklist distinguishes repository verification from external production acceptance. A checked code item does not prove that LINE, a payment provider, or production infrastructure is configured.
 
 ## Workstream status
 
@@ -51,6 +51,12 @@ Last reviewed: 2026-08-09. This checklist distinguishes repository verification 
 ## Evidence record
 
 For each deployment, record the release commit, environment, migration result, CI run URL, reviewer, test timestamps, unresolved exceptions, and rollback reference in the release ticket. Never paste access tokens, exact customer coordinates, full LINE user IDs, or provider payloads into evidence.
+
+The repository-level demo acceptance procedure and evidence map are maintained in
+`docs/guide/DEMO_ACCEPTANCE.md`. TASK-PROD-005 verifies deterministic payment/refund fixtures,
+mock LIFF booking, Staff/outbox scope, sanitized Admin health, responsive role navigation, and
+Japanese/English/Vietnamese switching. These checks establish a production-oriented demo baseline;
+they do not satisfy the unchecked external release gates above.
 
 ## Current verdict
 

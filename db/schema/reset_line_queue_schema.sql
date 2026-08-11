@@ -1293,7 +1293,7 @@ CREATE TABLE line_notification_preferences (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT line_preferences_follow_state CHECK (follow_state IN ('unknown','followed','unfollowed')),
-  CONSTRAINT line_preferences_consent_source CHECK (consent_source IS NULL OR consent_source IN ('line_follow','liff_settings','legacy_link'))
+  CONSTRAINT line_preferences_consent_source CHECK (consent_source IS NULL OR consent_source IN ('line_follow','liff_settings','liff_friendship','legacy_link'))
 );
 CREATE TRIGGER trg_line_notification_preferences_updated_at BEFORE UPDATE ON line_notification_preferences FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TABLE customer_location_consents (

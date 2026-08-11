@@ -119,6 +119,7 @@ _Staffは顧客、注文、Ticket状態、残金、対応操作を1画面で扱�
 ### ガイドと連絡先
 
 - [日本語ご利用ガイド](./docs/guide/guide.md)
+- [デモ受入・検証ガイド](./docs/guide/DEMO_ACCEPTANCE.md)
 - サポート：[trungnghia180205@gmail.com](mailto:trungnghia180205@gmail.com)
 - プロジェクト担当者：グエン・チュン・ギア
 - 連絡先：[メール](mailto:trungnghia180205@gmail.com)／[LinkedIn](https://www.linkedin.com/in/nguyen-trung-nghia-366842157/)
@@ -244,6 +245,7 @@ The system uses a React/Vite web UI, an Express/TypeScript API, and PostgreSQL, 
 ### Guide and contact
 
 - [English user guide](./docs/guide/guide.en.md)
+- [Demo acceptance guide](./docs/guide/DEMO_ACCEPTANCE.md)
 - Support: [trungnghia180205@gmail.com](mailto:trungnghia180205@gmail.com)
 - Project lead: Nguyen Trung Nghia
 - Contact: [Email](mailto:trungnghia180205@gmail.com) / [LinkedIn](https://www.linkedin.com/in/nguyen-trung-nghia-366842157/)
@@ -369,6 +371,7 @@ Hệ thống dùng Web UI React/Vite, API Express/TypeScript và PostgreSQL; có
 ### Hướng dẫn và liên hệ
 
 - [Hướng dẫn sử dụng](./docs/guide/guide.vi.md)
+- [Hướng dẫn kiểm thử demo](./docs/guide/DEMO_ACCEPTANCE.md)
 - Hỗ trợ: [trungnghia180205@gmail.com](mailto:trungnghia180205@gmail.com)
 - Người phụ trách dự án: Nguyễn Trung Nghĩa
 - Liên hệ: [Email](mailto:trungnghia180205@gmail.com) / [LinkedIn](https://www.linkedin.com/in/nguyen-trung-nghia-366842157/)

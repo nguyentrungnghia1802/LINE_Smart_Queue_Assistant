@@ -1,6 +1,15 @@
 import type { PoolClient } from 'pg';
 
-import { BRANCHES, ORDERS, ORG_ID, PRODUCTS, QUEUE_ENTRIES, QUEUES, USERS } from './_ids';
+import {
+  BRANCHES,
+  ORDERS,
+  ORG_ID,
+  PAYMENT_TRANSACTIONS,
+  PRODUCTS,
+  QUEUE_ENTRIES,
+  QUEUES,
+  USERS,
+} from './_ids';
 
 type OrderSeed = {
   id: string;
@@ -16,6 +25,14 @@ type OrderSeed = {
   entryStatus: 'waiting' | 'called' | 'serving' | 'served' | 'skipped' | 'cancelled' | 'no_show';
   productItems: Array<[string, number]>;
 };
+
+const paymentTransactionByOrderId = new Map<string, string>([
+  [ORDERS.ORDER_1, PAYMENT_TRANSACTIONS.ORDER_1],
+  [ORDERS.ORDER_2, PAYMENT_TRANSACTIONS.ORDER_2],
+  [ORDERS.ORDER_4, PAYMENT_TRANSACTIONS.ORDER_4],
+  [ORDERS.ORDER_6, PAYMENT_TRANSACTIONS.ORDER_6],
+  [ORDERS.ORDER_7, PAYMENT_TRANSACTIONS.ORDER_7],
+]);
 
 const orders: OrderSeed[] = [
   {
@@ -146,15 +163,37 @@ const orders: OrderSeed[] = [
 
 async function getProductSnapshot(client: PoolClient, productId: string) {
   const result = await client.query(
-    `SELECT name, price, service_time_minutes FROM products WHERE id = $1`,
+    `SELECT name, price, service_time_minutes, requires_prepayment
+     FROM products
+     WHERE id = $1`,
     [productId]
   );
   if (result.rowCount !== 1) throw new Error(`Product not found in seed: ${productId}`);
-  return result.rows[0] as { name: string; price: string; service_time_minutes: number };
+  return result.rows[0] as {
+    name: string;
+    price: string;
+    service_time_minutes: number;
+    requires_prepayment: boolean;
+  };
 }
 
 export async function seed(client: PoolClient): Promise<void> {
   await client.query(`DELETE FROM queue_histories WHERE metadata @> '{"seed":true}'::jsonb`);
+  const seededOrderIds = orders.map((order) => order.id);
+  await client.query(
+    'DELETE FROM payment_reconciliation_operations WHERE order_id = ANY($1::uuid[])',
+    [seededOrderIds]
+  );
+  await client.query(
+    `DELETE FROM payment_webhook_events
+     WHERE payment_transaction_id IN (
+       SELECT id FROM payment_transactions WHERE order_id = ANY($1::uuid[])
+     )`,
+    [seededOrderIds]
+  );
+  await client.query('DELETE FROM payment_transactions WHERE order_id = ANY($1::uuid[])', [
+    seededOrderIds,
+  ]);
 
   for (const order of orders) {
     let subtotal = 0;
@@ -165,6 +204,7 @@ export async function seed(client: PoolClient): Promise<void> {
       price: number;
       serviceTime: number;
       subtotal: number;
+      requiresPrepayment: boolean;
     }>;
 
     for (const [productId, quantity] of order.productItems) {
@@ -179,19 +219,23 @@ export async function seed(client: PoolClient): Promise<void> {
         price,
         serviceTime: product.service_time_minutes,
         subtotal: itemSubtotal,
+        requiresPrepayment: product.requires_prepayment,
       });
     }
+
+    const transactionId = paymentTransactionByOrderId.get(order.id) ?? null;
+    const refundedAmount = order.paymentStatus === 'refunded' ? subtotal : 0;
 
     await client.query(
       `
         INSERT INTO orders (
           id, organization_id, branch_id, queue_id, customer_user_id, order_number, customer_name,
-          customer_phone, status, subtotal, payment_status, payment_code, notes,
+          customer_phone, status, subtotal, payment_status, payment_code, notes, refunded_amount,
           organization_name_snapshot, branch_name_snapshot, queue_name_snapshot
         )
         SELECT
           $1, $2, $3, $4, $5, $6, $7, $8, $9::order_status, $10,
-          $11::payment_status, $12, $13, organization.name, branch.name, queue.name
+          $11::payment_status, $12, $13, $14, organization.name, branch.name, queue.name
         FROM organizations organization
         JOIN organization_branches branch
           ON branch.id = $3 AND branch.organization_id = organization.id
@@ -211,6 +255,7 @@ export async function seed(client: PoolClient): Promise<void> {
           subtotal = EXCLUDED.subtotal,
           payment_status = EXCLUDED.payment_status,
           payment_code = EXCLUDED.payment_code,
+          refunded_amount = EXCLUDED.refunded_amount,
           organization_name_snapshot = EXCLUDED.organization_name_snapshot,
           branch_name_snapshot = EXCLUDED.branch_name_snapshot,
           queue_name_snapshot = EXCLUDED.queue_name_snapshot,
@@ -231,18 +276,57 @@ export async function seed(client: PoolClient): Promise<void> {
         order.paymentStatus,
         `PAY-${order.number}`,
         'Seed demo order',
+        refundedAmount,
       ]
     );
 
+    if (transactionId) {
+      await client.query(
+        `
+          INSERT INTO payment_transactions (
+            id, organization_id, order_id, provider, method, payment_intent_id,
+            external_transaction_id, status, amount, currency, webhook_status,
+            metadata, raw_payload, paid_at, failed_at, refunded_at,
+            last_verified_at, refunded_amount
+          )
+          VALUES (
+            $1, $2, $3, 'demo', 'demo_card', $4, $5, $6::payment_status, $7, 'JPY',
+            'fixture', jsonb_build_object('scope', 'all_items', 'coveredProductIds', $8::jsonb),
+            '{"fixture":true}'::jsonb,
+            CASE WHEN $6::payment_status IN ('paid', 'refunded') THEN NOW() - INTERVAL '1 hour' ELSE NULL END,
+            CASE WHEN $6::payment_status = 'failed' THEN NOW() - INTERVAL '1 hour' ELSE NULL END,
+            CASE WHEN $6::payment_status = 'refunded' THEN NOW() - INTERVAL '30 minutes' ELSE NULL END,
+            NOW(), $9
+          );
+        `,
+        [
+          transactionId,
+          ORG_ID,
+          order.id,
+          `demo-intent-${order.number}`,
+          `demo-transaction-${order.number}`,
+          order.paymentStatus,
+          subtotal,
+          JSON.stringify(snapshots.map((item) => item.productId)),
+          refundedAmount,
+        ]
+      );
+    }
+
     await client.query('DELETE FROM order_items WHERE order_id = $1', [order.id]);
     for (const item of snapshots) {
+      const itemPaymentStatus = order.paymentStatus;
+      const prepaidAmount = ['paid', 'refunded'].includes(order.paymentStatus) ? item.subtotal : 0;
+      const itemRefundedAmount = order.paymentStatus === 'refunded' ? item.subtotal : 0;
       await client.query(
         `
           INSERT INTO order_items (
             order_id, product_id, product_name, product_price,
-            service_time_minutes, quantity, subtotal
+            service_time_minutes, quantity, subtotal, payment_status,
+            prepaid_amount, refunded_amount, payment_transaction_id,
+            requires_prepayment_snapshot
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7);
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8::payment_status, $9, $10, $11, $12);
         `,
         [
           order.id,
@@ -252,6 +336,11 @@ export async function seed(client: PoolClient): Promise<void> {
           item.serviceTime,
           item.quantity,
           item.subtotal,
+          itemPaymentStatus,
+          prepaidAmount,
+          itemRefundedAmount,
+          transactionId,
+          item.requiresPrepayment,
         ]
       );
     }

@@ -214,7 +214,7 @@ Set `SEED_ADMIN_PASSWORD` explicitly outside local development; it is required w
 `NODE_ENV=production`.
 
 The E2E fixture profile (`npm run db:fixture:e2e`) creates isolated branch-owner, branch-manager,
-staff, customer, multi-queue catalog, order, and LINE mock data. It is not a development baseline
+staff, customer, multi-queue catalog, order, deterministic demo payment/refund, and LINE mock data. It is not a development baseline
 or production bootstrap. Any fixture customer uses the local LIFF mock path, never email login.
 The fixture keeps the browser-test public entry stable:
 
@@ -295,16 +295,16 @@ injection on every commit.
 
 ## 9. Test strategy
 
-| Layer                          | Tool                                            | Focus                                                                                        |
-| ------------------------------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Pure unit                      | Jest/Vitest                                     | ETA, policy, helpers, adapters, validators                                                   |
-| Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB    | Transactions, tenant checks, state transitions, stock/payment behavior                       |
-| Route/API                      | Supertest                                       | Middleware, status/envelope, request validation                                              |
-| Infrastructure lifecycle       | Jest plus Compose smoke tests                   | Redis lifecycle/cache/limits/Pub/Sub, SSE cleanup/fan-out, and BullMQ startup/restart/outage |
-| Component                      | Testing Library/Vitest                          | Render states and critical interactions                                                      |
-| Isolated component review      | Storybook 10 + React/Vite                       | Locale, phone/desktop viewport, and deterministic reusable-component states                  |
-| Browser E2E                    | Playwright + isolated mock LINE/API ports       | Booking/payment return, staff/outbox, receipt, admin, manager QR/settings, responsive flows  |
-| Load/failure                   | Node HTTP runner plus isolated Compose topology | Use `scale:validate`; recreate against production-like staging before capacity claims        |
+| Layer                          | Tool                                            | Focus                                                                                                                                   |
+| ------------------------------ | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Pure unit                      | Jest/Vitest                                     | ETA, policy, helpers, adapters, validators                                                                                              |
+| Service/repository integration | Jest/Supertest/PostgreSQL doubles or test DB    | Transactions, tenant checks, state transitions, stock/payment behavior                                                                  |
+| Route/API                      | Supertest                                       | Middleware, status/envelope, request validation                                                                                         |
+| Infrastructure lifecycle       | Jest plus Compose smoke tests                   | Redis lifecycle/cache/limits/Pub/Sub, SSE cleanup/fan-out, and BullMQ startup/restart/outage                                            |
+| Component                      | Testing Library/Vitest                          | Render states and critical interactions                                                                                                 |
+| Isolated component review      | Storybook 10 + React/Vite                       | Locale, phone/desktop viewport, and deterministic reusable-component states                                                             |
+| Browser E2E                    | Playwright + isolated mock LINE/API ports       | Booking/payment return, refund idempotency, Staff/outbox scope, sanitized Admin health, Manager QR/settings, i18n, and responsive flows |
+| Load/failure                   | Node HTTP runner plus isolated Compose topology | Use `scale:validate`; recreate against production-like staging before capacity claims                                                   |
 
 API Jest runs do not load the repository `.env`. Configuration tests must set every relevant
 environment value explicitly so local credentials and developer-specific limits cannot change
@@ -323,6 +323,9 @@ Critical regression scenarios:
 
 - every Admin, organization-owner, branch-manager, Staff, Customer, and LIFF primary destination remains reachable at desktop
   and phone viewports without page-level horizontal overflow;
+
+- Browser locale switching covers Japanese, English, and Vietnamese plus persisted choice;
+  locale resolution unit tests retain Japanese as the final fallback.
 
 - Required-only vs all-item payment and draft restoration.
 - Finite stock race/rollback and unlimited stock behavior.
@@ -368,6 +371,10 @@ duplicate callback, refund, and order-authority tests green. `PAYMENT_MODE=exter
 configuration loading when any required payOS credential is absent. Do not add placeholder PSP
 credentials to CI to bypass this check. The customer booking Playwright scenario is the current
 end-to-end demo-payment acceptance path and does not prove merchant or real-money acceptance.
+
+The complete local acceptance sequence, fixture identities/state matrix, recommended role journey,
+evidence map, and deferred external requirements are maintained in
+`docs/guide/DEMO_ACCEPTANCE.md`.
 
 Keep `OTEL_SDK_DISABLED=true` and Sentry DSNs empty in local/CI unless a test collector/project is
 intentionally available. Targeted observability tests cover backend/browser sanitization,
