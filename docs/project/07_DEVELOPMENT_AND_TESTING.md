@@ -272,6 +272,11 @@ Vite SPA does not use. Development tooling is validated by the test/lint gates
 but omitted from the production dependency audit. Do not add an advisory to the
 allowlist without recording why it is unreachable and when it can be removed.
 
+CI Gitleaks scans full Git history. `.gitleaksignore` contains only exact fingerprints for reviewed
+historical test-password literals and obsolete example-environment placeholders. Do not suppress a
+whole rule or path; a new finding must be investigated as a potential credential before any exact
+fingerprint is added.
+
 Continuous deployment is temporarily disabled. `.github/workflows/deploy.yml` is retained as a
 manual placeholder that only reports the disabled state; it does not build images, push Docker
 images, or connect to a server. Use the documented manual Docker/server commands until CD is

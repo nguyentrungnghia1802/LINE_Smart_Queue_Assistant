@@ -337,9 +337,10 @@ At minimum verify rejection of:
 - Rate-limit keys now use only Express's trusted-proxy-resolved `req.ip`; raw left-most
   `X-Forwarded-For` values cannot replace the client key.
 - Targeted security validation passed 13 suites / 80 tests. Full API validation passed 114 suites /
-  682 tests; Web passed 56 files / 185 tests. Dependency audit reported 0 vulnerabilities; staged
-  Gitleaks scan found no new leak. Lint, typecheck, formatting, OpenAPI 4/4, production build, and
-  CSP bundle validation passed.
+  682 tests; Web passed 56 files / 185 tests. Dependency audit reported 0 vulnerabilities. Gitleaks
+  staged and full-history scans passed after exact-fingerprint baselining of 10 historical test
+  password literals and two obsolete example-environment placeholders. Lint, typecheck,
+  formatting, OpenAPI 4/4, production build, and CSP bundle validation passed.
 - No dependency, migration, external service, or enterprise security infrastructure was added.
 
 ---

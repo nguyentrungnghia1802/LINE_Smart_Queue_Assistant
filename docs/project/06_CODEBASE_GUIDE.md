@@ -258,6 +258,8 @@ and `shared-domain-contract.test.ts` together when adding or renaming a persiste
 
 ## 10. Files requiring extra care
 
+- `.gitleaksignore`: exact historical false-positive fingerprints only. Never add a broad path or
+  rule exclusion; review and document every new fingerprint before changing this baseline.
 - `.env.example`: public template; placeholders only.
 - `db/migrations/**`: immutable after application.
 - `db/schema/reset_line_queue_schema.sql`: destructive and local/dev only.
