@@ -26,12 +26,3 @@ export function formatTicketCode(prefix: string | undefined, num: number): strin
 export function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
-
-/**
- * Compute total pages from total count and page size.
- * @deprecated Use buildPaginationMeta from utils/response instead.
- */
-export function computeTotalPages(total: number, limit: number): number {
-  if (limit <= 0) return 0;
-  return Math.ceil(total / limit);
-}

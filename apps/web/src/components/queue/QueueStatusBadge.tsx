@@ -15,6 +15,10 @@ const STATUS_CONFIG: Record<QueueStatus, { labelKey: string; className: string }
     labelKey: 'states.closed',
     className: 'bg-gray-100 text-gray-600',
   },
+  [QueueStatus.ARCHIVED]: {
+    labelKey: 'states.archived',
+    className: 'bg-gray-100 text-gray-500',
+  },
 };
 
 interface QueueStatusBadgeProps {

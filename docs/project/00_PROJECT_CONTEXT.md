@@ -148,7 +148,9 @@ real-money payment or notification platform.
 
 ## 9. Known problems and risks
 
-- `packages/shared` contains legacy enum/value descriptions that do not fully match PostgreSQL values; DB migrations and runtime mappers currently take precedence.
+- Shared queue, ticket, payment, penalty, and notification enums are contract-tested against the
+  executable PostgreSQL/runtime values. Migrations remain authoritative whenever a new persisted
+  state is introduced.
 - Demo organization, catalog, queue names, address, timezone, and currency are localized for Japan; native-language and legal-copy review remains required.
 - Queue capacity, call-next, daily ticket numbering, and organization order numbering use transactional row locks/counters; production-scale write stress testing remains pending.
 - TASK-11 measurements prove local Docker horizontal behavior and degraded recovery, but they are

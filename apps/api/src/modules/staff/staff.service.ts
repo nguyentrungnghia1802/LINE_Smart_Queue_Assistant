@@ -182,8 +182,6 @@ export const staffService = {
     await assertQueueAccess(queueId, actorOrganizationId, actorBranchIds, assignedQueueId);
     const entry = await queueService.callNextTicket(
       queueId,
-      undefined,
-      undefined,
       actorOrganizationId,
       actorBranchIds[0]
     );

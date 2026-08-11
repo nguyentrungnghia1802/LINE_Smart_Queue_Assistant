@@ -172,9 +172,11 @@ authoritative even when the frontend hides routes.
 
 ## 4. Shared packages
 
-`@line-queue/shared` is consumed by API and web. It may contain serializable types, constants, and pure helpers only. It must not import Express, React, browser-only APIs, database clients, or secrets.
-
-Known issue: some shared enum names/descriptions are legacy and differ from current PostgreSQL values. Verify migrations and runtime adapters before reusing them, then align shared types in a deliberate compatibility change.
+`@line-queue/shared` is consumed by API and web. It may contain serializable types, constants, and
+pure helpers only. It must not import Express, React, browser-only APIs, database clients, or
+secrets. Persisted enum values in this package mirror the executable PostgreSQL schema and current
+notification event constraint. Update the migration/reset schema, runtime mapping, shared enum,
+and `shared-domain-contract.test.ts` together when adding or renaming a persisted state.
 
 `@line-queue/config` is tooling-only and must not be imported into runtime bundles.
 

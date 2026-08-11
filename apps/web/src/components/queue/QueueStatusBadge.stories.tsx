@@ -12,7 +12,7 @@ const meta = {
   argTypes: {
     status: {
       control: 'select',
-      options: [QueueStatus.ACTIVE, QueueStatus.PAUSED, QueueStatus.CLOSED],
+      options: [QueueStatus.ACTIVE, QueueStatus.PAUSED, QueueStatus.CLOSED, QueueStatus.ARCHIVED],
     },
   },
 } satisfies Meta<typeof QueueStatusBadge>;
@@ -25,3 +25,5 @@ export const Active: Story = { args: { status: QueueStatus.ACTIVE } };
 export const Paused: Story = { args: { status: QueueStatus.PAUSED } };
 
 export const Closed: Story = { args: { status: QueueStatus.CLOSED } };
+
+export const Archived: Story = { args: { status: QueueStatus.ARCHIVED } };

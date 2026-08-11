@@ -262,13 +262,7 @@ describe('staffService.callNext', () => {
     ]);
 
     expect(result.status).toBe('called');
-    expect(mockCallNextTicket).toHaveBeenCalledWith(
-      QUEUE_ID,
-      undefined,
-      undefined,
-      baseQueue.organization_id,
-      BRANCH_ID
-    );
+    expect(mockCallNextTicket).toHaveBeenCalledWith(QUEUE_ID, baseQueue.organization_id, BRANCH_ID);
   });
 
   it('propagates errors from callNextTicket', async () => {

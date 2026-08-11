@@ -21,6 +21,11 @@ describe('QueueStatusBadge', () => {
     expect(screen.getByText('終了')).toBeInTheDocument();
   });
 
+  it('renders Japanese label for ARCHIVED status', () => {
+    render(<QueueStatusBadge status={QueueStatus.ARCHIVED} />);
+    expect(screen.getByText('アーカイブ済み')).toBeInTheDocument();
+  });
+
   it('applies green classes for ACTIVE', () => {
     render(<QueueStatusBadge status={QueueStatus.ACTIVE} />);
     const badge = screen.getByText('稼働中');

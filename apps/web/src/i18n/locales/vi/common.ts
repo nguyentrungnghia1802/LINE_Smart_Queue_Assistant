@@ -48,6 +48,7 @@ export const common = {
     active: 'Đang hoạt động',
     paused: 'Tạm dừng',
     closed: 'Đã đóng',
+    archived: 'Đã lưu trữ',
     waiting: 'Đang chờ',
     called: 'Đang gọi',
     serving: 'Đang phục vụ',

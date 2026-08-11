@@ -682,3 +682,21 @@ data. Optional unconfigured integrations and the explicit demo payment runtime a
 monitoring stack. Values are current-process or safe aggregate indicators, not enterprise SLOs.
 Prometheus/logs/traces remain authoritative for detailed incident investigation; dashboard failure
 cannot affect queue, order, notification, or payment business transactions.
+
+## OPT-001 cleanup audit (2026-08-11)
+
+The audit compared source imports, package scripts/dependencies, executable migrations, the reset
+schema, runtime notification event constraints, compatibility routes, tests, Docker references, and
+canonical documentation before cleanup.
+
+| Class    | Demonstrated finding                                                                                                                      | Decision                                                                                         |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `P0`     | Shared persisted enums omitted valid states or used values that PostgreSQL rejects.                                                       | Align queue, ticket, payment, penalty, and notification values; add an executable contract test. |
+| `P1`     | Storybook required unsafe ticket-status casts because of the shared enum drift.                                                           | Use the aligned enum directly and expose the archived queue state in badge stories.              |
+| `P1`     | `computeTotalPages`, unused operation-mode types, and two `callNextTicket` parameters had no remaining reference.                         | Remove them after repository-wide reference checks; preserve service boundaries and behavior.    |
+| `P1`     | React Router v7 still installed the obsolete external React Router v5 type package.                                                       | Remove `@types/react-router-dom`; React Router v7 supplies its own declarations.                 |
+| `P2`     | Several pages/services are large and contain multiple presentation/orchestration concerns.                                                | Defer measured decomposition to OPT-003 or a dedicated bounded task; no broad rewrite here.      |
+| `Ignore` | LINE environment aliases, auth storage cleanup, compatibility redirects, migration history, and payment backfills contain legacy wording. | Retain them because they provide intentional deployment/data compatibility or historical truth.  |
+
+This cleanup changes no route, authorization rule, transaction, tenant scope, payment authority,
+notification delivery, session behavior, or production/demo configuration.

@@ -7,7 +7,7 @@
  * See apps/api/src/modules/queue/queue.types.ts for the source of truth.
  */
 
-import type { TicketStatus } from '@line-queue/shared';
+import type { QueueStatus, TicketStatus } from '@line-queue/shared';
 
 // ── Queue entry (ticket) ───────────────────────────────────────────────────
 
@@ -39,7 +39,7 @@ export interface QueueDisplay {
   id: string;
   name: string;
   description: string | null;
-  status: string; // 'open' | 'closed' | 'paused' | 'disaster_mode'
+  status: QueueStatus;
   prefix: string;
   avg_service_seconds: number;
   max_capacity: number | null;

@@ -553,13 +553,9 @@ export const queueService = {
    * **Notifications** are enqueued in the same transaction as the state
    * transition. The delivery worker sends LINE messages after commit.
    *
-   * @param adapter  Legacy test parameter, no longer used.
-   * @param log      Legacy test parameter, no longer used.
    */
   async callNextTicket(
     queueId: string,
-    _adapter?: unknown,
-    _log?: unknown,
     actorOrganizationId?: string,
     actorBranchId?: string
   ): Promise<QueueEntryRow> {

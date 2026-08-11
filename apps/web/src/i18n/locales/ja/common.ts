@@ -48,6 +48,7 @@ export const common = {
     active: '稼働中',
     paused: '一時停止',
     closed: '終了',
+    archived: 'アーカイブ済み',
     waiting: '待機中',
     called: '呼び出し中',
     serving: '対応中',

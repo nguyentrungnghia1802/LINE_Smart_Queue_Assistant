@@ -1,8 +1,8 @@
 # Current Implementation Map
 
-Last verified against the end-to-end demo acceptance audit on 2026-08-11. Notification operations,
-payment/refund fixtures, responsive navigation, localization, and schema parity were re-verified
-during TASK-PROD-005.
+Last verified during OPT-001 on 2026-08-11. Notification operations, payment/refund fixtures,
+responsive navigation, localization, schema parity, and shared persisted enum contracts were
+re-verified against the executable migrations/runtime constraints.
 
 This document is the maintenance index for the current repository. It connects product roles and
 flows to source modules, routes, database history, runtime configuration, scheduled jobs, and
@@ -71,6 +71,7 @@ a source of current behavior.
 | `apps/api/src/routes/v1.routes.ts`                                      | `/api/v1` module mounting and ordering                                             | route modules, `05`, OpenAPI test           |
 | `apps/api/src/modules/*`                                                | Domain route/controller/validator/service/repository code                          | relevant `01`, `03`, `04`, `05`, tests      |
 | `apps/api/src/modules/queue/queue.service.ts`                           | Queue-locked join/transition concurrency and active-ticket replay                  | `03`, `04`, `07`, `11`                      |
+| `apps/api/src/modules/shared/__tests__/shared-domain-contract.test.ts`  | Shared persisted enum parity with PostgreSQL/runtime notification constraints      | `04`, `06`, migrations, reset schema        |
 | `apps/api/src/db/repositories`                                          | Parameterized SQL and row mapping                                                  | `04`, service tests, migrations             |
 | `apps/api/src/jobs`                                                     | API-owned recurring jobs and shared LINE outbox delivery service                   | `02`, `03`, `07`, `08`                      |
 | `apps/api/src/docs/api-endpoint-catalog.ts`                             | Runtime API catalog and OpenAPI metadata                                           | routes, validators, `05`                    |
@@ -84,6 +85,7 @@ a source of current behavior.
 | `apps/web/src/services/realtime`, `apps/web/src/hooks/useRealtime.ts`   | Shared SSE streams and authoritative REST-query reconciliation                     | `02`, `06`, `07`, `08`, ADR-032             |
 | `apps/web/src/store` and `contexts`                                     | Auth state, session bootstrap, LIFF runtime state                                  | `02`, `06`, auth/LIFF tests                 |
 | `apps/web/src/i18n/locales`                                             | `ja`, `vi`, `en` visible UI resources by domain                                    | `01`, `06`, locale tests                    |
+| `packages/shared/src/types/enums.ts`                                    | Serializable persisted state values shared by API and web                          | migrations, reset schema, contract test     |
 | `db/migrations/node-pg-migrate`                                         | Ordered executable schema history                                                  | `04`, repository/service tests              |
 | `db/schema/reset_line_queue_schema.sql`                                 | Destructive local/dev schema snapshot                                              | every schema migration                      |
 | `db/seeds`                                                              | Administrator-only baseline seed                                                   | `07`, `08`                                  |

@@ -1,306 +1,375 @@
-# Production Capability Implementation Tasks
+# LINE Smart Queue Assistant — Optimization Tasks
 
-These tasks implement the four highest-priority proposals from `idea.md`: Notification Operations
-Center, Production Payment Operations, Service-Level Objectives and Operations Console, and
-Calibrated Demand Forecasting and Staff Planning.
+This phase starts after completion of the Production-Oriented Demo baseline.
 
-## Execution Rules
+The objective is to improve maintainability, performance, security, UX quality, operational clarity,
+and stability of the existing system — **not to expand the product with major new capabilities**.
 
-- Execute exactly one task at a time in the order listed unless a dependency is explicitly resolved.
-- Do not start the next task automatically after completing the current task.
-- Read `docs/agent/AGENTS.md` and the task-specific canonical documents before editing.
-- Update implementation, tests, canonical documentation, configuration, and task status together.
-- Use forward migrations only; never reset shared, staging, or production data.
-- Do not commit provider credentials, customer data, or browser-visible secrets.
-- Mark a task completed only after every required validation and Definition of Done item passes.
+## Optimization Principles
 
----
-
-## TASK-PROD-001: Notification Operations Center
-
-**Idea:** 1. Notification Operations Center
-**Status:** [x] Completed
-**Priority:** P0
-**Dependencies:** Existing PostgreSQL notification outbox, BullMQ dispatcher, audit log, metrics
-
-### Objective
-
-Provide authorized operators with a safe dashboard for diagnosing and recovering failed LINE
-notifications without direct database access or duplicate customer messages.
-
-### Implementation Checklist
-
-- [x] Document authorization: Branch Manager sees their assigned branch; Staff sees their assigned queue; platform Admin and Organization Owner are denied.
-- [x] Add paginated repository queries with server-derived organization/branch/queue scope plus status, event type, and time range filters.
-- [x] Return only safe delivery fields; never expose access tokens, headers, raw provider payloads, or unnecessary PII.
-- [x] Normalize safe failure categories for blocked recipient, invalid recipient, timeout, rate limit, provider 4xx, and provider 5xx.
-- [x] Add detail API with event key, locale, attempt count, timestamps, ticket reference, and sanitized last error.
-- [x] Add guarded retry API for retryable `failed` deliveries using the existing event key and idempotent dispatcher.
-- [x] Add guarded cancellation API for obsolete `pending` deliveries whose related ticket is terminal.
-- [x] Record retry and cancellation actions in the audit log with actor and reason.
-- [x] Add backlog age, delivery latency, failure count, and worker heartbeat metrics without high-cardinality labels.
-- [x] Build responsive operations list/detail UI with loading, empty, error, disabled, and success states.
-- [x] Add `ja`, `vi`, and `en` translation keys with Japanese fallback.
-- [x] Add retention guidance and an operator runbook for LINE outage, invalid credentials, and exhausted retries.
-
-### Tests and Validation
-
-- [x] Test tenant isolation, role checks, pagination, filters, and sanitized API responses.
-- [x] Test retry/cancel idempotency, invalid transitions, audit records, and concurrent operator actions.
-- [x] Test dashboard responsive states and API failures with mock messaging only.
-- [x] Run lint, typecheck, targeted/full tests, build, format check, and OpenAPI contract validation.
-
-### Definition of Done
-
-- [x] An authorized operator can find and diagnose a missed LINE notification without SQL access.
-- [x] Manual recovery cannot send a duplicate message or alter committed queue/order state.
-- [x] Canonical API, product, operations, and codebase documents match verified behavior.
+- Audit and measure before modifying implementation; do not optimize based only on assumptions.
+- Fix only demonstrated issues with clear technical or product value.
+- Preserve validated business behavior unless a task explicitly requires a correction.
+- Prefer small, targeted improvements over broad rewrites or speculative abstractions.
+- Do not introduce new frameworks, infrastructure, or major subsystems unless a demonstrated problem
+  cannot be solved safely with the existing architecture.
+- Reuse existing architecture and shared boundaries where practical.
+- Keep implementation, tests, configuration, and affected canonical documentation consistent.
+- Treat unsupported production-scale claims as out of scope; record future improvements instead of
+  implementing them without evidence.
 
 ---
 
-## TASK-PROD-002: Production PSP Adapter and Refund Execution
+## OPT-001: Codebase Cleanup and Technical Debt Reduction
 
-**Idea:** 2. Production Payment, Refund, and Settlement Operations
-**Status:** [x] Completed
-**Priority:** P0
-**Dependencies:** Existing payment gateway abstraction; merchant onboarding and external acceptance are deferred
-
-**Post-completion correction (2026-08-11):** TASK-PROD-002 remains completed because the
-production-oriented provider, webhook, reconciliation, idempotency, audit, and refund boundaries
-are implemented and retained. The current deployment intentionally activates
-`DemoPaymentProvider`, processes no real money, requires no real PSP credentials, and makes no real
-PSP calls. payOS merchant onboarding, production credentials, real-money payment/refund acceptance,
-settlement, and commercial/legal approval are future external activation gates, not current runtime
-requirements.
+**Status:** [x] Completed  
+**Priority:** P0  
+**Dependencies:** Completed production-oriented demo baseline
 
 ### Objective
 
-Complete one real payment provider while preserving server-authoritative payment state, replay-safe
-webhooks, audited refunds, and explicit demo-mode isolation.
+Reduce avoidable code complexity and technical debt without changing validated business behavior.
+
+This task should make the codebase easier to understand and maintain while avoiding large rewrites.
+
+### Audit Scope
+
+Inspect the current implementation for:
+
+- dead code, unused files, unused exports, obsolete helpers, and stale compatibility paths;
+- duplicated backend/frontend logic;
+- stale `TODO`, `FIXME`, temporary workarounds, and comments that no longer reflect behavior;
+- legacy shared types/enums that disagree with PostgreSQL/runtime mappings;
+- inconsistent error handling, validation, naming, or module boundaries;
+- oversized controllers/services/components where responsibilities are clearly mixed;
+- duplicate auth/session/tenant-scope logic that should use existing shared boundaries;
+- unnecessary dependencies or code paths no longer used by the current demo runtime;
+- documentation references to removed or superseded implementation.
 
 ### Implementation Checklist
 
-- [x] Record the selected payOS/VND adapter boundary and activation decision in canonical ADRs.
-- [x] Define provider configuration, secret ownership, credential validation, and safe mode behavior.
-- [x] Implement intent creation, hosted checkout/QR mapping, return verification, webhook parsing, and error mapping.
-- [x] Verify webhook signature, timestamp, provider event ID, amount, currency, and transaction ownership server-side.
-- [x] Preserve payment state-machine rules and reject browser-declared success.
-- [x] Add idempotency for intent creation, webhook application, refund request, and provider callback replay.
-- [x] Retain audited full/partial refund orchestration; provider-side real-money acceptance remains deferred.
-- [x] Distinguish retryable transport/rate-limit failures from permanent provider rejection.
-- [x] Store only required normalized provider references and sanitized operational errors.
-- [x] Prevent an unconfigured external provider from becoming active.
-- [x] Keep the demo provider behind explicit demo configuration without calling a real PSP.
-- [x] Keep migration/reset-schema synchronization aligned with the normalized transaction model.
+- [x] Produce a concise audit of demonstrated technical-debt findings before modifying code.
+- [x] Classify findings as:
+  - `P0`: correctness/security risk;
+  - `P1`: maintainability or measurable runtime cost;
+  - `P2`: cosmetic/low-value;
+  - `Ignore`: not worth changing.
+- [x] Fix all justified P0 findings.
+- [x] Fix P1 findings only when the change is reasonably scoped and low-risk.
+- [x] Remove dead/obsolete code only after verifying imports, scripts, tests, Docker references, and documentation.
+- [x] Align shared types/enums with executable migrations/runtime mappings where safe.
+- [x] Consolidate duplicated logic using existing architecture boundaries instead of creating new abstractions without value.
+- [x] Keep route → controller → service → repository boundaries intact.
+- [x] Avoid framework migrations, broad rewrites, or speculative abstractions.
+- [x] Update tests and canonical docs for every material change.
 
 ### Tests and Validation
 
-- [x] Add provider contract tests for request/response mapping, signature verification, timeout, and error categories.
-- [x] Add integration tests for duplicate webhooks, amount mismatch, callback/refund idempotency, and rollback.
-- [x] Add deterministic demo/provider flow coverage; real merchant sandbox acceptance remains deferred.
-- [x] Run required code, contract, migration, build, and formatting validation.
+- [x] Run lint, typecheck, format, tests, OpenAPI checks, and production build required by `AGENTS.md`.
+- [x] Run targeted regression tests for every refactored critical module.
+- [x] Verify no role, tenant, branch, queue, payment, notification, or session behavior changed unintentionally.
+- [x] Verify production/demo configuration still starts normally.
 
 ### Definition of Done
 
-- [x] Only verified server events can mark a transaction paid or refunded.
-- [x] Every provider action is idempotent, tenant-scoped, audited, and safely observable.
-- [x] Canonical architecture, API, database, product, deployment, and operations docs are updated.
+- [x] Demonstrated technical debt with meaningful value has been reduced.
+- [x] No major architecture rewrite was introduced.
+- [x] Critical business behavior remains unchanged and regression-tested.
+- [x] Canonical docs accurately describe the cleaned implementation.
+
+### Completion Evidence (2026-08-11)
+
+- The classified audit and explicit retain/defer decisions are recorded in
+  `docs/project/09_ROADMAP_AND_DECISIONS.md`.
+- Shared persisted state values now match the reset schema and current notification event
+  constraint, with `shared-domain-contract.test.ts` preventing drift.
+- Removed only repository-wide unreferenced code and the obsolete React Router v5 declaration
+  package; compatibility routes, historical migrations, deployment aliases, and backfills remain.
+- Targeted validation passed for shared enum contracts, queue/staff call-next behavior, Storybook
+  fixtures, and queue status badges.
+- Full validation passed: lint, typecheck, formatting, OpenAPI (4 tests), API (110 suites/667 tests),
+  web (54 files/182 tests), production build/CSP check, Storybook static build, and dependency audit.
+- Existing payment runtime, development/production proxy configuration, role boundaries, and
+  queue transitions remained covered by the full configuration and regression suites.
 
 ---
 
-## TASK-PROD-003: Operational Health and Runtime Visibility
+## OPT-002: Database and Backend Performance Optimization
 
-**Status:** [x] Completed
-**Priority:** P1
-**Dependencies:** Existing health checks, logs, metrics, Redis, worker, notification outbox, and payment runtime
+**Status:** [ ] Not started  
+**Priority:** P0  
+**Dependencies:** OPT-001 completed
 
 ### Objective
 
-Provide Platform Admin with a lightweight, secure operational view of critical runtime health without
-building a full enterprise observability platform or exposing tenant/customer business data.
+Improve database/API efficiency using measurements from representative workloads while preserving
+PostgreSQL as the authoritative business store.
 
-### Authorization
+Do not optimize for theoretical scale. Optimize only demonstrated hotspots.
 
-- Platform Admin only.
-- Organization Owner, Branch Manager, Staff, and Customer are denied.
-- Expose only sanitized platform/infrastructure health and aggregate operational indicators.
-- Never expose tenant notification details, payment transaction details, customer data, provider payloads, credentials, secrets, or cross-tenant business records.
+### Measurement Scope
+
+Prioritize these paths:
+
+- public branch/QR/catalog resolution;
+- booking/order creation;
+- customer ticket/current-booking reads;
+- Staff queue overview and queue transitions;
+- Manager/Owner analytics;
+- notification and ETA/background scans;
+- inventory and payment/reconciliation queries;
+- PostgreSQL pool/transaction behavior.
 
 ### Implementation Checklist
 
-- [x] Audit existing health checks, logs, metrics, OpenTelemetry/Sentry, worker heartbeat, and provider status before adding new logic.
-- [x] Provide health/status visibility for API, PostgreSQL, Redis, background worker, SSE/realtime, and LINE notification delivery.
-- [x] Show safe aggregate notification backlog, oldest pending age, and worker heartbeat without tenant/customer detail.
-- [x] Show active payment mode/provider clearly.
-- [x] Treat intentionally configured `demo` payment mode without real PSP credentials as a valid healthy state.
-- [x] Only report missing/invalid real PSP configuration as an error when that real provider is explicitly enabled.
-- [x] Add environment/release/version identifiers useful for deployment troubleshooting.
-- [x] Add basic latency/error indicators for critical flows using existing telemetry where practical.
-- [x] Represent dependencies consistently as `healthy`, `degraded`, `unavailable`, or `not configured/not applicable`.
-- [x] Build a responsive Platform Admin operations dashboard with loading, healthy, degraded, unavailable, and error states.
-- [x] Add concise operator guidance for common database, Redis, worker, LINE, and payment configuration failures.
-- [x] Reuse existing observability infrastructure; add only instrumentation needed for trustworthy dashboard states.
-- [x] Do not expand this task into enterprise SLO/error-budget/on-call infrastructure or complex monitoring platforms.
+- [ ] Capture a baseline for representative critical endpoints before optimization.
+- [ ] Inspect relevant SQL using `EXPLAIN (ANALYZE, BUFFERS)` with representative demo/validation data where practical.
+- [ ] Identify actual query fan-out, N+1 patterns, unnecessary repeated reads, expensive sorts/scans, or avoidable round trips.
+- [ ] Review existing indexes before adding new ones.
+- [ ] Add/change indexes only when query evidence justifies them.
+- [ ] Reduce avoidable database work while keeping authorization and write decisions PostgreSQL-authoritative.
+- [ ] Review cache usage and invalidation; do not allow Redis/cache state to become business authority.
+- [ ] Review transaction duration, lock scope, retry boundaries, and PostgreSQL pool usage.
+- [ ] Move external/provider work out of database transactions only when current implementation demonstrably holds transactions unnecessarily.
+- [ ] Keep booking, inventory, payment, queue transitions, and counters transactionally correct.
+- [ ] Preserve SSE/REST authoritative reconciliation behavior.
+- [ ] Add a forward migration only if schema/index changes are required.
+- [ ] Update scalability/performance documentation with measured before/after evidence.
+
+### Suggested Performance Targets
+
+Use existing project targets where available. At minimum, avoid regressions in:
+
+- public/queue read latency;
+- booking transaction latency;
+- Staff queue operations;
+- error rate under representative concurrency;
+- PostgreSQL connection/pool pressure.
+
+Targets are engineering guidance, not unsupported production capacity claims.
 
 ### Tests and Validation
 
-- [x] Test Platform Admin authorization and denial for all other roles.
-- [x] Test response sanitization and absence of cross-tenant/business data.
-- [x] Test healthy, degraded, unavailable, and intentionally-not-configured states.
-- [x] Test demo payment mode without real PSP credentials as healthy.
-- [x] Test Redis, worker, and provider failure states with controlled mocks/failure injection.
-- [x] Test responsive dashboard states and locale behavior where applicable.
-- [x] Run required validation according to `AGENTS.md`.
+- [ ] Run targeted integration/concurrency tests for changed queries and transactions.
+- [ ] Run representative load measurements before and after changes.
+- [ ] Verify no oversell, duplicate ticket/order, double call-next, or payment-state regression.
+- [ ] Verify cache loss/Redis outage still falls back safely to PostgreSQL.
+- [ ] Run migration, lint, typecheck, tests, build, OpenAPI, Compose/config, and required validation from `AGENTS.md`.
 
 ### Definition of Done
 
-- [x] Platform Admin can quickly identify the health of critical runtime components from one approved surface.
-- [x] Demo-only configuration is not incorrectly reported as a production failure.
-- [x] Dashboard exposes no tenant/customer operational detail or secrets.
-- [x] Observability failure cannot break core business operations.
-- [x] Canonical architecture, operations, deployment, security, API, and codebase docs match verified behavior.
+- [ ] At least the measured hotspots have evidence-based improvements or are documented as already acceptable.
+- [ ] No optimization weakens transaction, authorization, or data-consistency guarantees.
+- [ ] Performance claims include reproducible evidence rather than assumptions.
+- [ ] Canonical database, architecture, testing, and scalability docs match the result.
 
 ---
 
-## TASK-PROD-004: Production-Oriented Demo Hardening and Recovery
+## OPT-003: Frontend Performance and UX Polish
 
-**Status:** [x] Completed (2026-08-11)
-**Priority:** P1
-**Dependencies:** TASK-PROD-003 completed; existing transaction, idempotency, Redis, BullMQ, SSE, and recovery foundations
+**Status:** [ ] Not started  
+**Priority:** P1  
+**Dependencies:** OPT-002 completed
 
 ### Objective
 
-Verify and harden the production-oriented demo against realistic failures so temporary infrastructure,
-provider, restart, duplicate-request, or concurrency problems cannot corrupt authoritative business state.
+Improve perceived speed, browser efficiency, responsive usability, and interaction quality without
+redesigning validated product workflows.
 
-### Scope Boundary
+### Audit Scope
 
-This is primarily a reliability/correctness task, not a new user-facing feature.
+Inspect:
 
-Audit existing behavior first and fix only demonstrated gaps. Do not introduce distributed infrastructure,
-complex recovery systems, or theoretical scalability mechanisms without evidence that they are needed.
+- Vite production bundle and route/component loading;
+- duplicate API requests;
+- TanStack Query caching/refetch behavior;
+- SSE plus polling interaction;
+- unnecessary React rerenders;
+- large lists/tables and expensive derived state;
+- image/media loading;
+- responsive navigation and overflow;
+- modal/dialog fit;
+- loading, empty, error, disabled, retry, and success states;
+- Japanese/Vietnamese/English label length;
+- keyboard/focus/accessibility behavior.
 
 ### Implementation Checklist
 
-- [x] Audit existing concurrency, transaction, idempotency, retry, timeout, fallback, and recovery behavior before modifying implementation.
-- [x] Verify Redis outage/recovery keeps PostgreSQL authoritative and uses existing safe fallback behavior.
-- [x] Verify LINE worker outage preserves durable notification backlog and resumes delivery safely after recovery.
-- [x] Verify API/web/worker restart does not corrupt committed domain state or persistent sessions.
-- [x] Verify SSE disconnect/reconnect and REST fallback recover authoritative state without duplicate business actions.
-- [x] Verify duplicate booking, order, payment, refund, webhook/callback, and notification operations remain idempotent.
-- [x] Verify concurrent queue operations cannot double-call customers, corrupt ticket state, bypass assigned scope, or create invalid transitions.
-- [x] Verify concurrent inventory/order operations cannot oversell or leave committed inventory inconsistent.
-- [x] Verify LINE, email, routes, payment, and media timeout/failure cannot incorrectly commit provider-dependent success.
-- [x] Review critical transaction boundaries, locks, timeouts, bounded retries, and cleanup behavior.
-- [x] Preserve demo payment as the current runtime; real PSP availability is not required for this task.
-- [x] Fix only correctness/recovery gaps demonstrated by tests or implementation audit.
-- [x] Add concise recovery/runbook guidance for validated failure scenarios.
+- [ ] Capture current production bundle/build evidence before changes.
+- [ ] Identify measurable duplicate fetches, rerender hotspots, or unnecessarily eager code loading.
+- [ ] Apply route/component lazy loading only where it provides real value and does not harm reliability.
+- [ ] Tune query stale/refetch/polling behavior without weakening realtime recovery.
+- [ ] Keep REST authoritative; SSE remains an invalidation/reconciliation mechanism.
+- [ ] Remove unnecessary renders/state duplication where demonstrated.
+- [ ] Improve image/media loading behavior where needed.
+- [ ] Verify shared navigation remains scalable with additional destinations and long localized labels.
+- [ ] Fix page-level overflow, modal clipping, hidden controls, and mobile layout issues found during audit.
+- [ ] Improve accessibility for keyboard navigation, focus, labels, ARIA, and reduced-motion behavior where gaps are found.
+- [ ] Keep all visible copy localized in `ja`, `vi`, and `en` with Japanese fallback.
+- [ ] Do not introduce a new frontend framework or redesign major information architecture.
 
 ### Tests and Validation
 
-- [x] Add or extend deterministic failure/recovery tests for the critical scenarios above.
-- [x] Test Redis and worker outage/recovery using the existing Docker/validation topology where practical.
-- [x] Test duplicate and concurrent requests for critical state transitions.
-- [x] Test restart/reconnect behavior for applicable API, worker, and realtime flows.
-- [x] Confirm failures do not leak credentials, secrets, raw provider payloads, or unnecessary PII.
-- [x] Run required repository, security, Compose, migration, application, and concurrency validation according to `AGENTS.md`.
-
-### Completion Evidence
-
-- The audit retained existing PostgreSQL outbox/event-key authority, queue transition locks,
-  conditional finite-stock updates, payment/refund/webhook reconciliation, Redis fallback, BullMQ
-  restart behavior, SSE REST reconciliation, bounded provider retries, and sanitized telemetry.
-- A demonstrated direct-join race was fixed by repeating the active-ticket lookup after the queue
-  row lock. Deterministic tests prove the losing concurrent request cannot increment the ticket
-  counter, create an entry, enqueue a notification, or publish a duplicate realtime mutation.
-- The integrated validation runner now invokes Docker without a platform shell, preserving SQL
-  arguments on Windows and Linux. The 2026-08-11 isolated run passed Redis stop/start, worker
-  backlog recovery, cross-replica SSE, API restart, PostgreSQL stop/start, cache loss, distributed
-  rate limiting, and 160 public reads with zero errors.
-- Validation passed: security audit, format, lint, typecheck, OpenAPI, 109 API suites/664 tests,
-  54 Web files/181 tests, production build/CSP, validation config tests, and development,
-  validation, and deployment Compose config rendering. No migration was added or changed.
+- [ ] Add/update component tests for changed interactions.
+- [ ] Update Storybook stories for changed reusable UI states.
+- [ ] Run representative desktop/mobile browser E2E.
+- [ ] Verify no critical route has page-level horizontal overflow.
+- [ ] Verify customer LIFF, Staff, Manager, and Admin critical flows still work.
+- [ ] Run lint, typecheck, tests, Storybook build, production build/CSP, and required validation.
 
 ### Definition of Done
 
-- [x] Tested infrastructure/provider failures degrade safely without corrupting PostgreSQL-authoritative business state.
-- [x] Recovery does not create duplicate booking, payment, refund, notification, order, inventory, or queue transitions.
-- [x] Critical concurrency and idempotency boundaries have deterministic regression coverage.
-- [x] No unnecessary infrastructure was added solely for theoretical production scale.
-- [x] Canonical operations, architecture, testing, security, deployment, and scalability docs contain verified behavior rather than theoretical claims.
+- [ ] Demonstrated frontend inefficiencies or usability issues have been improved.
+- [ ] Critical flows remain stable across desktop/mobile and all supported locales.
+- [ ] Accessibility and responsive behavior do not regress.
+- [ ] No unnecessary frontend architecture rewrite was introduced.
 
 ---
 
-## TASK-PROD-005: End-to-End Demo Readiness and Final Acceptance
+## OPT-004: Security and Boundary Hardening
 
-**Status:** [x] Completed (2026-08-11)
-**Priority:** P1
-**Dependencies:** TASK-PROD-004 completed; representative demo data and deployable environment
+**Status:** [ ] Not started  
+**Priority:** P1  
+**Dependencies:** OPT-003 completed
 
 ### Objective
 
-Prepare LINE Smart Queue Assistant as a complete, stable, production-oriented demonstration and
-validate its critical user journeys without introducing new large product capabilities.
+Perform a focused security hardening pass across the system's real attack surface and close
+demonstrated weaknesses without adding enterprise security infrastructure that the project does not need.
 
-### Scope Boundary
+### Audit Scope
 
-This is the final integration, quality, UX, security, and demo-acceptance task.
+Review:
 
-Do not add major new subsystems during this task. Fix blocking defects and important UX/integration
-issues; document non-blocking future enhancements instead of expanding project scope.
+- authentication and refresh-session lifecycle;
+- JWT/cookie handling;
+- role/tenant/branch/queue authorization;
+- LINE identity/link verification;
+- LINE and payment webhook verification;
+- public write endpoints and rate limits;
+- request validation and browser-authoritative fields;
+- media upload/storage boundary;
+- CORS, CSP, proxy/trust settings, and security headers;
+- secret/config handling;
+- logs, metrics, traces, audit records, and error sanitization.
+
+### Required Authorization Regression Matrix
+
+At minimum verify rejection of:
+
+- Manager accessing another organization/branch;
+- Staff accessing another branch or queue;
+- Staff accessing notification operations outside assigned queue;
+- Customer accessing another customer's ticket/order;
+- Organization Owner using branch operational endpoints;
+- Platform Admin using tenant-private operational endpoints not explicitly allowed;
+- browser-supplied tenant/branch/queue/LINE/payment authority.
 
 ### Implementation Checklist
 
-- [x] Audit critical journeys for Platform Admin, Organization Owner, Branch Manager, Staff, and Customer.
-- [x] Validate organization lifecycle: application → Admin approval → Owner activation → organization setup.
-- [x] Validate business setup: branch → catalog → queue → staff assignment → QR/customer entry.
-- [x] Validate customer journey: QR/LIFF → queue/service selection → order → demo payment → ticket → LINE notification → queue processing → completion/history.
-- [x] Validate Branch Manager and Staff queue operations, including Notification Operations and strict branch/assigned-queue authorization.
-- [x] Validate Platform Admin Operational Health Dashboard without exposing tenant/customer detail.
-- [x] Validate demo payment/refund behavior and clearly distinguish it from retained real-PSP production architecture.
-- [x] Review desktop/mobile responsive behavior and fix blocking navigation, overflow, loading, empty, error, disabled, and success-state issues.
-- [x] Validate critical journeys in `ja`, `vi`, and `en` with Japanese fallback.
-- [x] Review representative demo fixtures so normal, busy queue, failed notification, payment/refund, and recovery scenarios can be demonstrated consistently.
-- [x] Run final security regression for authentication, tenant isolation, role/scope enforcement, browser-authoritative fields, secrets, and sensitive responses.
-- [x] Run final deployment smoke tests for Web, API, PostgreSQL, Redis, worker, SSE/realtime, LINE/mock integration, and demo payment.
-- [x] Review remaining TODO/FIXME/known limitations that affect critical demo flows and resolve only blockers or material correctness issues.
-- [x] Update README/demo guide with setup, demo accounts/data, recommended demonstration flow, known limitations, and intentionally deferred commercial-production capabilities.
-- [x] Document real PSP merchant acceptance, settlement/reconciliation, enterprise SLO/on-call infrastructure, and production-data forecast calibration as future production work where relevant.
+- [ ] Audit current controls before changing implementation.
+- [ ] Fix demonstrated authorization, validation, rate-limit, session, webhook, upload, or secret-handling gaps.
+- [ ] Verify access/refresh tokens are not persisted insecurely in browser storage.
+- [ ] Verify sensitive provider/customer data is not exposed through errors, logs, metrics, traces, or operational APIs.
+- [ ] Verify webhook signature/idempotency behavior remains server-authoritative.
+- [ ] Verify production/demo configuration cannot accidentally activate real external payment behavior without explicit valid configuration.
+- [ ] Review dependency/security audit findings and fix applicable high-value issues.
+- [ ] Avoid adding WAF/SIEM/enterprise IAM infrastructure unless an actual requirement exists.
+- [ ] Update security, deployment, API, and operations docs for material changes.
 
 ### Tests and Validation
 
-- [x] Ensure automated E2E covers the highest-value critical journeys and authorization boundaries.
-- [x] Run lint, typecheck, tests, build, format, OpenAPI, Storybook/browser tests, migration checks, and deployment validation required by `AGENTS.md`.
-- [x] Perform final smoke validation against a clean isolated demo environment.
-- [x] Verify representative demo data can reproduce the intended demonstration flow.
-- [x] Record remaining external acceptance requirements separately from implementation defects.
-
-### Completion Evidence
-
-- The browser acceptance suite verifies mock-LIFF friendship synchronization and booking/payment
-  return, Staff queue transitions and receipt access, strict LINE delivery scope, public application
-  approval, sanitized Admin health, server-authoritative idempotent demo refunds, branch QR/settings,
-  desktop/mobile navigation, and persisted Japanese/English/Vietnamese locale selection.
-- The E2E fixture is repeatable and provides deterministic paid, unpaid, failed, and fully refunded
-  orders with matching item and demo transaction state. A clean migration through `000028` produces
-  the same 44 application tables, 602 application column signatures, and 188 application indexes as
-  the synchronized reset schema.
-- A LIFF friendship consent-source mismatch found during the end-to-end audit was corrected with a
-  forward migration and reset-schema parity. The customer flow now fails visibly in E2E if backend
-  friendship synchronization regresses.
-- Required repository validation passed: dependency audit, formatting, lint, typecheck, OpenAPI,
-  109 API suites/664 tests, 54 Web files/181 tests, production build/CSP, Storybook static build,
-  16 Playwright scenarios, migration/fixture repeatability, all Compose configuration renders, and
-  the isolated TASK-11 runtime/recovery smoke topology.
-- `docs/guide/DEMO_ACCEPTANCE.md` records the executable demo journey, identities, evidence map,
-  known runtime boundaries, and external LINE/merchant/SMTP/storage/legal/operational acceptance
-  gates. Those deferred gates are not represented as implementation defects or mock acceptance.
+- [ ] Add/extend authorization matrix regression tests.
+- [ ] Test invalid/replayed sessions and webhook requests.
+- [ ] Test unsafe cross-tenant/cross-queue access attempts.
+- [ ] Test sanitization of logs/errors/operational responses.
+- [ ] Run dependency audit, lint, typecheck, tests, build, OpenAPI, security/config checks, and required validation.
 
 ### Definition of Done
 
-- [x] The complete primary business journey can be demonstrated reliably from onboarding through queue completion.
-- [x] All primary roles have verified authorization boundaries and usable critical journeys.
-- [x] Critical queue, inventory, payment, notification, realtime, and recovery behavior has regression coverage.
-- [x] Demo deployment is stable and documentation accurately distinguishes implemented behavior from deferred commercial-production acceptance.
-- [x] No known blocker prevents LINE Smart Queue Assistant from being presented as a production-oriented demo.
-- [x] No further major production capability is required for the current project scope.
+- [ ] No known material security boundary defect remains in the tested project scope.
+- [ ] Tenant, branch, queue, customer, payment, and notification authority remains server-derived.
+- [ ] Sensitive data is not unnecessarily exposed.
+- [ ] Hardening remains appropriate for a production-oriented demo rather than an enterprise security platform.
+
+---
+
+## OPT-005: Final Maintainability, Documentation, and Demo Baseline
+
+**Status:** [ ] Not started  
+**Priority:** P2  
+**Dependencies:** OPT-004 completed
+
+### Objective
+
+Consolidate the optimized system into a clean, maintainable, reproducible demo baseline with
+accurate documentation and no unnecessary feature expansion.
+
+This is a closure task, not a new feature task.
+
+### Implementation Checklist
+
+- [ ] Review all optimization changes and confirm canonical docs match current implementation.
+- [ ] Synchronize README, architecture, implementation map, API, database, testing, operations, deployment, scalability, and demo guides where affected.
+- [ ] Remove or archive obsolete documentation that could be mistaken for current truth.
+- [ ] Review `.env.example` and deployment examples for obsolete, duplicated, unsafe, or misleading configuration.
+- [ ] Verify demo payment mode and deferred real-PSP acceptance are documented clearly.
+- [ ] Verify known limitations distinguish implementation defects from intentionally deferred commercial-production work.
+- [ ] Review remaining TODO/FIXME items and classify them as blocker, future work, or intentionally ignored.
+- [ ] Verify representative demo fixtures and demo accounts still reproduce the documented journey.
+- [ ] Verify the recommended demo path from onboarding through queue completion.
+- [ ] Verify Git repository hygiene: generated artifacts, temporary output, secrets, and local environment files are not tracked.
+- [ ] Do not add new major features or architecture during this task.
+- [ ] Record a concise optimization summary and final evidence map.
+
+### Final Validation
+
+Run the final project validation required by `AGENTS.md`, including applicable:
+
+- dependency/security audit;
+- formatting;
+- lint;
+- typecheck;
+- API/Web/shared tests;
+- OpenAPI contract;
+- production build/CSP;
+- Storybook build;
+- browser E2E;
+- migration status/clean isolated migration;
+- demo fixture repeatability;
+- Docker/Compose configuration validation;
+- critical deployment/recovery smoke validation.
+
+Do not rerun expensive validation redundantly if `AGENTS.md` explicitly permits reuse of fresh,
+unchanged evidence. Final completion must still have traceable evidence for every required gate.
+
+### Definition of Done
+
+- [ ] The optimized system is maintainable, documented, reproducible, and stable.
+- [ ] Critical business flows and authorization boundaries remain verified.
+- [ ] No major known blocker prevents reliable demonstration.
+- [ ] Documentation accurately distinguishes demo behavior, production-oriented architecture, and deferred commercial-production work.
+- [ ] No further optimization task is required unless future evidence identifies a specific problem.
+- [ ] The project is ready to be frozen as the next stable demo baseline.
+
+---
+
+## Out of Scope for This Optimization Phase
+
+Do not implement these unless a new explicit requirement is approved:
+
+- microservices migration;
+- Kubernetes;
+- Kafka/event-streaming platform;
+- distributed SQL/database replacement;
+- WebSocket replacement for working SSE solely for technology preference;
+- frontend framework rewrite;
+- backend framework rewrite;
+- ORM migration without demonstrated value;
+- enterprise SLO/error-budget/on-call platform;
+- real merchant settlement/accounting reconciliation;
+- production PSP onboarding solely for demo purposes;
+- production ML/AI forecasting without real data and an approved use case;
+- multi-region/high-availability architecture without measured need.
+
+Future ideas should be recorded as deferred work rather than implemented automatically.

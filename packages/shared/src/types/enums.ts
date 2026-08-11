@@ -7,18 +7,7 @@ export enum QueueStatus {
   ACTIVE = 'open',
   PAUSED = 'paused',
   CLOSED = 'closed',
-}
-
-/**
- * Operation mode — extensibility hook for disaster / maintenance scenarios.
- * Stored on the Organization entity; affects all queues in the org.
- */
-export enum OperationMode {
-  NORMAL = 'NORMAL',
-  /** Reduced capacity; priority-based ticket processing */
-  DISASTER = 'DISASTER',
-  /** All queues frozen; informational banner shown to customers */
-  MAINTENANCE = 'MAINTENANCE',
+  ARCHIVED = 'archived',
 }
 
 // ─────────────────────────────────────────────────────
@@ -27,12 +16,13 @@ export enum OperationMode {
 
 /** Full lifecycle of a Ticket */
 export enum TicketStatus {
-  WAITING = 'WAITING',
-  CALLED = 'CALLED',
-  SERVING = 'SERVING',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
-  NO_SHOW = 'NO_SHOW',
+  WAITING = 'waiting',
+  CALLED = 'called',
+  SERVING = 'serving',
+  SERVED = 'served',
+  SKIPPED = 'skipped',
+  CANCELLED = 'cancelled',
+  NO_SHOW = 'no_show',
 }
 
 /**
@@ -40,9 +30,10 @@ export enum TicketStatus {
  * Extensibility hook for fairness / abuse-prevention features.
  */
 export enum PenaltyReason {
-  NO_SHOW = 'NO_SHOW',
-  LATE_ARRIVAL = 'LATE_ARRIVAL',
-  POLICY_ABUSE = 'POLICY_ABUSE',
+  NO_SHOW = 'no_show',
+  LATE_ARRIVAL = 'late_arrival',
+  EXCESSIVE_CANCEL = 'excessive_cancel',
+  MANUAL = 'manual',
 }
 
 // ─────────────────────────────────────────────────────
@@ -80,7 +71,12 @@ export enum OrderStatus {
 
 export enum PaymentStatus {
   UNPAID = 'unpaid',
+  PENDING = 'pending',
+  AUTHORIZED = 'authorized',
   PAID = 'paid',
+  REFUNDED = 'refunded',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled',
 }
 
 // ─────────────────────────────────────────────────────
@@ -88,31 +84,30 @@ export enum PaymentStatus {
 // ─────────────────────────────────────────────────────
 
 export enum NotificationType {
-  /** Customer just joined the queue */
-  TICKET_ISSUED = 'TICKET_ISSUED',
-  /** N tickets ahead — approaching threshold */
-  TURN_APPROACHING = 'TURN_APPROACHING',
-  /** Customer is next to be served */
-  TURN_NOW = 'TURN_NOW',
-  /** Ticket auto-cancelled due to no-show */
-  TICKET_EXPIRED = 'TICKET_EXPIRED',
-  QUEUE_PAUSED = 'QUEUE_PAUSED',
-  QUEUE_RESUMED = 'QUEUE_RESUMED',
-  QUEUE_CLOSED = 'QUEUE_CLOSED',
+  BOOKING_CREATED = 'booking_created',
+  ETA_WARNING = 'eta_warning',
+  CALLED = 'called',
+  SERVING = 'serving',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled',
+  NO_SHOW = 'no_show',
+  DEFERRED = 'deferred',
+  LOCATION_WARNING = 'location_warning',
 }
 
 export enum NotificationChannel {
-  LINE = 'LINE',
-  EMAIL = 'EMAIL',
-  PUSH = 'PUSH',
+  LINE_PUSH = 'line_push',
+  EMAIL = 'email',
+  SMS = 'sms',
+  IN_APP = 'in_app',
 }
 
 export enum NotificationStatus {
-  PENDING = 'PENDING',
-  SENT = 'SENT',
-  FAILED = 'FAILED',
-  /** User opted out or recipient identifier unavailable */
-  SKIPPED = 'SKIPPED',
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  SENT = 'sent',
+  FAILED = 'failed',
+  CANCELLED = 'cancelled',
 }
 
 // ─────────────────────────────────────────────────────

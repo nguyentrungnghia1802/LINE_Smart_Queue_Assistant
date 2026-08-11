@@ -1,4 +1,4 @@
-import { QueueStatus, type QueueSummary, type TicketStatus } from '@line-queue/shared';
+import { QueueStatus, type QueueSummary, TicketStatus } from '@line-queue/shared';
 
 import type { LiffContext } from '../types/liff';
 import type { CustomerTicketOrder, TicketPositionResult } from '../types/queue-entry';
@@ -59,10 +59,6 @@ export const queueFixtures: Record<string, QueueSummary> = {
   },
 };
 
-function ticketStatus(status: string): TicketStatus {
-  return status as unknown as TicketStatus;
-}
-
 export const ticketFixtures: Record<string, TicketPositionResult> = {
   waiting: {
     entry: {
@@ -73,7 +69,7 @@ export const ticketFixtures: Record<string, TicketPositionResult> = {
       line_user_id: 'U-demo',
       ticket_number: 19,
       ticket_code: 'A019',
-      status: ticketStatus('waiting'),
+      status: TicketStatus.WAITING,
       priority: 0,
       position_snapshot: 5,
       estimated_wait_seconds: 1200,
@@ -99,7 +95,7 @@ export const ticketFixtures: Record<string, TicketPositionResult> = {
       line_user_id: 'U-demo',
       ticket_number: 20,
       ticket_code: 'A020',
-      status: ticketStatus('called'),
+      status: TicketStatus.CALLED,
       priority: 0,
       position_snapshot: 0,
       estimated_wait_seconds: 0,
@@ -125,7 +121,7 @@ export const ticketFixtures: Record<string, TicketPositionResult> = {
       line_user_id: 'U-demo',
       ticket_number: 18,
       ticket_code: 'A018',
-      status: ticketStatus('served'),
+      status: TicketStatus.SERVED,
       priority: 0,
       position_snapshot: null,
       estimated_wait_seconds: 0,

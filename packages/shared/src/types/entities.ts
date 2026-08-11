@@ -3,7 +3,6 @@ import type {
   NotificationChannel,
   NotificationStatus,
   NotificationType,
-  OperationMode,
   OrderStatus,
   PaymentStatus,
   PenaltyReason,
@@ -38,8 +37,6 @@ export interface Organization extends BaseEntity {
   paymentInfo?: string;
   /** Stable token used to generate public QR codes. Not the same as slug. */
   publicQrToken?: string;
-  /** Current operation mode — drives queue-level behaviour across the org */
-  operationMode: OperationMode;
 }
 
 // ─────────────────────────────────────────────────────
@@ -184,7 +181,7 @@ export interface Product extends BaseEntity {
   imageUrl?: string;
   /** Distinguishes tangible product from service */
   productType: ProductType;
-  /** Price in VND (or local currency) */
+  /** Price in the organization's configured currency. */
   price: number;
   /** Average service time per customer in minutes */
   serviceTimeMinutes: number;

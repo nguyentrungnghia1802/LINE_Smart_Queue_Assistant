@@ -48,6 +48,7 @@ export const common = {
     active: 'Active',
     paused: 'Paused',
     closed: 'Closed',
+    archived: 'Archived',
     waiting: 'Waiting',
     called: 'Called',
     serving: 'Serving',

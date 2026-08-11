@@ -143,13 +143,7 @@ export const callNextTicket = asyncHandler(async (req: Request, res: Response) =
   const { queueId } = req.params as unknown as QueueIdParam;
   if (!req.user) throw AppError.unauthorized();
   const scope = requireBranchOperator(req.user);
-  const entry = await queueService.callNextTicket(
-    queueId,
-    undefined,
-    undefined,
-    scope.organizationId,
-    scope.branchId
-  );
+  const entry = await queueService.callNextTicket(queueId, scope.organizationId, scope.branchId);
 
   reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_code }, 'queue.callNext');
 
