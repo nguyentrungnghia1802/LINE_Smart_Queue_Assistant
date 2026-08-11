@@ -28,6 +28,7 @@ export interface DueLocationAlertRow {
   customer_longitude: string;
   branch_latitude: string;
   branch_longitude: string;
+  processing_started_at: Date;
 }
 
 export interface ActiveLocationTargetRow {
@@ -135,9 +136,10 @@ export const locationRepository = {
     }
   },
 
-  async claimDue(limit: number, client: PoolClient): Promise<DueLocationAlertRow[]> {
-    const { rows } = await client.query<DueLocationAlertRow>(
-      `SELECT la.id, la.organization_id, la.queue_entry_id, la.event_key,
+  async claimDue(limit: number, processingTimeoutSeconds: number): Promise<DueLocationAlertRow[]> {
+    const { rows } = await pool.query<DueLocationAlertRow>(
+      `WITH due AS (
+         SELECT la.id, la.organization_id, la.queue_entry_id, la.event_key,
               la.distance_to_org_meters, la.threshold_meters, la.attempt_count,
               qe.line_user_id, qe.user_id, qe.ticket_code, qe.estimated_wait_seconds,
               cl.latitude::TEXT AS customer_latitude,
@@ -164,10 +166,31 @@ export const locationRepository = {
          AND cl.longitude IS NOT NULL
          AND branch.latitude IS NOT NULL
          AND branch.longitude IS NOT NULL
+         AND (
+           la.processing_started_at IS NULL
+           OR la.processing_started_at < NOW() - ($2 * INTERVAL '1 second')
+         )
        ORDER BY COALESCE(la.next_retry_at, la.due_at, la.created_at)
        LIMIT $1
-       FOR UPDATE OF la SKIP LOCKED`,
-      [limit]
+       FOR UPDATE OF la SKIP LOCKED
+       ), claimed AS (
+         UPDATE location_alerts la
+         SET processing_started_at = NOW(),
+             attempt_count = la.attempt_count + 1,
+             last_error = NULL
+         FROM due
+         WHERE la.id = due.id
+         RETURNING la.id, la.processing_started_at, la.attempt_count
+       )
+       SELECT due.id, due.organization_id, due.queue_entry_id, due.event_key,
+              due.distance_to_org_meters, due.threshold_meters, claimed.attempt_count,
+              due.line_user_id, due.user_id, due.ticket_code, due.estimated_wait_seconds,
+              due.customer_latitude, due.customer_longitude,
+              due.branch_latitude, due.branch_longitude, due.ahead_count,
+              claimed.processing_started_at
+       FROM due
+       JOIN claimed ON claimed.id = due.id`,
+      [limit, processingTimeoutSeconds]
     );
     return rows;
   },
@@ -176,17 +199,22 @@ export const locationRepository = {
     id: string,
     status: 'pending' | 'sent' | 'skipped' | 'failed',
     client: PoolClient,
+    processingStartedAt: Date,
     error?: string
-  ) {
-    await client.query(
+  ): Promise<boolean> {
+    const result = await client.query(
       `UPDATE location_alerts
        SET status = $2, sent_at = CASE WHEN $2 = 'sent' THEN NOW() ELSE sent_at END,
-           attempt_count = attempt_count + 1,
            next_retry_at = CASE WHEN $2 = 'pending' THEN NOW() + INTERVAL '5 minutes' ELSE NULL END,
+           processing_started_at = NULL,
            last_error = $3
-       WHERE id = $1`,
-      [id, status, error?.slice(0, 500) ?? null]
+       WHERE id = $1
+         AND status = 'pending'
+         AND processing_started_at = $4
+       RETURNING id`,
+      [id, status, error?.slice(0, 500) ?? null, processingStartedAt]
     );
+    return (result.rowCount ?? 0) > 0;
   },
 
   async cleanupExpired(limit: number): Promise<number> {

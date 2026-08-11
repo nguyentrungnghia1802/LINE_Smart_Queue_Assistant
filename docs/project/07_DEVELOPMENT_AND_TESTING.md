@@ -285,6 +285,18 @@ npm run scale:validate
 npm run scale:load -- --url http://localhost:4180/api/v1/orgs/by-token/demo-queue-lab-2026 --requests 160 --concurrency 10
 ```
 
+For backend query work, capture `EXPLAIN (ANALYZE, BUFFERS)` inside an explicit transaction and end
+synthetic fixture measurements with `ROLLBACK`. OPT-002 records the exact representative shapes and
+results in `11_SCALABILITY_BASELINE.md`. Its deterministic regression scope is:
+
+```bash
+npm run test -w apps/api -- --runInBand \
+  src/modules/staff/__tests__/staff.my-queue.test.ts \
+  src/modules/orders/__tests__/orders.repository.test.ts \
+  src/modules/location/__tests__/location.repository.test.ts \
+  src/modules/location/__tests__/location.service.performance.test.ts
+```
+
 `scale:validate` applies migrations and the explicit E2E fixture, then checks cross-instance auth,
 shared strict rate limiting, cache loss, Redis interruption/recovery, durable worker restart,
 cross-instance SSE, API restart, PostgreSQL readiness failure/recovery, metrics, and container

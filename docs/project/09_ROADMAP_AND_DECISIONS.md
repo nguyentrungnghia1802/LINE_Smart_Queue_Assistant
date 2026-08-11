@@ -700,3 +700,17 @@ canonical documentation before cleanup.
 
 This cleanup changes no route, authorization rule, transaction, tenant scope, payment authority,
 notification delivery, session behavior, or production/demo configuration.
+
+## OPT-002 backend performance audit (2026-08-11)
+
+The audit reviewed public cached reads, booking/order transactions, customer tickets, Staff queue
+overview, manager/owner aggregates, notification/ETA/location scans, existing indexes, cache
+fallback, transaction duration, and per-process pool configuration. PostgreSQL remains authoritative;
+no new dependency, infrastructure component, cache authority, or schema migration was justified.
+
+| Finding                                                                                                                                                       | Evidence and decision                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Staff overview repeated complete queue reads and then issued one order query per preview entry.                                                               | Reuse `countLiveByQueueIds` to select the active queue, load only its bounded preview, and reuse `findByQueueEntries` for one order/item query. The maximum two-queue/eight-entry repository-read shape falls from 21 cold calls (19 with warm queue config) to six. |
+| Location alerts held row locks and a transaction across sequential travel-provider calls.                                                                     | Claim up to the configured batch atomically with `SKIP LOCKED` and a recoverable timestamp lease; call the provider after commit; atomically enqueue/finalize each result in a short transaction.                                                                    |
+| Existing indexes covered the measured bounded preview, order-item joins, and due-alert selection.                                                             | Representative rollback-only `EXPLAIN (ANALYZE, BUFFERS)` runs did not justify an additional index; preserve the current migration/schema.                                                                                                                           |
+| Public read caches, correctness-critical booking locks, set-based analytics, outbox claims, and explicit pool limits had no demonstrated defect in this pass. | Retain them. Redis remains optional acceleration, every write and authorization decision remains PostgreSQL-backed, and production capacity still requires staging evidence.                                                                                         |

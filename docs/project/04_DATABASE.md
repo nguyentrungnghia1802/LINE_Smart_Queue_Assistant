@@ -170,7 +170,9 @@ retry/error/delivery columns were removed by migration `000024`.
 - Active queue-entry lookup indexes support customer/LINE and queue/status ordering.
 - Payment transaction lookup is indexed by provider external ID and provider intent ID.
 - `payment_webhook_events(provider,event_id)` is unique so provider retries are idempotent.
-- Pending notification/location-alert indexes support worker scans.
+- Pending notification/location-alert indexes support worker scans. Location-alert workers use
+  `processing_started_at` as a recoverable claim lease and increment `attempt_count` at claim time;
+  stale workers cannot finalize a newer claim because final updates match the lease timestamp.
 - `notifications.event_key` is unique, so the same domain event can be enqueued repeatedly without creating duplicate sends.
 - `idx_notifications_dispatch_due` and `idx_notifications_dispatch_claim_recovery` support new and
   abandoned dispatcher claims; dispatch state is independent from delivery state.
@@ -208,6 +210,10 @@ An insufficient-stock update affects zero rows, raises a conflict, and rolls bac
   increments the counter, creates the entry, and enqueues the booking-created notification in one
   transaction. The post-lock recheck makes simultaneous retries for the same actor idempotent.
 - Queue/order lifecycle transitions that produce customer LINE notifications write the state change and outbox row in the same transaction. External LINE API delivery happens only after commit through the worker.
+- Location-alert claiming is one short `FOR UPDATE SKIP LOCKED` statement. Google Routes/mock travel
+  estimation happens after that statement commits. A second short transaction atomically enqueues
+  the durable LINE intent and finalizes the matching claim; failures release the claim to bounded
+  retry without holding row locks during provider I/O.
 - Customer/operator cancellation locks the order and refundable payment transactions, records
   idempotent reconciliation operations, updates transaction/item/order refund summaries, releases
   inventory, cancels the order/ticket, and enqueues the LINE cancellation notification in one transaction.

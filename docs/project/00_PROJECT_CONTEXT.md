@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-08-11 after the TASK-PROD-002 runtime correction.
+Last verified against the repository on 2026-08-11 after the OPT-002 backend performance pass.
 
 ## 1. Problem
 
@@ -40,7 +40,7 @@ real-money payment or notification platform.
 | Orders and inventory      | Operational lifecycle implemented                   | Atomic reserve/decrement, consume on fulfillment, release/restore on cancellation or no-show, expiry worker, transition history, and idempotent guarded transitions                                                                                                                                     |
 | Payment                   | Production-oriented demo active                     | Demo Payment Provider is active and moves no real money; server-created intents, signed completion, provider abstraction, payOS adapter, state machine, webhook idempotency, reconciliation, and audited refund boundaries are retained for future external activation                                  |
 | LINE                      | Customer login deployed; message acceptance partial | LIFF login verifies ID tokens, customer booking requires linked LINE identity, webhook events are signature-checked, lifecycle push uses the durable PostgreSQL outbox with Flex/text fallback, and Rich Menu/LIFF Home code exists; full notification and Rich Menu physical-device acceptance remains |
-| Location alerts           | Provider-ready flow implemented                     | Explicit verified-user consent, active-ticket snapshots, Google Routes walking adapter, durable LINE enqueue, retry state, configurable retention and deletion exist; restricted production credentials and provider acceptance remain pending                                                          |
+| Location alerts           | Provider-ready flow implemented                     | Explicit verified-user consent, active-ticket snapshots, leased PostgreSQL claims, Google Routes calls outside database transactions, durable LINE enqueue, retry state, configurable retention and deletion exist; restricted production credentials and provider acceptance remain pending            |
 | Booking history           | Implemented                                         | Authenticated server-side group history is paginated across devices; customers and tenant staff can inspect independent orders/tickets without merging payment, cancellation, or receipt state                                                                                                          |
 | ETA                       | Measured heuristic implemented                      | Position/workload calculation, 30-second updater, persisted forecast history, version/confidence/explanation, retention, and manager API/dashboard                                                                                                                                                      |
 | Staffing recommendation   | Measured heuristic baseline implemented             | Eight-week weekday/hour demand and service-duration aggregates produce explainable staffing suggestions; this is deliberately not described as ML                                                                                                                                                       |
@@ -100,6 +100,8 @@ real-money payment or notification platform.
 - Configurable per-process PostgreSQL pool limits and an isolated horizontal validation harness that
   exercises two API replicas, shared Redis/PostgreSQL, a dedicated worker, cross-instance SSE,
   distributed rate limits, and controlled dependency recovery.
+- Staff queue overview selects the active queue from one batch count, bounds the visible preview to
+  eight entries, and loads all preview orders/items in one query instead of per-entry reads.
 - Playwright browser coverage for LIFF mock authentication, required-item demo payment, booking/ticket redirect, staff transitions, durable mock notification delivery, receipt access, public application/admin approval, manager QR/settings, complete role navigation, and desktop/mobile overflow checks.
 - Database structures for booking groups, location snapshots/alerts, forecast history, and staffing recommendations.
 - Japan-oriented organization addresses, `Asia/Tokyo` defaults, normalized weekly hours,

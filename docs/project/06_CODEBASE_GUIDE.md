@@ -256,6 +256,11 @@ and `shared-domain-contract.test.ts` together when adding or renaming a persiste
 - `apps/web/vite-plugins/liffCspPlugin.ts`: reviewed compatibility boundary for the official LIFF
   message-bus bootstrap; SDK updates must pass the production CSP bundle check.
 - `apps/api/src/modules/orders/orders.service.ts`: coupled payment/stock/order/ticket transaction.
+- `apps/api/src/modules/staff/staff.service.ts`: Staff overview authorization plus bounded queue
+  preview; preserve batch live-count and batch order enrichment rather than per-queue/per-entry reads.
+- `apps/api/src/modules/location/**`: consented snapshots, recoverable alert claims, and travel-time
+  integration. Provider calls must stay outside database transactions; enqueue and claim
+  finalization remain atomic.
 - `apps/api/src/modules/branches/branch-scope.ts`: owner, branch-manager, and branch-operator scope
   guards used by every branch-owned endpoint.
 - `apps/api/src/modules/notifications/**`: LINE notification templates and durable PostgreSQL

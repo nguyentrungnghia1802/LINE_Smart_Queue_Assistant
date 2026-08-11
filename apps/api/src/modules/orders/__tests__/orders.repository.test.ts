@@ -50,6 +50,7 @@ describe('ordersRepository.findByQueueEntry', () => {
           id: 'order-1',
           queue_entry_id: 'entry-1',
           order_number: 'A012',
+          customer_line_display_name: 'LINE 山田',
           items_json: [{ id: 'item-1' }],
         },
       ],
@@ -63,9 +64,11 @@ describe('ordersRepository.findByQueueEntry', () => {
 
     const sql = String(mockQuery.mock.calls[0]?.[0]);
     expect(sql).toContain('WHERE qe.id = ANY($1::uuid[])');
+    expect(sql).toContain('LEFT JOIN line_accounts la ON la.user_id = o.customer_user_id');
     expect(result.get('entry-1')).toMatchObject({
       id: 'order-1',
       order_number: 'A012',
+      customer_line_display_name: 'LINE 山田',
       items: [{ id: 'item-1' }],
     });
   });

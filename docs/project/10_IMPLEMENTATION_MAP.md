@@ -261,20 +261,20 @@ jobs. Dispatcher rows use `FOR UPDATE SKIP LOCKED`; delivery jobs carry only the
 and use a deterministic job ID plus LINE retry key. PostgreSQL remains authoritative for dispatch,
 retry, and final sent/failed state.
 
-| Job                    | Owner         |        Default interval | Durable boundary                                                |
-| ---------------------- | ------------- | ----------------------: | --------------------------------------------------------------- |
-| `authSessionCleanup`   | API scheduler |                  1 hour | Removes expired/revoked refresh sessions after retention        |
-| `etaUpdater`           | API scheduler |              30 seconds | Recalculates waiting-entry ETA                                  |
-| `etaWarning`           | API scheduler |              30 seconds | Enqueues exactly-five-ahead LINE events                         |
-| `calledRenotify`       | API scheduler |              60 seconds | Repairs missed called notification enqueue                      |
-| `inventoryExpiry`      | API scheduler |              60 seconds | Expires stale finite-stock reservations                         |
-| `locationAlerts`       | API scheduler |              60 seconds | Calculates consented travel alerts and enqueues LINE events     |
-| `locationCleanup`      | API scheduler |                  1 hour | Deletes/anonymizes expired location data                        |
-| `notificationDispatch` | BullMQ worker |              15 seconds | Claims committed outbox rows and creates deterministic jobs     |
-| `notificationDelivery` | BullMQ worker |            Event-driven | Sends one LINE notification and persists the provider outcome   |
-| `counterReset`         | API scheduler |            1 hour check | Resets organization-local daily counters                        |
-| `forecasting`          | API scheduler |                  1 hour | Persists wait and staffing measured heuristics                  |
-| `emailDelivery`        | API scheduler | 15 seconds when enabled | Claims and sends activation/reset/application email outbox rows |
+| Job                    | Owner         |        Default interval | Durable boundary                                                                           |
+| ---------------------- | ------------- | ----------------------: | ------------------------------------------------------------------------------------------ |
+| `authSessionCleanup`   | API scheduler |                  1 hour | Removes expired/revoked refresh sessions after retention                                   |
+| `etaUpdater`           | API scheduler |              30 seconds | Recalculates waiting-entry ETA                                                             |
+| `etaWarning`           | API scheduler |              30 seconds | Enqueues exactly-five-ahead LINE events                                                    |
+| `calledRenotify`       | API scheduler |              60 seconds | Repairs missed called notification enqueue                                                 |
+| `inventoryExpiry`      | API scheduler |              60 seconds | Expires stale finite-stock reservations                                                    |
+| `locationAlerts`       | API scheduler |              60 seconds | Leases due rows, calls travel provider outside transactions, atomically enqueues/finalizes |
+| `locationCleanup`      | API scheduler |                  1 hour | Deletes/anonymizes expired location data                                                   |
+| `notificationDispatch` | BullMQ worker |              15 seconds | Claims committed outbox rows and creates deterministic jobs                                |
+| `notificationDelivery` | BullMQ worker |            Event-driven | Sends one LINE notification and persists the provider outcome                              |
+| `counterReset`         | API scheduler |            1 hour check | Resets organization-local daily counters                                                   |
+| `forecasting`          | API scheduler |                  1 hour | Persists wait and staffing measured heuristics                                             |
+| `emailDelivery`        | API scheduler | 15 seconds when enabled | Claims and sends activation/reset/application email outbox rows                            |
 
 Each external failure is isolated from the committed queue/order transition. LINE and email errors
 are sanitized before persistence/logging, and provider secrets/payloads are not written to the

@@ -1,6 +1,6 @@
 # Scalability Baseline and Target Architecture
 
-Verified against the TASK-11 working tree on 2026-08-09. This document records the current runtime
+Verified against the OPT-002 working tree on 2026-08-11. This document records the current runtime
 boundary, reproducible local evidence, target SLOs, and remaining production acceptance work. It
 does not claim production capacity. Redis, bounded public caches, BullMQ LINE delivery,
 cross-replica SSE, optional observability, and S3-compatible media are implemented.
@@ -61,20 +61,20 @@ must leave explicit database headroom for migrations, administration, and recove
 
 ## 3. Current background work
 
-| Workload             | Default cadence | Coordination and current execution                                                                |
-| -------------------- | --------------- | ------------------------------------------------------------------------------------------------- |
-| Session cleanup      | 1 hour          | Advisory lock; bounded delete of expired/revoked sessions                                         |
-| ETA update           | 30 seconds      | Advisory lock; one concurrent window-function update per open queue                               |
-| ETA warning scan     | 30 seconds      | Advisory lock; global candidate scan and durable notification enqueue                             |
-| Called reminder scan | 60 seconds      | Advisory lock; recent-called scan and durable event-key deduplication                             |
-| Inventory expiry     | 60 seconds      | Advisory lock plus `SKIP LOCKED`; bounded order cancellation/release transaction                  |
-| Location alerts      | 60 seconds      | Advisory lock plus `SKIP LOCKED`; sequential Google Routes calls while one DB transaction is open |
-| Location cleanup     | 1 hour          | Advisory lock; bounded location anonymization                                                     |
-| LINE dispatch        | 15 seconds      | `SKIP LOCKED` committed-row claims and deterministic per-notification BullMQ jobs                 |
-| LINE delivery        | Event-driven    | Bounded provider-aware retry/backoff and durable PostgreSQL sent/failed state                     |
-| Email delivery       | 15 seconds      | `SKIP LOCKED`; sequential batch delivery when email is enabled                                    |
-| Counter reset        | 1 hour          | Advisory lock; organization-timezone-aware bulk update                                            |
-| Forecasting          | 1 hour          | Advisory lock; all-branch slot aggregation, current-load calculation, persistence, and expiry     |
+| Workload             | Default cadence | Coordination and current execution                                                                         |
+| -------------------- | --------------- | ---------------------------------------------------------------------------------------------------------- |
+| Session cleanup      | 1 hour          | Advisory lock; bounded delete of expired/revoked sessions                                                  |
+| ETA update           | 30 seconds      | Advisory lock; one concurrent window-function update per open queue                                        |
+| ETA warning scan     | 30 seconds      | Advisory lock; global candidate scan and durable notification enqueue                                      |
+| Called reminder scan | 60 seconds      | Advisory lock; recent-called scan and durable event-key deduplication                                      |
+| Inventory expiry     | 60 seconds      | Advisory lock plus `SKIP LOCKED`; bounded order cancellation/release transaction                           |
+| Location alerts      | 60 seconds      | Advisory cycle lock plus recoverable row leases; sequential Google Routes calls occur outside transactions |
+| Location cleanup     | 1 hour          | Advisory lock; bounded location anonymization                                                              |
+| LINE dispatch        | 15 seconds      | `SKIP LOCKED` committed-row claims and deterministic per-notification BullMQ jobs                          |
+| LINE delivery        | Event-driven    | Bounded provider-aware retry/backoff and durable PostgreSQL sent/failed state                              |
+| Email delivery       | 15 seconds      | `SKIP LOCKED`; sequential batch delivery when email is enabled                                             |
+| Counter reset        | 1 hour          | Advisory lock; organization-timezone-aware bulk update                                                     |
+| Forecasting          | 1 hour          | Advisory lock; all-branch slot aggregation, current-load calculation, persistence, and expiry              |
 
 `JobRunner` prevents overlapping cycles only inside one API process. Advisory locks provide
 cross-process ownership for the named API jobs. The BullMQ worker uses one versioned deterministic
@@ -103,16 +103,16 @@ than Redis availability.
 
 ## 5. High-frequency read paths
 
-| Client/read path                      | Current frequency         | Server work and scale candidate                                                       |
-| ------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------- |
-| Ticket detail                         | SSE plus degraded polling | Ticket, queue position, order, and item reads                                         |
-| Customer active tickets               | 30 seconds/client         | Active actor tickets plus queue/order enrichment                                      |
-| Customer queue status/current         | 30 seconds/view           | Waiting counts and current queue state                                                |
-| Staff queue overview                  | SSE plus degraded polling | Waiting/called/serving counts followed by entry/order enrichment                      |
-| Manager branch order statistics       | 30 seconds/view           | Summary, 12-month series, top products, queue/product metrics, and best-staff queries |
-| Owner branch analytics                | 60 seconds/view           | Cross-branch summaries and revenue series                                             |
-| Active-location ticket/consent checks | 30/60 seconds             | Active-ticket and consent reads; snapshots can be posted at most once per minute      |
-| Public QR catalog                     | on entry/refresh          | Organization, branch calendar, queue catalog, waiting counts, and products per queue  |
+| Client/read path                      | Current frequency         | Server work and scale candidate                                                                     |
+| ------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------- |
+| Ticket detail                         | SSE plus degraded polling | Ticket, queue position, order, and item reads                                                       |
+| Customer active tickets               | 30 seconds/client         | Active actor tickets plus queue/order enrichment                                                    |
+| Customer queue status/current         | 30 seconds/view           | Waiting counts and current queue state                                                              |
+| Staff queue overview                  | SSE plus degraded polling | One batch live-count query, one bounded selected-queue preview, and one batch order/item enrichment |
+| Manager branch order statistics       | 30 seconds/view           | Summary, 12-month series, top products, queue/product metrics, and best-staff queries               |
+| Owner branch analytics                | 60 seconds/view           | Cross-branch summaries and revenue series                                                           |
+| Active-location ticket/consent checks | 30/60 seconds             | Active-ticket and consent reads; snapshots can be posted at most once per minute                    |
+| Public QR catalog                     | on entry/refresh          | Organization, branch calendar, queue catalog, waiting counts, and products per queue                |
 
 Fallback polling load grows approximately with the number of open browser views, not only the
 number of organizations. Active ticket and Staff views now use SSE invalidation with authoritative
@@ -125,8 +125,9 @@ These are code-review candidates, not measured production bottlenecks:
 
 - Public QR resolution loads queue catalogs and performs per-queue waiting/product work. A branch
   with many queues can create query fan-out.
-- Staff overview performs count/state reads and enriches waiting/called/serving entries with order
-  data. Its 10-second polling interval makes query count and returned-list bounds important.
+- Staff overview now selects from batch live counts, loads only the selected queue's maximum
+  eight-entry combined preview, and enriches all preview orders/items in one query. Its degraded
+  polling interval still makes the constant six-repository-read shape worth monitoring.
 - Queue status enrichment asks for ahead IDs and workloads for active tickets. Large active queues
   increase sort/window and response work.
 - ETA update runs one window-function update per open queue concurrently every 30 seconds. The
@@ -136,9 +137,9 @@ These are code-review candidates, not measured production bottlenecks:
   buckets and product/staff summaries.
 - Forecasting creates 168 weekday/hour slots for every active branch and aggregates eight weeks of
   arrivals/completions before writing a new cycle.
-- Location delivery holds claimed rows and one PostgreSQL transaction while sequential external
-  route estimates run, each with a 10-second timeout. This is the clearest worker-isolation and
-  transaction-boundary candidate.
+- Location delivery atomically leases due rows, commits, performs sequential external route
+  estimates, and opens only short per-result finalization transactions. The claim timeout is
+  recoverable and configurable; provider quota/latency remains the worker-isolation candidate.
 - Inventory expiry processes a bounded batch sequentially in one transaction. Batch duration and
   row-lock wait must be measured before increasing its limit.
 
@@ -245,6 +246,34 @@ queue-summary hit removes its waiting-count query while queue configuration rema
 bounded by its existing configuration cache. This is query-count evidence, not a new production
 latency claim; TASK-11 provides the separate integrated HTTP timing below.
 
+### OPT-002 Staff and location measurements
+
+On 2026-08-11, OPT-002 audited the current Docker PostgreSQL 16 development fixture (one
+organization, two branches, two queues, eight entries/orders). Additional waiting entries and
+location alerts were inserted only inside explicit measurement transactions and rolled back. The
+commands used `EXPLAIN (ANALYZE, BUFFERS)`; values are workstation evidence, not production limits.
+
+| Measured shape                                                  | Plan/result                                                                                    |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Batch live counts for two queues and 1,005 live entries         | 0.372 ms; one grouped scan; 15 shared-buffer hits                                              |
+| Selected-queue preview from 1,004 waiting entries, `LIMIT 8`    | 0.061 ms; `idx_qe_queue_status_ticket` index scan; 3 shared-buffer hits                        |
+| Batch order/item/LINE-name enrichment for eight fixture entries | 4.140 ms; indexed item/product/LINE joins; 87 shared-buffer hits plus 4 reads                  |
+| Atomic location claim from 1,000 due rows, `LIMIT 50`           | 10.751 ms including updates, triggers, and FK checks; existing due index selected pending rows |
+
+Before the Staff change, the maximum two-queue/eight-entry overview shape made 21 cold repository
+reads (`1 + 6Q + E`), or 19 when both queue-config reads hit the local cache. The revised path makes
+six repository reads independent of queue/preview count: scoped queues, batch live counts, waiting
+preview, called entry, serving entry, and batch orders. This is a 71% cold-shape reduction (68% with
+warm queue config), enforced by service/repository tests; it is query-count evidence rather than an
+HTTP latency multiplier.
+
+The location plan was already acceptable for the bounded local shape, so no speculative index or
+migration was added. The material improvement is the transaction boundary: claim rows atomically,
+commit, perform each travel-provider call, and then open a short transaction for durable
+notification enqueue plus claim finalization. A 900-second default recoverable lease covers the
+configured sequential batch and 10-second provider timeout. Deterministic tests verify provider I/O
+occurs before the finalization transaction and that stale-claim timestamps guard completion.
+
 ### TASK-11 integrated local validation
 
 On 2026-08-09, `npm run scale:validate` ran nginx -> two API replicas -> shared PostgreSQL/Redis
@@ -295,6 +324,14 @@ capped at five per process. API memory snapshots were about 89.77 MiB and 57.35 
 active notification was five seconds. These point-in-time Docker statistics are diagnostic only,
 not capacity limits. API 1 metrics reset on its intentional restart, demonstrating why production
 metrics must be scraped and aggregated externally.
+
+OPT-002 reran the unchanged isolated topology after the Staff/location changes. All recovery checks
+passed again. The public control path returned 160/160 responses with no errors through both API
+upstreams at 380.06 req/s, with p50 23.27 ms, p95 44.39 ms, and p99 94.38 ms. PostgreSQL reported
+two connections and no waiting pool clients in the captured API metrics. This fresh run establishes
+non-regression and fallback behavior on the current workstation; because the changed Staff endpoint
+requires authenticated interactive traffic, its improvement claim remains the deterministic query
+count and PostgreSQL plan evidence above, not the unrelated public-route latency.
 
 ## 11. Target SLOs
 

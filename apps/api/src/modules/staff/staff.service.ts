@@ -380,45 +380,53 @@ export const staffService = {
       ? branchQueues.filter((queue) => queue.id === assignedQueueId)
       : branchQueues;
     if (queues.length === 0) return null;
-    const overviews = await Promise.all(
-      queues.map(async (queue) => ({
-        queue,
-        overview: await this.getQueueOverview(queue.id, organizationId, branchIds, assignedQueueId),
-      }))
+    const countsByQueueId = await queueEntriesRepository.countLiveByQueueIds(
+      queues.map((queue) => queue.id)
     );
-    const selected = requestedQueueId
-      ? overviews.find(({ queue }) => queue.id === requestedQueueId)
-      : (overviews.find(
-          ({ overview }) =>
-            overview.totalActiveCount > 0 ||
-            overview.calledEntry !== null ||
-            overview.servingEntry !== null
-        ) ?? overviews[0]);
-    if (!selected) throw AppError.forbidden('Queue is outside your assigned branch');
-    const { queue, overview } = selected;
+    const queue = requestedQueueId
+      ? queues.find((item) => item.id === requestedQueueId)
+      : (queues.find((item) => {
+          const counts = countsByQueueId[item.id];
+          return Boolean(
+            counts && counts.waitingCount + counts.calledCount + counts.servingCount > 0
+          );
+        }) ?? queues[0]);
+    if (!queue) throw AppError.forbidden('Queue is outside your assigned branch');
 
-    const enrichEntry = async (entry: QueueEntryRow | null): Promise<EntryWithOrder | null> => {
-      if (!entry) return null;
-      const order = await ordersRepository.findByQueueEntry(entry.id);
-      return { ...entry, order: order ?? null };
+    const counts = countsByQueueId[queue.id] ?? {
+      waitingCount: 0,
+      calledCount: 0,
+      servingCount: 0,
     };
-
-    const [waitingWithOrders, calledWithOrder, servingWithOrder] = await Promise.all([
-      Promise.all(overview.waitingEntries.map((e) => enrichEntry(e))),
-      enrichEntry(overview.calledEntry),
-      enrichEntry(overview.servingEntry),
+    const [waitingPreview, calledEntry, servingEntry] = await Promise.all([
+      queueEntriesRepository.listWaiting(queue.id, undefined, STAFF_QUEUE_PREVIEW_LIMIT),
+      queueEntriesRepository.findByQueueAndStatus(queue.id, 'called'),
+      queueEntriesRepository.findByQueueAndStatus(queue.id, 'serving'),
     ]);
+    const occupiedPreviewSlots = Number(Boolean(calledEntry)) + Number(Boolean(servingEntry));
+    const waitingEntries = waitingPreview.slice(
+      0,
+      STAFF_QUEUE_PREVIEW_LIMIT - occupiedPreviewSlots
+    );
+    const entries = [...waitingEntries, calledEntry, servingEntry].filter(
+      (entry): entry is QueueEntryRow => entry !== null
+    );
+    const ordersByEntryId = await ordersRepository.findByQueueEntries(
+      entries.map((entry) => entry.id)
+    );
+    const enrichEntry = (entry: QueueEntryRow | null): EntryWithOrder | null =>
+      entry ? { ...entry, order: ordersByEntryId.get(entry.id) ?? null } : null;
 
     return {
       queueId: queue.id,
       queueName: queue.name,
       availableQueues: queues.map((item) => ({ id: item.id, name: item.name })),
       orgId: organizationId,
-      waitingEntriesWithOrders: waitingWithOrders.filter(Boolean) as EntryWithOrder[],
-      calledEntryWithOrder: calledWithOrder,
-      servingEntryWithOrder: servingWithOrder,
-      waitingCount: overview.waitingCount,
-      totalActiveCount: overview.totalActiveCount,
+      waitingEntriesWithOrders: waitingEntries.map((entry) => enrichEntry(entry) as EntryWithOrder),
+      calledEntryWithOrder: enrichEntry(calledEntry),
+      servingEntryWithOrder: enrichEntry(servingEntry),
+      waitingCount: counts.waitingCount,
+      totalActiveCount: counts.waitingCount + counts.calledCount + counts.servingCount,
     };
   },
 };

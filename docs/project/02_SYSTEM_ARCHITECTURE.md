@@ -298,21 +298,24 @@ copy only this trusted claim into new queue entries; public request bodies canno
 The API scheduler uses overlap-protected `setInterval` jobs except for LINE delivery, which is
 owned by the dedicated BullMQ worker when `LINE_NOTIFICATION_DELIVERY_OWNER=bullmq`:
 
-| Job                   | Interval     | Current behavior                                                                 |
-| --------------------- | ------------ | -------------------------------------------------------------------------------- |
-| ETA updater           | 30 seconds   | Recomputes wait estimates for waiting entries in open queues                     |
-| ETA warning scan      | 30 seconds   | Enqueues approaching-turn LINE notification intents for eligible linked tickets  |
-| Called retry scan     | 60 seconds   | Enqueues called-reminder intents using the same durable event-key deduplication  |
-| Notification dispatch | 15 seconds   | Claims committed outbox rows and creates deterministic BullMQ delivery jobs      |
-| Notification delivery | Event-driven | LINE worker records actual sent/retry/failed outcomes for one PostgreSQL row     |
-| Counter reset         | Hourly check | Resets counters after the organization-local business date changes               |
-| Forecasting           | Configurable | Persists measured demand/service aggregates, wait forecasts, and staffing advice |
+| Job                   | Interval     | Current behavior                                                                                    |
+| --------------------- | ------------ | --------------------------------------------------------------------------------------------------- |
+| ETA updater           | 30 seconds   | Recomputes wait estimates for waiting entries in open queues                                        |
+| ETA warning scan      | 30 seconds   | Enqueues approaching-turn LINE notification intents for eligible linked tickets                     |
+| Called retry scan     | 60 seconds   | Enqueues called-reminder intents using the same durable event-key deduplication                     |
+| Notification dispatch | 15 seconds   | Claims committed outbox rows and creates deterministic BullMQ delivery jobs                         |
+| Notification delivery | Event-driven | LINE worker records actual sent/retry/failed outcomes for one PostgreSQL row                        |
+| Location alerts       | 60 seconds   | Leases due rows, calls the travel provider outside transactions, then atomically enqueues/finalizes |
+| Counter reset         | Hourly check | Resets counters after the organization-local business date changes                                  |
+| Forecasting           | Configurable | Persists measured demand/service aggregates, wait forecasts, and staffing advice                    |
 
 Notification dispatch uses PostgreSQL row locking with `FOR UPDATE SKIP LOCKED`; BullMQ does not
 replace the durable outbox. ETA, warning, called, inventory expiry, location, counter reset,
 forecasting, session cleanup, and email delivery retain their existing scheduler ownership. Those
 singleton scans use PostgreSQL advisory locks where applicable, while row workloads retain safe
-claims. Bare local development can explicitly use API ownership, but a deployment must never run
+claims. Location alerts use `processing_started_at` as a recoverable lease; each provider call runs
+without an open business transaction, and only notification enqueue plus claim finalization share
+a short transaction. Bare local development can explicitly use API ownership, but a deployment must never run
 both owners for LINE delivery.
 
 ## 9. Payment architecture
@@ -365,8 +368,9 @@ API instances. Each API/worker process now takes `DB_POOL_MAX`, `DB_POOL_IDLE_TI
 leave headroom for migrations, administration, and recovery. Other boundaries still require
 staging work before unrestricted horizontal scale:
 
-- move long-running/provider work out of the HTTP process while preserving advisory locks or safe
-  row claims;
+- move remaining long-running/provider work out of the HTTP process when measured, while preserving
+  advisory locks or safe row claims; location travel estimates already use a recoverable row lease
+  and do not hold a transaction during provider I/O;
 - replace correctness-sensitive process-local idempotency responses with shared behavior;
 - select and enforce an environment-specific aggregate PostgreSQL connection budget;
 - enforce queue capacity and order numbering under lock/sequence;

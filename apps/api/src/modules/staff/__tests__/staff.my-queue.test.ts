@@ -1,10 +1,5 @@
-﻿/**
- * Unit tests for staffService.getMyQueueOverview.
- *
- * Verifies:
- *   1. Returns null when org has no active queues.
- *   2. Returns enriched overview (waiting + called + serving with orders).
- *   3. Orders are fetched for each entry via findByQueueEntry.
+/**
+ * Unit tests for the bounded, batch-backed Staff queue overview.
  */
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
@@ -23,26 +18,18 @@ jest.mock('../../../db/repositories/orders.repository');
 const mockFindActiveByBranches = queuesRepository.findActiveByBranches as jest.MockedFunction<
   typeof queuesRepository.findActiveByBranches
 >;
-const mockFindById = queuesRepository.findById as jest.MockedFunction<
-  typeof queuesRepository.findById
->;
 const mockListWaiting = queueEntriesRepository.listWaiting as jest.MockedFunction<
   typeof queueEntriesRepository.listWaiting
 >;
-const mockCountWaitingEntries = queueEntriesRepository.countWaiting as jest.MockedFunction<
-  typeof queueEntriesRepository.countWaiting
->;
-const mockCountActiveEntries = queuesRepository.countWaiting as jest.MockedFunction<
-  typeof queuesRepository.countWaiting
+const mockCountLiveByQueueIds = queueEntriesRepository.countLiveByQueueIds as jest.MockedFunction<
+  typeof queueEntriesRepository.countLiveByQueueIds
 >;
 const mockFindByQueueAndStatus = queueEntriesRepository.findByQueueAndStatus as jest.MockedFunction<
   typeof queueEntriesRepository.findByQueueAndStatus
 >;
-const mockFindByQueueEntry = ordersRepository.findByQueueEntry as jest.MockedFunction<
-  typeof ordersRepository.findByQueueEntry
+const mockFindByQueueEntries = ordersRepository.findByQueueEntries as jest.MockedFunction<
+  typeof ordersRepository.findByQueueEntries
 >;
-
-// ── Fixtures ──────────────────────────────────────────────────────────────────
 
 const ORG_ID = 'org-001';
 const BRANCH_ID = 'branch-001';
@@ -96,55 +83,46 @@ function makeEntry(id: string, ticket: string, status: string): QueueEntryRow {
   };
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
 describe('staffService.getMyQueueOverview', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFindById.mockResolvedValue(queueRow);
-    mockFindByQueueEntry.mockResolvedValue(null);
-    mockCountWaitingEntries.mockResolvedValue(0);
-    mockCountActiveEntries.mockResolvedValue(0);
+    mockCountLiveByQueueIds.mockResolvedValue({});
+    mockListWaiting.mockResolvedValue([]);
+    mockFindByQueueAndStatus.mockResolvedValue(null);
+    mockFindByQueueEntries.mockResolvedValue(new Map());
   });
 
-  it('returns null when org has no active queues', async () => {
+  it('returns null when the actor has no active queue', async () => {
     mockFindActiveByBranches.mockResolvedValue([]);
 
-    const result = await staffService.getMyQueueOverview(ORG_ID, [BRANCH_ID]);
-
-    expect(result).toBeNull();
-    expect(mockFindActiveByBranches).toHaveBeenCalledWith(ORG_ID, [BRANCH_ID]);
+    await expect(staffService.getMyQueueOverview(ORG_ID, [BRANCH_ID])).resolves.toBeNull();
+    expect(mockCountLiveByQueueIds).not.toHaveBeenCalled();
   });
 
-  it('returns enriched overview with waiting entries', async () => {
-    const entry1 = makeEntry('e001', 'A-001', 'waiting');
-    const entry2 = makeEntry('e002', 'A-002', 'waiting');
-
+  it('returns waiting totals and a bounded preview', async () => {
+    const entries = [makeEntry('e001', 'A-001', 'waiting'), makeEntry('e002', 'A-002', 'waiting')];
     mockFindActiveByBranches.mockResolvedValue([queueRow]);
-    mockListWaiting.mockResolvedValue([entry1, entry2]);
-    mockCountWaitingEntries.mockResolvedValue(2);
-    mockCountActiveEntries.mockResolvedValue(2);
-    mockFindByQueueAndStatus.mockResolvedValue(null); // no called/serving
+    mockCountLiveByQueueIds.mockResolvedValue({
+      [QUEUE_ID]: { waitingCount: 12, calledCount: 0, servingCount: 0 },
+    });
+    mockListWaiting.mockResolvedValue(entries);
 
     const result = await staffService.getMyQueueOverview(ORG_ID, [BRANCH_ID]);
-    if (!result) throw new Error('Expected queue overview for active queue');
 
-    expect(result.queueId).toBe(QUEUE_ID);
-    expect(result.waitingCount).toBe(2);
-    expect(result.totalActiveCount).toBe(2);
-    expect(result.waitingEntriesWithOrders).toHaveLength(2);
-    expect(result.calledEntryWithOrder).toBeNull();
-    expect(result.servingEntryWithOrder).toBeNull();
+    expect(mockListWaiting).toHaveBeenCalledWith(QUEUE_ID, undefined, 8);
+    expect(result?.waitingCount).toBe(12);
+    expect(result?.totalActiveCount).toBe(12);
+    expect(result?.waitingEntriesWithOrders).toHaveLength(2);
   });
 
-  it('attaches order to each entry via findByQueueEntry', async () => {
+  it('loads all preview orders with one batch repository call', async () => {
     const entry = makeEntry('e003', 'A-003', 'waiting');
     const mockOrder = {
       id: 'order-001',
       organization_id: ORG_ID,
       branch_id: BRANCH_ID,
       queue_id: QUEUE_ID,
-      queue_entry_id: 'e003',
+      queue_entry_id: entry.id,
       order_number: 'A003',
       customer_name: 'Test Customer',
       customer_user_id: null,
@@ -165,70 +143,72 @@ describe('staffService.getMyQueueOverview', () => {
       updated_at: new Date(),
       items: [],
     };
-
     mockFindActiveByBranches.mockResolvedValue([queueRow]);
+    mockCountLiveByQueueIds.mockResolvedValue({
+      [QUEUE_ID]: { waitingCount: 1, calledCount: 0, servingCount: 0 },
+    });
     mockListWaiting.mockResolvedValue([entry]);
-    mockCountWaitingEntries.mockResolvedValue(1);
-    mockCountActiveEntries.mockResolvedValue(1);
-    mockFindByQueueAndStatus.mockResolvedValue(null);
-    mockFindByQueueEntry.mockResolvedValue(mockOrder);
+    mockFindByQueueEntries.mockResolvedValue(new Map([[entry.id, mockOrder]]));
 
     const result = await staffService.getMyQueueOverview(ORG_ID, [BRANCH_ID]);
-    if (!result) throw new Error('Expected queue overview for active queue');
 
-    expect(mockFindByQueueEntry).toHaveBeenCalledWith('e003');
-    expect(result.waitingEntriesWithOrders[0]?.order).toEqual(mockOrder);
+    expect(mockFindByQueueEntries).toHaveBeenCalledTimes(1);
+    expect(mockFindByQueueEntries).toHaveBeenCalledWith([entry.id]);
+    expect(mockFindActiveByBranches).toHaveBeenCalledTimes(1);
+    expect(mockCountLiveByQueueIds).toHaveBeenCalledTimes(1);
+    expect(mockListWaiting).toHaveBeenCalledTimes(1);
+    expect(mockFindByQueueAndStatus).toHaveBeenCalledTimes(2);
+    expect(result?.waitingEntriesWithOrders[0]?.order).toEqual(mockOrder);
   });
 
-  it('includes called and serving entries with orders', async () => {
+  it('keeps the combined waiting/called/serving preview bounded to eight entries', async () => {
     const calledEntry = makeEntry('e006', 'A-006', 'called');
     const servingEntry = makeEntry('e007', 'A-007', 'serving');
-
+    const waitingEntries = Array.from({ length: 8 }, (_, index) =>
+      makeEntry(`e${index + 10}`, `A-${index + 10}`, 'waiting')
+    );
     mockFindActiveByBranches.mockResolvedValue([queueRow]);
-    mockListWaiting.mockResolvedValue([]);
-    mockCountActiveEntries.mockResolvedValue(2);
-    mockFindByQueueAndStatus
-      .mockResolvedValueOnce(calledEntry) // first call: 'called'
-      .mockResolvedValueOnce(servingEntry); // second call: 'serving'
+    mockCountLiveByQueueIds.mockResolvedValue({
+      [QUEUE_ID]: { waitingCount: 12, calledCount: 1, servingCount: 1 },
+    });
+    mockListWaiting.mockResolvedValue(waitingEntries);
+    mockFindByQueueAndStatus.mockResolvedValueOnce(calledEntry).mockResolvedValueOnce(servingEntry);
 
     const result = await staffService.getMyQueueOverview(ORG_ID, [BRANCH_ID]);
-    if (!result) throw new Error('Expected queue overview for active queue');
-    if (!result.calledEntryWithOrder || !result.servingEntryWithOrder) {
-      throw new Error('Expected called and serving entries in queue overview');
-    }
 
-    expect(result.calledEntryWithOrder.ticket_code).toBe('A-006');
-    expect(result.servingEntryWithOrder.ticket_code).toBe('A-007');
+    expect(result?.waitingEntriesWithOrders).toHaveLength(6);
+    expect(result?.calledEntryWithOrder?.ticket_code).toBe('A-006');
+    expect(result?.servingEntryWithOrder?.ticket_code).toBe('A-007');
+    expect(mockFindByQueueEntries).toHaveBeenCalledWith([
+      ...waitingEntries.slice(0, 6).map((entry) => entry.id),
+      calledEntry.id,
+      servingEntry.id,
+    ]);
   });
 
-  it('selects an active queue with customers instead of the first empty queue', async () => {
+  it('selects the first queue with live entries without loading every queue overview', async () => {
     const secondQueue = { ...queueRow, id: 'queue-002', name: 'Counter B' };
     const waitingEntry = { ...makeEntry('e008', 'A-008', 'waiting'), queue_id: secondQueue.id };
     mockFindActiveByBranches.mockResolvedValue([queueRow, secondQueue]);
-    mockFindById.mockImplementation(async (id) => (id === secondQueue.id ? secondQueue : queueRow));
-    mockListWaiting.mockImplementation(async (queueId) =>
-      queueId === secondQueue.id ? [waitingEntry] : []
-    );
-    mockCountWaitingEntries.mockImplementation(async (queueId) =>
-      queueId === secondQueue.id ? 1 : 0
-    );
-    mockCountActiveEntries.mockImplementation(async (queueId) =>
-      queueId === secondQueue.id ? 1 : 0
-    );
-    mockFindByQueueAndStatus.mockResolvedValue(null);
+    mockCountLiveByQueueIds.mockResolvedValue({
+      [secondQueue.id]: { waitingCount: 1, calledCount: 0, servingCount: 0 },
+    });
+    mockListWaiting.mockResolvedValue([waitingEntry]);
 
     const result = await staffService.getMyQueueOverview(ORG_ID, [BRANCH_ID]);
 
     expect(result?.queueId).toBe(secondQueue.id);
-    expect(result?.waitingCount).toBe(1);
+    expect(mockCountLiveByQueueIds).toHaveBeenCalledWith([QUEUE_ID, secondQueue.id]);
+    expect(mockListWaiting).toHaveBeenCalledTimes(1);
+    expect(mockListWaiting).toHaveBeenCalledWith(secondQueue.id, undefined, 8);
   });
 
-  it('returns only the queue assigned to the staff member', async () => {
+  it('returns only the queue assigned to the Staff actor', async () => {
     const secondQueue = { ...queueRow, id: 'queue-002', name: 'Counter B' };
     mockFindActiveByBranches.mockResolvedValue([queueRow, secondQueue]);
-    mockFindById.mockImplementation(async (id) => (id === secondQueue.id ? secondQueue : queueRow));
-    mockListWaiting.mockResolvedValue([]);
-    mockFindByQueueAndStatus.mockResolvedValue(null);
+    mockCountLiveByQueueIds.mockResolvedValue({
+      [secondQueue.id]: { waitingCount: 0, calledCount: 0, servingCount: 0 },
+    });
 
     const result = await staffService.getMyQueueOverview(
       ORG_ID,
@@ -239,25 +219,15 @@ describe('staffService.getMyQueueOverview', () => {
 
     expect(result?.queueId).toBe(secondQueue.id);
     expect(result?.availableQueues).toEqual([{ id: secondQueue.id, name: secondQueue.name }]);
-    expect(mockFindById).toHaveBeenCalledWith(secondQueue.id);
-    expect(mockFindById).not.toHaveBeenCalledWith(queueRow.id);
+    expect(mockCountLiveByQueueIds).toHaveBeenCalledWith([secondQueue.id]);
   });
 
-  it('returns only the first eight waiting entries while preserving the total count', async () => {
-    const waitingEntries = Array.from({ length: 8 }, (_, index) =>
-      makeEntry(`e${index + 1}`, `A-${index + 1}`, 'waiting')
-    );
+  it('rejects a requested queue outside the actor branch scope', async () => {
     mockFindActiveByBranches.mockResolvedValue([queueRow]);
-    mockListWaiting.mockResolvedValue(waitingEntries);
-    mockCountWaitingEntries.mockResolvedValue(12);
-    mockCountActiveEntries.mockResolvedValue(12);
-    mockFindByQueueAndStatus.mockResolvedValue(null);
 
-    const result = await staffService.getMyQueueOverview(ORG_ID, [BRANCH_ID]);
-
-    expect(mockListWaiting).toHaveBeenCalledWith(QUEUE_ID, undefined, 8);
-    expect(result?.waitingEntriesWithOrders).toHaveLength(8);
-    expect(result?.waitingCount).toBe(12);
-    expect(result?.totalActiveCount).toBe(12);
+    await expect(
+      staffService.getMyQueueOverview(ORG_ID, [BRANCH_ID], 'queue-outside')
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(mockListWaiting).not.toHaveBeenCalled();
   });
 });

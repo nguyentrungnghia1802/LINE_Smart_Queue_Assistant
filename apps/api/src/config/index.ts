@@ -342,6 +342,7 @@ export const config = {
     retentionDays: Number.parseInt(process.env.LOCATION_RETENTION_DAYS ?? '30', 10),
     alertBatchSize: Number.parseInt(process.env.LOCATION_ALERT_BATCH_SIZE ?? '50', 10),
     maxAttempts: Number.parseInt(process.env.LOCATION_ALERT_MAX_ATTEMPTS ?? '5', 10),
+    claimTimeoutSeconds: positiveInteger('LOCATION_ALERT_CLAIM_TIMEOUT_SECONDS', 900),
     cleanupBatchSize: Number.parseInt(process.env.LOCATION_CLEANUP_BATCH_SIZE ?? '500', 10),
     workerIntervalMs: Number.parseInt(process.env.LOCATION_WORKER_INTERVAL_MS ?? '60000', 10),
     cleanupIntervalMs: Number.parseInt(process.env.LOCATION_CLEANUP_INTERVAL_MS ?? '3600000', 10),

@@ -1,6 +1,7 @@
 import { config } from '../../config';
 import { pool } from '../../db/client';
 import { ordersRepository } from '../../db/repositories/orders.repository';
+import { withTransaction } from '../../db/transaction';
 import { notificationOutboxRepository } from '../notifications/notification-outbox.repository';
 
 import { locationRepository } from './location.repository';
@@ -92,32 +93,35 @@ export const locationService = {
   },
 
   async processAlerts(): Promise<number> {
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      const rows = await locationRepository.claimDue(config.location.alertBatchSize, client);
-      for (const row of rows) {
-        try {
-          const estimate = await travelTimeProvider.estimate({
-            distanceMeters: row.distance_to_org_meters,
-            origin: {
-              latitude: Number(row.customer_latitude),
-              longitude: Number(row.customer_longitude),
-            },
-            destination: {
-              latitude: Number(row.branch_latitude),
-              longitude: Number(row.branch_longitude),
-            },
-          });
-          const bufferedTravelSeconds =
-            estimate.durationSeconds + config.location.travelBufferMinutes * 60;
-          if (
-            row.estimated_wait_seconds === null ||
-            bufferedTravelSeconds <= row.estimated_wait_seconds
-          ) {
-            await locationRepository.mark(row.id, 'skipped', client);
-            continue;
-          }
+    const rows = await locationRepository.claimDue(
+      config.location.alertBatchSize,
+      config.location.claimTimeoutSeconds
+    );
+    for (const row of rows) {
+      try {
+        const estimate = await travelTimeProvider.estimate({
+          distanceMeters: row.distance_to_org_meters,
+          origin: {
+            latitude: Number(row.customer_latitude),
+            longitude: Number(row.customer_longitude),
+          },
+          destination: {
+            latitude: Number(row.branch_latitude),
+            longitude: Number(row.branch_longitude),
+          },
+        });
+        const bufferedTravelSeconds =
+          estimate.durationSeconds + config.location.travelBufferMinutes * 60;
+        if (
+          row.estimated_wait_seconds === null ||
+          bufferedTravelSeconds <= row.estimated_wait_seconds
+        ) {
+          await withTransaction((client) =>
+            locationRepository.mark(row.id, 'skipped', client, row.processing_started_at)
+          );
+          continue;
+        }
+        await withTransaction(async (client) => {
           const notification = await notificationOutboxRepository.enqueue(
             {
               organizationId: row.organization_id,
@@ -139,24 +143,26 @@ export const locationService = {
             },
             client
           );
-          await locationRepository.mark(row.id, notification ? 'sent' : 'skipped', client);
-        } catch (error) {
           await locationRepository.mark(
             row.id,
-            row.attempt_count + 1 >= config.location.maxAttempts ? 'failed' : 'pending',
+            notification ? 'sent' : 'skipped',
             client,
-            error instanceof Error ? error.message : String(error)
+            row.processing_started_at
           );
-        }
+        });
+      } catch (error) {
+        await withTransaction((client) =>
+          locationRepository.mark(
+            row.id,
+            row.attempt_count >= config.location.maxAttempts ? 'failed' : 'pending',
+            client,
+            row.processing_started_at,
+            error instanceof Error ? error.message : String(error)
+          )
+        );
       }
-      await client.query('COMMIT');
-      return rows.length;
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
     }
+    return rows.length;
   },
 
   cleanupExpired() {

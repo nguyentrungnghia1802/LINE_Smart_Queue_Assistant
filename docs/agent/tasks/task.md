@@ -96,7 +96,7 @@ Inspect the current implementation for:
 
 ## OPT-002: Database and Backend Performance Optimization
 
-**Status:** [ ] Not started  
+**Status:** [x] Completed (2026-08-11)
 **Priority:** P0  
 **Dependencies:** OPT-001 completed
 
@@ -122,19 +122,19 @@ Prioritize these paths:
 
 ### Implementation Checklist
 
-- [ ] Capture a baseline for representative critical endpoints before optimization.
-- [ ] Inspect relevant SQL using `EXPLAIN (ANALYZE, BUFFERS)` with representative demo/validation data where practical.
-- [ ] Identify actual query fan-out, N+1 patterns, unnecessary repeated reads, expensive sorts/scans, or avoidable round trips.
-- [ ] Review existing indexes before adding new ones.
-- [ ] Add/change indexes only when query evidence justifies them.
-- [ ] Reduce avoidable database work while keeping authorization and write decisions PostgreSQL-authoritative.
-- [ ] Review cache usage and invalidation; do not allow Redis/cache state to become business authority.
-- [ ] Review transaction duration, lock scope, retry boundaries, and PostgreSQL pool usage.
-- [ ] Move external/provider work out of database transactions only when current implementation demonstrably holds transactions unnecessarily.
-- [ ] Keep booking, inventory, payment, queue transitions, and counters transactionally correct.
-- [ ] Preserve SSE/REST authoritative reconciliation behavior.
-- [ ] Add a forward migration only if schema/index changes are required.
-- [ ] Update scalability/performance documentation with measured before/after evidence.
+- [x] Capture a baseline for representative critical endpoints before optimization.
+- [x] Inspect relevant SQL using `EXPLAIN (ANALYZE, BUFFERS)` with representative demo/validation data where practical.
+- [x] Identify actual query fan-out, N+1 patterns, unnecessary repeated reads, expensive sorts/scans, or avoidable round trips.
+- [x] Review existing indexes before adding new ones.
+- [x] Add/change indexes only when query evidence justifies them.
+- [x] Reduce avoidable database work while keeping authorization and write decisions PostgreSQL-authoritative.
+- [x] Review cache usage and invalidation; do not allow Redis/cache state to become business authority.
+- [x] Review transaction duration, lock scope, retry boundaries, and PostgreSQL pool usage.
+- [x] Move external/provider work out of database transactions only when current implementation demonstrably holds transactions unnecessarily.
+- [x] Keep booking, inventory, payment, queue transitions, and counters transactionally correct.
+- [x] Preserve SSE/REST authoritative reconciliation behavior.
+- [x] Add a forward migration only if schema/index changes are required.
+- [x] Update scalability/performance documentation with measured before/after evidence.
 
 ### Suggested Performance Targets
 
@@ -150,18 +150,34 @@ Targets are engineering guidance, not unsupported production capacity claims.
 
 ### Tests and Validation
 
-- [ ] Run targeted integration/concurrency tests for changed queries and transactions.
-- [ ] Run representative load measurements before and after changes.
-- [ ] Verify no oversell, duplicate ticket/order, double call-next, or payment-state regression.
-- [ ] Verify cache loss/Redis outage still falls back safely to PostgreSQL.
-- [ ] Run migration, lint, typecheck, tests, build, OpenAPI, Compose/config, and required validation from `AGENTS.md`.
+- [x] Run targeted integration/concurrency tests for changed queries and transactions.
+- [x] Run representative load measurements before and after changes.
+- [x] Verify no oversell, duplicate ticket/order, double call-next, or payment-state regression.
+- [x] Verify cache loss/Redis outage still falls back safely to PostgreSQL.
+- [x] Run migration, lint, typecheck, tests, build, OpenAPI, Compose/config, and required validation from `AGENTS.md`.
+
+### Completion Evidence (2026-08-11)
+
+- Staff overview repository reads are bounded at six for the maximum preview shape instead of 21
+  cold calls (19 with warm queue configuration) for two queues and eight entries.
+- Rollback-only PostgreSQL plans measured batch counts at 0.372 ms, the indexed waiting preview at
+  0.061 ms, batch enrichment at 4.140 ms, and a 50-row location claim from 1,000 due rows at
+  10.751 ms. Existing indexes were sufficient, so no migration was added.
+- Location alerts now use recoverable timestamp leases, perform provider I/O outside transactions,
+  and atomically enqueue/finalize only the matching claim.
+- Targeted Staff/order/location tests passed 18/18. Full API passed 112 suites/672 tests; Web passed
+  54 files/182 tests. Lint, typecheck, formatting, OpenAPI (4/4), production build/CSP, dependency
+  audit, migration status/apply, Compose config, and horizontal config validation passed.
+- The isolated two-API validation passed 160/160 public reads with zero errors, both upstreams,
+  Redis/cache fallback, durable worker recovery, cross-instance SSE, API restart, PostgreSQL
+  readiness failure/recovery, and zero waiting PostgreSQL clients in the measured snapshot.
 
 ### Definition of Done
 
-- [ ] At least the measured hotspots have evidence-based improvements or are documented as already acceptable.
-- [ ] No optimization weakens transaction, authorization, or data-consistency guarantees.
-- [ ] Performance claims include reproducible evidence rather than assumptions.
-- [ ] Canonical database, architecture, testing, and scalability docs match the result.
+- [x] At least the measured hotspots have evidence-based improvements or are documented as already acceptable.
+- [x] No optimization weakens transaction, authorization, or data-consistency guarantees.
+- [x] Performance claims include reproducible evidence rather than assumptions.
+- [x] Canonical database, architecture, testing, and scalability docs match the result.
 
 ---
 

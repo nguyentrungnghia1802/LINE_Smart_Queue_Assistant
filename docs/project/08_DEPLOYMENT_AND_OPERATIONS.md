@@ -164,6 +164,10 @@ alternatives, uses the longest returned duration, adds
 `LOCATION_TRAVEL_BUFFER_MINUTES` (default 8), and enqueues a LINE warning only when that total
 exceeds the current ETA. Location capture remains consent-based and stops when the customer has no
 active ticket. Monitor provider quota/cost and complete privacy/legal acceptance before production.
+`LOCATION_ALERT_CLAIM_TIMEOUT_SECONDS` defaults to 900 seconds and must exceed the worst expected
+sequential processing time for one configured alert batch. An expired claim is recoverable; the
+claim timestamp prevents a stale worker from finalizing a newer attempt. Provider requests do not
+run inside a database transaction.
 
 The current forecast/staffing implementation does not require `OPENAI_API_KEY`,
 `GEMINI_API_KEY`, or another model-provider secret. It is a measured PostgreSQL heuristic. Do not
@@ -471,6 +475,12 @@ expiry, location work, forecasting, session cleanup, and counter reset. Those lo
 to use session-level PostgreSQL advisory locks and safe `scheduler_job_runs` status. Do not enable
 API and BullMQ ownership for LINE delivery at the same time. A worker or Redis outage grows the
 durable outbox backlog but does not roll back or reject queue/order transactions.
+
+Location-alert cycles additionally lease due rows with `processing_started_at`. The scheduler's
+advisory lock still owns the logical cycle, but the travel provider is called without the former
+second long-held transaction/client. Monitor job duration against
+`LOCATION_ALERT_CLAIM_TIMEOUT_SECONDS`; reduce the batch or increase the lease only from measured
+provider latency and quota evidence.
 
 Platform Admin can inspect the same safe operational signals at `/admin/operations`. The page
 reads `GET /api/v1/admin/operations/health`, refreshes every 30 seconds, and shows only sanitized
