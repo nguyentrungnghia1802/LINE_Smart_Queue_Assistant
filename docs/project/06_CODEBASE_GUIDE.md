@@ -273,6 +273,10 @@ and `shared-domain-contract.test.ts` together when adding or renaming a persiste
   finalization remain atomic.
 - `apps/api/src/modules/branches/branch-scope.ts`: owner, branch-manager, and branch-operator scope
   guards used by every branch-owned endpoint.
+- `apps/api/src/modules/users/user-response.ts`: explicit API allowlist for repository user rows.
+  Apply it to every controller-visible user result; never spread a `UserRow` into an HTTP response.
+- `apps/api/src/middlewares/rateLimiter.middleware.ts`: derives IP keys from Express `req.ip` after
+  configured proxy trust. Do not parse `X-Forwarded-For` independently of that trust boundary.
 - `apps/api/src/modules/notifications/**`: LINE notification templates and durable PostgreSQL
   outbox/delivery semantics. `notification-operations.repository.ts` owns scoped diagnostic SQL;
   `notification-operations.service.ts` owns sanitization, failure categories, and guarded audited

@@ -262,7 +262,7 @@ Inspect:
 
 ## OPT-004: Security and Boundary Hardening
 
-**Status:** [ ] Not started  
+**Status:** [x] Completed (2026-08-11)
 **Priority:** P1  
 **Dependencies:** OPT-003 completed
 
@@ -301,30 +301,46 @@ At minimum verify rejection of:
 
 ### Implementation Checklist
 
-- [ ] Audit current controls before changing implementation.
-- [ ] Fix demonstrated authorization, validation, rate-limit, session, webhook, upload, or secret-handling gaps.
-- [ ] Verify access/refresh tokens are not persisted insecurely in browser storage.
-- [ ] Verify sensitive provider/customer data is not exposed through errors, logs, metrics, traces, or operational APIs.
-- [ ] Verify webhook signature/idempotency behavior remains server-authoritative.
-- [ ] Verify production/demo configuration cannot accidentally activate real external payment behavior without explicit valid configuration.
-- [ ] Review dependency/security audit findings and fix applicable high-value issues.
-- [ ] Avoid adding WAF/SIEM/enterprise IAM infrastructure unless an actual requirement exists.
-- [ ] Update security, deployment, API, and operations docs for material changes.
+- [x] Audit current controls before changing implementation.
+- [x] Fix demonstrated authorization, validation, rate-limit, session, webhook, upload, or secret-handling gaps.
+- [x] Verify access/refresh tokens are not persisted insecurely in browser storage.
+- [x] Verify sensitive provider/customer data is not exposed through errors, logs, metrics, traces, or operational APIs.
+- [x] Verify webhook signature/idempotency behavior remains server-authoritative.
+- [x] Verify production/demo configuration cannot accidentally activate real external payment behavior without explicit valid configuration.
+- [x] Review dependency/security audit findings and fix applicable high-value issues.
+- [x] Avoid adding WAF/SIEM/enterprise IAM infrastructure unless an actual requirement exists.
+- [x] Update security, deployment, API, and operations docs for material changes.
 
 ### Tests and Validation
 
-- [ ] Add/extend authorization matrix regression tests.
-- [ ] Test invalid/replayed sessions and webhook requests.
-- [ ] Test unsafe cross-tenant/cross-queue access attempts.
-- [ ] Test sanitization of logs/errors/operational responses.
-- [ ] Run dependency audit, lint, typecheck, tests, build, OpenAPI, security/config checks, and required validation.
+- [x] Add/extend authorization matrix regression tests.
+- [x] Test invalid/replayed sessions and webhook requests.
+- [x] Test unsafe cross-tenant/cross-queue access attempts.
+- [x] Test sanitization of logs/errors/operational responses.
+- [x] Run dependency audit, lint, typecheck, tests, build, OpenAPI, security/config checks, and required validation.
 
 ### Definition of Done
 
-- [ ] No known material security boundary defect remains in the tested project scope.
-- [ ] Tenant, branch, queue, customer, payment, and notification authority remains server-derived.
-- [ ] Sensitive data is not unnecessarily exposed.
-- [ ] Hardening remains appropriate for a production-oriented demo rather than an enterprise security platform.
+- [x] No known material security boundary defect remains in the tested project scope.
+- [x] Tenant, branch, queue, customer, payment, and notification authority remains server-derived.
+- [x] Sensitive data is not unnecessarily exposed.
+- [x] Hardening remains appropriate for a production-oriented demo rather than an enterprise security platform.
+
+### Completion Notes
+
+- Removed unused generic Platform Admin user listing/create/deactivate authority and constrained
+  user detail to self or assigned-branch Staff reads by a non-owner Branch Manager. The Staff list
+  is now server-fixed to the authenticated manager's branch and the `staff` role.
+- Added a shared explicit user-response allowlist across users, Admin owner recovery, and branch
+  manager invitations so credential hashes and internal invitation/deactivation actor fields do
+  not cross HTTP response boundaries.
+- Rate-limit keys now use only Express's trusted-proxy-resolved `req.ip`; raw left-most
+  `X-Forwarded-For` values cannot replace the client key.
+- Targeted security validation passed 13 suites / 80 tests. Full API validation passed 114 suites /
+  682 tests; Web passed 56 files / 185 tests. Dependency audit reported 0 vulnerabilities; staged
+  Gitleaks scan found no new leak. Lint, typecheck, formatting, OpenAPI 4/4, production build, and
+  CSP bundle validation passed.
+- No dependency, migration, external service, or enterprise security infrastructure was added.
 
 ---
 

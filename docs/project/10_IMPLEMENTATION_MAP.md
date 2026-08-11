@@ -164,7 +164,7 @@ verified LINE identity when Home or Rich Menu opens without a fixed entry ID.
 
 ## 6. API inventory
 
-The executable catalog in `apps/api/src/docs/api-endpoint-catalog.ts` currently contains 112
+The executable catalog in `apps/api/src/docs/api-endpoint-catalog.ts` currently contains 110
 versioned operations. The OpenAPI contract test compares it with mounted Express routes and the
 assembled Swagger document. Current operation counts by tag are:
 
@@ -187,7 +187,7 @@ assembled Swagger document. Current operation counts by tag are:
 | `queue-entry`               |         11 |
 | `queues`                    |          6 |
 | `staff`                     |          9 |
-| `users`                     |         10 |
+| `users`                     |          8 |
 
 The full path and behavior index is `docs/project/05_API.md`. When an endpoint changes, update
 the route, validator, controller/service behavior, client method/types, OpenAPI catalog, tests,

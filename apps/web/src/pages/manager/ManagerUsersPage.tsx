@@ -48,7 +48,7 @@ export function ManagerUsersPage() {
 
   const { data: users = [], isLoading } = useQuery<UserRow[]>({
     queryKey: ['users-staff', user?.branchIds?.[0]],
-    queryFn: () => get<UserRow[]>('/api/v1/users?role=staff'),
+    queryFn: () => get<UserRow[]>('/api/v1/users'),
     enabled: !!orgId && !user?.isOrganizationOwner,
   });
   const queuesQuery = useQueues();

@@ -107,7 +107,12 @@ Delivery retries classify timeouts, `429`, and provider `5xx` as retryable and p
 `Retry-After`, and provider throttling. PostgreSQL separately records dispatch state and actual
 delivery state; enqueueing a BullMQ job never marks a notification `sent`.
 
-The deployed production request path uses two proxy hops before Express: the host TLS nginx and the web-container nginx. The API therefore sets Express `trust proxy` to `2` so `req.ip` is derived from the forwarded client chain instead of the container socket address. This is important for strict rate limiting and request attribution. API port `4000` remains internal to the Compose network and is not published directly to the internet.
+The deployed production request path uses two proxy hops before Express: the host TLS nginx and the
+web-container nginx. The API therefore sets Express `trust proxy` to `2` so `req.ip` is derived from
+the trusted forwarded chain instead of the container socket address. Rate-limit keys consume only
+that Express-resolved value and never parse the raw client-controlled left-most
+`X-Forwarded-For` entry. API port `4000` remains internal to the Compose network and is not
+published directly to the internet.
 
 ## 3. Backend module architecture
 
@@ -353,6 +358,11 @@ The browser return URL is a user experience signal, not proof of payment.
   `LINE_MESSAGING_CHANNEL_SECRET`.
 - `VITE_*` values are public; LINE/JWT/database/provider secrets are backend-only.
 - Organization membership and resource ownership are required in addition to role checks.
+- User repository rows are projected through an explicit response allowlist before leaving users,
+  branch, or Admin services. Credential hashes and internal audit-actor columns are never API data.
+- Platform Admin tenant access is limited to dedicated, reviewed `/admin/*` organization and owner
+  workflows. Generic tenant user listing, creation, deactivation, and cross-user profile reads are
+  not Admin capabilities.
 - Audit records cover sensitive manager/organization actions; coverage should expand with payment/location operations.
 
 ## 11. Scalability and reliability boundaries

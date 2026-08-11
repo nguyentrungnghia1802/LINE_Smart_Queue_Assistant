@@ -72,6 +72,7 @@ describe('adminService dashboard and organization plans', () => {
       id: 'owner-user',
       email: 'old@example.com',
       display_name: 'Owner Name',
+      password_hash: 'must-not-leak',
     };
     const updatedUser = { ...currentUser, email: 'new@example.com' };
     mockFindMember.mockResolvedValue({ role: 'manager', is_owner: true } as never);
@@ -81,11 +82,14 @@ describe('adminService dashboard and organization plans', () => {
     mockFindUserByEmail.mockResolvedValue(null);
     mockUpdateProfile.mockResolvedValue(updatedUser as never);
 
-    await expect(
-      adminService.updateOwnerEmail('organization-id', 'owner-user', {
-        email: 'new@example.com',
-      })
-    ).resolves.toEqual(updatedUser);
+    const response = await adminService.updateOwnerEmail('organization-id', 'owner-user', {
+      email: 'new@example.com',
+    });
+
+    expect(response).toEqual(
+      expect.objectContaining({ id: 'owner-user', email: 'new@example.com' })
+    );
+    expect(response).not.toHaveProperty('password_hash');
 
     expect(mockUpdateProfile).toHaveBeenCalledWith('owner-user', {
       email: 'new@example.com',
@@ -98,15 +102,19 @@ describe('adminService dashboard and organization plans', () => {
       id: 'owner-user',
       email: 'owner@example.com',
       display_name: 'Owner Name',
+      password_hash: 'must-not-leak',
     };
     mockFindMember.mockResolvedValue({ role: 'manager', is_owner: true } as never);
     mockFindUserById.mockResolvedValue(currentUser as never);
 
-    await expect(
-      adminService.updateOwnerEmail('organization-id', 'owner-user', {
-        email: 'owner@example.com',
-      })
-    ).resolves.toEqual(currentUser);
+    const response = await adminService.updateOwnerEmail('organization-id', 'owner-user', {
+      email: 'owner@example.com',
+    });
+
+    expect(response).toEqual(
+      expect.objectContaining({ id: 'owner-user', email: 'owner@example.com' })
+    );
+    expect(response).not.toHaveProperty('password_hash');
 
     expect(mockUpdateProfile).not.toHaveBeenCalled();
     expect(mockRevokeAllForUser).not.toHaveBeenCalled();

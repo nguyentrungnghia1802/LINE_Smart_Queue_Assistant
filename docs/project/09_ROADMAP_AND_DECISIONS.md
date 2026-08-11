@@ -731,3 +731,19 @@ browser coverage, localized labels, loading/error states, and keyboard/reduced-m
 Bundle sizes are local minified build evidence, not field-performance or capacity acceptance. No new
 frontend framework, API behavior, authorization boundary, dependency, or database migration was
 introduced.
+
+## OPT-004 security boundary audit (2026-08-11)
+
+The audit covered sessions and browser token storage; role, tenant, branch, queue, and customer
+scope; LINE/payment webhooks; public writes and proxy-derived rate limits; media validation;
+CORS/CSP/headers; secrets; and observability sanitization. Existing session replay, webhook
+signature/idempotency, payment activation, upload, notification scope, and log/error sanitization
+controls were retained and revalidated. No dependency vulnerability required remediation.
+
+| Finding                                                                                                                              | Evidence and decision                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Legacy generic user routes allowed Platform Admin to list tenant members, create/deactivate arbitrary users, and read any profile.   | Remove unused generic Admin user mutations/listing and enforce self-or-assigned-branch-Staff reads in the users service. Dedicated `/admin/*` organization and immutable-owner workflows remain the only approved Admin boundary. |
+| User, owner recovery, and manager invitation services returned raw repository rows containing credential and internal actor columns. | Add one explicit safe user-response allowlist and apply it to every controller-visible path; regression tests reject `password_hash`, `invited_by`, and `deactivated_by`.                                                         |
+| Rate-limit IP resolution independently trusted the left-most raw forwarded address.                                                  | Use only Express `req.ip`, which applies the configured trusted-proxy hop count, and test that a raw spoofed header cannot replace it.                                                                                            |
+
+The hardening adds no WAF, SIEM, enterprise IAM, dependency, schema migration, or external runtime.

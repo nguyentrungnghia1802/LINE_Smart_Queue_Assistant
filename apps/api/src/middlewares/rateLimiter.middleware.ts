@@ -5,12 +5,9 @@ import { ResilientRateLimitStore } from '../infrastructure/redis';
 import { AppError } from '../utils/AppError';
 
 export function resolveClientIp(req: { headers: Record<string, unknown>; ip?: string }): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  const forwardedValue = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  const candidate =
-    typeof forwardedValue === 'string' && forwardedValue.trim().length > 0
-      ? forwardedValue.split(',')[0]?.trim()
-      : req.ip;
+  // Express derives req.ip from the configured trusted-proxy hop count. Reading
+  // X-Forwarded-For directly would let an untrusted left-most value evade limits.
+  const candidate = req.ip?.trim();
   return candidate && candidate.length > 0 ? candidate : 'unknown';
 }
 

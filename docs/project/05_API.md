@@ -402,18 +402,16 @@ active `media_assets.storage_key` values; automatic destructive cleanup is inten
 
 ### Users and staff management
 
-| Method | Path                                 | Access               | Purpose                                             |
-| ------ | ------------------------------------ | -------------------- | --------------------------------------------------- |
-| GET    | `/api/v1/users`                      | Branch manager/admin | List assigned-branch staff or platform users        |
-| PATCH  | `/api/v1/users/me`                   | Authenticated        | Update own profile and `preferredLocale`            |
-| PATCH  | `/api/v1/users/me/password`          | Admin/manager/staff  | Verify and change own password; revoke all sessions |
-| POST   | `/api/v1/users/staff`                | Branch manager       | Invite staff into the assigned branch               |
-| PATCH  | `/api/v1/users/staff/:userId/status` | Branch manager       | Change assigned-branch staff active state           |
-| PATCH  | `/api/v1/users/staff/:userId`        | Branch manager       | Update assigned-branch staff                        |
-| DELETE | `/api/v1/users/staff/:userId`        | Branch manager       | Soft-deactivate assigned-branch staff               |
-| GET    | `/api/v1/users/:id`                  | Authenticated        | User detail subject to service authorization        |
-| POST   | `/api/v1/users`                      | Admin                | Create user                                         |
-| DELETE | `/api/v1/users/:id`                  | Admin                | Deactivate user                                     |
+| Method | Path                                 | Access              | Purpose                                             |
+| ------ | ------------------------------------ | ------------------- | --------------------------------------------------- |
+| GET    | `/api/v1/users`                      | Branch manager      | List staff from the manager's assigned branch       |
+| PATCH  | `/api/v1/users/me`                   | Authenticated       | Update own profile and `preferredLocale`            |
+| PATCH  | `/api/v1/users/me/password`          | Admin/manager/staff | Verify and change own password; revoke all sessions |
+| POST   | `/api/v1/users/staff`                | Branch manager      | Invite staff into the assigned branch               |
+| PATCH  | `/api/v1/users/staff/:userId/status` | Branch manager      | Change assigned-branch staff active state           |
+| PATCH  | `/api/v1/users/staff/:userId`        | Branch manager      | Update assigned-branch staff                        |
+| DELETE | `/api/v1/users/staff/:userId`        | Branch manager      | Soft-deactivate assigned-branch staff               |
+| GET    | `/api/v1/users/:id`                  | Authenticated       | Own profile, or assigned staff for a branch manager |
 
 `POST /users/staff` requires the staff profile, a non-empty `employeeCode`, and `queueId`; it does
 not accept a branch selector. The API derives the target branch from the authenticated non-owner
@@ -422,6 +420,12 @@ that branch. `PATCH /users/staff/:userId` may replace `queueId` under the same g
 have multiple Staff assignments, while one active Staff membership has exactly one queue.
 Normalized email uniqueness is platform-wide, so an existing email cannot be invited again under
 another role.
+
+Every response from these user, staff, branch-manager invitation, and Admin owner-recovery flows
+uses a shared allowlist. It excludes `password_hash`, `invited_by`, `deactivated_by`, and any future
+repository column unless deliberately added. Platform Admin does not use generic `/users` mutation
+or tenant-profile reads; approved organization and immutable-owner recovery remain under the
+dedicated `/api/v1/admin/*` contract.
 
 ### LINE and notifications
 

@@ -284,8 +284,6 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
   endpoint('patch', '/api/v1/users/staff/{userId}', 'users'),
   endpoint('delete', '/api/v1/users/staff/{userId}', 'users'),
   endpoint('get', '/api/v1/users/{id}', 'users', { validator: 'UUIDParamSchema' }),
-  endpoint('post', '/api/v1/users', 'users', { validator: 'CreateUserSchema' }),
-  endpoint('delete', '/api/v1/users/{id}', 'users', { validator: 'UUIDParamSchema' }),
 ];
 
 function pathParameters(path: string) {

@@ -14,12 +14,8 @@ import { authSessionService } from '../auth/auth-session.service';
 import { requireBranchManager } from '../branches/branch-scope';
 import { branchesRepository } from '../branches/branches.repository';
 
-import type {
-  ChangeMyPasswordDto,
-  CreateUserDto,
-  InviteStaffDto,
-  UpdateStaffDto,
-} from './users.validator';
+import { toUserResponse, toUserResponses } from './user-response';
+import type { ChangeMyPasswordDto, InviteStaffDto, UpdateStaffDto } from './users.validator';
 
 async function assertTargetStaffBranch(actor: AuthUser, userId: string, client?: PoolClient) {
   const scope = requireBranchManager(actor);
@@ -35,27 +31,43 @@ async function assertTargetStaffBranch(actor: AuthUser, userId: string, client?:
 }
 
 export const usersService = {
-  async getUser(id: string) {
+  async getUser(actor: AuthUser, id: string) {
     const user = await usersRepository.findById(id);
     if (!user) throw AppError.notFound(`User ${id} not found`);
-    const membership = await organizationsRepository.findMembershipByUserId(id);
-    const assignedQueue = membership
-      ? await usersRepository.findAssignedQueue(membership.organization_id, id)
+
+    let organizationId: string | undefined;
+    if (actor.id === id) {
+      const membership = await organizationsRepository.findMembershipByUserId(id);
+      organizationId = membership?.organization_id;
+    } else {
+      if (actor.role !== UserRole.MANAGER || actor.isOrganizationOwner) {
+        throw AppError.forbidden('Only assigned-branch staff profiles can be viewed');
+      }
+      const scope = requireBranchManager(actor);
+      const member = await organizationsRepository.findMember(scope.organizationId, id);
+      if (!member || member.role !== 'staff' || user.role !== UserRole.STAFF) {
+        throw AppError.forbidden('Only assigned-branch staff profiles can be viewed');
+      }
+      const targetBranchId = await usersRepository.findAssignedBranchId(scope.organizationId, id);
+      if (targetBranchId !== scope.branchId) {
+        throw AppError.forbidden('User is outside your assigned branch');
+      }
+      organizationId = scope.organizationId;
+    }
+
+    const assignedQueue = organizationId
+      ? await usersRepository.findAssignedQueue(organizationId, id)
       : null;
-    return {
+    return toUserResponse({
       ...user,
       assigned_queue_id: assignedQueue?.id ?? null,
       assigned_queue_name: assignedQueue?.name ?? null,
-    };
+    });
   },
 
-  async listUsersByOrg(orgId: string, role?: string) {
-    return usersRepository.findByOrgAndRole(orgId, role);
-  },
-
-  async listUsersForBranchManager(actor: AuthUser, role?: string) {
+  async listUsersForBranchManager(actor: AuthUser) {
     const scope = requireBranchManager(actor);
-    return usersRepository.findByBranchAndRole(scope.branchId, role);
+    return toUserResponses(await usersRepository.findByBranchAndRole(scope.branchId, 'staff'));
   },
 
   async updateMyProfile(
@@ -66,7 +78,7 @@ export const usersService = {
     if (!existing) throw AppError.notFound(`User ${userId} not found`);
     const updated = await usersRepository.updateProfile(userId, data);
     if (!updated) throw AppError.notFound('User not found');
-    return updated;
+    return toUserResponse(updated);
   },
 
   async changeMyPassword(actor: AuthUser, data: ChangeMyPasswordDto) {
@@ -101,24 +113,6 @@ export const usersService = {
       await authSessionService.revokeAllForUser(actor.id, 'password_changed', client);
     });
     return { changed: true };
-  },
-
-  async createUser(dto: CreateUserDto) {
-    const existing = dto.email ? await usersRepository.findByEmail(dto.email) : null;
-    if (existing) throw AppError.conflict('A user with this email already exists');
-
-    return usersRepository.create({
-      displayName: dto.displayName,
-      email: dto.email,
-      role: dto.role,
-    });
-  },
-
-  async deactivateUser(id: string) {
-    const existing = await usersRepository.findById(id);
-    if (!existing) throw AppError.notFound(`User ${id} not found`);
-    await usersRepository.deactivate(id);
-    await authSessionService.revokeAllForUser(id, 'account_disabled');
   },
 
   /**
@@ -199,7 +193,7 @@ export const usersService = {
          VALUES ($1,'staff_invited','organization_member',$2,$3,$4)`,
         [actor.id, user.id, orgId, JSON.stringify({ branchId: scope.branchId, queueId: queue.id })]
       );
-      return user;
+      return toUserResponse(user);
     });
   },
 
@@ -220,7 +214,8 @@ export const usersService = {
       throw AppError.conflict('Disabled staff must be invited again through the invitation flow');
     }
     await this.removeStaff(actor, userId);
-    return usersRepository.findById(userId);
+    const updated = await usersRepository.findById(userId);
+    return updated ? toUserResponse(updated) : null;
   },
 
   async updateStaff(actor: AuthUser, userId: string, data: UpdateStaffDto) {
@@ -270,11 +265,11 @@ export const usersService = {
       const assignedQueue = await usersRepository.findAssignedQueue(orgId, userId, client);
       const result = updated ?? (await usersRepository.findById(userId));
       return result
-        ? {
+        ? toUserResponse({
             ...result,
             assigned_queue_id: assignedQueue?.id ?? null,
             assigned_queue_name: assignedQueue?.name ?? null,
-          }
+          })
         : null;
     });
   },

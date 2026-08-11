@@ -4,6 +4,7 @@ import { withTransaction } from '../../db/transaction';
 import { AppError } from '../../utils/AppError';
 import { authSessionService } from '../auth/auth-session.service';
 import { organizationApplicationsRepository } from '../organization-applications/organization-applications.repository';
+import { toUserResponse } from '../users/user-response';
 
 import { UpdateOwnerEmailDto } from './admin.validator';
 
@@ -92,7 +93,7 @@ export const adminService = {
     const org = await organizationsRepository.findById(orgId);
     if (!org) throw AppError.notFound('Organization not found');
     const owner = await usersRepository.findOrganizationOwner(orgId);
-    return owner ? [owner] : [];
+    return owner ? [toUserResponse(owner)] : [];
   },
 
   async updateOwnerEmail(orgId: string, userId: string, dto: UpdateOwnerEmailDto) {
@@ -104,7 +105,7 @@ export const adminService = {
     const user = await usersRepository.findById(userId);
     if (!user) throw AppError.notFound('User not found');
 
-    if (dto.email === user.email) return user;
+    if (dto.email === user.email) return toUserResponse(user);
 
     const duplicate = await usersRepository.findByEmail(dto.email);
     if (duplicate && duplicate.id !== userId) {
@@ -116,6 +117,7 @@ export const adminService = {
     });
     await authSessionService.revokeAllForUser(userId, 'admin_owner_email_changed');
 
-    return usersRepository.findById(updated?.id ?? userId);
+    const refreshed = await usersRepository.findById(updated?.id ?? userId);
+    return refreshed ? toUserResponse(refreshed) : null;
   },
 };

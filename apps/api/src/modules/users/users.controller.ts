@@ -1,55 +1,25 @@
 import { Request, Response } from 'express';
 
-import { UserRole } from '@line-queue/shared';
-
-import { organizationsRepository } from '../../db/repositories/organizations.repository';
-import { usersRepository } from '../../db/repositories/users.repository';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendCreated, sendNoContent, sendSuccess } from '../../utils/response';
 
 import { usersService } from './users.service';
-import type {
-  ChangeMyPasswordDto,
-  CreateUserDto,
-  InviteStaffDto,
-  UpdateStaffDto,
-} from './users.validator';
+import type { ChangeMyPasswordDto, InviteStaffDto, UpdateStaffDto } from './users.validator';
 
 export const getUser = asyncHandler(async (req: Request, res: Response) => {
   const actor = req.user;
   if (!actor) throw AppError.unauthorized();
   const targetUserId = req.params['id'] ?? '';
 
-  if (actor.id !== targetUserId && actor.role !== UserRole.ADMIN) {
-    const orgId = actor.organizationId;
-    if (!orgId) throw AppError.forbidden();
-    const member = await organizationsRepository.findMember(orgId, targetUserId);
-    if (!member) throw AppError.forbidden('User is outside your organization');
-    if (!actor.isOrganizationOwner) {
-      const targetBranchId = await usersRepository.findAssignedBranchId(orgId, targetUserId);
-      if (actor.branchIds?.length !== 1 || targetBranchId !== actor.branchIds[0]) {
-        throw AppError.forbidden('User is outside your assigned branch');
-      }
-    }
-  }
-
-  const user = await usersService.getUser(targetUserId);
+  const user = await usersService.getUser(actor, targetUserId);
   sendSuccess(res, user);
 });
 
 export const listUsers = asyncHandler(async (req: Request, res: Response) => {
   const actor = req.user;
   if (!actor) throw AppError.unauthorized();
-  const requestedOrgId = req.query['orgId'] as string | undefined;
-  const role = req.query['role'] as string | undefined;
-  let users;
-  if (actor.role === UserRole.ADMIN) {
-    if (!requestedOrgId) throw AppError.badRequest('orgId is required');
-    users = await usersService.listUsersByOrg(requestedOrgId, role);
-  } else {
-    users = await usersService.listUsersForBranchManager(actor, role);
-  }
+  const users = await usersService.listUsersForBranchManager(actor);
   sendSuccess(res, users);
 });
 
@@ -67,16 +37,6 @@ export const changeMyPassword = asyncHandler(async (req: Request, res: Response)
   if (!req.user) throw AppError.unauthorized();
   const result = await usersService.changeMyPassword(req.user, req.body as ChangeMyPasswordDto);
   sendSuccess(res, result);
-});
-
-export const createUser = asyncHandler(async (req: Request, res: Response) => {
-  const user = await usersService.createUser(req.body as CreateUserDto);
-  sendCreated(res, user);
-});
-
-export const deactivateUser = asyncHandler(async (req: Request, res: Response) => {
-  await usersService.deactivateUser(req.params['id'] ?? '');
-  sendNoContent(res);
 });
 
 /** Manager creates a staff account and adds them to their org. */

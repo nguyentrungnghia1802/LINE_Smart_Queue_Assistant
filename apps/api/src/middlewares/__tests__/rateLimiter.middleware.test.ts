@@ -13,6 +13,7 @@ import {
   authenticatedActionRateLimiter,
   createStrictRateLimiter,
   publicWriteRateLimiter,
+  resolveClientIp,
   strictRateLimiter,
 } from '../rateLimiter.middleware';
 
@@ -74,6 +75,16 @@ beforeEach(() => {
 });
 
 describe('rateLimiter middleware', () => {
+  it('uses only the proxy-validated Express IP and ignores raw forwarded values', () => {
+    expect(
+      resolveClientIp({
+        headers: { 'x-forwarded-for': '198.51.100.10, 172.20.0.4' },
+        ip: '203.0.113.20',
+      })
+    ).toBe('203.0.113.20');
+    expect(resolveClientIp({ headers: { 'x-forwarded-for': '198.51.100.10' } })).toBe('unknown');
+  });
+
   it('limits repeated public writes after the configured threshold', async () => {
     const app = buildApp('/public-write', publicWriteRateLimiter);
 

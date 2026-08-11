@@ -21,6 +21,7 @@ import {
   revokeAccountAction,
 } from '../account-lifecycle/account-lifecycle.service';
 import type { BusinessCalendarDto } from '../orgs/orgs.validator';
+import { toUserResponse } from '../users/user-response';
 
 import { requireBranchManager, requireOrganizationOwner } from './branch-scope';
 import { branchesRepository } from './branches.repository';
@@ -112,7 +113,7 @@ async function inviteManagerInClient(
       JSON.stringify({ branchId: params.branchId, email: params.manager.email }),
     ]
   );
-  return user;
+  return toUserResponse(user);
 }
 
 export const branchesService = {

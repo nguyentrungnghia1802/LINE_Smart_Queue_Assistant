@@ -292,8 +292,10 @@ asks the customer to scan the intended store QR instead of selecting a tenant im
 Production ingress currently has two proxy hops before the API: the host nginx terminates HTTPS
 and forwards to the web nginx container, then the web nginx container proxies `/api/*` to
 `api:4000`. The API intentionally uses Express `trust proxy = 2` for this topology so `req.ip`
-matches the forwarded client IP used by rate limiters. If ingress topology changes, update this
-value and smoke test login/rate limiting before rollout.
+matches the forwarded client IP used by rate limiters. Rate limiters trust only that resolved
+`req.ip`; they do not parse the raw left-most `X-Forwarded-For` value. If ingress topology changes,
+update the trust value and smoke test login/rate limiting, including a spoofed forwarded-header
+case, before rollout.
 
 The web-container nginx has a dedicated `^~ /api/v1/realtime/` location that preserves the full
 path, uses HTTP/1.1, disables proxy buffering/cache/gzip, clears the hop-by-hop `Connection` header,

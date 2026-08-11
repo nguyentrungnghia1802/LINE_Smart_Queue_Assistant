@@ -348,6 +348,13 @@ REST responses remain the assertion source rather than SSE payload contents.
 
 Critical regression scenarios:
 
+- User-profile authorization rejects Platform Admin, Organization Owner, Staff, and Customer reads
+  of another user; a branch manager can read/list only Staff assigned to the manager's one branch.
+  Safe-response tests assert that password hashes and internal actor metadata are absent.
+- Session tests cover expiry and rotated-token replay; LINE tests cover missing/tampered signatures;
+  payment tests cover signed provider payloads and duplicate webhook event IDs. Rate-limit tests
+  assert that raw forwarded headers cannot override the Express proxy-validated client IP.
+
 - every Admin, organization-owner, branch-manager, Staff, Customer, and LIFF primary destination remains reachable at desktop
   and phone viewports without page-level horizontal overflow;
 

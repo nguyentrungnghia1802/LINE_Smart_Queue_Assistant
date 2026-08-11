@@ -106,24 +106,6 @@ export class UsersRepository extends BaseRepository {
     );
   }
 
-  /**
-   * List users by organization and optional role.
-   * Used by manager portal to view staff members.
-   */
-  async findByOrgAndRole(orgId: string, role?: string): Promise<UserRow[]> {
-    const roleClause = role ? 'AND u.role = $2' : '';
-    const params: unknown[] = role ? [orgId, role] : [orgId];
-    return this.query<UserRow>(
-      `SELECT u.*
-       FROM users u
-       JOIN organization_members om ON om.user_id = u.id
-       WHERE om.organization_id = $1
-         ${roleClause}
-       ORDER BY u.created_at DESC`,
-      params
-    );
-  }
-
   async create(params: CreateUserParams, client?: PoolClient): Promise<UserRow> {
     const sql = `
       INSERT INTO users (display_name, email, role)

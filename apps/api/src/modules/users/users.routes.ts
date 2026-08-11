@@ -9,8 +9,6 @@ import { UUIDParamSchema } from '../shared/shared.validator';
 import {
   changeMyPassword,
   createStaff,
-  createUser,
-  deactivateUser,
   getUser,
   listUsers,
   removeStaff,
@@ -20,7 +18,6 @@ import {
 } from './users.controller';
 import {
   ChangeMyPasswordSchema,
-  CreateUserSchema,
   InviteStaffSchema,
   StaffUserParamSchema,
   UpdateMyProfileSchema,
@@ -39,8 +36,8 @@ usersRouter.patch(
   changeMyPassword
 );
 
-// GET /api/v1/users - list users by org/role (requires auth for manager portal)
-usersRouter.get('/', requireAuth, requireRole(UserRole.MANAGER, UserRole.ADMIN), listUsers);
+// GET /api/v1/users - assigned-branch staff list for a non-owner branch manager
+usersRouter.get('/', requireAuth, requireRole(UserRole.MANAGER), listUsers);
 
 // PATCH /api/v1/users/me - update current user profile
 usersRouter.patch(
@@ -88,19 +85,3 @@ usersRouter.delete(
 );
 
 usersRouter.get('/:id', requireAuth, validate(UUIDParamSchema, 'params'), getUser);
-usersRouter.post(
-  '/',
-  requireAuth,
-  requireRole(UserRole.ADMIN),
-  authenticatedActionRateLimiter,
-  validate(CreateUserSchema),
-  createUser
-);
-usersRouter.delete(
-  '/:id',
-  requireAuth,
-  requireRole(UserRole.ADMIN),
-  authenticatedActionRateLimiter,
-  validate(UUIDParamSchema, 'params'),
-  deactivateUser
-);

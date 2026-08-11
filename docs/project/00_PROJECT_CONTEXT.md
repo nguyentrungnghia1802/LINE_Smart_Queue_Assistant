@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-08-11 after the OPT-003 frontend performance pass.
+Last verified against the repository on 2026-08-11 after the OPT-004 security hardening pass.
 
 ## 1. Problem
 
@@ -53,6 +53,9 @@ real-money payment or notification platform.
 - Fifteen-minute signed access JWTs with PostgreSQL-backed rotating refresh sessions:
   business roles expire after 15 idle minutes or 12 hours absolute; LINE customers can resume for
   30 days.
+- User APIs return an explicit safe profile allowlist. Password hashes and internal invitation or
+  deactivation actor fields never cross the HTTP response boundary; Platform Admin uses dedicated
+  organization/owner endpoints and cannot browse tenant-private user profiles.
 - LINE-only customer authentication: public organization slug/token entries redirect to LIFF, while local development uses the paired LIFF mock identity.
 - Localized customer, staff, manager, and admin portals with persisted language selection.
 - Storybook 10.5.7 component review environment with shared design tokens, i18n/provider
