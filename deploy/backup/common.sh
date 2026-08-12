@@ -88,9 +88,10 @@ validate_compose() {
   [[ -f "$COMPOSE_FILE" ]] || die "Compose file not found: $COMPOSE_FILE"
   [[ -f "$ENV_FILE" ]] || die "Environment file not found: $ENV_FILE"
   compose config -q
-  local service
+  local service services
+  services=$(compose config --services)
   for service in postgres api worker web; do
-    compose config --services | grep -Fxq "$service" || die "Compose service missing: $service"
+    grep -Fx "$service" <<<"$services" >/dev/null || die "Compose service missing: $service"
   done
 }
 

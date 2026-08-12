@@ -186,8 +186,7 @@ grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:3.19' "$ENV_FILE"
 grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:3.19' "$ENV_FILE"
 
 sleep 1
-docker pull alpine:3.20 >>"$log_file" 2>&1
-docker tag alpine:3.20 "$release_image"
+docker tag alpine:3.19 "$release_image"
 export DEPLOY_APPROVED=GITHUB_ENVIRONMENT_APPROVED
 predeploy_id=$("$BACKUP_DIR/deploy-safe.sh" "$release_tag" 2>>"$log_file")
 api_id=$("${compose[@]}" ps -q api)
