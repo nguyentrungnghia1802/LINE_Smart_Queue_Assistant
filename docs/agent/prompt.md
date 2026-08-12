@@ -6,6 +6,9 @@ Các prompt dưới đây dùng cùng `docs/agent/AGENTS.md`.
 `prompt.md` chỉ xác định mục tiêu của lượt làm việc và mức finalization
 được phép.
 
+Theo mặc định, remote CI chạy bất đồng bộ. Với finalization chỉ đến push hoặc tạo/update Pull Request, Agent
+không chờ hoặc poll CI sau khi remote operation thành công. Chỉ chờ CI khi prompt yêu cầu rõ hoặc khi cần merge.
+
 ---
 
 ## 1. One Task
