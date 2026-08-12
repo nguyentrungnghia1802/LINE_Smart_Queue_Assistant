@@ -224,8 +224,13 @@ cp deploy/.env.example deploy/.env
 chmod 600 deploy/.env
 ```
 
-From a clean reviewed local commit, the canonical Windows publisher resolves the full Git SHA and
-pushes API/Web runner images with both the immutable SHA tag and mutable `latest` tag:
+The normal release path is automatic: merge a reviewed PR to `main`, let `CI Quality Gates`
+validate the resulting `main` SHA, and let `.github/workflows/deploy.yml` build/push API/Web runner
+images for that exact revision. It publishes both the immutable SHA tag and mutable discovery tag
+`latest`, but only the immutable tag is passed through approval and deployment.
+
+For an explicitly approved emergency/manual publication from a clean reviewed local commit, the
+Windows publisher produces the same identities:
 
 ```powershell
 $env:VITE_LIFF_ID = '<production-liff-id>'
@@ -234,7 +239,8 @@ pwsh -NoProfile -File scripts/release/publish-images.ps1 `
 ```
 
 The current Docker Hub repositories are `trungnghia2703/line-smart-queue-api` and
-`trungnghia2703/line-smart-queue-web`. Pass only the printed `git-<40-character-sha>` to the VPS:
+`trungnghia2703/line-smart-queue-web`. In an emergency/manual deployment, pass only the printed
+`git-<40-character-sha>` to the VPS:
 
 ```bash
 deploy/backup/deploy-safe.sh git-0123456789abcdef0123456789abcdef01234567
@@ -685,8 +691,8 @@ and investigate the cancellation/retry/concurrency path. Do not manually edit on
 
 ## 10. CI/CD
 
-`.github/workflows/ci.yml` runs on every pushed branch and pull request. It splits the validation
-gate into independent jobs so failures are easy to locate:
+`.github/workflows/ci.yml` runs for pull requests targeting `main` and for the resulting `main`
+revision. It splits the validation gate into independent jobs so failures are easy to locate:
 
 - full-history Gitleaks secret scanning;
 - dependency audit;
@@ -699,6 +705,7 @@ gate into independent jobs so failures are easy to locate:
 - mock-integration Playwright desktop/mobile browser E2E.
 - isolated PostgreSQL/local-media backup, corruption rejection, restore, deploy-gate, and rollback rehearsal.
 - PowerShell immutable-image publisher command-plan validation.
+- automatic validated-main workflow trigger, source-SHA, approval-order, and concurrency validation.
 
 The API tests, migration smoke, and browser E2E jobs use separate PostgreSQL services. Browser E2E
 waits for the earlier quality and Compose jobs, applies migrations, loads only the explicit browser
@@ -707,40 +714,87 @@ LINE, PSP, SMTP, SSH, or customer credentials. `npm run audit:ci` blocks new hig
 advisories in production dependencies and keeps its single narrow, reviewed exception in
 `audit-ci.jsonc`.
 
-Production delivery is manual, backup-gated, and environment-gated. `.github/workflows/deploy.yml`
-requires the operator to type `DEPLOY`, builds the API and Web `runner` images from the selected
-commit, always pushes `git-<full SHA>` plus `latest` to Docker Hub, and waits for approval on the
-GitHub `production` environment before connecting to the server. The SSH host key is pinned with
+Production delivery is automatic after validated `main`, backup-gated, and environment-gated.
+`.github/workflows/deploy.yml` listens only for a successful same-repository `CI Quality Gates`
+completion on `main`, checks out that run's exact SHA, builds the API and Web `runner` images, and
+pushes `git-<full SHA>` plus discovery-only `latest` to Docker Hub. The deploy job then waits for
+approval on the GitHub `production` environment before connecting to the server. A pull request
+never triggers production CD. The SSH host key is pinned with
 `PRODUCTION_SSH_KNOWN_HOSTS`. CD copies the selected commit's Compose file and versioned recovery
 tooling, but never the server `.env`, then passes only the immutable tag to `deploy-safe.sh`. The
 remote sequence derives repositories from that file and cannot update image refs, pull, or migrate
 unless a matched PostgreSQL/media snapshot passes independent verification. After confirmation it
 atomically persists both refs, pulls, applies canonical migrations, recreates application services,
-and probes API health/readiness and Web health. A failure reports the verified rollback ID.
+and probes API health/readiness and Web health. A post-mutation failure automatically attempts
+application-only rollback from the verified restore point, still fails the workflow for operator
+investigation, and reports the ID for a manual retry. Database/media restore is never automatic.
 The remote rollout does not run `down -v` or remove volumes: `postgres_data`, `redis_data`, and the
 production `media_data` volume remain attached across API/Web image updates. A release that changes
 the media volume name or mount target requires a separate migration and backup plan.
 After recreation, CD inspects the live API mount as a Docker volume and, when local media is active,
 verifies that `/app/var/media` is both the configured path and writable by the non-root process.
 
-Production GitHub Actions variables:
+Repository-level GitHub Actions variables used by the pre-approval image build:
+
+| Variable             | Example            | Purpose                             |
+| -------------------- | ------------------ | ----------------------------------- |
+| `DOCKERHUB_USERNAME` | `trungnghia2703`   | Docker Hub image namespace          |
+| `VITE_LIFF_ID`       | LINE Login LIFF ID | Public Web build-time configuration |
+
+Repository-level GitHub Actions secret used by the pre-approval image build:
+
+| Secret            | Purpose                                      |
+| ----------------- | -------------------------------------------- |
+| `DOCKERHUB_TOKEN` | Docker Hub access token with push permission |
+
+`production` environment variable:
 
 | Variable                 | Example                 | Purpose                                               |
 | ------------------------ | ----------------------- | ----------------------------------------------------- |
-| `DOCKERHUB_USERNAME`     | `trungnghia2703`        | Docker Hub image namespace                            |
-| `VITE_LIFF_ID`           | LINE Login LIFF ID      | Public Web build-time configuration                   |
 | `PRODUCTION_DEPLOY_PATH` | `/opt/line-smart-queue` | Server directory containing Compose and `deploy/.env` |
 
-Production GitHub Actions secrets:
+`production` environment secrets:
 
 | Secret                       | Purpose                                                |
 | ---------------------------- | ------------------------------------------------------ |
-| `DOCKERHUB_TOKEN`            | Docker Hub access token with push permission           |
 | `PRODUCTION_SSH_HOST`        | Production hostname or IP                              |
 | `PRODUCTION_SSH_PORT`        | SSH port; may be omitted to use `22`                   |
 | `PRODUCTION_SSH_USER`        | Restricted deployment user                             |
 | `PRODUCTION_SSH_PRIVATE_KEY` | Private half of a dedicated deployment key             |
 | `PRODUCTION_SSH_KNOWN_HOSTS` | Pinned server host-key line from trusted `ssh-keyscan` |
+
+The repository scope for the Docker Hub build credentials is intentional: GitHub does not expose
+environment variables or secrets until the environment-protected deploy job starts, but images
+must be built and pushed before production approval. Runtime/server secrets remain environment or
+VPS scoped.
+
+### Required GitHub repository setup
+
+1. Open **Settings → Secrets and variables → Actions**. Under **Variables**, create
+   `DOCKERHUB_USERNAME` and `VITE_LIFF_ID`. Under **Secrets**, create `DOCKERHUB_TOKEN`; never put
+   its value in a variable, workflow, log, or committed env file.
+2. Open **Settings → Environments → production**. Add at least one authorized required reviewer,
+   restrict deployment branches/tags to the `main` branch, add `PRODUCTION_DEPLOY_PATH`, and add the
+   six `PRODUCTION_SSH_*` secrets listed above.
+3. Open **Settings → Rules → Rulesets** and create or update the branch ruleset targeting only
+   `main`. Set enforcement to **Active**, block deletion and force pushes, require a pull request,
+   require linear history, and require branches to be up to date before merge.
+4. In the same ruleset, require the status checks `🔐 Secret scan`, `🛡️ Dependency audit`, and
+   `🎭 Browser E2E`. The browser job depends on the remaining repository quality and Compose jobs,
+   so these contexts close the full CI dependency graph. Do not add a blanket update restriction
+   that prevents GitHub from applying an approved PR merge.
+5. Merge through the GitHub PR UI with **Squash and merge** or **Rebase and merge** only after all
+   rules pass. Do not push or locally merge directly into protected `main`, and never bypass a
+   required check to start CD.
+
+### Emergency/manual application release
+
+If GitHub Actions is unavailable and an authorized incident operator approves a manual release,
+use `scripts/release/publish-images.ps1` from the exact clean commit, then run
+`deploy/backup/deploy-safe.sh <printed-git-SHA-tag>` on the VPS. Record the commit, image refs,
+backup ID, approval, health evidence, and reason in the operations log. This path retains the same
+backup, immutable identity, automatic application rollback, and no-automatic-data-restore rules;
+it is not the normal production workflow.
 
 The matching public key belongs in the deployment user's `~/.ssh/authorized_keys`. Give that user
 only the Docker/Compose permissions needed under the deploy directory. Keep runtime values such as

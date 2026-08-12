@@ -22,13 +22,13 @@ worker source paths that must be reviewed together.
 |-- docker/                  API/web Dockerfiles and nginx config
 |-- scripts/
 |   |-- deployment/         Persistent-media validation
-|   |-- release/            PowerShell immutable-image publisher and plan test
+|   |-- release/            Emergency PowerShell publisher plus release-workflow tests
 |   \-- scalability/        Isolated scale/failure runners
 |-- deploy/
 |   |-- docker-compose.yml   Production immutable-image stack and persistent volumes
 |   \-- backup/              Versioned VPS backup, verify, restore, deploy, rollback, and rehearsal tooling
 |-- docs/                    Canonical documentation and historical archive
-|-- .github/workflows/       Split CI gates and manual production CD
+|-- .github/workflows/       PR/main CI gates and automatic validated-main production CD
 |-- docker-compose.dev.yml   Hot-reload local stack
 \-- docker-compose.validation.yml Isolated two-API failure/load topology
 ```

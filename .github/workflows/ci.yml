@@ -2,9 +2,9 @@ name: CI Quality Gates
 
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
-    branches: [main, chore/dev]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -118,6 +118,9 @@ jobs:
       - name: 🏷️ Validate full-SHA build and push plan
         shell: pwsh
         run: ./scripts/release/tests/publish-images.test.ps1
+      - name: 🔁 Validate automatic validated-main release workflow
+        shell: pwsh
+        run: ./scripts/release/tests/workflows.test.ps1
 
   backup-recovery:
     name: 🛟 Backup and restore rehearsal

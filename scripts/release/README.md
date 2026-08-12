@@ -1,6 +1,12 @@
-# Immutable image publishing
+# Emergency/manual immutable image publishing
 
-Run the publisher from a clean, reviewed Git commit on a Windows workstation with Docker Desktop
+The normal production path is `.github/workflows/deploy.yml`: a successful `CI Quality Gates` run
+for the merged `main` revision automatically builds and publishes both images, then waits for the
+GitHub `production` environment approval before deploying that exact revision. Developers do not
+run this script during a normal release.
+
+Keep this publisher for an explicitly approved emergency/manual release. Run it from a clean,
+reviewed Git commit on a Windows workstation with Docker Desktop
 and an existing `docker login`. The script resolves the full lowercase commit SHA itself, builds
 the API and Web `runner` stages, attaches the OCI revision label, and pushes both
 `git-<40-character-sha>` and `latest` tags:
@@ -11,7 +17,7 @@ pwsh -NoProfile -File scripts/release/publish-images.ps1 `
   -RegistryNamespace docker.io/trungnghia2703
 ```
 
-The immutable tag printed as `RELEASE_TAG=...` is the only deployment input. `latest` is a mutable
+The immutable tag printed as `RELEASE_TAG=...` is the only manual deployment input. `latest` is a mutable
 operator convenience and must never be supplied to production deployment. Preview the exact build
 and push plan without Docker access using `-DryRun`; `-AllowDirty` exists only for explicit tooling
 tests because publishing a dirty worktree would break commit-to-image traceability.
@@ -30,6 +36,7 @@ deploy/backup/deploy-safe.sh git-0123456789abcdef0123456789abcdef01234567
 
 The server derives the two full image references, creates and verifies a restore point, atomically
 updates only `LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` in `deploy/.env`, pulls, migrates,
-recreates application services, and checks health. Rollback takes a verified pre-deployment backup
-ID and restores the prior image references from that snapshot's metadata; it never guesses a tag
-or uses `latest`.
+recreates application services, and checks health. If a post-mutation release step fails,
+`deploy-safe.sh` automatically attempts application-only rollback from that verified restore
+point. Operators can retry `rollback.sh` with the same backup ID. Neither path guesses a tag, uses
+`latest`, or automatically restores database/media data.

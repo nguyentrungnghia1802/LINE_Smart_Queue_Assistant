@@ -1,12 +1,12 @@
-name: CD (manual production release)
+name: CD (validated main production release)
 
 on:
-  workflow_dispatch:
-    inputs:
-      confirm:
-        description: 'Type DEPLOY to build, publish, and deploy the selected ref'
-        required: true
-        type: string
+  workflow_run:
+    workflows: ['CI Quality Gates']
+    types: [completed]
+    branches: [main]
+
+run-name: Production release ${{ github.event.workflow_run.head_sha }}
 
 permissions:
   contents: read
@@ -16,23 +16,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  validate-input:
-    name: Validate release confirmation
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Require explicit confirmation
-        env:
-          CONFIRM: ${{ inputs.confirm }}
-        run: |
-          if [[ "$CONFIRM" != "DEPLOY" ]]; then
-            echo "The confirm input must be exactly DEPLOY." >&2
-            exit 1
-          fi
-
   build-publish:
     name: Build and publish immutable images
-    needs: validate-input
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -42,11 +31,14 @@ jobs:
       api_latest: ${{ steps.metadata.outputs.api_latest }}
       web_latest: ${{ steps.metadata.outputs.web_latest }}
     env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
       DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
       VITE_LIFF_ID: ${{ vars.VITE_LIFF_ID }}
     steps:
-      - name: 📥 Checkout selected ref
+      - name: 📥 Checkout validated main revision
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
 
       - name: 🏷️ Resolve immutable image tag
         id: metadata
@@ -63,7 +55,7 @@ jobs:
             echo "VITE_LIFF_ID contains unsupported characters." >&2
             exit 1
           fi
-          tag="git-${GITHUB_SHA}"
+          tag="git-${RELEASE_SHA}"
           if [[ ! "$tag" =~ ^git-[0-9a-f]{40}$ ]]; then
             echo "The selected ref did not resolve to a full lowercase Git SHA." >&2
             exit 1
@@ -97,7 +89,7 @@ jobs:
           tags: |
             ${{ steps.metadata.outputs.api_image }}
             ${{ steps.metadata.outputs.api_latest }}
-          labels: org.opencontainers.image.revision=${{ github.sha }}
+          labels: org.opencontainers.image.revision=${{ env.RELEASE_SHA }}
 
       - name: 🌐 Build and push Web image
         uses: docker/build-push-action@v6
@@ -111,11 +103,11 @@ jobs:
             VITE_LIFF_ID=${{ vars.VITE_LIFF_ID }}
             VITE_LIFF_MOCK=false
             VITE_PAYMENT_MODE=demo
-            VITE_SENTRY_RELEASE=${{ github.sha }}
+            VITE_SENTRY_RELEASE=${{ env.RELEASE_SHA }}
           tags: |
             ${{ steps.metadata.outputs.web_image }}
             ${{ steps.metadata.outputs.web_latest }}
-          labels: org.opencontainers.image.revision=${{ github.sha }}
+          labels: org.opencontainers.image.revision=${{ env.RELEASE_SHA }}
 
   deploy:
     name: Deploy to production server
@@ -125,6 +117,7 @@ jobs:
     environment:
       name: production
     env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
       IMAGE_TAG: ${{ needs.build-publish.outputs.image_tag }}
       DEPLOY_PATH: ${{ vars.PRODUCTION_DEPLOY_PATH }}
       SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
@@ -133,8 +126,10 @@ jobs:
       SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
       SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
     steps:
-      - name: 📥 Checkout selected release tooling
+      - name: 📥 Checkout validated release tooling
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
 
       - name: 🔐 Configure pinned SSH
         run: |
@@ -172,7 +167,7 @@ jobs:
 
       - name: 🚀 Backup-gated immutable release
         run: |
-          remote_env=$(printf 'DEPLOY_PATH=%q IMAGE_TAG=%q TOOLING_REVISION=%q' "$DEPLOY_PATH" "$IMAGE_TAG" "$GITHUB_SHA")
+          remote_env=$(printf 'DEPLOY_PATH=%q IMAGE_TAG=%q TOOLING_REVISION=%q' "$DEPLOY_PATH" "$IMAGE_TAG" "$RELEASE_SHA")
           ssh -i "$RUNNER_TEMP/production_deploy_key" \
             -p "$SSH_PORT" \
             -o IdentitiesOnly=yes \

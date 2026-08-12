@@ -35,16 +35,28 @@ log "Web image: $target_web"
 confirm_exact "DEPLOY $backup_id" "$confirmation" 'Type the deployment confirmation'
 
 deploy_succeeded=false
+release_mutation_started=false
 on_deploy_exit() {
   local status=$?
   if [[ "$deploy_succeeded" != true ]]; then
-    log "Deployment failed. Application rollback (no data restore): $SCRIPT_DIR/rollback.sh $backup_id"
+    trap - EXIT
+    if [[ "$release_mutation_started" == true ]]; then
+      log "Deployment failed. Attempting application rollback from verified metadata: $backup_id"
+      if ROLLBACK_CONFIRMATION="ROLLBACK $backup_id" "$SCRIPT_DIR/rollback.sh" "$backup_id"; then
+        log 'Application rollback completed; deployment remains failed for operator investigation'
+      else
+        log "Automatic application rollback failed. Retry manually: $SCRIPT_DIR/rollback.sh $backup_id"
+      fi
+    else
+      log 'Deployment failed before release state was changed; application rollback was not required'
+    fi
     log "Full data restore requires separate confirmation: $SCRIPT_DIR/restore.sh $backup_id"
   fi
   exit "$status"
 }
 trap on_deploy_exit EXIT
 
+release_mutation_started=true
 update_env_image_references "$target_api" "$target_web"
 export LINE_QUEUE_API_IMAGE=$target_api
 export LINE_QUEUE_WEB_IMAGE=$target_web

@@ -685,22 +685,41 @@ Supersede them explicitly when necessary.
 
 ---
 
-# 17. Branch Workflow
+# 17. Branch And Pull Request Workflow
 
 Before editing repository state:
 
 1. Inspect the current branch.
 2. Inspect the working tree.
-3. Identify unrelated uncommitted user changes.
-4. Preserve unrelated work.
+3. Inspect relevant remote branch state when available.
+4. Identify unrelated uncommitted user changes.
+5. Preserve unrelated work.
 
-For new feature/fix work, use an appropriately named task branch when branch creation is part of the requested workflow.
+For feature, fix, operations, documentation, or other repository changes, use an appropriately named task branch when branch creation is part of the requested workflow.
 
 Suggested branch names:
 
 - `feat/<short-name>`
 - `fix/<short-name>`
 - `chore/<short-name>`
+
+The canonical development flow is:
+
+Task Branch
+→ Commit
+→ Push Task Branch
+→ Pull Request to `main`
+→ Required CI Checks
+→ Merge through GitHub
+→ Post-merge Release/CD when applicable
+
+`main` is a protected integration and release branch.
+
+Do not use local merges into `main` as the normal development workflow.
+
+Do not push task commits directly to `main`.
+
+Do not bypass required Pull Requests or required status checks.
 
 Keep commits focused on the current task.
 
@@ -710,59 +729,129 @@ Do not:
 - force-push unless explicitly requested and confirmed safe;
 - discard unrelated changes;
 - reset unrelated files;
-- clean the working tree destructively to simplify the task.
+- clean the working tree destructively to simplify the task;
+- locally merge a task branch into `main` as a substitute for a Pull Request;
+- bypass branch protection or repository rules;
+- push directly to `main` merely to complete task finalization.
 
 If unrelated user work prevents safe implementation, report the conflict rather than overwriting it.
 
+If repository rules or external GitHub configuration prevent the required Pull Request workflow from completing, preserve the completed task branch and report the exact blocker instead of bypassing the protection.
+
 ---
 
-# 18. Commit, Merge, Push, And Remote Finalization
+# 18. Commit, Push, Pull Request, And Remote Finalization
 
-Commit, merge, push, and branch deletion are repository-state-changing operations.
+Commit, push, Pull Request creation, merging, and branch deletion are repository-state-changing operations.
 
 They must only be performed when:
 
 - the current prompt explicitly requests finalization/remote synchronization; or
 - the current prompt explicitly instructs the agent to follow this finalization workflow.
 
-Do not automatically merge or push merely because implementation is complete.
+Do not automatically commit, push, create a Pull Request, merge, or delete branches merely because implementation is complete.
 
 ## When finalization is explicitly requested
 
 Follow this sequence:
 
-1. Ensure implementation, tests, and canonical documentation updates are complete.
-2. Ensure required validation passes.
-3. Inspect the working tree and branch state.
-4. Commit only completed task changes.
-5. Merge the completed task branch into `chore/dev`.
-6. Resolve conflicts only when safe and unambiguous.
-7. Push `chore/dev`.
-8. Merge the updated `chore/dev` into `main`.
-9. Push `main`.
-10. Verify both remote branches contain the completed work.
-11. Only after verification, delete the completed task branch locally and remotely.
-12. Never delete:
-    - `main`;
-    - `chore/dev`.
+1. Ensure implementation, tests, task-plan status, and affected canonical documentation are complete.
+2. Ensure all required validation passes.
+3. Inspect the final diff, working tree, current branch, and relevant remote state.
+4. Confirm that no secrets, runtime `.env`, credentials, production backup data, temporary artifacts, or unrelated user changes are included.
+5. Commit only the completed task changes on the task branch.
+6. Push the task branch to the remote.
+7. Create or update a Pull Request from the task branch into `main` when repository tooling and permissions allow.
+8. Ensure the Pull Request targets `main`.
+9. Allow required CI/status checks and repository rules to govern merge eligibility.
+10. Merge through the protected GitHub Pull Request workflow only when:
+    - required checks have passed;
+    - repository rules allow the merge;
+    - required approvals, if configured, are satisfied;
+    - the current prompt authorizes completion through merge.
+11. Do not locally merge into `main` and push it as a workaround for Pull Request or branch-protection requirements.
+12. After the Pull Request is successfully merged, verify that remote `main` contains the completed work.
+13. If the merge triggers release or deployment automation, distinguish repository completion from production deployment completion. Do not claim production deployment succeeded unless the corresponding deployment workflow and required external verification actually succeeded.
+14. Delete the completed task branch only after the merge is verified and only when branch deletion is safe and permitted.
+15. Preserve unrelated user branches and work.
 
-Expected final repository state:
+## Pull Request unavailable
 
-- `chore/dev` contains the completed work locally and remotely.
-- `main` contains the same completed work locally and remotely.
-- The completed task branch has been deleted locally and remotely.
-- No completed task changes remain uncommitted.
-- Unrelated user changes remain untouched.
+If the agent cannot create or merge a Pull Request because GitHub tooling, authentication, repository permissions, required approvals, environment protection, or repository settings are unavailable:
+
+1. Complete implementation and validation.
+2. Commit the completed work.
+3. Push the task branch.
+4. Do not push the task changes directly to `main`.
+5. Do not bypass branch protection.
+6. Report:
+   - the pushed branch name;
+   - the commit SHA;
+   - the intended PR target (`main`);
+   - the exact remaining manual GitHub action.
+
+The task may be implementation-complete while remote finalization remains pending.
+
+State that distinction explicitly.
+
+## CI/CD boundary
+
+A successful merge into `main` may trigger release or deployment workflows.
+
+Repository finalization and production deployment are separate states.
+
+Do not:
+
+- manually build production images merely because the task was merged;
+- manually assign production image tags when CI/CD owns release tagging;
+- manually deploy to production when the configured CD workflow owns deployment;
+- claim production success based only on a successful merge.
+
+When CI/CD is configured as the production release mechanism, allow it to build, publish, approve, back up, deploy, and verify the release according to the repository's deployment workflow.
+
+## `chore/dev`
+
+`chore/dev` is not part of the canonical task finalization path unless a current repository requirement explicitly assigns it a separate purpose.
+
+Do not merge task branches into `chore/dev` merely as an intermediate step before `main`.
+
+If `chore/dev` still exists remotely, preserve it unless the current task explicitly authorizes its removal.
+
+Do not delete or repurpose it opportunistically.
+
+## Expected final repository state
+
+For a fully finalized task:
+
+- the completed task was committed on its task branch;
+- the task branch was pushed;
+- a Pull Request targeted `main`;
+- required CI/status checks passed;
+- the Pull Request was merged through the protected GitHub workflow;
+- remote `main` contains the completed work;
+- the completed task branch was deleted when appropriate;
+- no completed task changes remain uncommitted;
+- unrelated user changes remain untouched.
+
+For a task awaiting manual GitHub finalization:
+
+- implementation and validation are complete;
+- the task branch is committed and pushed;
+- `main` has not been modified directly;
+- the remaining Pull Request/approval/merge action is reported explicitly.
 
 ## Stop conditions
 
-Do not merge, push, or delete branches if:
+Do not merge, push directly to protected branches, bypass rules, or delete branches if:
 
 - required validation failed;
-- remote state has unexpected commits;
+- required CI checks failed;
+- remote state contains unexpected conflicting commits;
 - merge conflicts are materially ambiguous;
 - unrelated user work would be overwritten;
-- destructive resolution would be required.
+- required repository protection prevents the operation;
+- destructive resolution would be required;
+- production deployment approval has not been granted where required.
 
 Report the blocker instead.
 

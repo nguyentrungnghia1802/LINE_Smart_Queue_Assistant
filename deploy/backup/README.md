@@ -70,8 +70,10 @@ deploy/backup/deploy-safe.sh git-0123456789abcdef0123456789abcdef01234567
 The script will not pull, migrate, or recreate application containers unless pre-deployment backup
 and independent verification succeed. After verification and confirmation it atomically updates
 only `LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` in the server's existing `deploy/.env`, then
-pulls and deploys those exact references. It never runs `down`, removes volumes, copies secrets, or
-automatically restores data.
+pulls and deploys those exact references. If a pull, migration, recreate, mount assertion, or health
+check fails after that update, its exit trap automatically invokes application-only rollback from
+the verified snapshot metadata and still returns failure for investigation. It never runs `down`,
+removes volumes, copies secrets, or automatically restores data.
 
 Application rollback is intentionally separate from data recovery:
 
@@ -84,7 +86,8 @@ Rollback reads the prior immutable API/Web references from verified metadata, at
 those exact references back to `deploy/.env`, and recreates only application services. It does not
 restore PostgreSQL/media or reverse migrations and never derives rollback from `latest`. Use it
 only while the prior application is compatible with the current expanded schema; otherwise prefer
-a forward fix or an explicitly approved full restore.
+a forward fix or an explicitly approved full restore. The same command is also the documented
+manual retry when the automatic application rollback cannot complete.
 
 ## Permissions, scheduling, and disaster recovery
 

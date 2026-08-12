@@ -58,7 +58,9 @@ metadata, and writes runtime snapshots outside the checkout. Redis is intentiona
 BullMQ coordination, caches, rate-limit state, and Pub/Sub are reconstructable while PostgreSQL is
 the business authority. Safe deployment cannot pull or migrate a new image until the matched
 snapshot passes checksum, dump, archive, and completion-marker verification. Application rollback
-uses prior image references without implicitly restoring data.
+uses prior image references without implicitly restoring data. If a release fails after image
+references have changed, the safe deploy trap automatically attempts that application-only
+rollback and preserves the original failure for operator investigation.
 
 `docker-compose.validation.yml` is a destructive, isolated engineering topology rather than a
 deployment file. Its nginx gateway balances two API replicas that share PostgreSQL and Redis while

@@ -6,11 +6,17 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Replaced manual production dispatch with validated-main CD. A successful CI run for the merged
+  `main` SHA now builds/pushes the API and Web release before the protected `production` approval;
+  the workflow then deploys only that SHA. Static workflow validation covers triggers, source SHA,
+  approval ordering, concurrency, and immutable deployment input.
+
 - Standardized immutable API/Web releases around the full Git SHA. A local PowerShell publisher
   builds and pushes both `git-<40-character-sha>` and `latest`; production deployment accepts only
   the immutable tag, verifies a pre-deployment backup before atomically updating image references
-  in `deploy/.env`, then pulls, migrates, recreates, and probes health. Rollback now persists the
-  exact prior image references from verified snapshot metadata instead of relying on a moving tag.
+  in `deploy/.env`, then pulls, migrates, recreates, and probes health. A failed post-mutation
+  release automatically attempts application-only rollback using exact prior references from
+  verified snapshot metadata instead of relying on a moving tag or restoring data.
 
 - Added versioned VPS tooling for matched PostgreSQL/local-media snapshots, checksum and dump/archive
   verification, conservative retention, guarded restore, backup-gated immutable-image deployment,
