@@ -6,6 +6,11 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Added versioned VPS tooling for matched PostgreSQL/local-media snapshots, checksum and dump/archive
+  verification, conservative retention, guarded restore, backup-gated immutable-image deployment,
+  and application-only rollback. CI now rehearses representative database/media recovery and
+  rejects corrupt, missing, incomplete, unconfirmed, and backup-gate failure cases.
+
 - Made persistent VPS-local media the official production-oriented demo configuration. Production
   Compose mounts `media_data` at `/app/var/media`, configuration/tests keep S3 optional, and CI
   verifies a recreated non-root API container can read data written through the same volume.

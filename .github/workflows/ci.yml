@@ -109,6 +109,16 @@ jobs:
       - name: 💾 Verify named-volume persistence across container recreation
         run: npm run media:persistence:verify
 
+  backup-recovery:
+    name: 🛟 Backup and restore rehearsal
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🛟 Rehearse isolated database/media recovery and deploy gate
+        run: bash deploy/backup/tests/rehearsal.sh
+
   lint:
     name: 🧹 Lint
     runs-on: ubuntu-latest
@@ -284,6 +294,7 @@ jobs:
       - spelling
       - compose-validation
       - media-persistence
+      - backup-recovery
       - lint
       - typecheck
       - openapi

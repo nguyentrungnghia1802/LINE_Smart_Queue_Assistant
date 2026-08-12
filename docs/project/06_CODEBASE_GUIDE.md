@@ -21,11 +21,13 @@ worker source paths that must be reviewed together.
 |   \-- fixtures/e2e/        Isolated browser-test tenant and operational data
 |-- docker/                  API/web Dockerfiles and nginx config
 |-- scripts/                 Root migration/reset and isolated scalability runners
+|-- deploy/
+|   |-- docker-compose.yml   Production immutable-image stack and persistent volumes
+|   \-- backup/              Versioned VPS backup, verify, restore, deploy, rollback, and rehearsal tooling
 |-- docs/                    Canonical documentation and historical archive
 |-- .github/workflows/       CI
 |-- docker-compose.dev.yml   Hot-reload local stack
-|-- docker-compose.validation.yml Isolated two-API failure/load topology
-\-- deploy/docker-compose.yml Production image-based stack
+\-- docker-compose.validation.yml Isolated two-API failure/load topology
 ```
 
 ## 2. Backend layout

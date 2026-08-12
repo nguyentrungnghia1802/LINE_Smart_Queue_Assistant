@@ -122,6 +122,9 @@ jobs:
       SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
       SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
     steps:
+      - name: 📥 Checkout selected release tooling
+        uses: actions/checkout@v4
+
       - name: 🔐 Configure pinned SSH
         run: |
           install -m 700 -d "$HOME/.ssh"
@@ -130,9 +133,35 @@ jobs:
           printf '%s\n' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/production_deploy_key"
           chmod 600 "$RUNNER_TEMP/production_deploy_key"
 
-      - name: 🚀 Pull, migrate, and start immutable release
+      - name: 📤 Sync versioned Compose and recovery tooling
+        env:
+          TOOLING_ARCHIVE: /tmp/line-smart-queue-deploy-${{ github.run_id }}.tar.gz
         run: |
-          remote_env=$(printf 'DEPLOY_PATH=%q API_IMAGE=%q WEB_IMAGE=%q' "$DEPLOY_PATH" "$API_IMAGE" "$WEB_IMAGE")
+          tar -czf "$RUNNER_TEMP/deploy-tooling.tar.gz" deploy/docker-compose.yml deploy/backup
+          scp -i "$RUNNER_TEMP/production_deploy_key" \
+            -P "$SSH_PORT" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$RUNNER_TEMP/deploy-tooling.tar.gz" \
+            "$SSH_USER@$SSH_HOST:$TOOLING_ARCHIVE"
+          remote_env=$(printf 'DEPLOY_PATH=%q TOOLING_ARCHIVE=%q' "$DEPLOY_PATH" "$TOOLING_ARCHIVE")
+          ssh -i "$RUNNER_TEMP/production_deploy_key" \
+            -p "$SSH_PORT" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" "$remote_env bash -se" <<'REMOTE'
+          set -euo pipefail
+          test -d "$DEPLOY_PATH"
+          test -f "$DEPLOY_PATH/deploy/.env"
+          cd "$DEPLOY_PATH"
+          tar -xzf "$TOOLING_ARCHIVE"
+          rm -f -- "$TOOLING_ARCHIVE"
+          chmod 700 deploy/backup/*.sh deploy/backup/tests/*.sh
+          REMOTE
+
+      - name: 🚀 Backup-gated immutable release
+        run: |
+          remote_env=$(printf 'DEPLOY_PATH=%q API_IMAGE=%q WEB_IMAGE=%q TOOLING_REVISION=%q' "$DEPLOY_PATH" "$API_IMAGE" "$WEB_IMAGE" "$GITHUB_SHA")
           ssh -i "$RUNNER_TEMP/production_deploy_key" \
             -p "$SSH_PORT" \
             -o IdentitiesOnly=yes \
@@ -143,21 +172,10 @@ jobs:
           test -f deploy/.env
           export LINE_QUEUE_API_IMAGE="$API_IMAGE"
           export LINE_QUEUE_WEB_IMAGE="$WEB_IMAGE"
-          compose=(docker compose --env-file deploy/.env -f deploy/docker-compose.yml)
-          "${compose[@]}" config -q
-          "${compose[@]}" pull api worker web
-          "${compose[@]}" up -d postgres redis
-          "${compose[@]}" run --rm api npm run db:migrate
-          "${compose[@]}" up -d --remove-orphans --wait api worker web
-          api_container=$("${compose[@]}" ps -q api)
-          media_mount_type=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/app/var/media"}}{{.Type}}{{end}}{{end}}' "$api_container")
-          test "$media_mount_type" = volume
-          "${compose[@]}" exec -T api sh -eu -c '
-            if [ "${MEDIA_STORAGE_PROVIDER:-}" = local ]; then
-              test "$MEDIA_LOCAL_DIR" = /app/var/media
-              test -w /app/var/media
-            fi
-          '
-          "${compose[@]}" exec -T web wget -qO- http://127.0.0.1/health >/dev/null
-          "${compose[@]}" ps
+          export BACKUP_TOOLING_REVISION="$TOOLING_REVISION"
+          export DEPLOY_APPROVED=GITHUB_ENVIRONMENT_APPROVED
+          backup_id=$(deploy/backup/deploy-safe.sh)
+          deploy/backup/verify-backup.sh "$backup_id" >/dev/null
+          docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps
+          printf 'Verified pre-deployment backup: %s\n' "$backup_id"
           REMOTE

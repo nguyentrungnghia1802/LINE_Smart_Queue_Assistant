@@ -104,13 +104,13 @@ _Staffは顧客、注文、Ticket状態、残金、対応操作を1画面で扱�
 - LINE Login同意、友だち追加、Rich Menu、Flex Message、native QR scanner、通知バナーは実機確認が必要です。
 - Google Routesの実利用にはproduction credentialとprivacy同意が必要です。
 - ETAは運用データによるheuristicで、学習済みMLモデルではありません。
-- 現在のVPS demoではmediaをpersistent Docker volumeに保存します。off-host backup／restore、scanning、production-scale負荷試験は追加受入が必要で、S3-compatible storageは将来のoptional構成です。
+- 現在のVPS demoではmediaをpersistent Docker volumeに保存します。PostgreSQLとmediaを同じrestore pointとして検証するbackup、明示確認付きrestore、backup-gated CD、image-only rollbackを`deploy/backup`に実装しています。暗号化off-host copyと実VPS restore drill、scanning、production-scale負荷試験は追加受入が必要で、S3-compatible storageは将来のoptional構成です。
 - LINE配信運用画面はBranch Managerと割り当てられたStaffが利用できます。実LINE端末、友だち状態、通知表示、
   retention・監視運用は別途受入が必要です。
 
 ### 短い技術情報
 
-システムはReact/ViteのWeb UI、Express/TypeScript API、PostgreSQLで構成され、Docker Composeで隔離されたローカル検証ができます。Customer認証のLINE Login/LIFFと通知のLINE Messaging APIは別機能です。価格、Organization、Branch、LINE User ID、payment status、権限範囲はbrowser入力を信用せず、server側で確認します。CIはpush／PRでsecret、依存、format、spell、Compose、test、build、browser E2Eを検証します。本番CDは`DEPLOY`確認と`production` approvalが必要な手動workflowで、不変image tagを配布し、サーバーの`deploy/.env`はコピーしません。
+システムはReact/ViteのWeb UI、Express/TypeScript API、PostgreSQLで構成され、Docker Composeで隔離されたローカル検証ができます。Customer認証のLINE Login/LIFFと通知のLINE Messaging APIは別機能です。価格、Organization、Branch、LINE User ID、payment status、権限範囲はbrowser入力を信用せず、server側で確認します。CIはpush／PRでsecret、依存、format、spell、Compose、backup/restore rehearsal、test、build、browser E2Eを検証します。本番CDは`DEPLOY`確認と`production` approvalに加えて検証済みpre-deployment backupを必須とし、不変image tagを配布します。サーバーの`deploy/.env`はコピーしません。
 
 ### ガイドと連絡先
 
@@ -226,13 +226,13 @@ _Staff sees customer, order, Ticket state, balance, and service actions together
 - LINE Login consent, Add Friend, Rich Menu, Flex Message, native QR scanner, and notification banners require physical-device testing.
 - Real Google Routes use requires production credentials and privacy consent.
 - ETA is an operational heuristic, not a trained ML model.
-- The current VPS demo persists media in a Docker named volume. Off-host backup/restore, scanning, and production-scale load testing require further acceptance; S3-compatible storage remains optional for a future deployment.
+- The current VPS demo persists media in a Docker named volume. `deploy/backup` now creates and verifies matched PostgreSQL/media restore points, guards destructive restore, gates CD on backup, and rolls application images back separately. Encrypted off-host copies, a real VPS restore drill, scanning, and production-scale load testing still require acceptance; S3-compatible storage remains optional.
 - The LINE delivery operations page is available to Branch Managers and assigned Staff. Physical LINE
   devices, friend state, rendered notifications, retention, and monitoring still require separate acceptance.
 
 ### Short technical note
 
-The system uses a React/Vite web UI, an Express/TypeScript API, and PostgreSQL, and supports isolated local verification through Docker Compose. LINE Login/LIFF customer authentication and LINE Messaging API notification delivery are separate. The server revalidates price, Organization, Branch, LINE User ID, payment status, and authorization rather than trusting browser input. CI validates secrets, dependencies, formatting, spelling, Compose files, tests, build, and browser E2E on pushes and pull requests. Production CD is a manual workflow requiring `DEPLOY` confirmation and `production` approval; it publishes immutable image tags and never copies the server's `deploy/.env`.
+The system uses a React/Vite web UI, an Express/TypeScript API, and PostgreSQL, and supports isolated local verification through Docker Compose. LINE Login/LIFF customer authentication and LINE Messaging API notification delivery are separate. The server revalidates price, Organization, Branch, LINE User ID, payment status, and authorization rather than trusting browser input. CI validates secrets, dependencies, formatting, spelling, Compose files, backup/restore rehearsal, tests, build, and browser E2E. Production CD requires manual `DEPLOY` confirmation, `production` approval, and a verified pre-deployment backup; it publishes immutable image tags and never copies the server's `deploy/.env`.
 
 ### Guide and contact
 
@@ -348,13 +348,13 @@ _Staff xem khách, đơn, trạng thái Ticket, số dư và thao tác phục v�
 - LINE Login consent, Add Friend, Rich Menu, Flex Message, native QR scanner và notification banner cần kiểm thử trên thiết bị thật.
 - Google Routes thực cần production credentials và chấp thuận privacy.
 - ETA là heuristic vận hành, không phải mô hình ML đã huấn luyện.
-- Demo VPS hiện tại lưu media trong Docker named volume bền vững. Backup/restore off-host, scanning và kiểm thử tải production vẫn cần nghiệm thu; S3-compatible storage là lựa chọn optional cho tương lai.
+- Demo VPS hiện tại lưu media trong Docker named volume bền vững. `deploy/backup` tạo và xác minh restore point đồng bộ PostgreSQL/media, bảo vệ restore bằng xác nhận mạnh, chặn CD nếu backup lỗi và rollback application image tách biệt. Bản sao off-host mã hoá, restore drill trên VPS thật, scanning và kiểm thử tải production vẫn cần nghiệm thu; S3-compatible storage là lựa chọn optional.
 - Màn hình vận hành LINE dành cho Branch Manager và Staff được gán đã có. Thiết bị LINE thật, trạng thái kết bạn,
   hiển thị notification, retention và monitoring vẫn cần nghiệm thu riêng.
 
 ### Ghi chú kỹ thuật ngắn
 
-Hệ thống dùng Web UI React/Vite, API Express/TypeScript và PostgreSQL; có thể kiểm thử local cô lập bằng Docker Compose. LINE Login/LIFF dùng để xác thực Customer, còn LINE Messaging API dùng để gửi notification — đây là hai capability riêng. Server xác minh lại price, Organization, Branch, LINE User ID, payment status và authorization thay vì tin dữ liệu browser gửi lên. CI kiểm tra secret, dependency, format, spell, Compose, test, build và browser E2E trên push/pull request. CD production là workflow thủ công cần nhập `DEPLOY` và được duyệt ở Environment `production`; workflow phát hành image tag bất biến và không sao chép `deploy/.env` trên server.
+Hệ thống dùng Web UI React/Vite, API Express/TypeScript và PostgreSQL; có thể kiểm thử local cô lập bằng Docker Compose. LINE Login/LIFF dùng để xác thực Customer, còn LINE Messaging API dùng để gửi notification — đây là hai capability riêng. Server xác minh lại price, Organization, Branch, LINE User ID, payment status và authorization thay vì tin dữ liệu browser gửi lên. CI kiểm tra secret, dependency, format, spell, Compose, backup/restore rehearsal, test, build và browser E2E. CD production cần nhập `DEPLOY`, được duyệt ở Environment `production` và có pre-deployment backup đã xác minh; workflow phát hành image tag bất biến và không sao chép `deploy/.env` trên server.
 
 ### Hướng dẫn và liên hệ
 
