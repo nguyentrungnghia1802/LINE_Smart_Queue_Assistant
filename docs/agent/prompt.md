@@ -8,6 +8,9 @@ documentation, branch safety và giới hạn Git/remote operations.
 Mỗi prompt chỉ mô tả **mục tiêu hiện tại** và **mức finalization được phép**. Không lặp lại các rule đã có trong
 `AGENTS.md`.
 
+Theo mặc định, remote CI chạy bất đồng bộ. Với finalization chỉ đến push hoặc tạo/update Pull Request, Agent
+không chờ hoặc poll CI sau khi remote operation thành công. Chỉ chờ CI khi prompt yêu cầu rõ hoặc khi cần merge.
+
 ---
 
 ## 1. Task tiếp theo
@@ -19,11 +22,12 @@ Tuân thủ `docs/agent/AGENTS.md`.
 
 Chỉ thực hiện task đó. Không chuyển sang task tiếp theo.
 
-Finalization mode: Implementation only.
+Finalization mode: Commit + push task branch.
 ```
 
-Có thể thay dòng cuối bằng `Finalization mode: Commit + push task branch.` nếu muốn Agent
-commit/push sau khi hoàn tất task.
+Dùng `Finalization mode: Implementation only.` nếu chỉ muốn Agent triển khai local, không commit/push.
+
+---
 
 ## 2. Resume task dang dở
 
@@ -42,7 +46,7 @@ Finalization mode: Commit + push task branch.
 
 ## 3. Finalize current changes
 
-Dùng khi các thay đổi hiện tại do tôi tự sửa hoặc không thuộc task trong `task.md`.
+Dùng khi các thay đổi hiện tại cần được review, hoàn thiện, commit và push mà không bắt đầu task mới.
 
 ```text
 Tuân thủ `docs/agent/AGENTS.md`.
@@ -57,41 +61,54 @@ Finalization mode: Commit + push task branch.
 
 ---
 
-## 4. Commit + Push
-
-Dùng khi implementation đã xong và chỉ muốn lưu thay đổi lên remote branch.
+## 4. Task riêng
 
 ```text
 Tuân thủ `docs/agent/AGENTS.md`.
 
-Review trạng thái hiện tại và hoàn tất validation phù hợp nếu còn thiếu.
+Yêu cầu:
+<MÔ TẢ YÊU CẦU>
 
 Finalization mode: Commit + push task branch.
 ```
 
+Nếu muốn Agent commit/push sau task riêng:
+
+```text
+Finalization mode: Commit + push task branch.
+```
+
+Nếu muốn Agent tạo/update PR để bạn tự review:
+
+```text
+Finalization mode: Commit + push + create/update Pull Request vào `main`.
+Không merge Pull Request.
+```
+
+Theo `AGENTS.md`, Agent dừng sau khi push/tạo PR thành công và không chờ CI trừ khi prompt yêu cầu khác.
+
 ---
 
-## 5. Create PR, không merge
+## 5. Create/Update PR
 
-Dùng khi muốn tạo Pull Request để review thủ công.
+Dùng khi branch đã sẵn sàng và chỉ muốn đưa thay đổi lên Pull Request để review thủ công.
 
 ```text
 Tuân thủ `docs/agent/AGENTS.md`.
 
-Review công việc hiện tại và hoàn tất các bước cần thiết để sẵn sàng review.
+Review công việc hiện tại và hoàn tất các bước cần thiết để tạo hoặc cập nhật Pull Request vào `main`.
 
 Finalization mode: Commit + push + create/update Pull Request vào `main`.
 
-Không merge Pull Request và không bật auto-merge.
-
-Báo cáo PR và trạng thái CI hiện tại.
+Không merge Pull Request.
+Không chờ hoặc poll CI sau khi Pull Request được tạo/cập nhật thành công.
 ```
 
 ---
 
 ## 6. PR + Auto-merge
 
-Dùng cho thay đổi đã được phép tự động merge sau khi CI/ruleset đạt yêu cầu.
+Chỉ dùng khi muốn Agent chịu trách nhiệm đến tận bước merge.
 
 ```text
 Tuân thủ `docs/agent/AGENTS.md`.
@@ -100,85 +117,17 @@ Review công việc hiện tại và hoàn tất các bước cần thiết đ�
 
 Finalization mode: Commit + push + Pull Request + auto-merge vào `main`.
 
-Chỉ merge sau khi repository requirements cho phép.
+Chỉ merge sau khi repository requirements và required CI/status checks cho phép.
+
+Nếu xảy ra conflict hoặc required CI fail, kiểm tra nguyên nhân và chỉ sửa khi thuộc phạm vi công việc hiện tại.
+Nếu lỗi nằm ngoài phạm vi hoặc resolution materially ambiguous, dừng và báo thay vì tự mở rộng scope.
 
 Báo cáo PR, CI và merge status cuối cùng.
-
-Nếu xảy ra Conflict hoặc CI fail, tự động kiểm tra lỗi, sửa và retry merge. Không bỏ qua lỗi.
 ```
 
 ---
 
-## 7. Build + Push Docker
-
-Dùng để publish release image nhưng chưa deploy production.
-
-```text
-Tuân thủ `docs/agent/AGENTS.md`.
-
-Build và push các production Docker image cần thiết bằng canonical release tooling hiện tại của repository.
-
-Dùng cùng một immutable release tag cho các image thuộc cùng release và xác minh push thành công.
-
-Không deploy hoặc restart production.
-
-Cuối cùng, in rõ:
-- release tag;
-- full API image reference;
-- full Web image reference;
-- command/tag cần dùng cho bước deploy trên VPS.
-```
-
----
-
-## 8. Deploy production
-
-Dùng sau khi release image đã được publish và có release tag cụ thể.
-
-```text
-Tuân thủ `docs/agent/AGENTS.md`.
-
-Deploy production bằng canonical deployment tooling hiện tại với release tag sau:
-
-<RELEASE_TAG>
-
-Không build hoặc publish image mới.
-Không thay đổi release tag.
-
-Thực hiện đúng các safety gate, backup/verification, health check và rollback behavior đã được repository quy định.
-
-Báo cáo release đã deploy và trạng thái production cuối cùng.
-```
-
----
-
-## 9. Task riêng
-
-```text
-Tuân thủ `docs/agent/AGENTS.md`.
-
-Yêu cầu:
-<MÔ TẢ YÊU CẦU>
-
-Finalization mode: Implementation only.
-```
-
-Nếu muốn Agent commit/push sau task riêng, thay dòng cuối bằng:
-
-```text
-Finalization mode: Commit + push task branch.
-```
-
-Nếu muốn tạo PR nhưng tự review:
-
-```text
-Finalization mode: Commit + push + create/update Pull Request vào `main`.
-Không merge Pull Request.
-```
-
----
-
-## 10. Create Task
+## 7. Create Task
 
 Dùng để tạo chu kỳ task mới sau khi plan hiện tại đã hoàn tất.
 
@@ -221,7 +170,28 @@ Với công việc phát triển thông thường, ưu tiên:
 Finalization mode: Commit + push task branch.
 ```
 
-Chỉ dùng PR/merge prompt khi thực sự muốn Agent thực hiện bước remote tương ứng.
+Flow mặc định:
+
+```text
+Implementation
+→ targeted local validation
+→ commit
+→ push task branch
+→ verify push succeeded
+→ stop
+```
+
+Remote CI tiếp tục chạy bất đồng bộ; Agent không cần chờ.
+
+Khi muốn review qua GitHub:
+
+```text
+Finalization mode: Commit + push + create/update Pull Request vào `main`.
+```
+
+Agent tạo/update PR thành công rồi dừng; CI tiếp tục chạy độc lập.
+
+Chỉ dùng `PR + Auto-merge` khi thực sự muốn Agent theo dõi required checks và chịu trách nhiệm đến bước merge.
 
 Đối với thay đổi quan trọng, security-sensitive, database, authentication, payment, deployment hoặc CI/CD,
-ưu tiên **Create PR, không merge** để review thủ công trước.
+ưu tiên **Create/Update PR, không merge** để review thủ công trước.

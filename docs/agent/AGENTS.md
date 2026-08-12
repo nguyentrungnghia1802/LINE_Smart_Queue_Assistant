@@ -515,10 +515,20 @@ Before any authorized finalization:
 - commit only intended changes;
 - exclude secrets, runtime `.env`, credentials, production backup data, and temporary artifacts.
 
+Remote CI is asynchronous by default and must not block ordinary finalization.
+
+- For level 3, push the task branch, verify that the push succeeded, and stop.
+- For level 4, push the task branch, create/update the Pull Request, verify that the remote operation succeeded, and stop.
+- Do not wait for CI/status checks after push or Pull Request creation unless the current prompt explicitly asks to wait, monitor, diagnose, or merge.
+- Do not repeatedly poll CI/status checks merely to report their eventual result.
+- A pending remote CI run does not make level 3 or level 4 incomplete.
+- If an already-known CI failure is directly relevant to the requested work, report it; do not expand scope automatically unless the prompt authorizes fixing it.
+
 Pull Request creation and merge are separate permissions:
 
-- "create PR" means create/update the PR and stop before merge;
+- "create PR" means create/update the PR and stop before merge; remote CI may continue asynchronously;
 - "create PR and merge" means merge only after required checks/rules pass;
+- level 5 may wait for required CI/status checks because they are a prerequisite for the explicitly authorized merge;
 - enable auto-merge only when explicitly requested.
 
 Do not push task changes directly to protected `main`.
@@ -533,7 +543,8 @@ Never delete `main`. Do not delete `chore/dev` unless explicitly requested and c
 
 Stop and report instead of continuing when:
 
-- required targeted validation or CI failed;
+- required targeted local validation failed;
+- CI failed when the current prompt explicitly requires waiting for CI or completing a merge;
 - remote state contains unexpected commits;
 - merge conflicts are materially ambiguous;
 - unrelated user work would be overwritten;
