@@ -6,6 +6,12 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Added a reviewed manual immutable release path under `deploy/scripts`: the local shell
+  publisher requires the checked-out full Git SHA, builds/pushes API and Web with one tag and no
+  `latest`, while the VPS wrapper delegates backup, verification, migration, recreation, health,
+  and image-metadata rollback to `deploy/backup/deploy-safe.sh`. Web nginx now resolves the API
+  service through Docker DNS at request time so API recreation does not retain a stale upstream IP.
+
 - Standardized immutable API/Web releases around the full Git SHA. A local PowerShell publisher
   builds and pushes both `git-<40-character-sha>` and `latest`; production deployment accepts only
   the immutable tag, verifies a pre-deployment backup before atomically updating image references

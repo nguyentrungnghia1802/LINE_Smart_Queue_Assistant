@@ -118,6 +118,8 @@ jobs:
       - name: 🏷️ Validate full-SHA build and push plan
         shell: pwsh
         run: ./scripts/release/tests/publish-images.test.ps1
+      - name: 🚀 Validate manual immutable release scripts and runtime DNS proxy
+        run: bash deploy/scripts/tests/rehearsal.sh
 
   backup-recovery:
     name: 🛟 Backup and restore rehearsal

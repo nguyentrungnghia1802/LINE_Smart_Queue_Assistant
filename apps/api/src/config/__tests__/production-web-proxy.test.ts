@@ -12,7 +12,10 @@ describe('production web reverse proxy configuration', () => {
     const nginxConfig = readRepoFile('docker/nginx/default.conf');
 
     expect(nginxConfig).toMatch(/location\s+\/api\/\s*\{/);
-    expect(nginxConfig).toMatch(/proxy_pass\s+http:\/\/api:4000;/);
+    expect(nginxConfig).toMatch(/resolver\s+127\.0\.0\.11\s+valid=10s\s+ipv6=off;/);
+    expect(nginxConfig).toMatch(/set\s+\$api_upstream\s+http:\/\/api:4000;/);
+    expect(nginxConfig).toMatch(/proxy_pass\s+\$api_upstream;/);
+    expect(nginxConfig).not.toMatch(/proxy_pass\s+http:\/\/api:4000;/);
     expect(nginxConfig).not.toMatch(/proxy_pass\s+http:\/\/api:4000\/;/);
     expect(nginxConfig).toMatch(/proxy_set_header\s+Host\s+\$host;/);
     expect(nginxConfig).toMatch(/proxy_set_header\s+X-Real-IP\s+\$remote_addr;/);
@@ -29,7 +32,8 @@ describe('production web reverse proxy configuration', () => {
     )?.[1];
 
     expect(realtimeLocation).toBeDefined();
-    expect(realtimeLocation).toMatch(/proxy_pass\s+http:\/\/api:4000;/);
+    expect(realtimeLocation).toMatch(/proxy_pass\s+\$api_upstream;/);
+    expect(realtimeLocation).not.toMatch(/proxy_pass\s+http:\/\/api:4000;/);
     expect(realtimeLocation).not.toMatch(/proxy_pass\s+http:\/\/api:4000\/;/);
     expect(realtimeLocation).toMatch(/proxy_buffering\s+off;/);
     expect(realtimeLocation).toMatch(/proxy_cache\s+off;/);
@@ -42,7 +46,7 @@ describe('production web reverse proxy configuration', () => {
     const nginxConfig = readRepoFile('docker/nginx/default.conf');
 
     expect(nginxConfig).toMatch(/location\s+\/media\/\s*\{/);
-    expect(nginxConfig).toMatch(/proxy_pass\s+http:\/\/api:4000;/);
+    expect(nginxConfig).toMatch(/location\s+\/media\/[\s\S]*?proxy_pass\s+\$api_upstream;/);
     expect(nginxConfig).not.toMatch(/proxy_pass\s+http:\/\/api:4000\/;/);
   });
 
