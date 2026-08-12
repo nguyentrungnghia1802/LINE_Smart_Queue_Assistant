@@ -2,7 +2,7 @@
 
 # Roadmap and Decisions
 
-Last reviewed: 2026-08-11 after adopting persistent VPS-local media for the current production-oriented demo. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
+Last reviewed: 2026-08-12 after adding verified VPS backup/recovery and backup-gated deployment. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
 
 ## 1. Prioritized roadmap
 
@@ -732,6 +732,32 @@ volume off-host, test media restore together with database metadata, preserve th
 and volume name, and never use `docker compose down -v` during rollout. The volume is not shared
 multi-host or high-availability storage; moving to S3/R2 later requires a reviewed data migration,
 URL/rollback plan, provider security policy, and acceptance testing.
+
+## ADR-041: Matched VPS snapshots and backup-gated deployment
+
+**Status:** accepted (2026-08-12)
+
+**Context:** PostgreSQL is the authoritative business store and the current production-oriented VPS
+demo keeps uploaded media in a persistent local Docker volume. Manual database commands and an
+independent media copy could create mismatched restore points, and the prior CD path could migrate
+or recreate application services without first proving that recoverable data existed. Redis state
+is disposable and does not justify backup complexity.
+
+**Decision:** Keep versioned Bash tooling in `deploy/backup` and runtime snapshots in a restricted
+absolute directory outside Git, defaulting to `/var/backups/line-smart-queue`. Briefly quiesce API
+and worker writes, create a PostgreSQL custom-format dump plus local-media archive, record only
+non-secret version/image metadata, checksum every artifact, and publish a completion marker only
+after structural verification. Reject partial, corrupt, missing, or unsafe snapshots. Require exact
+operator confirmation for destructive restore, keep Redis out of backup/restore, and keep image
+rollback separate from data recovery. Manual CD must run a verified pre-deployment backup before
+pulling images or applying migrations and must never remove persistent volumes.
+
+**Consequences:** Operators get repeatable backup, verify, list, restore, deploy, and rollback
+commands with an isolated CI rehearsal and an auditable pre-deployment restore point. Deployment
+briefly pauses writers during the matched snapshot. The VPS still needs disk monitoring,
+business-approved RPO/RTO, encrypted off-host replication, scheduled production restore drills,
+and separately protected/rotatable secrets. S3-compatible media remains optional and uses its own
+provider backup/export controls when selected.
 
 ## OPT-001 cleanup audit (2026-08-11)
 

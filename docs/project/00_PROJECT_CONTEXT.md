@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-08-11 during the OPT-005 stable demo baseline closure.
+Last verified against the repository on 2026-08-12 after the production backup/recovery tooling audit.
 
 ## 1. Problem
 
@@ -44,7 +44,7 @@ real-money payment or notification platform.
 | Booking history           | Implemented                                         | Authenticated server-side group history is paginated across devices; customers and tenant staff can inspect independent orders/tickets without merging payment, cancellation, or receipt state                                                                                                          |
 | ETA                       | Measured heuristic implemented                      | Position/workload calculation, 30-second updater, persisted forecast history, version/confidence/explanation, retention, and manager API/dashboard                                                                                                                                                      |
 | Staffing recommendation   | Measured heuristic baseline implemented             | Eight-week weekday/hour demand and service-duration aggregates produce explainable staffing suggestions; this is deliberately not described as ML                                                                                                                                                       |
-| Deployment                | Local/Compose and horizontal validation ready       | Docker health checks, durable VPS-local production-demo media, and an isolated two-API/Redis/PostgreSQL/worker validation topology exist; production capacity, infrastructure, and secret management remain environment-specific                                                                        |
+| Deployment                | Backup-gated VPS workflow implemented               | Immutable-image CD, durable VPS-local media, verified PostgreSQL/media snapshots, guarded restore, application-only rollback, and isolated recovery rehearsal exist; off-host replication and production acceptance remain operator responsibilities                                                    |
 
 ## 5. Implemented features
 
@@ -131,9 +131,11 @@ real-money payment or notification platform.
 - Production-scale concurrency and browser/device acceptance tests against real LINE and provider environments.
 - Production stress testing for the implemented scheduler ownership, queue-capacity, call-next, and counter locks.
 - The current production-oriented VPS demo stores media in a persistent Docker named volume mounted
-  outside the API container's writable layer. Backup/restore, malware scanning, retention, and
-  orphan reconciliation remain operational hardening. The S3/R2-compatible adapter is retained as
-  an optional future/external provider, while legacy data URLs remain readable.
+  outside the API container's writable layer. Versioned tooling now creates and verifies matched
+  PostgreSQL/media snapshots outside Git, rehearses isolated restore, and gates CD on a valid
+  pre-deployment snapshot. Encrypted off-host replication, malware scanning, capacity alerting,
+  production restore evidence, and orphan reconciliation remain operational acceptance. The S3/R2
+  adapter remains optional for a future/external provider, while legacy data URLs remain readable.
 
 ## 7. Out of scope for the current baseline
 

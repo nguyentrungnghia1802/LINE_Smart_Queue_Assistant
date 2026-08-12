@@ -96,7 +96,8 @@ a source of current behavior.
 | `docker-compose.dev.yml`                                                | Hot-reload local stack                                                             | `07`                                          |
 | `docker-compose.validation.yml`, `docker/nginx/validation.conf`         | Isolated two-API shared-dependency and failure topology                            | `02`, `07`, `08`, ADR-036                     |
 | `deploy/docker-compose.yml`                                             | Production image stack and persistent API `media_data` volume                      | `08`, ADR-040, Compose/persistence validation |
-| `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`              | Split CI quality/Compose jobs; manual environment-gated immutable-image CD         | `07`, `08`, ADR-039                           |
+| `deploy/backup`                                                         | VPS backup/verify/list/restore, backup-gated deploy, image rollback, and rehearsal | `07`, `08`, ADR-041                           |
+| `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`              | Split CI gates; manual backup-gated immutable-image CD                             | `07`, `08`, ADR-039, ADR-041                  |
 | `scripts/scalability`                                                   | Cross-platform HTTP load runner and integrated recovery orchestrator               | `07`, `08`, `11`, ADR-036                     |
 
 ## 4. Role and scope map
@@ -238,6 +239,7 @@ the destructive reset schema or E2E fixtures against shared data.
 | Location        | `LOCATION_*`, `GOOGLE_ROUTES_API_KEY`                                                                                                                                 | API/server only; provider key is secret                  |
 | Forecasting     | `FORECAST_*`                                                                                                                                                          | Non-secret server tuning                                 |
 | Media           | `MEDIA_STORAGE_PROVIDER`, `MEDIA_*`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL`, `S3_FORCE_PATH_STYLE` | API/server runtime; access/secret values are secrets     |
+| Backup          | `BACKUP_ROOT`, `BACKUP_RETENTION_COUNT`                                                                                                                               | Non-secret VPS operator settings; root stays outside Git |
 | Frontend build  | `VITE_API_URL`, `VITE_APP_NAME`, `VITE_LIFF_ID`, `VITE_LIFF_ENDPOINT_PATH`, `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_PAYMENT_MODE`, `VITE_PAYMENT_REDIRECT_BASE_URL`   | Public build-time data                                   |
 | Observability   | `OTEL_*`, `SENTRY_*`, `VITE_SENTRY_DSN`, `VITE_SENTRY_ENVIRONMENT`, `VITE_SENTRY_RELEASE`                                                                             | OTLP headers/server DSN stay backend; VITE values public |
 
@@ -250,6 +252,10 @@ are not needed in the production image. The current production-oriented demo sel
 fixes `MEDIA_LOCAL_DIR=/app/var/media`, and mounts the persistent Compose `media_data` volume at
 that path. S3-compatible storage remains optional; its complete server-only configuration is
 required only when `MEDIA_STORAGE_PROVIDER=s3` is selected.
+
+`deploy/.env.example` also declares the non-secret backup root and conservative completed-snapshot
+count. `deploy/backup/common.sh` reads only those two whitelisted values; it never sources or copies
+the full environment file, and snapshot metadata never includes runtime credentials.
 
 Legacy `LINE_CHANNEL_ID`, `LINE_LIFF_ID`, `LINE_CHANNEL_SECRET`, and
 `LINE_CHANNEL_ACCESS_TOKEN` aliases are accepted temporarily by backend config. New deployments

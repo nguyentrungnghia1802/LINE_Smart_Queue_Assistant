@@ -1,28 +1,29 @@
 # Production Readiness Checklist
 
-Last reviewed: 2026-08-11. This checklist distinguishes repository verification from external production acceptance. A checked code item does not prove that LINE, a payment provider, or production infrastructure is configured.
+Last reviewed: 2026-08-12. This checklist distinguishes repository verification from external production acceptance. A checked code item does not prove that LINE, a payment provider, or production infrastructure is configured.
 
 ## Workstream status
 
-| #   | Workstream                   | Repository status                                                                                                          | Production acceptance                                                                          |
-| --- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| 1   | Inventory lifecycle          | Implemented and automated tests pass                                                                                       | Pending staged concurrency/load validation                                                     |
-| 2   | Payment reconciliation       | Provider-neutral lifecycle and demo provider implemented                                                                   | Pending real PSP selection, sandbox, settlement, and refund verification                       |
-| 3   | Notification operations      | Tenant-scoped APIs, audit controls, metrics, and tests implemented                                                         | Pending operator dashboard and alert routing                                                   |
-| 4   | LINE preferences and consent | API, LIFF UI, worker enforcement, and tests implemented                                                                    | Pending native-copy and real-account acceptance                                                |
-| 5   | Location alerts and privacy  | Consent, snapshot, mock provider, worker, retention, deletion, and tests implemented                                       | Pending legal review and approved travel-time provider                                         |
-| 6   | Booking groups and history   | Customer/staff APIs, LIFF history, ownership, pagination, and tests implemented                                            | Pending real-device usability acceptance                                                       |
-| 7   | Queue concurrency            | Capacity, call-next, order number, and ticket counter controls implemented                                                 | Pending production-scale stress test                                                           |
-| 8   | Japan localization           | Timezone, calendar, address, seed, and Japanese UI baseline implemented                                                    | Pending native Japanese and legal-copy review                                                  |
-| 9   | Forecasting and staffing     | Measured heuristic, history, recommendations, manager UI, and tests implemented                                            | Pending production calibration; this is not an ML model                                        |
-| 10  | OpenAPI contracts            | Runtime route coverage and drift checks implemented                                                                        | Detailed provider schemas may expand with a real PSP                                           |
-| 11  | Browser E2E                  | Mock desktop/mobile critical flows pass                                                                                    | Real LINE device checklist remains pending                                                     |
-| 12  | CI/CD gates                  | PostgreSQL, security, contract, test, build, idempotent seed, and mock E2E gates implemented                               | Pending image publication, staging deployment, and approval policy                             |
-| 13  | Horizontal runtime           | Two-API shared PostgreSQL/Redis, worker recovery, SSE fan-out, dependency interruption, and pool metrics validated locally | Pending production-like staging soak and aggregate pool sizing                                 |
-| 14  | Media storage                | Production demo uses persistent VPS `media_data`; local/mock/S3 adapters and recreate test implemented                     | Pending off-host backup/restore and scanning; S3 migration/provider acceptance only if enabled |
-| 15  | Documentation                | Canonical docs and acceptance checklists updated                                                                           | Must be reviewed for each release                                                              |
-| 16  | Business onboarding          | Public application, admin approval, owner activation, branch-manager/staff invite, and email outbox implemented            | Pending SMTP credentials and delivered-email acceptance                                        |
-| 17  | Branch-scoped operations     | Owner vs branch-manager boundaries, branch QR, queue-specific catalog, receipt snapshots, and staff scope implemented      | Pending tenant isolation acceptance on staging                                                 |
+| #   | Workstream                   | Repository status                                                                                                          | Production acceptance                                                            |
+| --- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| 1   | Inventory lifecycle          | Implemented and automated tests pass                                                                                       | Pending staged concurrency/load validation                                       |
+| 2   | Payment reconciliation       | Provider-neutral lifecycle and demo provider implemented                                                                   | Pending real PSP selection, sandbox, settlement, and refund verification         |
+| 3   | Notification operations      | Tenant-scoped APIs, audit controls, metrics, and tests implemented                                                         | Pending operator dashboard and alert routing                                     |
+| 4   | LINE preferences and consent | API, LIFF UI, worker enforcement, and tests implemented                                                                    | Pending native-copy and real-account acceptance                                  |
+| 5   | Location alerts and privacy  | Consent, snapshot, mock provider, worker, retention, deletion, and tests implemented                                       | Pending legal review and approved travel-time provider                           |
+| 6   | Booking groups and history   | Customer/staff APIs, LIFF history, ownership, pagination, and tests implemented                                            | Pending real-device usability acceptance                                         |
+| 7   | Queue concurrency            | Capacity, call-next, order number, and ticket counter controls implemented                                                 | Pending production-scale stress test                                             |
+| 8   | Japan localization           | Timezone, calendar, address, seed, and Japanese UI baseline implemented                                                    | Pending native Japanese and legal-copy review                                    |
+| 9   | Forecasting and staffing     | Measured heuristic, history, recommendations, manager UI, and tests implemented                                            | Pending production calibration; this is not an ML model                          |
+| 10  | OpenAPI contracts            | Runtime route coverage and drift checks implemented                                                                        | Detailed provider schemas may expand with a real PSP                             |
+| 11  | Browser E2E                  | Mock desktop/mobile critical flows pass                                                                                    | Real LINE device checklist remains pending                                       |
+| 12  | CI/CD gates                  | PostgreSQL, security, contract, test, build, idempotent seed, and mock E2E gates implemented                               | Pending image publication, staging deployment, and approval policy               |
+| 13  | Horizontal runtime           | Two-API shared PostgreSQL/Redis, worker recovery, SSE fan-out, dependency interruption, and pool metrics validated locally | Pending production-like staging soak and aggregate pool sizing                   |
+| 14  | Media storage                | Persistent VPS `media_data`, matched DB/media snapshot tooling, recreate test, and isolated restore rehearsal implemented  | Pending encrypted off-host copy, VPS restore evidence, scanning, capacity alerts |
+| 15  | Documentation                | Canonical docs and acceptance checklists updated                                                                           | Must be reviewed for each release                                                |
+| 16  | Business onboarding          | Public application, admin approval, owner activation, branch-manager/staff invite, and email outbox implemented            | Pending SMTP credentials and delivered-email acceptance                          |
+| 17  | Branch-scoped operations     | Owner vs branch-manager boundaries, branch QR, queue-specific catalog, receipt snapshots, and staff scope implemented      | Pending tenant isolation acceptance on staging                                   |
+| 18  | Backup and recovery          | Verify/list/retention/guarded restore, backup-gated CD, image rollback, and failure rehearsal implemented                  | Pending schedule/alerting, RPO/RTO, off-host retention, and production-VPS drill |
 
 ## Release gate
 
@@ -63,8 +64,9 @@ they do not satisfy the unchecked external release gates above.
 ## Current verdict
 
 The repository is production-oriented in architecture and automated test coverage. Local TASK-11
-evidence covers two API replicas and controlled dependency recovery, but production acceptance is
-**not complete** because production-like soak/capacity evidence, real LINE Console/device E2E, SMTP
-acceptance, a real PSP, VPS media backup/restore and scanning, a travel-time provider,
-legal/native-language review, and
-branch-scale tenant isolation acceptance remain pending.
+evidence covers two API replicas and controlled dependency recovery, and the isolated recovery
+rehearsal proves PostgreSQL/local-media restore plus deployment abort/rollback behavior. Production
+acceptance is **not complete** because encrypted off-host retention and a production-VPS restore
+drill, production-like soak/capacity evidence, real LINE Console/device E2E, SMTP acceptance, a real
+PSP, media scanning, a travel-time provider, legal/native-language review, and branch-scale tenant
+isolation acceptance remain pending.

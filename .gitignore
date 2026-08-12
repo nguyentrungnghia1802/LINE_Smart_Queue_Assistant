@@ -81,6 +81,8 @@ docker/volumes/
 var/media/
 var/email-preview/
 var/scalability/
+var/backups/
+deploy/backup-data/
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Misc

@@ -263,6 +263,7 @@ npm run openapi:check
 npm run spell:check
 npm run e2e:all
 npm run media:persistence:verify
+npm run ops:backup:rehearse
 ```
 
 The media persistence command expects the production API runner image. Build it first when the
@@ -277,10 +278,18 @@ The check creates a uniquely named temporary Docker volume, writes through the n
 starts a second container against the same volume, verifies the file, and removes only its temporary
 containers and volume.
 
+The backup rehearsal requires Bash, Docker, and Docker Compose. It creates a unique disposable
+PostgreSQL/Redis/API/worker/Web project and backup root under the OS temporary directory, then proves
+database and local-media restore after mutation. It also rejects corrupt, missing, and incomplete
+snapshots; rejects missing restore confirmation; proves deployment aborts before an image change
+when backup fails; and proves image-only rollback does not restore data. The harness never reads
+`deploy/.env` and must not be pointed at a production Compose file.
+
 The GitHub Actions workflow runs these checks as separate jobs so a failure is isolated to one
 quality surface: secret scan, dependency audit, formatting, spelling, lint, type-check, OpenAPI,
 development/validation/production Compose config, API tests, web/shared tests, migration/seed
-smoke, production build, local-media named-volume persistence, and browser E2E. The API tests,
+smoke, production build, local-media named-volume persistence, isolated backup/restore rehearsal,
+and browser E2E. The API tests,
 migration smoke, and browser E2E jobs each
 use their own PostgreSQL service. Browser E2E prepares its own database and loads the explicit
 browser-only fixtures before starting Playwright. The E2E job waits for the static, unit, contract,
@@ -300,12 +309,13 @@ fingerprint is added.
 
 Production CD is manual and environment-gated. Type `DEPLOY` in the workflow dispatch form; the
 workflow builds and pushes immutable API/Web images tagged with the selected commit, waits for
-approval on the `production` environment, validates the remote Compose file, migrates the database,
-waits for healthy services, and probes Web health. Runtime secrets stay on the server in
-`deploy/.env`; CD never copies them from GitHub. The rollout uses `up -d` without `--volumes`, so the
-VPS `media_data` volume survives API image replacement and container recreation. CD also inspects
-the live API mount type and, in local mode, verifies the fixed path is writable before declaring the
-release healthy.
+approval on the `production` environment, and copies only versioned Compose/backup tooling to the
+server. `deploy-safe.sh` then requires a verified PostgreSQL/local-media restore point before it may
+pull images, run canonical migrations, recreate application services, and probe API
+health/readiness plus Web health. Runtime secrets stay on the server in `deploy/.env`; CD never
+copies or prints them. The rollout never removes volumes, so PostgreSQL and `media_data` survive
+image replacement. Use the verified pre-deployment backup ID with `rollback.sh` for image-only
+rollback or with the separately confirmed `restore.sh` only when data recovery is actually needed.
 
 Target one workspace:
 

@@ -52,6 +52,14 @@ Customer Browser / LINE LIFF       Staff / Manager / Admin Browser
 
 Docker Compose supplies these local/production-like boundaries; it is not the final cloud infrastructure specification. In the current production-oriented VPS demo, the API uses the local provider at `/app/var/media`, backed by the production Compose `media_data` named volume. The volume outlives API container recreation and deployment while nginx reverse-proxies `/media/*` to `api:4000` without stripping the prefix. The web image likewise proxies `/api/*`, and production API requests use an empty `VITE_API_URL` because service paths already include `/api/v1`. S3-compatible media remains selectable for a future external/multi-host deployment; those records return a stable absolute public/CDN URL and do not depend on `/media`. The Vite development server proxies both same-origin prefixes to the local API.
 
+The VPS recovery boundary is versioned under `deploy/backup`. It treats PostgreSQL and local
+`media_data` as one quiesced restore point, records only non-secret immutable-image/version
+metadata, and writes runtime snapshots outside the checkout. Redis is intentionally excluded:
+BullMQ coordination, caches, rate-limit state, and Pub/Sub are reconstructable while PostgreSQL is
+the business authority. Safe deployment cannot pull or migrate a new image until the matched
+snapshot passes checksum, dump, archive, and completion-marker verification. Application rollback
+uses prior image references without implicitly restoring data.
+
 `docker-compose.validation.yml` is a destructive, isolated engineering topology rather than a
 deployment file. Its nginx gateway balances two API replicas that share PostgreSQL and Redis while
 a separate worker owns LINE dispatch/delivery. It is used to prove cross-replica authentication,
