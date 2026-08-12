@@ -5,6 +5,8 @@
 # production-oriented demo keeps media in a named Docker volume on the VPS.
 # S3-compatible storage remains an optional provider selected through deploy/.env.
 
+name: line-smart-queue
+
 services:
   postgres:
     image: postgres:16-alpine
