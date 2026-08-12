@@ -109,6 +109,16 @@ jobs:
       - name: 💾 Verify named-volume persistence across container recreation
         run: npm run media:persistence:verify
 
+  release-tooling:
+    name: 🏷️ Immutable release tooling
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+      - name: 🏷️ Validate full-SHA build and push plan
+        shell: pwsh
+        run: ./scripts/release/tests/publish-images.test.ps1
+
   backup-recovery:
     name: 🛟 Backup and restore rehearsal
     runs-on: ubuntu-latest
@@ -294,6 +304,7 @@ jobs:
       - spelling
       - compose-validation
       - media-persistence
+      - release-tooling
       - backup-recovery
       - lint
       - typecheck

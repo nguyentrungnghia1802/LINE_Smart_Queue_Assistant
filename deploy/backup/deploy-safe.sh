@@ -7,12 +7,13 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/common.sh"
 
+[[ $# -eq 1 ]] || die 'Usage: deploy-safe.sh <git-40-character-sha-tag>'
+release_tag=$1
+require_release_tag "$release_tag"
 init_runtime
 validate_compose
-target_api=${LINE_QUEUE_API_IMAGE:-}
-target_web=${LINE_QUEUE_WEB_IMAGE:-}
-require_immutable_image "$target_api" LINE_QUEUE_API_IMAGE
-require_immutable_image "$target_web" LINE_QUEUE_WEB_IMAGE
+IFS=$'\t' read -r target_api target_web < <(release_image_references "$release_tag")
+[[ -n "$target_api" && -n "$target_web" ]] || die 'Failed to resolve release image references'
 
 log 'Creating mandatory pre-deployment backup'
 backup_id=$(
@@ -28,6 +29,9 @@ else
   confirmation=${DEPLOY_CONFIRMATION:-}
 fi
 log "Verified restore point: $backup_id"
+log "Release tag: $release_tag"
+log "API image: $target_api"
+log "Web image: $target_web"
 confirm_exact "DEPLOY $backup_id" "$confirmation" 'Type the deployment confirmation'
 
 deploy_succeeded=false
@@ -41,10 +45,11 @@ on_deploy_exit() {
 }
 trap on_deploy_exit EXIT
 
+update_env_image_references "$target_api" "$target_web"
 export LINE_QUEUE_API_IMAGE=$target_api
 export LINE_QUEUE_WEB_IMAGE=$target_web
 compose config -q
-compose pull api worker web
+pull_release_images
 compose up -d postgres redis
 run_migrations
 compose up -d --remove-orphans --wait api worker web

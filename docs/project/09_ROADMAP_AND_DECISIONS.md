@@ -697,7 +697,7 @@ moving runtime credentials into CI or silently deploying every branch push.
 
 **Decision:** Keep CD manual. The workflow requires an explicit `DEPLOY` confirmation, builds the
 API and Web `runner` images from the selected commit, publishes immutable Docker Hub tags (the
-default is `git-<commit SHA>`), and pauses at the GitHub `production` environment approval. The
+tag is the full `git-<commit SHA>`), and pauses at the GitHub `production` environment approval. The
 server connection uses a restricted SSH key and pinned known-hosts value, validates
 `deploy/docker-compose.yml`, pulls the selected images, runs canonical migrations, waits for healthy
 services, and probes Web health. Database, JWT, LINE, SMTP, payment, and storage values remain in
@@ -706,8 +706,8 @@ by a normal push.
 
 **Consequences:** Releases are auditable and rollback can select a previous immutable tag, while an
 operator must supply Docker Hub/SSH configuration and approve each production deployment. Image
-scanning, signed provenance, staged sandbox deployment, rollback automation, and backup/restore
-rehearsal remain follow-up hardening rather than hidden guarantees.
+scanning, signed provenance, and staged sandbox deployment remain follow-up hardening rather than
+hidden guarantees; ADR-041 and ADR-042 define the implemented backup and tag/rollback mechanics.
 
 ## ADR-040: Persistent VPS-local media for the production-oriented demo
 
@@ -758,6 +758,32 @@ briefly pauses writers during the matched snapshot. The VPS still needs disk mon
 business-approved RPO/RTO, encrypted off-host replication, scheduled production restore drills,
 and separately protected/rotatable secrets. S3-compatible media remains optional and uses its own
 provider backup/export controls when selected.
+
+## ADR-042: Full-SHA image publication and metadata-driven rollback
+
+**Status:** accepted (2026-08-12)
+
+**Context:** The deployment workflow could accept arbitrary image tags and transient shell exports,
+so the server's `deploy/.env` could continue naming an old release after a successful recreate.
+Local Windows publication also lacked one canonical command, and a moving `latest` tag cannot prove
+which reviewed source produced a running or rollback image.
+
+**Decision:** Standardize release identity as `git-` plus the full 40-character lowercase Git SHA.
+The local PowerShell publisher resolves `HEAD`, refuses a dirty worktree by default, builds API and
+Web runner images with revision metadata, and pushes both the immutable SHA tag and `latest`.
+GitHub CD uses the same tags. `latest` is discovery-only. VPS `deploy-safe.sh` accepts only the
+strict SHA tag, derives full references from untagged repository keys in the existing server
+environment, creates and independently verifies a matched snapshot, then atomically persists only
+the two image-reference keys before pull, canonical migration, recreate, and health checks.
+Application rollback obtains both old references exclusively from verified snapshot metadata and
+atomically persists them before recreation; data restore remains a separate confirmation.
+
+**Consequences:** The selected commit, registry artifacts, live Compose configuration, and future
+operator commands share one durable release identity. A container recreate or host reboot no longer
+falls back to stale `.env` refs, and rollback does not guess or follow `latest`. Repository
+namespace changes remain explicit server configuration. Publication still needs registry access,
+the Web LIFF build value, image retention, and future signing/scanning controls; updating mutable
+`latest` is not atomic across both repositories but cannot affect deployment selection.
 
 ## OPT-001 cleanup audit (2026-08-11)
 

@@ -56,18 +56,22 @@ On failure, application traffic remains stopped. Diagnose the error and rerun th
 do not start writers against partially restored state. External S3-compatible media is never
 copied by these tools and must use provider versioning/export recovery.
 
-For a manual image deployment, export immutable image references and use the backup gate:
+Configure the two untagged repositories once in `deploy/.env`, then pass only the publisher's exact
+`git-<40-character-sha>` release tag to the backup gate:
 
 ```bash
-export LINE_QUEUE_API_IMAGE=docker.io/example/line-smart-queue-api:git-abc123
-export LINE_QUEUE_WEB_IMAGE=docker.io/example/line-smart-queue-web:git-abc123
-deploy/backup/deploy-safe.sh
+# deploy/.env:
+# LINE_QUEUE_API_REPOSITORY=docker.io/example/line-smart-queue-api
+# LINE_QUEUE_WEB_REPOSITORY=docker.io/example/line-smart-queue-web
+deploy/backup/deploy-safe.sh git-0123456789abcdef0123456789abcdef01234567
 # Type: DEPLOY <the-printed-predeployment-backup-id>
 ```
 
 The script will not pull, migrate, or recreate application containers unless pre-deployment backup
-and independent verification succeed. It never runs `down`, removes volumes, or automatically
-restores data.
+and independent verification succeed. After verification and confirmation it atomically updates
+only `LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` in the server's existing `deploy/.env`, then
+pulls and deploys those exact references. It never runs `down`, removes volumes, copies secrets, or
+automatically restores data.
 
 Application rollback is intentionally separate from data recovery:
 
@@ -76,10 +80,11 @@ deploy/backup/rollback.sh <predeployment-backup-id>
 # Type: ROLLBACK <predeployment-backup-id>
 ```
 
-Rollback reads the prior immutable API/Web references from verified metadata and recreates only
-application services. It does not restore PostgreSQL/media or reverse migrations. Use it only while
-the prior application is compatible with the current expanded schema; otherwise prefer a forward
-fix or an explicitly approved full restore.
+Rollback reads the prior immutable API/Web references from verified metadata, atomically writes
+those exact references back to `deploy/.env`, and recreates only application services. It does not
+restore PostgreSQL/media or reverse migrations and never derives rollback from `latest`. Use it
+only while the prior application is compatible with the current expanded schema; otherwise prefer
+a forward fix or an explicitly approved full restore.
 
 ## Permissions, scheduling, and disaster recovery
 

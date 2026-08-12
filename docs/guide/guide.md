@@ -790,8 +790,12 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
 - Push／Pull Requestごとに、secret scan、audit、format、spell、lint、type-check、OpenAPI、
   3種類のCompose設定、API／Webテスト、migration／seed、build、browser E2EをCIで実行します。
 - 本番CDは自動Pushではなく手動dispatchです。`DEPLOY` の明示確認とGitHub `production` Environmentの
-  approval後、選択したcommitからAPI／Webのrunner imageを不変タグ（既定は `git-<commit SHA>`）で公開し、
-  サーバーでCompose検証、migration、health checkを行います。
+  approval後、選択したcommitからAPI／Webのrunner imageを正確な `git-<full SHA>` と参照用のみの
+  `latest` で公開します。VPSは不変タグだけを受け付け、backupを検証し、選択した2つのimage参照を
+  `deploy/.env` に保存してからpull、migration、recreate、health checkを行います。rollbackは検証済み
+  backup metadataに記録された以前の参照を使用します。
+- Windows operatorはclean commitから `scripts/release/publish-images.ps1` を実行して同じタグを公開できます。
+  出力された `RELEASE_TAG` を `deploy/backup/deploy-safe.sh <tag>` に渡し、`latest` はdeployしません。
 - 本番のDB、JWT、LINE、SMTP、payment、storage secretはサーバーの `deploy/.env` に残し、CDはコピーも
   再生成もしません。サーバー更新前は `docker compose --env-file deploy/.env -f deploy/docker-compose.yml config -q`
   を実行します。

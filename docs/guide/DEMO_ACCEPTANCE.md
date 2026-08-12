@@ -144,10 +144,13 @@ before deployment. Record any command that cannot run and its residual risk; do 
 check for external acceptance.
 
 The GitHub Actions CI workflow runs the same static, test, migration, build, browser, and Compose
-configuration gates on pushes and pull requests. Production CD is a manual workflow: type `DEPLOY`,
-approve the `production` environment, then let it publish immutable commit-tagged API/Web images and
-run remote Compose validation, migrations, and health checks. Runtime secrets remain only in the
-server-side `deploy/.env`; the workflow does not copy them.
+configuration gates on pushes and pull requests, including immutable publisher-plan and
+backup/deploy/rollback rehearsal. Production CD is a manual workflow: type `DEPLOY`, approve the
+`production` environment, then let it publish API/Web images as exact `git-<full SHA>` plus
+discovery-only `latest`. The VPS accepts only the immutable tag, verifies a restore point, persists
+the two selected refs in its existing `deploy/.env`, pulls, migrates, recreates, and checks health.
+Rollback uses the prior refs in verified backup metadata. Runtime secrets remain only in the server
+file; the workflow does not copy them.
 
 ## 8. Intentionally deferred external acceptance
 

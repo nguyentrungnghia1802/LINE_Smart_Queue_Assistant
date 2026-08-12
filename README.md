@@ -232,7 +232,7 @@ _Staff sees customer, order, Ticket state, balance, and service actions together
 
 ### Short technical note
 
-The system uses a React/Vite web UI, an Express/TypeScript API, and PostgreSQL, and supports isolated local verification through Docker Compose. LINE Login/LIFF customer authentication and LINE Messaging API notification delivery are separate. The server revalidates price, Organization, Branch, LINE User ID, payment status, and authorization rather than trusting browser input. CI validates secrets, dependencies, formatting, spelling, Compose files, backup/restore rehearsal, tests, build, and browser E2E. Production CD requires manual `DEPLOY` confirmation, `production` approval, and a verified pre-deployment backup; it publishes immutable image tags and never copies the server's `deploy/.env`.
+The system uses a React/Vite web UI, an Express/TypeScript API, and PostgreSQL, and supports isolated local verification through Docker Compose. LINE Login/LIFF customer authentication and LINE Messaging API notification delivery are separate. The server revalidates price, Organization, Branch, LINE User ID, payment status, and authorization rather than trusting browser input. CI validates secrets, dependencies, formatting, spelling, Compose files, immutable release tooling, backup/restore rehearsal, tests, build, and browser E2E. Local PowerShell and manual production CD publish API/Web images as `git-<full SHA>` plus `latest`, but deployment consumes only the immutable tag. The VPS creates and verifies a restore point, persists the selected image references in its existing `deploy/.env`, migrates, recreates, and health-checks; rollback uses the prior references already recorded in snapshot metadata.
 
 ### Guide and contact
 
