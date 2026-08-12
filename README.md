@@ -110,7 +110,7 @@ _Staffは顧客、注文、Ticket状態、残金、対応操作を1画面で扱�
 
 ### 短い技術情報
 
-システムはReact/ViteのWeb UI、Express/TypeScript API、PostgreSQLで構成され、Docker Composeで隔離されたローカル検証ができます。Customer認証のLINE Login/LIFFと通知のLINE Messaging APIは別機能です。価格、Organization、Branch、LINE User ID、payment status、権限範囲はbrowser入力を信用せず、server側で確認します。CIはpush／PRでsecret、依存、format、spell、Compose、backup/restore rehearsal、test、build、browser E2Eを検証します。本番CDは`DEPLOY`確認と`production` approvalに加えて検証済みpre-deployment backupを必須とし、不変image tagを配布します。サーバーの`deploy/.env`はコピーしません。
+システムはReact/ViteのWeb UI、Express/TypeScript API、PostgreSQLで構成され、Docker Composeで隔離されたローカル検証ができます。Customer認証のLINE Login/LIFFと通知のLINE Messaging APIは別機能です。価格、Organization、Branch、LINE User ID、payment status、権限範囲はbrowser入力を信用せず、server側で確認します。CIはpush／PRでsecret、依存、format、spell、Compose、immutable release tooling、manual shell release/DNS rehearsal、backup/restore rehearsal、test、build、browser E2Eを検証します。本番CDは`DEPLOY`確認と`production` approvalに加えて検証済みpre-deployment backupを必須とし、不変image tagを配布します。緊急時の手動経路は`deploy/scripts/build-push.sh`と`deploy/scripts/deploy.sh`で、選択したSHAだけを使い、`deploy/backup/deploy-safe.sh`へ委譲します。サーバーの`deploy/.env`はコピーしません。
 
 ### ガイドと連絡先
 
@@ -232,7 +232,7 @@ _Staff sees customer, order, Ticket state, balance, and service actions together
 
 ### Short technical note
 
-The system uses a React/Vite web UI, an Express/TypeScript API, and PostgreSQL, and supports isolated local verification through Docker Compose. LINE Login/LIFF customer authentication and LINE Messaging API notification delivery are separate. The server revalidates price, Organization, Branch, LINE User ID, payment status, and authorization rather than trusting browser input. CI validates secrets, dependencies, formatting, spelling, Compose files, immutable release tooling, backup/restore rehearsal, tests, build, and browser E2E. Local PowerShell and manual production CD publish API/Web images as `git-<full SHA>` plus `latest`, but deployment consumes only the immutable tag. The VPS creates and verifies a restore point, persists the selected image references in its existing `deploy/.env`, migrates, recreates, and health-checks; rollback uses the prior references already recorded in snapshot metadata.
+The system uses a React/Vite web UI, an Express/TypeScript API, and PostgreSQL, and supports isolated local verification through Docker Compose. LINE Login/LIFF customer authentication and LINE Messaging API notification delivery are separate. The server revalidates price, Organization, Branch, LINE User ID, payment status, and authorization rather than trusting browser input. CI validates secrets, dependencies, formatting, spelling, Compose files, immutable release tooling, manual shell release/DNS rehearsal, backup/restore rehearsal, tests, build, and browser E2E. Local PowerShell and the GitHub production workflow may publish a discoverable `latest` alias, but deployment consumes only the immutable `git-<full SHA>` tag. The reviewed manual path is `deploy/scripts/build-push.sh` followed by `deploy/scripts/deploy.sh`; it publishes only the selected SHA, delegates backup/verify/migrate/recreate/health to `deploy/backup/deploy-safe.sh`, and updates API, Worker, and Web together. The VPS creates and verifies a restore point, persists the selected image references in its existing `deploy/.env`, and keeps media in the persistent Compose volume; Web nginx refreshes Docker DNS after API recreation, while rollback uses prior references recorded in snapshot metadata.
 
 ### Guide and contact
 
@@ -354,7 +354,7 @@ _Staff xem khách, đơn, trạng thái Ticket, số dư và thao tác phục v�
 
 ### Ghi chú kỹ thuật ngắn
 
-Hệ thống dùng Web UI React/Vite, API Express/TypeScript và PostgreSQL; có thể kiểm thử local cô lập bằng Docker Compose. LINE Login/LIFF dùng để xác thực Customer, còn LINE Messaging API dùng để gửi notification — đây là hai capability riêng. Server xác minh lại price, Organization, Branch, LINE User ID, payment status và authorization thay vì tin dữ liệu browser gửi lên. CI kiểm tra secret, dependency, format, spell, Compose, backup/restore rehearsal, test, build và browser E2E. CD production cần nhập `DEPLOY`, được duyệt ở Environment `production` và có pre-deployment backup đã xác minh; workflow phát hành image tag bất biến và không sao chép `deploy/.env` trên server.
+Hệ thống dùng Web UI React/Vite, API Express/TypeScript và PostgreSQL; có thể kiểm thử local cô lập bằng Docker Compose. LINE Login/LIFF dùng để xác thực Customer, còn LINE Messaging API dùng để gửi notification — đây là hai capability riêng. Server xác minh lại price, Organization, Branch, LINE User ID, payment status và authorization thay vì tin dữ liệu browser gửi lên. CI kiểm tra secret, dependency, format, spell, Compose, immutable release tooling, manual shell release/DNS rehearsal, backup/restore rehearsal, test, build và browser E2E. CD production cần nhập `DEPLOY`, được duyệt ở Environment `production` và có pre-deployment backup đã xác minh; workflow phát hành image tag bất biến và không sao chép `deploy/.env` trên server. Khi cần phát hành thủ công, dùng `deploy/scripts/build-push.sh` rồi `deploy/scripts/deploy.sh`; script chỉ dùng SHA được chọn và ủy quyền mọi safety gate cho `deploy/backup/deploy-safe.sh`.
 
 ### Hướng dẫn và liên hệ
 

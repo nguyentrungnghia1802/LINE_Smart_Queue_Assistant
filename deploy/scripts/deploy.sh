@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+umask 077
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+DEPLOY_SAFE_SCRIPT="$SCRIPT_DIR/../backup/deploy-safe.sh"
+
+[[ $# -eq 1 ]] || {
+  printf 'Usage: %s git-<40-character-lowercase-sha>\n' "$0" >&2
+  exit 2
+}
+release_tag=$1
+[[ "$release_tag" =~ ^git-[0-9a-f]{40}$ ]] || {
+  printf '[release-deploy] ERROR: Release tag must be git- followed by a full lowercase Git SHA\n' >&2
+  exit 1
+}
+[[ -x "$DEPLOY_SAFE_SCRIPT" ]] || {
+  printf '[release-deploy] ERROR: Missing executable backup gate: %s\n' "$DEPLOY_SAFE_SCRIPT" >&2
+  exit 1
+}
+
+if [[ "${DRY_RUN:-false}" == true ]]; then
+  printf '[release-deploy] DRY_RUN: exec %q %q\n' "$DEPLOY_SAFE_SCRIPT" "$release_tag"
+  exit 0
+fi
+
+# deploy-safe.sh owns preflight, backup verification, atomic image-reference updates,
+# migrations, health checks, and application/data recovery boundaries. Keep this script a
+# deliberately thin manual entry point so those safety guarantees cannot drift.
+exec "$DEPLOY_SAFE_SCRIPT" "$release_tag"
