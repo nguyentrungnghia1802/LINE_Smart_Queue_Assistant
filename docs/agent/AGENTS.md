@@ -476,6 +476,8 @@ Suggested names:
 - `fix/<short-name>`
 - `chore/<short-name>`
 
+For a new independent task, fetch the latest remote state, ensure local `main` is synchronized with `origin/main`, then create a dedicated task branch from that up-to-date `main`.
+Only use another task branch as the base when the current task explicitly depends on it.
 Keep commits focused on the current scope.
 
 Do not:
@@ -525,11 +527,9 @@ Do not push task changes directly to protected `main`.
 
 Do not use local merge + push as a workaround for protected PR workflow.
 
-`chore/dev` is used only when the current prompt or active repository workflow explicitly requires it.
-
 Branch deletion is allowed only when explicitly authorized, safely merged/no longer needed, and remote state is verified.
 
-Never delete `main`. Do not delete `chore/dev` unless explicitly requested and confirmed safe.
+Never delete `main`.
 
 Stop and report instead of continuing when:
 
