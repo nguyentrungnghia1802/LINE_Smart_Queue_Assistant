@@ -199,3 +199,8 @@ Production release evidence is tracked with `docs/checklists/PRODUCTION_READINES
 been exercised on the deployed HTTPS environment. Messaging, Rich Menu, preferences, and deeplink
 acceptance still use the independent `docs/checklists/LINE_REAL_DEVICE_E2E.md` and must be completed
 against the intended Official Account configuration.
+
+API/Web release artifacts use the full reviewed Git SHA. Both the local PowerShell publisher and
+manual GitHub CD push `git-<40-character-sha>` plus the mutable discovery tag `latest`, while the VPS
+deploy gate accepts only the immutable tag. The VPS persists the selected full image references in
+its existing `deploy/.env`; rollback restores prior references from verified snapshot metadata.

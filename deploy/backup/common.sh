@@ -287,6 +287,74 @@ require_immutable_image() {
   [[ "$image" == *@sha256:* || "$image" == *:* ]] || die "$label must use an immutable tag or digest"
 }
 
+require_release_tag() {
+  local tag=$1
+  [[ "$tag" =~ ^git-[0-9a-f]{40}$ ]] ||
+    die 'Release tag must be git- followed by the full 40-character lowercase Git SHA'
+}
+
+require_image_repository() {
+  local repository=$1 label=$2 final_segment
+  safe_metadata_value "$repository" "$label"
+  [[ "$repository" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]*$ ]] ||
+    die "$label contains unsupported characters"
+  [[ "$repository" != *//* && "$repository" != *..* && "$repository" != *@* ]] ||
+    die "$label must be an untagged Docker repository"
+  final_segment=${repository##*/}
+  [[ -n "$final_segment" && "$final_segment" != *:* ]] ||
+    die "$label must not include an image tag or trailing slash"
+}
+
+release_image_references() {
+  local tag=$1 api_repository web_repository
+  require_release_tag "$tag"
+  api_repository=$(read_env_value LINE_QUEUE_API_REPOSITORY "$ENV_FILE" || true)
+  web_repository=$(read_env_value LINE_QUEUE_WEB_REPOSITORY "$ENV_FILE" || true)
+  require_image_repository "$api_repository" LINE_QUEUE_API_REPOSITORY
+  require_image_repository "$web_repository" LINE_QUEUE_WEB_REPOSITORY
+  printf '%s\t%s\n' "$api_repository:$tag" "$web_repository:$tag"
+}
+
+update_env_image_references() {
+  local api_image=$1 web_image=$2 temp_file api_count web_count
+  require_immutable_image "$api_image" LINE_QUEUE_API_IMAGE
+  require_immutable_image "$web_image" LINE_QUEUE_WEB_IMAGE
+  [[ -f "$ENV_FILE" ]] || die "Environment file not found: $ENV_FILE"
+
+  api_count=$(grep -c '^LINE_QUEUE_API_IMAGE=' "$ENV_FILE" || true)
+  web_count=$(grep -c '^LINE_QUEUE_WEB_IMAGE=' "$ENV_FILE" || true)
+  (( api_count <= 1 && web_count <= 1 )) || die 'Environment file contains duplicate image keys'
+
+  temp_file=$(mktemp "$(dirname -- "$ENV_FILE")/.env.images.XXXXXX")
+  chmod 600 -- "$temp_file"
+  if ! awk -v api="$api_image" -v web="$web_image" '
+    BEGIN { api_seen = 0; web_seen = 0 }
+    /^LINE_QUEUE_API_IMAGE=/ { print "LINE_QUEUE_API_IMAGE=" api; api_seen = 1; next }
+    /^LINE_QUEUE_WEB_IMAGE=/ { print "LINE_QUEUE_WEB_IMAGE=" web; web_seen = 1; next }
+    { print }
+    END {
+      if (!api_seen) print "LINE_QUEUE_API_IMAGE=" api
+      if (!web_seen) print "LINE_QUEUE_WEB_IMAGE=" web
+    }
+  ' "$ENV_FILE" > "$temp_file"; then
+    rm -f -- "$temp_file"
+    die 'Failed to prepare the atomic image-reference update'
+  fi
+  if ! mv -f -- "$temp_file" "$ENV_FILE"; then
+    rm -f -- "$temp_file"
+    die 'Failed to install the atomic image-reference update'
+  fi
+  chmod 600 -- "$ENV_FILE"
+}
+
+pull_release_images() {
+  if allow_test_skip OPS_SKIP_PULL; then
+    log 'Test mode: image pull skipped'
+    return
+  fi
+  compose pull api worker web
+}
+
 confirm_exact() {
   local expected=$1 supplied=${2:-} prompt=${3:-'Type the confirmation text'}
   if [[ -z "$supplied" && -t 0 ]]; then

@@ -41,6 +41,7 @@
     "docker:prod:down": "docker compose --env-file deploy/.env -f deploy/docker-compose.yml down",
     "docker:clean": "docker compose -f docker-compose.dev.yml down --volumes --remove-orphans",
     "media:persistence:verify": "node scripts/deployment/verify-local-media-persistence.mjs",
+    "release:images:verify": "pwsh -NoProfile -File scripts/release/tests/publish-images.test.ps1",
     "ops:backup:rehearse": "bash deploy/backup/tests/rehearsal.sh",
     "db:migrate": "npm run db:migrate -w apps/api",
     "db:migrate:down": "npm run db:migrate:down -w apps/api",

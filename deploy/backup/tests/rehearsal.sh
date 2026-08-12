@@ -23,6 +23,9 @@ export POSTGRES_VERIFY_IMAGE=postgres:16-alpine
 export OPS_TEST_MODE=true
 export OPS_SKIP_MIGRATIONS=true
 export OPS_SKIP_HEALTH=true
+export OPS_SKIP_PULL=true
+release_tag="git-$(printf '2%.0s' {1..40})"
+release_image="alpine:$release_tag"
 test_secret='rehearsal-password-must-not-appear'
 log_file="$test_root/rehearsal.log"
 
@@ -32,10 +35,12 @@ cleanup() {
   for volume in "${project}_postgres_data" "${project}_media_data" "${project}_redis_data"; do
     docker volume inspect "$volume" >/dev/null 2>&1 && docker volume rm "$volume" >/dev/null 2>&1 || true
   done
+  docker image rm "$release_image" >/dev/null 2>&1 || true
   if ((status == 0)); then
     rm -rf -- "$test_root"
   else
     echo "Rehearsal evidence retained at $test_root" >&2
+    [[ ! -f "$log_file" ]] || tail -n 200 "$log_file" >&2
   fi
   exit "$status"
 }
@@ -86,6 +91,8 @@ cat > "$ENV_FILE" <<EOF
 DB_NAME=line_queue_rehearsal
 DB_USER=rehearsal
 DB_PASSWORD=$test_secret
+LINE_QUEUE_API_REPOSITORY=alpine
+LINE_QUEUE_WEB_REPOSITORY=alpine
 LINE_QUEUE_API_IMAGE=alpine:3.19
 LINE_QUEUE_WEB_IMAGE=alpine:3.19
 EOF
@@ -158,28 +165,40 @@ if "$BACKUP_DIR/verify-backup.sh" 20990101_010104 >>"$log_file" 2>&1; then
   exit 1
 fi
 
+if "$BACKUP_DIR/deploy-safe.sh" latest >>"$log_file" 2>&1; then
+  echo 'Safe deploy unexpectedly accepted a mutable tag' >&2
+  exit 1
+fi
+grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:3.19' "$ENV_FILE"
+grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:3.19' "$ENV_FILE"
+
 printf blocked > "$test_root/not-a-directory"
 if BACKUP_ROOT="$test_root/not-a-directory" \
-  LINE_QUEUE_API_IMAGE=alpine:3.20 LINE_QUEUE_WEB_IMAGE=alpine:3.20 \
-  DEPLOY_CONFIRMATION='unused' "$BACKUP_DIR/deploy-safe.sh" >>"$log_file" 2>&1; then
+  DEPLOY_CONFIRMATION='unused' "$BACKUP_DIR/deploy-safe.sh" "$release_tag" >>"$log_file" 2>&1; then
   echo 'Safe deploy unexpectedly continued after backup-root failure' >&2
   exit 1
 fi
 api_id=$("${compose[@]}" ps -q api)
 [[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == alpine:3.19 ]]
+grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:3.19' "$ENV_FILE"
+grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:3.19' "$ENV_FILE"
 
 sleep 1
-export LINE_QUEUE_API_IMAGE=alpine:3.20
-export LINE_QUEUE_WEB_IMAGE=alpine:3.20
+docker pull alpine:3.20 >>"$log_file" 2>&1
+docker tag alpine:3.20 "$release_image"
 export DEPLOY_APPROVED=GITHUB_ENVIRONMENT_APPROVED
-predeploy_id=$("$BACKUP_DIR/deploy-safe.sh" 2>>"$log_file")
+predeploy_id=$("$BACKUP_DIR/deploy-safe.sh" "$release_tag" 2>>"$log_file")
 api_id=$("${compose[@]}" ps -q api)
-[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == alpine:3.20 ]]
+[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == "$release_image" ]]
+grep -Fxq "LINE_QUEUE_API_IMAGE=$release_image" "$ENV_FILE"
+grep -Fxq "LINE_QUEUE_WEB_IMAGE=$release_image" "$ENV_FILE"
 [[ -n "$predeploy_id" && "$predeploy_id" != "$backup_id" ]]
 
 ROLLBACK_CONFIRMATION="ROLLBACK $predeploy_id" "$BACKUP_DIR/rollback.sh" "$predeploy_id" >>"$log_file" 2>&1
 api_id=$("${compose[@]}" ps -q api)
 [[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == alpine:3.19 ]]
+grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:3.19' "$ENV_FILE"
+grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:3.19' "$ENV_FILE"
 restored_value=$("${compose[@]}" exec -T postgres sh -eu -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT value FROM restore_probe WHERE id = 1"')
 [[ "$restored_value" == before-backup ]]

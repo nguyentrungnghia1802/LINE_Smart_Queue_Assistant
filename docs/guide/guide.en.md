@@ -791,8 +791,13 @@ For each language:
   OpenAPI, all three Compose configuration checks, API/Web tests, migration/seed smoke, build, and
   browser E2E.
 - Production CD is manual, not push-triggered. After typing `DEPLOY` and receiving approval from the
-  GitHub `production` environment, it publishes immutable API/Web runner images (default tag:
-  `git-<commit SHA>`), then validates Compose, migrates, waits for health, and probes the server.
+  GitHub `production` environment, it publishes API/Web runner images as exact `git-<full SHA>` plus
+  discovery-only `latest`. The VPS accepts only the immutable tag, verifies a backup, persists the
+  selected references in `deploy/.env`, pulls, migrates, recreates, and probes health. Rollback uses
+  the previous references recorded in verified backup metadata.
+- A Windows operator can publish the same tags from a clean commit with
+  `scripts/release/publish-images.ps1`; use the printed `RELEASE_TAG` with
+  `deploy/backup/deploy-safe.sh <tag>`, never `latest`.
 - Database, JWT, LINE, SMTP, payment, and storage secrets remain in the server's `deploy/.env`; CD
   never copies or regenerates them. Before a server update, run
   `docker compose --env-file deploy/.env -f deploy/docker-compose.yml config -q`.

@@ -263,6 +263,7 @@ npm run openapi:check
 npm run spell:check
 npm run e2e:all
 npm run media:persistence:verify
+npm run release:images:verify
 npm run ops:backup:rehearse
 ```
 
@@ -281,15 +282,21 @@ containers and volume.
 The backup rehearsal requires Bash, Docker, and Docker Compose. It creates a unique disposable
 PostgreSQL/Redis/API/worker/Web project and backup root under the OS temporary directory, then proves
 database and local-media restore after mutation. It also rejects corrupt, missing, and incomplete
-snapshots; rejects missing restore confirmation; proves deployment aborts before an image change
-when backup fails; and proves image-only rollback does not restore data. The harness never reads
-`deploy/.env` and must not be pointed at a production Compose file.
+snapshots; rejects missing restore confirmation; proves deployment aborts without changing the
+environment when backup fails; proves a successful tag deployment atomically persists both image
+references; and proves image-only rollback restores those references without restoring data. The
+harness never reads production `deploy/.env` and must not be pointed at a production Compose file.
+
+`npm run release:images:verify` runs the PowerShell publisher in dry-run mode and proves it derives
+the full Git SHA, plans two runner builds, applies revision/release metadata, and plans four pushes:
+immutable plus `latest` for API and Web. It also rejects malformed registry namespaces. The real
+publisher requires a clean worktree and Docker login; see `scripts/release/README.md`.
 
 The GitHub Actions workflow runs these checks as separate jobs so a failure is isolated to one
 quality surface: secret scan, dependency audit, formatting, spelling, lint, type-check, OpenAPI,
 development/validation/production Compose config, API tests, web/shared tests, migration/seed
-smoke, production build, local-media named-volume persistence, isolated backup/restore rehearsal,
-and browser E2E. The API tests,
+smoke, production build, immutable publisher plan validation, local-media named-volume persistence,
+isolated backup/restore rehearsal, and browser E2E. The API tests,
 migration smoke, and browser E2E jobs each
 use their own PostgreSQL service. Browser E2E prepares its own database and loads the explicit
 browser-only fixtures before starting Playwright. The E2E job waits for the static, unit, contract,
@@ -308,14 +315,17 @@ whole rule or path; a new finding must be investigated as a potential credential
 fingerprint is added.
 
 Production CD is manual and environment-gated. Type `DEPLOY` in the workflow dispatch form; the
-workflow builds and pushes immutable API/Web images tagged with the selected commit, waits for
-approval on the `production` environment, and copies only versioned Compose/backup tooling to the
-server. `deploy-safe.sh` then requires a verified PostgreSQL/local-media restore point before it may
-pull images, run canonical migrations, recreate application services, and probe API
-health/readiness plus Web health. Runtime secrets stay on the server in `deploy/.env`; CD never
-copies or prints them. The rollout never removes volumes, so PostgreSQL and `media_data` survive
-image replacement. Use the verified pre-deployment backup ID with `rollback.sh` for image-only
-rollback or with the separately confirmed `restore.sh` only when data recovery is actually needed.
+workflow builds API/Web from the selected commit and pushes both exact `git-<full SHA>` and
+`latest`, waits for approval on the `production` environment, and copies only versioned
+Compose/backup tooling to the server. Deployment passes only the immutable tag. `deploy-safe.sh`
+derives full references from the two repository values already in `deploy/.env`, requires a
+verified PostgreSQL/local-media restore point, atomically persists those references, pulls images,
+runs canonical migrations, recreates application services, and probes API health/readiness plus
+Web health. Runtime secrets stay in the same server file; CD never copies or prints them. The
+rollout never removes volumes, so PostgreSQL and `media_data` survive image replacement. Use the
+verified pre-deployment backup ID with `rollback.sh`; it persists the exact previous references
+from metadata before recreating images. Use the separately confirmed `restore.sh` only when data
+recovery is actually needed.
 
 Target one workspace:
 

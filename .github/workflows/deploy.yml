@@ -3,11 +3,6 @@ name: CD (manual production release)
 on:
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: 'Immutable Docker tag; leave empty to use git-<commit SHA>'
-        required: false
-        default: ''
-        type: string
       confirm:
         description: 'Type DEPLOY to build, publish, and deploy the selected ref'
         required: true
@@ -44,6 +39,8 @@ jobs:
       image_tag: ${{ steps.metadata.outputs.image_tag }}
       api_image: ${{ steps.metadata.outputs.api_image }}
       web_image: ${{ steps.metadata.outputs.web_image }}
+      api_latest: ${{ steps.metadata.outputs.api_latest }}
+      web_latest: ${{ steps.metadata.outputs.web_latest }}
     env:
       DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
       VITE_LIFF_ID: ${{ vars.VITE_LIFF_ID }}
@@ -53,16 +50,22 @@ jobs:
 
       - name: 🏷️ Resolve immutable image tag
         id: metadata
-        env:
-          REQUESTED_TAG: ${{ inputs.image_tag }}
         run: |
           if [[ -z "$DOCKERHUB_USERNAME" || -z "$VITE_LIFF_ID" ]]; then
             echo "DOCKERHUB_USERNAME and VITE_LIFF_ID repository variables are required." >&2
             exit 1
           fi
-          tag="${REQUESTED_TAG:-git-${GITHUB_SHA}}"
-          if [[ ! "$tag" =~ ^[A-Za-z0-9._-]+$ || "$tag" == "latest" ]]; then
-            echo "image_tag must contain only letters, numbers, '.', '_' or '-' and cannot be latest" >&2
+          if [[ ! "$DOCKERHUB_USERNAME" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$ ]]; then
+            echo "DOCKERHUB_USERNAME contains unsupported characters." >&2
+            exit 1
+          fi
+          if [[ ! "$VITE_LIFF_ID" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "VITE_LIFF_ID contains unsupported characters." >&2
+            exit 1
+          fi
+          tag="git-${GITHUB_SHA}"
+          if [[ ! "$tag" =~ ^git-[0-9a-f]{40}$ ]]; then
+            echo "The selected ref did not resolve to a full lowercase Git SHA." >&2
             exit 1
           fi
           api_image="docker.io/${DOCKERHUB_USERNAME}/line-smart-queue-api:${tag}"
@@ -71,6 +74,8 @@ jobs:
             echo "image_tag=$tag"
             echo "api_image=$api_image"
             echo "web_image=$web_image"
+            echo "api_latest=docker.io/${DOCKERHUB_USERNAME}/line-smart-queue-api:latest"
+            echo "web_latest=docker.io/${DOCKERHUB_USERNAME}/line-smart-queue-web:latest"
           } >> "$GITHUB_OUTPUT"
 
       - name: 🐳 Set up Docker Buildx
@@ -89,7 +94,10 @@ jobs:
           file: docker/api/Dockerfile
           target: runner
           push: true
-          tags: ${{ steps.metadata.outputs.api_image }}
+          tags: |
+            ${{ steps.metadata.outputs.api_image }}
+            ${{ steps.metadata.outputs.api_latest }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
 
       - name: 🌐 Build and push Web image
         uses: docker/build-push-action@v6
@@ -103,7 +111,11 @@ jobs:
             VITE_LIFF_ID=${{ vars.VITE_LIFF_ID }}
             VITE_LIFF_MOCK=false
             VITE_PAYMENT_MODE=demo
-          tags: ${{ steps.metadata.outputs.web_image }}
+            VITE_SENTRY_RELEASE=${{ github.sha }}
+          tags: |
+            ${{ steps.metadata.outputs.web_image }}
+            ${{ steps.metadata.outputs.web_latest }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
 
   deploy:
     name: Deploy to production server
@@ -113,8 +125,7 @@ jobs:
     environment:
       name: production
     env:
-      API_IMAGE: ${{ needs.build-publish.outputs.api_image }}
-      WEB_IMAGE: ${{ needs.build-publish.outputs.web_image }}
+      IMAGE_TAG: ${{ needs.build-publish.outputs.image_tag }}
       DEPLOY_PATH: ${{ vars.PRODUCTION_DEPLOY_PATH }}
       SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
       SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT || '22' }}
@@ -161,7 +172,7 @@ jobs:
 
       - name: 🚀 Backup-gated immutable release
         run: |
-          remote_env=$(printf 'DEPLOY_PATH=%q API_IMAGE=%q WEB_IMAGE=%q TOOLING_REVISION=%q' "$DEPLOY_PATH" "$API_IMAGE" "$WEB_IMAGE" "$GITHUB_SHA")
+          remote_env=$(printf 'DEPLOY_PATH=%q IMAGE_TAG=%q TOOLING_REVISION=%q' "$DEPLOY_PATH" "$IMAGE_TAG" "$GITHUB_SHA")
           ssh -i "$RUNNER_TEMP/production_deploy_key" \
             -p "$SSH_PORT" \
             -o IdentitiesOnly=yes \
@@ -170,11 +181,9 @@ jobs:
           set -euo pipefail
           cd "$DEPLOY_PATH"
           test -f deploy/.env
-          export LINE_QUEUE_API_IMAGE="$API_IMAGE"
-          export LINE_QUEUE_WEB_IMAGE="$WEB_IMAGE"
           export BACKUP_TOOLING_REVISION="$TOOLING_REVISION"
           export DEPLOY_APPROVED=GITHUB_ENVIRONMENT_APPROVED
-          backup_id=$(deploy/backup/deploy-safe.sh)
+          backup_id=$(deploy/backup/deploy-safe.sh "$IMAGE_TAG")
           deploy/backup/verify-backup.sh "$backup_id" >/dev/null
           docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps
           printf 'Verified pre-deployment backup: %s\n' "$backup_id"

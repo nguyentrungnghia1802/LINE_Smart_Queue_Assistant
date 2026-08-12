@@ -215,27 +215,41 @@ The stack builds:
 - VPS-local media in the persistent `media_data` named volume mounted only into the API at
   `/app/var/media`; it survives API container recreation and normal image-based redeployment.
 
-Image-based production Compose:
+Initialize the server environment once, replace every credential placeholder, and configure the
+untagged API/Web repositories. Subsequent releases must not recopy the example over the server
+file:
 
 ```bash
 cp deploy/.env.example deploy/.env
-docker compose --env-file deploy/.env -f deploy/docker-compose.yml pull
-docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d
-docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps
+chmod 600 deploy/.env
 ```
 
-The project-specific Docker build, tag, push, inspection, local Compose, health-check, and cleanup
-commands are collected in
-[`docs/archive/scripts/DOCKER_COMMANDS.md`](../archive/scripts/DOCKER_COMMANDS.md). The current
-Docker Hub repositories are `trungnghia2703/line-smart-queue-api` and
-`trungnghia2703/line-smart-queue-web`; production deployments should prefer an immutable
-`git-<commit>` tag while optionally updating `latest`.
+From a clean reviewed local commit, the canonical Windows publisher resolves the full Git SHA and
+pushes API/Web runner images with both the immutable SHA tag and mutable `latest` tag:
+
+```powershell
+$env:VITE_LIFF_ID = '<production-liff-id>'
+pwsh -NoProfile -File scripts/release/publish-images.ps1 `
+  -RegistryNamespace docker.io/trungnghia2703
+```
+
+The current Docker Hub repositories are `trungnghia2703/line-smart-queue-api` and
+`trungnghia2703/line-smart-queue-web`. Pass only the printed `git-<40-character-sha>` to the VPS:
+
+```bash
+deploy/backup/deploy-safe.sh git-0123456789abcdef0123456789abcdef01234567
+```
+
+`latest` is published for operator discovery only and is never a deployment or rollback source.
+The server uses `LINE_QUEUE_API_REPOSITORY` and `LINE_QUEUE_WEB_REPOSITORY` to derive full refs,
+creates and verifies a backup, then atomically updates only `LINE_QUEUE_API_IMAGE` and
+`LINE_QUEUE_WEB_IMAGE` in its existing `deploy/.env` before pull/migration/recreate/health checks.
 
 `deploy/docker-compose.yml` is the canonical production Compose file. It requires prebuilt
 `LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` values (there is no silent `latest` fallback) and
-does not publish PostgreSQL or API port `4000` to the host. Always replace the template tags with
-immutable images built from the intended release commit; changing source code does not update an
-already-pushed tag automatically.
+does not publish PostgreSQL or API port `4000` to the host. Normal releases let `deploy-safe.sh`
+persist exact immutable references; do not hand-edit them around the backup gate. Changing source
+code does not update an already-pushed tag automatically.
 
 Use `--env-file deploy/.env` when invoking the file from the repository root. Without it, Compose interpolation may read a different `.env` from the current working directory even though the API container's `env_file` is resolved from the deploy directory.
 
@@ -377,12 +391,14 @@ production-oriented demo baseline, not shared multi-host or high-availability st
 ## 4. Deployment sequence
 
 1. Back up database and verify recent restore test.
-2. Build immutable API/web images from a reviewed commit.
+2. From a clean reviewed commit, publish API/Web images with the full-SHA local PowerShell script
+   or the manual CD workflow. Record the exact `git-<40-character-sha>`; never deploy `latest`.
    The API image contains canonical migrations and compiled demo seed scripts so
    deployment tooling can run them without TypeScript development dependencies.
    Production rollout applies migrations explicitly and must not seed demo data.
 3. Run lint, typecheck, tests, build, CSP bundle validation, and contract/migration checks.
-4. Apply additive migrations with a production-safe role.
+4. Run `deploy-safe.sh <immutable-tag>` so backup creation and independent verification succeed
+   before the server persists image references, pulls, or applies additive migrations.
    Migration `000013` backfills Japanese translation rows and adds user, organization, and durable notification locale snapshots; verify row counts before enabling language selection.
 5. Deploy API and verify `/health` plus `/ready`.
 6. Deploy web with correct public environment values.
@@ -598,8 +614,9 @@ Run a documented restore drill on a schedule. Define RPO/RTO with the business b
 ## 8. Rollback
 
 - Use `deploy/backup/rollback.sh <predeployment-backup-id>` to select the verified prior API/Web
-  image references. It changes application containers only and requires exact
-  `ROLLBACK <backup-id>` confirmation.
+  image references. After exact `ROLLBACK <backup-id>` confirmation it atomically persists those
+  metadata references in `deploy/.env`, pulls them, and changes application containers only.
+- Never derive rollback from the requested release tag, `latest`, or an operator's memory.
 - Prefer application rollback to the prior image while keeping backward-compatible expanded schema.
 - Never automatically restore PostgreSQL/media or reverse migrations because a new image fails.
 - For a failing additive migration, stop rollout, capture error/state, and run the separately
@@ -681,6 +698,7 @@ gate into independent jobs so failures are easy to locate:
 - production build;
 - mock-integration Playwright desktop/mobile browser E2E.
 - isolated PostgreSQL/local-media backup, corruption rejection, restore, deploy-gate, and rollback rehearsal.
+- PowerShell immutable-image publisher command-plan validation.
 
 The API tests, migration smoke, and browser E2E jobs use separate PostgreSQL services. Browser E2E
 waits for the earlier quality and Compose jobs, applies migrations, loads only the explicit browser
@@ -689,15 +707,16 @@ LINE, PSP, SMTP, SSH, or customer credentials. `npm run audit:ci` blocks new hig
 advisories in production dependencies and keeps its single narrow, reviewed exception in
 `audit-ci.jsonc`.
 
-Production delivery is manual, backup-gated, and environment-gated. `.github/workflows/deploy.yml` requires the
-operator to type `DEPLOY`, builds the API and Web `runner` images from the selected commit, pushes
-immutable tags (`git-<commit SHA>` by default) to Docker Hub, and waits for approval on the
+Production delivery is manual, backup-gated, and environment-gated. `.github/workflows/deploy.yml`
+requires the operator to type `DEPLOY`, builds the API and Web `runner` images from the selected
+commit, always pushes `git-<full SHA>` plus `latest` to Docker Hub, and waits for approval on the
 GitHub `production` environment before connecting to the server. The SSH host key is pinned with
 `PRODUCTION_SSH_KNOWN_HOSTS`. CD copies the selected commit's Compose file and versioned recovery
-tooling, but never the server `.env`, then invokes `deploy-safe.sh`. The remote sequence cannot pull
-or migrate the new images unless a matched PostgreSQL/media snapshot passes independent
-verification; after confirmation it applies canonical migrations and probes API health/readiness
-and Web health.
+tooling, but never the server `.env`, then passes only the immutable tag to `deploy-safe.sh`. The
+remote sequence derives repositories from that file and cannot update image refs, pull, or migrate
+unless a matched PostgreSQL/media snapshot passes independent verification. After confirmation it
+atomically persists both refs, pulls, applies canonical migrations, recreates application services,
+and probes API health/readiness and Web health. A failure reports the verified rollback ID.
 The remote rollout does not run `down -v` or remove volumes: `postgres_data`, `redis_data`, and the
 production `media_data` volume remain attached across API/Web image updates. A release that changes
 the media volume name or mount target requires a separate migration and backup plan.
@@ -727,7 +746,9 @@ The matching public key belongs in the deployment user's `~/.ssh/authorized_keys
 only the Docker/Compose permissions needed under the deploy directory. Keep runtime values such as
 database, JWT, LINE Messaging, SMTP, and payment secrets in the server-side `.env`; the workflow
 does not copy or regenerate that file. If Docker Hub repositories are private, log the server into
-Docker Hub once with a read-only token.
+Docker Hub once with a read-only token. Keep the two untagged repository keys in that file; CD
+updates only the two full image-reference keys. Application rollback reads the exact old refs from
+verified snapshot metadata, writes them back atomically, and never consults `latest`.
 
 Remaining delivery hardening includes container/image scanning, signed image provenance, staging
 deployment against sandbox integrations, encrypted off-host snapshot automation, production-VPS

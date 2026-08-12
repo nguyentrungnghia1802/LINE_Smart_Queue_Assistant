@@ -6,6 +6,12 @@ All notable project changes should be recorded here. This file tracks delivered 
 
 ### Production hardening
 
+- Standardized immutable API/Web releases around the full Git SHA. A local PowerShell publisher
+  builds and pushes both `git-<40-character-sha>` and `latest`; production deployment accepts only
+  the immutable tag, verifies a pre-deployment backup before atomically updating image references
+  in `deploy/.env`, then pulls, migrates, recreates, and probes health. Rollback now persists the
+  exact prior image references from verified snapshot metadata instead of relying on a moving tag.
+
 - Added versioned VPS tooling for matched PostgreSQL/local-media snapshots, checksum and dump/archive
   verification, conservative retention, guarded restore, backup-gated immutable-image deployment,
   and application-only rollback. CI now rehearses representative database/media recovery and
