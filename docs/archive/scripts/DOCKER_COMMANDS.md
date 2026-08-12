@@ -35,7 +35,7 @@ docker push trungnghia2703/line-smart-queue-web:latest
 ### Tren server: pull va deploy lai API + Web
 
 ```bash
-cd /opt/line-smart-queue
+cd /opt/line-smart-queue/deploy
 docker compose pull api web
 docker compose run --rm api npm run db:migrate
 docker compose up -d --force-recreate api web
@@ -48,7 +48,7 @@ Dung khi ban muon keo ca `postgres`, `api`, `web` theo dung file compose hien
 tai.
 
 ```bash
-cd /opt/line-smart-queue
+cd /opt/line-smart-queue/deploy
 docker compose pull
 docker compose run --rm api npm run db:migrate
 docker compose up -d --force-recreate

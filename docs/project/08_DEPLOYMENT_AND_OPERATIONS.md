@@ -246,27 +246,29 @@ creates and verifies a backup, then atomically updates only `LINE_QUEUE_API_IMAG
 `LINE_QUEUE_WEB_IMAGE` in its existing `deploy/.env` before pull/migration/recreate/health checks.
 
 The reviewed manual shell path is the immutable-only alternative when GitHub Actions is not being
-used. From the repository checkout, build and push both images with one checked-out full SHA:
+used. From the repository checkout, let the publisher derive the same 12-character tag for both
+images from the checked-out full SHA:
 
 ```bash
 IMAGE_NAMESPACE=docker.io/<docker-user> VITE_LIFF_ID=<production-liff-id> \
-  bash deploy/scripts/build-push.sh git-<40-character-commit-sha>
+  bash deploy/scripts/build-push.sh
 ```
 
 After the versioned `deploy/` tooling is present on the VPS, deploy the same tag without editing
 the server `.env`:
 
 ```bash
-bash deploy/scripts/deploy.sh git-<40-character-commit-sha>
+bash deploy/scripts/deploy.sh git-<12-character-sha-printed-as-DEPLOY_TAG>
 # or, from the deploy directory:
-bash scripts/deploy.sh git-<40-character-commit-sha>
+bash scripts/deploy.sh git-<12-character-sha-printed-as-DEPLOY_TAG>
 ```
 
 `deploy/scripts/deploy.sh` only delegates to `deploy/backup/deploy-safe.sh`; it does not duplicate
 backup, verification, migration, health, or rollback logic. The backup gate updates the API and
 Web image references atomically, and Compose applies the selected tag to API, Worker, and Web.
-The shell publisher never pushes `latest`; rollback continues to use image metadata already stored
-in the verified snapshot.
+The shell publisher never pushes `latest`; its OCI revision label retains the full Git SHA, and it
+prints the exact tag, full image references, and VPS command only after both pushes succeed.
+Rollback continues to use image metadata already stored in the verified snapshot.
 
 `deploy/docker-compose.yml` is the canonical production Compose file. It requires prebuilt
 `LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` values (there is no silent `latest` fallback) and
@@ -418,8 +420,8 @@ production-oriented demo baseline, not shared multi-host or high-availability st
 
 1. Back up database and verify recent restore test.
 2. From a clean reviewed commit, publish API/Web images with the full-SHA local PowerShell script,
-   the immutable shell wrapper, or the manual CD workflow. Record the exact
-   `git-<40-character-sha>`; never deploy `latest`.
+   the auto-generated 12-character immutable shell tag, or the manual CD workflow. Record the
+   exact printed immutable tag; never deploy `latest`.
    The API image contains canonical migrations and compiled demo seed scripts so
    deployment tooling can run them without TypeScript development dependencies.
    Production rollout applies migrations explicitly and must not seed demo data.

@@ -2,12 +2,10 @@
 
 These rules apply to coding agents and contributors working in this repository.
 
-The purpose of this file is to define stable repository-wide working rules.
+This file defines stable repository-wide rules only. Task plans, issue files, implementation plans,
+roadmaps, and temporary instructions are context only when the current prompt explicitly asks for them.
 
-It is intentionally independent from temporary task plans, issue files, roadmap fragments,
-or one-off implementation documents.
-
-Additional task files are read only when the current prompt explicitly asks for them.
+The current prompt defines the requested task and the allowed level of Git/remote finalization.
 
 ---
 
@@ -19,241 +17,119 @@ For every task, read:
 2. `docs/project/00_PROJECT_CONTEXT.md`
 3. The relevant source files and tests
 
-Add the following documents according to task type:
+Add only the canonical documents needed for the task:
 
 | Task                      | Required context                                                                                                          |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | Product behavior          | `docs/project/01_PRODUCT_REQUIREMENTS.md`, `docs/project/03_DOMAIN_AND_FLOWS.md`                                          |
 | Architecture              | `docs/project/02_SYSTEM_ARCHITECTURE.md`, `docs/project/06_CODEBASE_GUIDE.md`, `docs/project/09_ROADMAP_AND_DECISIONS.md` |
-| Database                  | `docs/project/04_DATABASE.md`, all relevant migrations, repositories, integration tests                                   |
+| Database                  | `docs/project/04_DATABASE.md`, relevant migrations, repositories, integration tests                                       |
 | API                       | `docs/project/05_API.md`, routes, validators, controllers, services, frontend clients                                     |
 | Local development/testing | `docs/project/07_DEVELOPMENT_AND_TESTING.md`                                                                              |
-| Deployment/operations     | `docs/project/08_DEPLOYMENT_AND_OPERATIONS.md`, Compose/Docker/CI files, `.env.example`                                   |
+| Deployment/operations     | `docs/project/08_DEPLOYMENT_AND_OPERATIONS.md`, Docker/Compose/CI files, `.env.example`                                   |
 
-Do not read `docs/archive` unless the task requires historical investigation.
+Do not read `docs/archive` unless historical investigation is required.
 
-Do not load unrelated canonical documents merely because they exist.
-
-Prefer the smallest context set that is sufficient to understand the requested change correctly.
+Prefer the smallest context set that is sufficient to understand and implement the requested change correctly.
 
 ---
 
-# 2. Task Intake And Scope
+# 2. Task Intake, Scope, And Sources Of Truth
 
-The current user/agent prompt defines the task to execute.
+The current prompt defines the task.
 
-Additional planning files such as:
-
-- `task.md`
-- issue descriptions
-- implementation plans
-- security plans
-- roadmap fragments
-- migration plans
-
-are task context only when the current prompt explicitly asks the agent to read or execute them.
-
-Do not assume that a planning file is active merely because it exists in the repository.
+Additional files such as `task.md`, issue descriptions, migration plans, or implementation plans are active
+only when the current prompt explicitly references them.
 
 Before editing:
 
-1. Identify the exact requested outcome.
-2. Identify affected modules and contracts.
-3. Load only the relevant canonical documentation and implementation context.
-4. Inspect existing behavior before proposing changes.
-5. Identify whether the task affects:
-   - product behavior;
-   - architecture;
-   - database;
-   - API;
-   - frontend;
-   - security;
-   - operations;
-   - documentation.
-6. Keep the implementation within the requested scope.
+1. Inspect the current branch and working tree.
+2. Identify the exact requested outcome.
+3. Inspect the relevant implementation, tests, configuration, and dependencies.
+4. Identify affected contracts: product, architecture, database, API, frontend, security, operations, documentation.
+5. Preserve unrelated user work.
+6. Keep implementation inside the requested scope.
 
 Do not:
 
 - implement adjacent roadmap items opportunistically;
 - perform unrelated refactors;
-- introduce new infrastructure without a concrete requirement or demonstrated need;
+- introduce new infrastructure without a concrete requirement;
 - change established product behavior merely to simplify implementation;
-- expand the task because another improvement looks convenient.
+- treat a planning file as active merely because it exists.
 
 When requirements are ambiguous:
 
 1. Resolve them from canonical documentation and existing behavior when possible.
 2. State any necessary assumption explicitly.
-3. Ask for clarification before making a material product or architecture decision that cannot be safely inferred.
+3. Ask before making a material product or architecture decision that cannot be safely inferred.
+
+Use this source hierarchy:
+
+1. Product intent: `docs/project/01_PRODUCT_REQUIREMENTS.md`
+2. Domain states/flows: `docs/project/03_DOMAIN_AND_FLOWS.md`
+3. Accepted architecture/limitations: `docs/project/09_ROADMAP_AND_DECISIONS.md`
+4. Runtime behavior: source code and automated tests
+5. Database executable state: `db/migrations/node-pg-migrate`
+6. API executable contract: Express routes and Zod validators
+7. Runtime configuration: `.env.example`, API config, Vite config, Docker Compose, deployment config
+
+Human-readable database/API docs are maps, not substitutes for executable state.
+
+When documentation and implementation disagree:
+
+- distinguish intended behavior from currently implemented behavior;
+- use product requirements, accepted ADRs, domain flows, constraints, tests, and surrounding code to resolve intent;
+- do not document an apparent bug as intended behavior;
+- do not silently change a documented business rule;
+- update implementation, tests, and affected canonical docs together once intent is established;
+- stop and report if the conflict cannot be resolved safely.
 
 ---
 
-# 3. Sources Of Truth
+# 3. Repository-Wide Product Invariants
 
-Use the following source hierarchy.
-
-## Product intent and business rules
-
-`docs/project/01_PRODUCT_REQUIREMENTS.md`
-
-## Domain states and end-to-end flows
-
-`docs/project/03_DOMAIN_AND_FLOWS.md`
-
-## Accepted architecture decisions and known limitations
-
-`docs/project/09_ROADMAP_AND_DECISIONS.md`
-
-## Runtime implementation
-
-Source code and automated tests.
-
-## Database schema
-
-`db/migrations/node-pg-migrate`
-
-`docs/project/04_DATABASE.md` is the human-readable database map.
-
-## API executable contract
-
-Express routes and Zod validators.
-
-`docs/project/05_API.md` is the human-readable API index.
-
-## Runtime configuration
-
-- `.env.example`
-- `apps/api/src/config`
-- Vite configuration
-- Docker Compose
-- deployment configuration
-
----
-
-# 4. Resolving Documentation And Implementation Conflicts
-
-When canonical documentation and implementation disagree:
-
-1. Distinguish **intended behavior** from **currently implemented behavior**.
-2. Use:
-   - product requirements;
-   - accepted ADRs;
-   - domain flows;
-   - database constraints;
-   - automated tests;
-   - surrounding implementation;
-     to determine the intended behavior.
-3. Do not document an apparent implementation bug as intended behavior merely because current code behaves that way.
-4. Do not silently change a documented business rule merely because the implementation differs.
-5. Report material ambiguity before changing product behavior.
-6. Once intended behavior is established, update:
-   - implementation;
-   - tests;
-   - affected canonical documentation;
-     together in the same change.
-
-If the disagreement cannot be resolved safely, stop before making the material behavior change and report the conflict.
-
----
-
-# 5. Product Rules
-
-These are repository-wide product invariants.
+These rules apply whenever relevant:
 
 - Visible application UI and customer messages use translation keys for `ja`, `vi`, and `en`.
 - Japanese is the default locale and final fallback.
 - Code identifiers, comments, logs, commit messages, and technical documentation use English.
 - Platform `admin` is global.
-- `manager` and `staff` authorization must be constrained by active `organization_members` membership.
-- Branch-scoped roles must not gain authority from body parameters supplied by the browser.
+- `manager` and `staff` authorization requires active `organization_members` membership.
+- Branch-scoped roles must not gain authority from browser-supplied body/query parameters.
 - Public branch URLs are discovery redirects into LIFF.
 - Booking requires a verified LINE customer session.
 - LINE notifications additionally require:
   - an active linked LINE account;
-  - the relevant queue entry to have a valid `line_user_id`.
-- Products with `stock_quantity = NULL` are unlimited.
+  - a valid `line_user_id` on the relevant queue entry.
+- `stock_quantity = NULL` means unlimited stock.
 - Finite stock must be checked and changed atomically.
-- Products with `requires_prepayment = TRUE` must be covered by a successful verified payment before order creation.
+- `requires_prepayment = TRUE` requires successful verified payment before order creation.
 - Never trust browser-supplied:
   - payment amount;
   - product price;
   - role;
   - organization ID;
   - branch authority;
-  - payment status;
-    without server-side verification.
+  - payment status.
 
-When a task affects product behavior, verify the relevant rule in canonical product/domain documentation before implementation.
+Verify affected product rules against canonical product/domain docs before changing behavior.
 
 ---
 
-# 6. Architecture Boundaries
+# 4. Architecture And Dependency Boundaries
 
-Preserve the current modular-monolith architecture unless an accepted ADR explicitly changes it.
+Preserve the modular-monolith architecture unless an accepted ADR explicitly changes it.
 
-## Backend layering
+Backend ownership:
 
-### Routes
-
-Routes declare:
-
-- endpoints;
-- route-level middleware;
-- versioned API structure.
-
-Routes must not own business logic.
-
-### Controllers
-
-Controllers:
-
-- translate HTTP input/output;
-- obtain trusted actor context;
-- invoke services;
-- map application results to standard responses.
-
-Controllers must not own domain policy.
-
-### Validators
-
-Validators define request contracts with Zod.
-
-Validation must happen before untrusted input reaches business logic.
-
-### Services
-
-Services own:
-
-- application logic;
-- business rules;
-- transaction orchestration;
-- authorization-sensitive workflow decisions where appropriate.
-
-### Repositories
-
-Repositories own:
-
-- SQL;
-- database mapping;
-- persistence access.
-
-Repositories must not become business-policy layers.
-
-### Integrations
-
-Integrations hide third-party transports such as:
-
-- LINE;
-- payment providers;
-- email;
-- routing providers;
-- media/object storage.
-
-Business services should depend on stable integration boundaries instead of provider-specific transport details.
-
-### Shared package
-
-Shared package code must remain framework-independent.
+- Routes: endpoints, middleware, API version structure.
+- Controllers: HTTP translation, trusted actor context, service invocation, standard responses.
+- Validators: Zod request contracts and untrusted-input validation.
+- Services: business rules, application workflows, transaction orchestration, authorization-sensitive decisions.
+- Repositories: SQL, database mapping, persistence access.
+- Integrations: third-party transports such as LINE, payment, email, routing, media/object storage.
+- Shared package: framework-independent shared code.
 
 Do not place business logic in:
 
@@ -262,79 +138,43 @@ Do not place business logic in:
 - repositories;
 - provider adapters.
 
----
-
-# 7. Dependency And Infrastructure Changes
-
-Before adding a new runtime dependency or infrastructure component:
+Before adding a runtime dependency or infrastructure component:
 
 1. Identify the concrete problem it solves.
-2. Check whether the repository already has a mechanism solving the same problem.
-3. Prefer extending an existing abstraction over introducing a parallel architecture.
-4. Define:
-   - ownership;
-   - lifecycle;
-   - failure behavior;
-   - degraded-mode behavior;
-   - observability;
-   - rollback implications.
-5. Define where authoritative state lives.
-6. Add:
-   - configuration;
-   - tests;
-   - health/observability;
-   - deployment documentation;
-   - operational guidance;
-     as appropriate.
+2. Check whether an existing mechanism already solves it.
+3. Prefer extending an existing abstraction over creating a parallel architecture.
+4. Define ownership, lifecycle, failure/degraded behavior, observability, rollback implications, and authoritative state.
+5. Add configuration, tests, health/observability, and operational documentation as appropriate.
 
-Do not add technology solely to expand the technology stack.
-
-Do not replace a working architecture boundary with a new tool without a measurable or documented reason.
+Do not add technology solely to expand the stack.
 
 ---
 
-# 8. Database Changes
+# 5. Database And API Rules
 
-For every schema change:
+## Database
 
-- Add a new forward migration.
-- Never rewrite a migration that may already have been applied.
-- Keep `db/schema/reset_line_queue_schema.sql` synchronized with migrations.
-- Use transactions for:
-  - multi-table writes;
-  - concurrency-sensitive state changes;
-  - writes that must commit atomically.
-- Define explicitly:
-  - foreign keys;
-  - check constraints;
-  - indexes;
-  - uniqueness;
-  - deletion behavior;
-  - rollback behavior.
-- Review concurrency implications.
-- Review tenant isolation implications.
-- Review existing data/backfill implications.
-- Test migration behavior against a clean database when relevant.
+For schema changes:
 
-Never use the destructive reset script on:
+- add a new forward migration;
+- never rewrite a migration that may already have been applied;
+- keep `db/schema/reset_line_queue_schema.sql` synchronized;
+- use transactions for multi-table or concurrency-sensitive writes;
+- define foreign keys, checks, indexes, uniqueness, deletion behavior, and rollback behavior explicitly;
+- review concurrency, tenant isolation, existing data, and backfill implications;
+- validate against a clean database where relevant.
 
-- shared data;
-- staging;
-- production.
+Never use the destructive reset script on shared, staging, or production data.
 
-Executable migration state takes precedence over stale human-readable schema documentation.
+## API
 
----
-
-# 9. API Changes
-
-Keep the `/api/v1` prefix unless a deliberate API versioning decision is recorded.
+Keep `/api/v1` unless a deliberate versioning decision is recorded.
 
 Use the standard success/error envelopes from:
 
 `apps/api/src/utils/response.ts`
 
-For every affected endpoint, apply as appropriate:
+For affected endpoints, apply as appropriate:
 
 - authentication;
 - role checks;
@@ -344,37 +184,30 @@ For every affected endpoint, apply as appropriate:
 - idempotency;
 - transaction boundaries.
 
-When API behavior changes, update together:
+When API behavior changes, update the affected:
 
 - routes;
 - validators;
 - controllers;
 - services;
-- repositories if affected;
+- repositories;
 - backend tests;
-- frontend API clients;
-- frontend types;
+- frontend API clients/types;
 - Swagger/OpenAPI source;
 - `docs/project/05_API.md`.
 
-Do not expose:
-
-- stack traces;
-- secrets;
-- internal provider payloads;
-- authorization headers;
-- cross-organization records;
-- sensitive implementation details.
+Do not expose stack traces, secrets, provider payloads, authorization headers, cross-organization records,
+or sensitive implementation details.
 
 Browser-supplied IDs are selectors, not authority.
 
 ---
 
-# 10. Security
+# 6. Security And Privacy
 
-Security rules apply to every task.
+Security applies to every task.
 
-Never commit:
+Never commit or expose:
 
 - `.env`;
 - access tokens;
@@ -384,76 +217,54 @@ Never commit:
 - real customer data;
 - payment-provider secrets;
 - object-storage credentials;
-- Redis credentials.
+- Redis credentials;
+- SSH private keys;
+- production backup payloads.
 
 Treat every `VITE_*` variable as public browser data.
 
-## Authentication and authorization
+Authentication/authorization:
 
-- Never trust browser-provided role or tenant authority.
-- Always derive trusted actor identity from server-side authentication/session state.
-- Verify active membership before tenant-scoped business access.
-- Enforce branch scope server-side.
+- derive trusted identity from server-side authentication/session state;
+- verify active tenant membership;
+- enforce branch scope server-side;
+- never trust browser-provided role or tenant authority.
 
-## LINE
+LINE:
 
-- Verify LINE webhook signatures against the raw request body.
-- Never trust browser-supplied `line_user_id`.
+- verify webhook signatures against the raw request body;
+- never trust browser-supplied `line_user_id`.
 
-## Passwords and credentials
+Credentials/logging:
 
-- Hash passwords using the established password-hashing mechanism.
-- Never log credentials.
-- Never log authorization headers.
+- use the established password hashing mechanism;
+- never log credentials, authorization headers, cookies, refresh tokens, or raw provider secrets.
 
-## Uploads
+Uploads:
 
-Uploaded data URLs/files require:
+- validate type, size, and content as appropriate.
 
-- type validation;
-- size validation;
-- content validation as appropriate.
+Production media:
 
-Production media must use durable storage outside the writable container layer. The current
-production-oriented demo uses the production Compose `media_data` named volume mounted at
-`/app/var/media`; S3-compatible object storage remains an optional provider for a later external or
-multi-host deployment. Never rely on an unmounted path inside the API container.
+- use durable storage outside the writable container layer;
+- current production demo uses the `media_data` volume at `/app/var/media`;
+- S3-compatible storage remains optional for later external/multi-host deployment.
 
-## Location
+Location collection requires explicit consent, purpose limitation, minimum retention, and documented deletion behavior.
 
-Location collection requires:
+Telemetry must avoid unnecessary PII and high-cardinality labels such as user/order/ticket/request IDs.
 
-- explicit user consent;
-- purpose limitation;
-- minimum retention;
-- documented deletion behavior.
-
-## Telemetry
-
-Logs, metrics, traces, and error monitoring must not expose:
-
-- credentials;
-- access tokens;
-- refresh tokens;
-- cookies;
-- authorization headers;
-- unnecessary PII;
-- raw payment/provider secrets.
+Observability failure must not fail business operations.
 
 ---
 
-# 11. Frontend Changes
+# 7. Frontend, Background Jobs, And Concurrency
 
-Keep business authority on the server.
+## Frontend
 
-React components may:
+React components may render state, collect input, trigger API actions, and manage presentation behavior.
 
-- render state;
-- collect input;
-- trigger API actions;
-- manage local presentation behavior.
-
-React components must not become the source of truth for:
+They must not become the source of truth for:
 
 - authorization;
 - payment validity;
@@ -461,76 +272,92 @@ React components must not become the source of truth for:
 - queue transition correctness;
 - tenant ownership.
 
-Use existing project conventions for:
+Use existing project conventions for TanStack Query, auth/session state, localization, routing, and reusable components.
 
-- TanStack Query;
-- authentication/session management;
-- localization;
-- routing;
-- reusable components.
+For user-facing changes, handle applicable loading, empty, error, disabled, success, responsive, and locale states.
 
-For user-facing changes, handle applicable states:
+## Background jobs
 
-- loading;
-- empty;
-- error;
-- disabled;
-- success;
-- responsive/mobile behavior.
+Preserve idempotency and prevent duplicate business effects.
 
-Visible text must use translation keys unless the existing architecture explicitly treats the text as technical/internal.
+Use existing PostgreSQL/advisory-lock/outbox mechanisms where applicable.
 
----
+Do not introduce unsafe database-to-queue dual writes.
 
-# 12. Background Jobs And Concurrency
+Define:
 
-For background processing and schedulers:
+- retry behavior;
+- retryable vs permanent failures;
+- ownership/coordination for multi-process execution.
 
-- Preserve idempotency.
-- Prevent duplicate business effects.
-- Use existing PostgreSQL/advisory-lock/outbox mechanisms where applicable.
-- Do not introduce unsafe database-to-queue dual writes.
-- Define retry behavior explicitly.
-- Define permanent vs retryable failures.
-- Avoid uncontrolled retry storms.
-- Respect external provider rate limits.
-- Ensure provider failure cannot corrupt committed business state.
+Avoid retry storms and respect provider rate limits.
 
-When a job runs in multiple processes or replicas, define ownership/coordination explicitly.
+Provider failure must not corrupt committed business state.
 
 ---
 
-# 13. Observability
+# 8. Validation
 
-New behavior should be diagnosable without exposing sensitive data.
+Validation follows the impact surface of the change.
 
-Use existing logging/metrics conventions.
+Test the changed component and its direct dependents first.
 
-Where applicable include:
+Do not run unrelated repository-wide tests merely because they exist.
 
-- request correlation;
-- structured logs;
-- safe error codes;
-- relevant metrics;
-- worker/job visibility;
-- provider-failure visibility.
+Before choosing validation:
 
-Do not add high-cardinality metric labels such as:
+1. Identify the changed files/modules.
+2. Identify the behavior or contracts they affect.
+3. Identify direct dependents that could regress.
+4. Select the narrowest checks that provide reasonable confidence.
+5. Expand validation only when the impact surface or observed failures justify it.
 
-- user IDs;
-- order IDs;
-- ticket IDs;
-- request IDs.
+## Default validation strategy
 
-Observability failure must not fail business operations.
+Use targeted checks by default.
 
----
+Examples:
 
-# 14. Required Validation
+| Change                                | Expected validation                                                                     |
+| ------------------------------------- | --------------------------------------------------------------------------------------- |
+| Documentation/task status only        | formatting, spell/docs checks if applicable                                             |
+| Shell/deployment script               | ShellCheck/static validation, script rehearsal/dry-run, affected Compose/runtime checks |
+| Nginx/Compose/config                  | syntax/config validation and affected runtime smoke test                                |
+| React component/page                  | relevant frontend tests, affected lint/typecheck, E2E only for critical flow changes    |
+| API controller/service/route          | relevant API unit/integration tests, affected lint/typecheck                            |
+| API contract                          | relevant API tests plus `npm run openapi:check`                                         |
+| Repository/data access                | relevant repository/integration tests                                                   |
+| Database migration/schema             | migration/status/schema/integration checks, clean database validation when relevant     |
+| Worker/background job                 | relevant worker/job tests, retry/idempotency/concurrency checks                         |
+| Shared package                        | shared tests plus directly dependent workspaces                                         |
+| Security-sensitive behavior           | relevant targeted tests plus applicable security/dependency checks                      |
+| Cross-cutting/release-critical change | broaden validation; full repository suite may be appropriate                            |
 
-During development, run the smallest relevant checks needed for fast feedback.
+Do not run API tests for a documentation-only change.
 
-Before handoff, run:
+Do not run the entire frontend suite for an isolated backend-only change unless the changed contract is consumed by the frontend.
+
+Do not run the entire repository build/test suite for an isolated operational script when script-specific validation provides sufficient confidence.
+
+## When to broaden validation
+
+Expand beyond targeted checks when one or more of these applies:
+
+- shared contracts or shared packages changed;
+- multiple workspaces/modules are materially affected;
+- database/API/frontend behavior crosses module boundaries;
+- authentication, authorization, payment, stock, queue transitions, or other critical business invariants changed;
+- infrastructure/release behavior can affect the whole deployment;
+- targeted validation reveals failures outside the initial scope;
+- the impact surface cannot be determined confidently;
+- the current prompt explicitly requests broader/full validation;
+- repository CI/release requirements require broader checks.
+
+## Full repository validation
+
+The full suite is not the default.
+
+Run:
 
 ```bash
 npm run lint
@@ -540,235 +367,185 @@ npm run build
 npm run format:check
 ```
 
-Additional validation depends on the change type.
+only when justified by the impact surface, release risk, CI requirements, or explicit prompt.
 
-## API contract changes
+## Additional change-specific checks
 
-Run:
+### API contract changes
 
 ```bash
 npm run openapi:check
 ```
 
-## Database changes
-
-Run:
+### Database changes
 
 ```bash
 npm run db:migrate:status
 npm run db:migrate
 ```
 
-Also validate schema behavior against a clean database where relevant.
+Also validate relevant schema behavior against a clean database where appropriate.
 
-## Critical browser workflow changes
+### Critical browser workflow changes
 
 Run the relevant Playwright E2E scope.
 
-Do not run unrelated E2E suites unnecessarily if a narrower validated scope is sufficient.
+Do not run unrelated E2E suites when a narrower scope is sufficient.
 
-## Dependency/security-sensitive changes
+### Dependency/security-sensitive changes
 
-Run the repository dependency/security checks required by CI when applicable.
+Run the applicable repository dependency/security checks.
 
-## Deployment/Compose changes
+### Deployment/Compose changes
 
-Validate affected Docker/Compose configuration and smoke-test the changed runtime path where practical.
+Validate the affected Docker/Compose/Nginx configuration and smoke-test or rehearse the changed runtime path where practical.
 
-If a required check cannot be run, report:
+## Validation reporting
 
-1. the exact command;
+Always report:
+
+- which checks were run;
+- what scope they covered;
+- whether they passed;
+- why that validation was sufficient for the observed impact surface.
+
+If a relevant check cannot be run, report:
+
+1. the exact command/check;
 2. why it could not run;
 3. what risk remains.
 
-Do not claim validation passed when it was not executed.
+Never claim a check passed when it was not executed.
 
 ---
 
-# 15. Definition Of Done
+# 9. Definition Of Done And Documentation
 
-If the task comes from an explicitly referenced task-plan file, update its status/checklist accurately after successful implementation and validation.
-A change is complete only when all applicable conditions are satisfied.
+If the task comes from an explicitly referenced task-plan file, update its status/checklist accurately
+after successful implementation and validation.
 
-## Behavior
+A change is complete only when all applicable conditions are satisfied:
 
-- Behavior matches documented business rules.
-- Existing compatible behavior is preserved unless intentionally changed.
-- Edge cases introduced by the change are handled.
+- behavior matches intended business rules;
+- existing compatible behavior is preserved unless intentionally changed;
+- authentication and tenant/branch boundaries remain correct;
+- edge cases and meaningful failure paths are covered;
+- database changes are deployable and transaction/concurrency behavior is understood;
+- idempotency and retry/degraded behavior are preserved where required;
+- no secret or sensitive data is exposed;
+- relevant targeted validation passes;
+- regression coverage is added for changed behavior where meaningful;
+- affected canonical docs/config examples describe the verified implementation;
+- unrelated user changes remain untouched;
+- no temporary bypass/debug configuration remains.
 
-## Authorization
+Update only affected canonical documents:
 
-- Authentication is correct.
-- Tenant boundaries are enforced.
-- Branch boundaries are enforced where applicable.
-- Browser input is not treated as authority.
+| Change type           | Documentation to review                                                            |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| Product/business      | `01_PRODUCT_REQUIREMENTS.md`, `03_DOMAIN_AND_FLOWS.md`                             |
+| Architecture          | `02_SYSTEM_ARCHITECTURE.md`, `06_CODEBASE_GUIDE.md`, `09_ROADMAP_AND_DECISIONS.md` |
+| Database              | `04_DATABASE.md`                                                                   |
+| API                   | `05_API.md`                                                                        |
+| Development/testing   | `07_DEVELOPMENT_AND_TESTING.md`                                                    |
+| Deployment/operations | `08_DEPLOYMENT_AND_OPERATIONS.md`                                                  |
+| Project scope/status  | `00_PROJECT_CONTEXT.md`                                                            |
 
-## UI
+Do not modify `docs/archive` unless historical work is explicitly required.
 
-For user-facing changes:
+Record major architecture decisions through the established ADR/decision mechanism.
 
-- loading state handled;
-- empty state handled;
-- error state handled;
-- responsive behavior handled;
-- locale behavior remains correct.
-
-## Data
-
-- Database changes are deployable.
-- Transactions protect multi-table/concurrent writes where required.
-- Rollback behavior is understood.
-- No destructive migration behavior is hidden.
-
-## Reliability
-
-- Idempotency is preserved where required.
-- Retry/degraded-mode behavior is defined for new dependencies.
-- No duplicate business effect is introduced.
-
-## Security
-
-- No secret or sensitive data is exposed.
-- Observability remains safe.
-- New external inputs are validated.
-
-## Testing
-
-- Relevant tests pass.
-- Regression coverage is added for changed behavior.
-- Failure paths are covered where meaningful.
-
-## Documentation
-
-- Affected canonical documents are updated.
-- Configuration examples are updated.
-- Documentation describes actual implementation, not requested future behavior.
-
-## Repository hygiene
-
-- Unrelated user changes remain untouched.
-- No accidental debug configuration remains.
-- No temporary test bypass remains.
-- No unnecessary compatibility code remains unintentionally.
+Do not silently rewrite historical decisions; supersede them explicitly.
 
 ---
 
-# 16. Documentation Synchronization
-
-Canonical documentation must reflect the latest verified implementation.
-
-After implementing a task, update only the affected canonical documents.
-
-Do not update documentation merely to mirror request wording.
-
-Documentation must describe what is actually implemented.
-
-Typical mapping:
-
-| Change type               | Documentation to review                                                            |
-| ------------------------- | ---------------------------------------------------------------------------------- |
-| Product/business behavior | `01_PRODUCT_REQUIREMENTS.md`, `03_DOMAIN_AND_FLOWS.md`                             |
-| Architecture              | `02_SYSTEM_ARCHITECTURE.md`, `06_CODEBASE_GUIDE.md`, `09_ROADMAP_AND_DECISIONS.md` |
-| Database                  | `04_DATABASE.md`                                                                   |
-| API                       | `05_API.md`                                                                        |
-| Development/testing       | `07_DEVELOPMENT_AND_TESTING.md`                                                    |
-| Deployment/operations     | `08_DEPLOYMENT_AND_OPERATIONS.md`                                                  |
-| Project scope/status      | `00_PROJECT_CONTEXT.md`                                                            |
-
-Do not read or modify `docs/archive` unless historical work is explicitly required.
-
-Major architecture decisions should be recorded through ADRs or the established decision section in `09_ROADMAP_AND_DECISIONS.md`.
-
-Do not silently rewrite historical architecture decisions.
-
-Supersede them explicitly when necessary.
-
----
-
-# 17. Branch Workflow
+# 10. Branch And Repository Safety
 
 Before editing repository state:
 
 1. Inspect the current branch.
 2. Inspect the working tree.
-3. Identify unrelated uncommitted user changes.
+3. Identify unrelated uncommitted changes.
 4. Preserve unrelated work.
 
 For new feature/fix work, use an appropriately named task branch when branch creation is part of the requested workflow.
 
-Suggested branch names:
+Suggested names:
 
 - `feat/<short-name>`
 - `fix/<short-name>`
 - `chore/<short-name>`
 
-Keep commits focused on the current task.
+Keep commits focused on the current scope.
 
 Do not:
 
-- rewrite shared branch history;
+- rewrite shared history;
 - force-push unless explicitly requested and confirmed safe;
 - discard unrelated changes;
 - reset unrelated files;
-- clean the working tree destructively to simplify the task.
+- destructively clean the working tree;
+- bypass branch protection, required CI, repository rules, or approvals.
 
-If unrelated user work prevents safe implementation, report the conflict rather than overwriting it.
+If unrelated user work prevents safe implementation, report the conflict instead of overwriting it.
 
 ---
 
-# 18. Commit, Merge, Push, And Remote Finalization
+# 11. Git And Remote Finalization
 
-Commit, merge, push, and branch deletion are repository-state-changing operations.
+Git/remote operations require explicit authorization from the current prompt.
 
-They must only be performed when:
+The prompt may authorize any of these levels:
 
-- the current prompt explicitly requests finalization/remote synchronization; or
-- the current prompt explicitly instructs the agent to follow this finalization workflow.
+1. Implementation only.
+2. Commit only.
+3. Commit + push task branch.
+4. Commit + push + create/update Pull Request.
+5. Commit + push + Pull Request + merge/auto-merge.
 
-Do not automatically merge or push merely because implementation is complete.
+Never perform a higher level than the prompt explicitly requests.
 
-## When finalization is explicitly requested
+Do not assume that "complete the task" means create PR, merge, push protected branches, enable auto-merge,
+or delete branches.
 
-Follow this sequence:
+Before any authorized finalization:
 
-1. Ensure implementation, tests, and canonical documentation updates are complete.
-2. Ensure required validation passes.
-3. Inspect the working tree and branch state.
-4. Commit only completed task changes.
-5. Merge the completed task branch into `chore/dev`.
-6. Resolve conflicts only when safe and unambiguous.
-7. Push `chore/dev`.
-8. Merge the updated `chore/dev` into `main`.
-9. Push `main`.
-10. Verify both remote branches contain the completed work.
-11. Only after verification, delete the completed task branch locally and remotely.
-12. Never delete:
-    - `main`;
-    - `chore/dev`.
+- ensure implementation, targeted validation, task status, and affected docs are complete;
+- inspect branch, diff, working tree, and relevant remote state;
+- commit only intended changes;
+- exclude secrets, runtime `.env`, credentials, production backup data, and temporary artifacts.
 
-Expected final repository state:
+Pull Request creation and merge are separate permissions:
 
-- `chore/dev` contains the completed work locally and remotely.
-- `main` contains the same completed work locally and remotely.
-- The completed task branch has been deleted locally and remotely.
-- No completed task changes remain uncommitted.
-- Unrelated user changes remain untouched.
+- "create PR" means create/update the PR and stop before merge;
+- "create PR and merge" means merge only after required checks/rules pass;
+- enable auto-merge only when explicitly requested.
 
-## Stop conditions
+Do not push task changes directly to protected `main`.
 
-Do not merge, push, or delete branches if:
+Do not use local merge + push as a workaround for protected PR workflow.
 
-- required validation failed;
-- remote state has unexpected commits;
+`chore/dev` is used only when the current prompt or active repository workflow explicitly requires it.
+
+Branch deletion is allowed only when explicitly authorized, safely merged/no longer needed, and remote state is verified.
+
+Never delete `main`. Do not delete `chore/dev` unless explicitly requested and confirmed safe.
+
+Stop and report instead of continuing when:
+
+- required targeted validation or CI failed;
+- remote state contains unexpected commits;
 - merge conflicts are materially ambiguous;
 - unrelated user work would be overwritten;
+- repository rules block the requested operation;
+- required approval is missing;
 - destructive resolution would be required.
 
-Report the blocker instead.
+Leave the repository in the safest completed state and report the exact remaining action.
 
 ---
 
-# 19. Handoff Requirements
+# 12. Handoff
 
 Before ending a coding task, provide a concise handoff containing:
 
@@ -776,17 +553,18 @@ Before ending a coding task, provide a concise handoff containing:
 2. Important architecture/business decisions.
 3. Files changed.
 4. Migrations added, if any.
-5. Tests/checks executed and their results.
-6. Documentation/configuration updated.
-7. Remaining risks, limitations, or deferred work.
-8. Any required manual verification.
-9. Whether the requested task is fully complete.
+5. Tests/checks executed and results.
+6. Why the selected validation matched the change impact.
+7. Documentation/configuration updated.
+8. Remaining risks, limitations, or deferred work.
+9. Required manual verification.
+10. Whether the requested task is fully complete.
 
-Do not claim completion if required validation or critical manual verification is still missing.
+Do not claim completion when relevant validation or critical manual verification is still missing.
 
 ---
 
-# 20. General Engineering Principles
+# 13. Engineering Principles
 
 Prefer:
 
@@ -797,7 +575,8 @@ Prefer:
 - measured optimization over speculative complexity;
 - durable state over ephemeral state for business truth;
 - backward compatibility over unnecessary breaking changes;
-- clear failure behavior over silent degradation.
+- clear failure behavior over silent degradation;
+- targeted validation over unrelated exhaustive validation.
 
 Avoid:
 
@@ -807,8 +586,8 @@ Avoid:
 - speculative abstractions;
 - silent product-rule changes;
 - undocumented operational dependencies;
-- technology additions made only for portfolio value.
+- technology additions made only for portfolio value;
+- running broad validation without a concrete impact-based reason.
 
-The goal is not to maximize the number of technologies in the repository.
-
-The goal is to keep the system correct, understandable, secure, maintainable, and production-ready as it evolves.
+The goal is to keep the system correct, understandable, secure, maintainable, and production-ready
+without wasting engineering time on unrelated work or validation.

@@ -24,7 +24,7 @@ export OPS_TEST_MODE=true
 export OPS_SKIP_MIGRATIONS=true
 export OPS_SKIP_HEALTH=true
 export OPS_SKIP_PULL=true
-release_tag="git-$(printf '2%.0s' {1..40})"
+release_tag="git-$(printf '2%.0s' {1..12})"
 release_image="alpine:$release_tag"
 test_secret='rehearsal-password-must-not-appear'
 log_file="$test_root/rehearsal.log"
@@ -33,7 +33,9 @@ cleanup() {
   local status=$?
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" down --remove-orphans >/dev/null 2>&1 || true
   for volume in "${project}_postgres_data" "${project}_media_data" "${project}_redis_data"; do
-    docker volume inspect "$volume" >/dev/null 2>&1 && docker volume rm "$volume" >/dev/null 2>&1 || true
+    if docker volume inspect "$volume" >/dev/null 2>&1; then
+      docker volume rm "$volume" >/dev/null 2>&1 || true
+    fi
   done
   docker image rm "$release_image" >/dev/null 2>&1 || true
   if ((status == 0)); then

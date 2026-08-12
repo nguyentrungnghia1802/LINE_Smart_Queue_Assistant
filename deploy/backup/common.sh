@@ -289,8 +289,8 @@ require_immutable_image() {
 
 require_release_tag() {
   local tag=$1
-  [[ "$tag" =~ ^git-[0-9a-f]{40}$ ]] ||
-    die 'Release tag must be git- followed by the full 40-character lowercase Git SHA'
+  [[ "$tag" =~ ^git-([0-9a-f]{12}|[0-9a-f]{40})$ ]] ||
+    die 'Release tag must be git- followed by a 12- or 40-character lowercase Git SHA'
 }
 
 require_image_repository() {

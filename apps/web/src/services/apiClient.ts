@@ -50,8 +50,9 @@ apiClient.interceptors.response.use(
     const skipAuthRedirect = String(error.config?.headers?.['X-Skip-Auth-Redirect']) === 'true';
     const retryConfig = error.config as
       (NonNullable<typeof error.config> & { _authRefreshAttempted?: boolean }) | undefined;
-    const payload = error.response?.data;
-    const responseCode = payload && !payload.success ? payload.error.code : undefined;
+    const payload: unknown = error.response?.data;
+    const errorPayload = isApiErrorResponse(payload) ? payload : undefined;
+    const responseCode = errorPayload?.error.code;
 
     if (error.response?.status === 401 && !skipAuthRedirect) {
       const sessionCannotContinue =
@@ -77,16 +78,24 @@ apiClient.interceptors.response.use(
       }
     }
 
-    if (payload && !payload.success) {
+    if (errorPayload) {
       return Promise.reject(
         new ApiClientError(
-          payload.error.code,
+          errorPayload.error.code,
           error.response?.status,
-          payload.error.details,
-          payload.error.message
+          errorPayload.error.details,
+          errorPayload.error.message
         )
       );
     }
+
+    if (error.response) {
+      const status = error.response.status;
+      return Promise.reject(
+        new ApiClientError(status >= 500 ? 'SERVICE_UNAVAILABLE' : 'UNKNOWN', status)
+      );
+    }
+
     return Promise.reject(error);
   }
 );
@@ -94,14 +103,16 @@ apiClient.interceptors.response.use(
 // ── Typed request helpers ──────────────────────────────────────────────────────
 
 function unwrap<T>(envelope: ApiResponse<T> | ApiErrorResponse): T {
-  if (!envelope.success)
+  if (isApiErrorResponse(envelope)) {
     throw new ApiClientError(
       envelope.error.code,
       undefined,
       envelope.error.details,
       envelope.error.message
     );
-  return envelope.data;
+  }
+  if (isApiSuccessResponse<T>(envelope)) return envelope.data;
+  throw new ApiClientError('INTERNAL_ERROR');
 }
 
 export async function get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
@@ -148,4 +159,17 @@ function translateErrorCode(code: string): string {
 
 function sessionExpiredError(): ApiClientError {
   return new ApiClientError('AUTH_SESSION_EXPIRED', 401);
+}
+
+function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
+  if (!isRecord(value) || value.success !== false || !isRecord(value.error)) return false;
+  return typeof value.error.code === 'string' && typeof value.error.message === 'string';
+}
+
+function isApiSuccessResponse<T>(value: unknown): value is ApiResponse<T> & { success: true } {
+  return isRecord(value) && value.success === true && 'data' in value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
