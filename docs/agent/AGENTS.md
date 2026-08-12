@@ -478,6 +478,7 @@ Suggested names:
 
 For a new independent task, fetch the latest remote state, ensure local `main` is synchronized with `origin/main`, then create a dedicated task branch from that up-to-date `main`.
 Only use another task branch as the base when the current task explicitly depends on it.
+For the normal solo-development workflow, complete and validate work on a dedicated task branch, commit it, then integrate it into an up-to-date local `main` and push `main`.
 Keep commits focused on the current scope.
 
 Do not:
@@ -487,9 +488,10 @@ Do not:
 - discard unrelated changes;
 - reset unrelated files;
 - destructively clean the working tree;
-- bypass branch protection, required CI, repository rules, or approvals.
+- push incomplete or unvalidated task work directly to `main`;
+- bypass required CI, repository rules, environment protection, or production approval.
 
-If unrelated user work prevents safe implementation, report the conflict instead of overwriting it.
+If unrelated user work prevents safe implementation or integration, report the conflict instead of overwriting it.
 
 ---
 
@@ -502,54 +504,83 @@ The prompt may authorize any of these levels:
 1. Implementation only.
 2. Commit only.
 3. Commit + push task branch.
-4. Commit + push + create/update Pull Request.
-5. Commit + push + Pull Request + merge/auto-merge.
+4. Commit + integrate task branch into local `main` + push `main`.
+
+Level 4 is the default finalization level for normal solo-development work.
+Level 3 is used when the current prompt explicitly requests keeping the completed work on the task branch without integrating it into `main`.
+Pull Requests are not part of the default repository workflow. Do not create, update, monitor, or merge a Pull Request unless the current prompt explicitly requests a Pull Request for a special review/integration case.
 
 Never perform a higher level than the prompt explicitly requests.
 
-Do not assume that "complete the task" means create PR, merge, push protected branches, enable auto-merge,
-or delete branches.
+Do not assume that "complete the task" authorizes integration into `main`, branch deletion, production deployment, or other remote operations.
 
 Before any authorized finalization:
 
-- ensure implementation, targeted validation, task status, and affected docs are complete;
+- ensure implementation, targeted local validation, task status, and affected docs are complete;
 - inspect branch, diff, working tree, and relevant remote state;
 - commit only intended changes;
 - exclude secrets, runtime `.env`, credentials, production backup data, and temporary artifacts.
 
-Remote CI is asynchronous by default and must not block ordinary finalization.
+## Commit + push task branch
 
-- For level 3, push the task branch, verify that the push succeeded, and stop.
-- For level 4, push the task branch, create/update the Pull Request, verify that the remote operation succeeded, and stop.
-- Do not wait for CI/status checks after push or Pull Request creation unless the current prompt explicitly asks to wait, monitor, diagnose, or merge.
-- Do not repeatedly poll CI/status checks merely to report their eventual result.
-- A pending remote CI run does not make level 3 or level 4 incomplete.
-- If an already-known CI failure is directly relevant to the requested work, report it; do not expand scope automatically unless the prompt authorizes fixing it.
+For level 3:
 
-Pull Request creation and merge are separate permissions:
+1. Commit the completed scoped changes on the task branch.
+2. Push the task branch.
+3. Verify that the push succeeded.
+4. Stop.
 
-- "create PR" means create/update the PR and stop before merge; remote CI may continue asynchronously;
-- "create PR and merge" means merge only after required checks/rules pass;
-- level 5 may wait for required CI/status checks because they are a prerequisite for the explicitly authorized merge;
-- enable auto-merge only when explicitly requested.
+Remote CI is asynchronous by default and must not block level 3 finalization.
+Do not wait for, poll, diagnose, or repair remote CI after the push unless the current prompt explicitly requests it.
+A pending remote CI run does not make level 3 incomplete.
 
-Do not push task changes directly to protected `main`.
+## Integrate into `main`
 
-Do not use local merge + push as a workaround for protected PR workflow.
+For level 4:
 
-Branch deletion is allowed only when explicitly authorized, safely merged/no longer needed, and remote state is verified.
+1. Ensure the task branch is complete and locally validated.
+2. Fetch the latest remote state.
+3. Ensure local `main` can be safely synchronized with `origin/main`.
+4. Switch to local `main`.
+5. Fast-forward local `main` to `origin/main` when required.
+6. Merge the completed task branch into local `main`.
+7. If the merge creates conflicts, resolve only conflicts that are clearly within the current integration scope.
+8. If conflict resolution is materially ambiguous or would require unrelated changes, abort the integration and report the blocker.
+9. Run only the additional validation justified by the integrated impact surface.
+10. Push `main`.
+11. Verify that the push succeeded.
+12. Stop.
+
+Do not wait for or poll remote CI/CD after pushing `main` unless the current prompt explicitly requests monitoring.
+A successful push to `main` completes repository integration for level 4; remote CI/CD continues asynchronously.
+
+## CI/CD And Production Boundary
+
+Repository integration and production deployment are separate concerns.
+A push to `main` may trigger CI and release automation.
+Production deployment must remain gated by the configured `production` environment approval or equivalent repository protection.
+
+Do not:
+
+- treat a successful push to `main` as production deployment authorization;
+- bypass CI or release validation;
+- bypass production environment approval;
+- manually deploy production merely because `main` was updated unless the current prompt explicitly requests deployment and repository policy permits it.
+
+If CI fails after an asynchronous push, report it only when known or when the current prompt explicitly asks to inspect CI. Do not automatically expand the completed task scope to fix unrelated CI failures.
+
+Branch deletion is allowed only when explicitly authorized, safely integrated/no longer needed, and remote state is verified.
 
 Never delete `main`.
 
 Stop and report instead of continuing when:
 
 - required targeted local validation failed;
-- CI failed when the current prompt explicitly requires waiting for CI or completing a merge;
 - remote state contains unexpected commits;
 - merge conflicts are materially ambiguous;
 - unrelated user work would be overwritten;
 - repository rules block the requested operation;
-- required approval is missing;
+- required production approval is missing for an explicitly requested deployment;
 - destructive resolution would be required.
 
 Leave the repository in the safest completed state and report the exact remaining action.
