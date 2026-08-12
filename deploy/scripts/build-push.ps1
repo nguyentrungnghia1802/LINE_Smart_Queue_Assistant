@@ -3,7 +3,7 @@ param(
   [string]$ImageNamespace = '',
   [string]$ApiImageRepository = '',
   [string]$WebImageRepository = '',
-  [string]$LiffId = $env:VITE_LIFF_ID,
+  [string]$LiffId = '',
   [string]$Platform = '',
   [switch]$DryRun,
   [switch]$AllowDirty
@@ -184,7 +184,16 @@ try {
   Assert-ImageRepository -Repository $webRepository -Label 'Web image repository'
 
   if (-not $LiffId) {
-    throw 'LiffId is required because VITE_LIFF_ID is compiled into the Web image'
+    $LiffId = [Environment]::GetEnvironmentVariable('VITE_LIFF_ID')
+  }
+  if (-not $LiffId) {
+    $LiffId = Read-EnvironmentFileValue -Path $DeployEnvFile -Key 'LINE_LOGIN_LIFF_ID'
+  }
+  if (-not $LiffId) {
+    $LiffId = Read-EnvironmentFileValue -Path $DeployEnvExampleFile -Key 'LINE_LOGIN_LIFF_ID'
+  }
+  if (-not $LiffId -or $LiffId -like 'replace-with-*') {
+    throw 'LIFF ID is required. Set VITE_LIFF_ID or LINE_LOGIN_LIFF_ID in deploy/.env.'
   }
   if ($LiffId -notmatch '^[A-Za-z0-9._-]+$') {
     throw 'LiffId may contain only letters, numbers, dot, underscore, and hyphen'
