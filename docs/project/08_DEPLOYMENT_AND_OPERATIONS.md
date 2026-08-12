@@ -541,32 +541,39 @@ Daily counters are checked hourly and reset when the organization-local date cha
 
 ## 7. Backup and recovery
 
-### Backup
+The canonical operator runbook and command reference is
+[`deploy/backup/README.md`](../../deploy/backup/README.md). Git contains only the tooling. Runtime
+snapshots default to `/var/backups/line-smart-queue` on the VPS, must be outside the checkout with
+restricted permissions, and must be replicated to encrypted off-host storage. Never commit or copy
+production dumps, media archives, customer data, or `.env` files into the repository.
 
-Use encrypted PostgreSQL logical/managed backups with access controls and off-host retention.
-Include migration version, application commit, deployment configuration references, and a
-consistent backup of the production `media_data` volume. Database metadata and stored media must be
-recoverable from the same documented restore point.
-
-Local-provider media is written under `MEDIA_LOCAL_DIR` and served from `MEDIA_PUBLIC_BASE_URL`.
-In production Compose that directory is the persistent `media_data` volume, not the API container
-filesystem. Stop or quiesce media writes for a filesystem-level snapshot, and copy the volume to
-encrypted off-host storage with a restricted operator account. If S3 is enabled later, use the
-provider's versioning/export/backup controls instead.
-
-Example logical backup:
+`backup.sh` briefly pauses API/worker writes and produces one matched restore point containing a
+PostgreSQL custom-format dump, local `media_data` archive, non-secret immutable-image/tooling/server
+metadata, and checksums. It writes into `.partial-*`, verifies dump readability, gzip/archive paths,
+checksums, and required artifacts, then publishes `BACKUP_SUCCESS`. Redis is deliberately excluded
+because cache, Pub/Sub, rate-limit state, and BullMQ coordination are reconstructable; PostgreSQL
+is authoritative. If the optional S3 provider is selected, the snapshot records that local media is
+absent and provider-side versioning/export remains a separate recovery control.
 
 ```bash
-pg_dump --format=custom --no-owner --file=line_queue.dump "$DATABASE_URL"
+deploy/backup/backup.sh
+deploy/backup/list-backups.sh
+deploy/backup/verify-backup.sh latest
 ```
 
-Do not store dumps in Git or on an unencrypted developer desktop for real customer data.
+Retention defaults to 14 completed snapshots and never fewer than two. It ignores partial,
+unknown, and invalid snapshots and removes only older independently verified snapshots. This local
+count is not a substitute for encrypted off-host retention or disk-capacity alerts.
 
-### Restore
+`restore.sh` verifies the completed snapshot before any destructive action, shows safe metadata,
+and requires exact `RESTORE <backup-id>` confirmation. It stops Web/API/worker traffic, restores
+PostgreSQL and local media without touching Redis, applies canonical forward migrations, starts the
+application, and verifies API health/readiness and Web health. A failure leaves application writers
+stopped. Secrets are not in snapshots: recover `deploy/.env` separately from the approved secret
+manager/encrypted escrow as mode `0600`, or rotate/reissue unavailable credentials before recovery.
 
 ```bash
-psql "$ADMIN_DATABASE_URL" -c "CREATE DATABASE line_queue_restore;"
-pg_restore --no-owner -d line_queue_restore line_queue.dump
+deploy/backup/restore.sh <backup-id>
 ```
 
 Post-restore checks:
@@ -584,9 +591,13 @@ Run a documented restore drill on a schedule. Define RPO/RTO with the business b
 
 ## 8. Rollback
 
+- Use `deploy/backup/rollback.sh <predeployment-backup-id>` to select the verified prior API/Web
+  image references. It changes application containers only and requires exact
+  `ROLLBACK <backup-id>` confirmation.
 - Prefer application rollback to the prior image while keeping backward-compatible expanded schema.
-- Do not automatically roll back destructive/data migrations.
-- For a failing additive migration, stop rollout, capture error/state, restore from backup only when forward repair is unsafe.
+- Never automatically restore PostgreSQL/media or reverse migrations because a new image fails.
+- For a failing additive migration, stop rollout, capture error/state, and run the separately
+  confirmed full restore only when forward repair is unsafe.
 - Payment/notification webhooks require special care during rollback so events are not dropped or processed twice.
 - Keep old web/API compatibility for at least the rollout window when clients can be cached.
 
@@ -663,6 +674,7 @@ gate into independent jobs so failures are easy to locate:
 - clean PostgreSQL migration/status and repeated administrator seed smoke;
 - production build;
 - mock-integration Playwright desktop/mobile browser E2E.
+- isolated PostgreSQL/local-media backup, corruption rejection, restore, deploy-gate, and rollback rehearsal.
 
 The API tests, migration smoke, and browser E2E jobs use separate PostgreSQL services. Browser E2E
 waits for the earlier quality and Compose jobs, applies migrations, loads only the explicit browser
@@ -671,13 +683,15 @@ LINE, PSP, SMTP, SSH, or customer credentials. `npm run audit:ci` blocks new hig
 advisories in production dependencies and keeps its single narrow, reviewed exception in
 `audit-ci.jsonc`.
 
-Production delivery is manual and environment-gated. `.github/workflows/deploy.yml` requires the
+Production delivery is manual, backup-gated, and environment-gated. `.github/workflows/deploy.yml` requires the
 operator to type `DEPLOY`, builds the API and Web `runner` images from the selected commit, pushes
 immutable tags (`git-<commit SHA>` by default) to Docker Hub, and waits for approval on the
 GitHub `production` environment before connecting to the server. The SSH host key is pinned with
-`PRODUCTION_SSH_KNOWN_HOSTS`. The remote sequence validates Compose, pulls only the selected API
-and Web images, applies canonical migrations, waits for healthy services, and probes the Web health
-endpoint. It never copies, prints, or regenerates the server-side `deploy/.env`.
+`PRODUCTION_SSH_KNOWN_HOSTS`. CD copies the selected commit's Compose file and versioned recovery
+tooling, but never the server `.env`, then invokes `deploy-safe.sh`. The remote sequence cannot pull
+or migrate the new images unless a matched PostgreSQL/media snapshot passes independent
+verification; after confirmation it applies canonical migrations and probes API health/readiness
+and Web health.
 The remote rollout does not run `down -v` or remove volumes: `postgres_data`, `redis_data`, and the
 production `media_data` volume remain attached across API/Web image updates. A release that changes
 the media volume name or mount target requires a separate migration and backup plan.
@@ -709,9 +723,9 @@ database, JWT, LINE Messaging, SMTP, and payment secrets in the server-side `.en
 does not copy or regenerate that file. If Docker Hub repositories are private, log the server into
 Docker Hub once with a read-only token.
 
-Remaining delivery hardening includes container/image scanning, signed image
-provenance, staging deployment against sandbox integrations, automated rollback
-metadata, and tested production backup/restore procedures.
+Remaining delivery hardening includes container/image scanning, signed image provenance, staging
+deployment against sandbox integrations, encrypted off-host snapshot automation, production-VPS
+restore evidence, and alerting on backup/capacity failures.
 
 ## 11. Production readiness checklist
 
@@ -722,8 +736,8 @@ inferred from mock CI.
 
 - Real secrets rotated and managed outside Git.
 - HTTPS, secure domain/CORS, rate/edge protection, and restricted metrics/docs.
-- Managed PostgreSQL backups and restore drill.
-- Encrypted off-host `media_data` backup and an isolated media restore/recreate drill.
+- Scheduled verified PostgreSQL/local-media snapshots plus encrypted off-host replication.
+- Current production-VPS restore/recreate drill evidence and business-approved RPO/RTO.
 - Durable notification outbox/retry/idempotency and operational visibility for failed rows.
 - Real Rich Menu image asset synced and verified on a physical LINE client.
 - Verified payment intent/webhook/refund/reconciliation.
