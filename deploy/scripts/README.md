@@ -44,6 +44,18 @@ health checks. The API, Worker, and Web services therefore receive the selected 
 together; no manual `.env` edit is required. Existing snapshot metadata remains the source for
 image-only rollback, and data restore stays a separately confirmed operation.
 
+The wrapper accepts exactly one argument and verifies that `deploy.sh`, `deploy-safe.sh`, and
+`common.sh` share the same tooling contract before doing any work. Copy these files together from
+one commit; a partial/mixed-version update fails before backup or Compose mutation. The backup gate
+parses only the required repository/image/backup keys from the server-owned `deploy/.env`; it never
+sources that file and does not require operator exports. Compose image interpolation explicitly
+ignores ambient release variables so the server file remains authoritative.
+
+For a one-time transition from a legacy stack whose running API/Web containers still name
+`latest`, backup resolves each running image to its matching registry digest and records that
+immutable digest for rollback. Deployment stops before mutation if an exact digest cannot be
+proved. After the first successful release, `deploy/.env` contains the selected `git-<sha>` refs.
+
 The production Compose file keeps local media in the named `media_data` volume. Redeploys and
 container recreation must not use `docker compose down -v` or remove that volume. Web nginx uses
 Docker's embedded DNS resolver for the `api` service, so a recreated API container does not leave

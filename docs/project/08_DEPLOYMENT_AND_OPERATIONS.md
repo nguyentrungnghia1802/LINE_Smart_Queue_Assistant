@@ -268,6 +268,14 @@ The PowerShell publisher never pushes `latest`; its OCI revision label retains t
 prints the exact tag, full image references, and VPS command only after both pushes succeed.
 Rollback continues to use image metadata already stored in the verified snapshot.
 
+The entry point accepts exactly one tag and verifies that `deploy.sh`, `deploy-safe.sh`, and
+`common.sh` come from the same tooling contract before any backup or mutation. Release tooling
+reads unique repository/image/backup keys directly from the server-owned `deploy/.env` and never
+sources it. Compose runs with ambient `LINE_QUEUE_*` release variables removed, so operators do not
+export configuration and cannot accidentally override the file. During the one-time migration
+from a legacy running `latest` stack, backup resolves the actual API/Web registry digests and stores
+those immutable refs for rollback; a missing matching digest blocks deployment before mutation.
+
 `deploy/docker-compose.yml` is the canonical production Compose file. It requires prebuilt
 `LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` values (there is no silent `latest` fallback) and
 does not publish PostgreSQL or API port `4000` to the host. Normal releases let `deploy-safe.sh`
@@ -644,6 +652,8 @@ Run a documented restore drill on a schedule. Define RPO/RTO with the business b
   image references. After exact `ROLLBACK <backup-id>` confirmation it atomically persists those
   metadata references in `deploy/.env`, pulls them, and changes application containers only.
 - Never derive rollback from the requested release tag, `latest`, or an operator's memory.
+- A legacy container labelled `latest` is accepted only when backup can resolve its running image
+  ID to a matching immutable registry digest; snapshot metadata stores the digest, never `latest`.
 - Prefer application rollback to the prior image while keeping backward-compatible expanded schema.
 - Never automatically restore PostgreSQL/media or reverse migrations because a new image fails.
 - For a failing additive migration, stop rollout, capture error/state, and run the separately

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# DEPLOY_TOOLING_CONTRACT_VERSION=2
 
 set -Eeuo pipefail
 umask 077
@@ -23,10 +24,15 @@ require_command() {
 }
 
 read_env_value() {
-  local key=$1 file=$2 line
+  local key=$1 file=$2 line count
   [[ -f "$file" ]] || return 1
-  line=$(grep -E "^${key}=" "$file" | tail -n 1 || true)
-  [[ -n "$line" ]] || return 1
+  count=$(grep -Ec "^${key}=" "$file" || true)
+  if ((count > 1)); then
+    log "ERROR: Environment file contains duplicate key: $key"
+    return 2
+  fi
+  ((count == 1)) || return 1
+  line=$(grep -E "^${key}=" "$file")
   line=${line#*=}
   line=${line%$'\r'}
   if [[ "$line" == \"*\" && "$line" == *\" ]]; then
@@ -37,12 +43,38 @@ read_env_value() {
   printf '%s' "$line"
 }
 
+require_env_value() {
+  local key=$1 file=$2 value status
+  if value=$(read_env_value "$key" "$file"); then
+    :
+  else
+    status=$?
+    ((status == 1)) && die "Required environment key is missing: $key"
+    exit "$status"
+  fi
+  safe_metadata_value "$value" "$key"
+  printf '%s' "$value"
+}
+
 load_backup_settings() {
+  local value status
   if [[ -z "${BACKUP_ROOT:-}" ]]; then
-    BACKUP_ROOT=$(read_env_value BACKUP_ROOT "$ENV_FILE" || printf '/var/backups/line-smart-queue')
+    if value=$(read_env_value BACKUP_ROOT "$ENV_FILE"); then
+      BACKUP_ROOT=$value
+    else
+      status=$?
+      ((status == 1)) || exit "$status"
+      BACKUP_ROOT=/var/backups/line-smart-queue
+    fi
   fi
   if [[ -z "${BACKUP_RETENTION_COUNT:-}" ]]; then
-    BACKUP_RETENTION_COUNT=$(read_env_value BACKUP_RETENTION_COUNT "$ENV_FILE" || printf '14')
+    if value=$(read_env_value BACKUP_RETENTION_COUNT "$ENV_FILE"); then
+      BACKUP_RETENTION_COUNT=$value
+    else
+      status=$?
+      ((status == 1)) || exit "$status"
+      BACKUP_RETENTION_COUNT=14
+    fi
   fi
   export BACKUP_ROOT BACKUP_RETENTION_COUNT
 }
@@ -80,7 +112,11 @@ init_runtime() {
 compose() {
   (
     cd -- "$REPO_ROOT"
-    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+    # The server-side file is authoritative for release selection. Docker Compose otherwise gives
+    # ambient shell variables precedence over --env-file, which can silently select stale images.
+    env -u LINE_QUEUE_API_REPOSITORY -u LINE_QUEUE_WEB_REPOSITORY \
+      -u LINE_QUEUE_API_IMAGE -u LINE_QUEUE_WEB_IMAGE \
+      docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
   )
 }
 
@@ -253,6 +289,8 @@ verify_snapshot() {
     value=$(manifest_value "$snapshot" "$key")
     [[ -n "$value" && "$value" != *$'\r'* && "$value" != *$'\n'* ]] || return 1
   done
+  is_immutable_image "$(manifest_value "$snapshot" api_image)" || return 1
+  is_immutable_image "$(manifest_value "$snapshot" web_image)" || return 1
 }
 
 test_mode_enabled() {
@@ -288,8 +326,20 @@ verify_runtime_health() {
 require_immutable_image() {
   local image=$1 label=$2
   safe_metadata_value "$image" "$label"
-  [[ "$image" != latest && "$image" != *:latest ]] || die "$label cannot use the latest tag"
-  [[ "$image" == *@sha256:* || "$image" == *:* ]] || die "$label must use an immutable tag or digest"
+  is_immutable_image "$image" || die "$label must use an immutable non-latest tag or digest"
+}
+
+is_immutable_image() {
+  local image=$1 final_segment tag
+  [[ -n "$image" && "$image" != latest && "$image" != *:latest ]] || return 1
+  if [[ "$image" =~ @sha256:[0-9a-f]{64}$ ]]; then
+    return 0
+  fi
+  [[ "$image" != *@* ]] || return 1
+  final_segment=${image##*/}
+  [[ "$final_segment" == *:* ]] || return 1
+  tag=${final_segment##*:}
+  [[ -n "$tag" && "$tag" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$ ]]
 }
 
 require_release_tag() {
@@ -310,14 +360,69 @@ require_image_repository() {
     die "$label must not include an image tag or trailing slash"
 }
 
+image_uses_repository() {
+  local image=$1 repository=$2
+  [[ "$image" == "$repository":* || "$image" == "$repository"@sha256:* ]]
+}
+
+load_release_configuration() {
+  [[ -f "$ENV_FILE" ]] || die "Environment file not found: $ENV_FILE"
+
+  RELEASE_API_REPOSITORY=$(require_env_value LINE_QUEUE_API_REPOSITORY "$ENV_FILE")
+  RELEASE_WEB_REPOSITORY=$(require_env_value LINE_QUEUE_WEB_REPOSITORY "$ENV_FILE")
+  CURRENT_API_IMAGE=$(require_env_value LINE_QUEUE_API_IMAGE "$ENV_FILE")
+  CURRENT_WEB_IMAGE=$(require_env_value LINE_QUEUE_WEB_IMAGE "$ENV_FILE")
+
+  require_image_repository "$RELEASE_API_REPOSITORY" LINE_QUEUE_API_REPOSITORY
+  require_image_repository "$RELEASE_WEB_REPOSITORY" LINE_QUEUE_WEB_REPOSITORY
+  image_uses_repository "$CURRENT_API_IMAGE" "$RELEASE_API_REPOSITORY" ||
+    die 'LINE_QUEUE_API_IMAGE must belong to LINE_QUEUE_API_REPOSITORY'
+  image_uses_repository "$CURRENT_WEB_IMAGE" "$RELEASE_WEB_REPOSITORY" ||
+    die 'LINE_QUEUE_WEB_IMAGE must belong to LINE_QUEUE_WEB_REPOSITORY'
+}
+
+normalized_repository() {
+  local repository=$1
+  repository=${repository#docker.io/}
+  repository=${repository#index.docker.io/}
+  if [[ "$repository" != */* ]]; then
+    repository="library/$repository"
+  fi
+  printf '%s' "$repository"
+}
+
+rollback_image_reference() {
+  local service=$1 repository=$2 configured image_id digest digest_repository expected_repository
+  configured=$(image_reference "$service")
+  if is_immutable_image "$configured"; then
+    printf '%s' "$configured"
+    return
+  fi
+
+  [[ "$configured" == latest || "$configured" == *:latest ]] ||
+    die "$service image is not an immutable tag or digest: $configured"
+
+  image_id=$(image_id "$service")
+  expected_repository=$(normalized_repository "$repository")
+  while IFS= read -r digest; do
+    [[ "$digest" =~ @sha256:[0-9a-f]{64}$ ]] || continue
+    digest_repository=${digest%@sha256:*}
+    if [[ $(normalized_repository "$digest_repository") == "$expected_repository" ]]; then
+      log "Resolved legacy $service latest reference to its running registry digest"
+      printf '%s@sha256:%s' "$repository" "${digest##*@sha256:}"
+      return
+    fi
+  done < <(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$image_id")
+
+  die "Cannot create an exact rollback reference for legacy $service image: $configured"
+}
+
 release_image_references() {
-  local tag=$1 api_repository web_repository
+  local tag=$1
   require_release_tag "$tag"
-  api_repository=$(read_env_value LINE_QUEUE_API_REPOSITORY "$ENV_FILE" || true)
-  web_repository=$(read_env_value LINE_QUEUE_WEB_REPOSITORY "$ENV_FILE" || true)
-  require_image_repository "$api_repository" LINE_QUEUE_API_REPOSITORY
-  require_image_repository "$web_repository" LINE_QUEUE_WEB_REPOSITORY
-  printf '%s\t%s\n' "$api_repository:$tag" "$web_repository:$tag"
+  [[ -n "${RELEASE_API_REPOSITORY:-}" && -n "${RELEASE_WEB_REPOSITORY:-}" ]] ||
+    load_release_configuration
+  printf '%s\t%s\n' "$RELEASE_API_REPOSITORY:$tag" "$RELEASE_WEB_REPOSITORY:$tag"
 }
 
 update_env_image_references() {

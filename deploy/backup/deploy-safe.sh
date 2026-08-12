@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
+# DEPLOY_TOOLING_CONTRACT_VERSION=2
 
 set -Eeuo pipefail
 umask 077
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+TOOLING_CONTRACT_MARKER='# DEPLOY_TOOLING_CONTRACT_VERSION=2'
+grep -Fxq "$TOOLING_CONTRACT_MARKER" "$SCRIPT_DIR/common.sh" || {
+  printf '[backup-ops] ERROR: Deployment tooling is out of sync: %s\n' "$SCRIPT_DIR/common.sh" >&2
+  exit 1
+}
 # shellcheck source=common.sh
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/common.sh"
@@ -11,6 +17,7 @@ source "$SCRIPT_DIR/common.sh"
 release_tag=$1
 require_release_tag "$release_tag"
 init_runtime
+load_release_configuration
 validate_compose
 IFS=$'\t' read -r target_api target_web < <(release_image_references "$release_tag")
 [[ -n "$target_api" && -n "$target_web" ]] || die 'Failed to resolve release image references'
@@ -58,8 +65,6 @@ trap on_deploy_exit EXIT
 
 release_mutation_started=true
 update_env_image_references "$target_api" "$target_web"
-export LINE_QUEUE_API_IMAGE=$target_api
-export LINE_QUEUE_WEB_IMAGE=$target_web
 compose config -q
 pull_release_images
 compose up -d postgres redis

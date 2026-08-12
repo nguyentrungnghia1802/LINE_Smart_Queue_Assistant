@@ -51,7 +51,8 @@ deploy/backup/verify-backup.sh latest
 ```
 
 `backup.sh` prints the new backup ID on stdout. Verification rejects a missing marker, required
-artifact, checksum mismatch, unreadable PostgreSQL dump, corrupt gzip, or unsafe archive path.
+artifact, checksum mismatch, unreadable PostgreSQL dump, corrupt gzip, unsafe archive path, or
+mutable API/Web rollback reference.
 `verify-backup.sh` and `list-backups.sh` need the snapshot root and Docker but do not require the
 production `.env`, so an off-host copy can be checked before secrets are recovered.
 
@@ -88,6 +89,12 @@ pulls and deploys those exact references. If a pull, migration, recreate, mount 
 check fails after that update, its exit trap automatically invokes application-only rollback from
 the verified snapshot metadata and still returns failure for investigation. It never runs `down`,
 removes volumes, copies secrets, or automatically restores data.
+
+Release repositories and current image refs are read directly from unique keys in `deploy/.env`;
+the file is never sourced, and ambient `LINE_QUEUE_*` exports are removed from Compose invocation.
+The manual entry point also rejects mixed tooling versions before backup. When the pre-existing
+containers use the legacy `latest` label, backup records the matching running registry digest as
+the rollback target; if no exact digest is available, deployment fails before any mutation.
 
 Application rollback is intentionally separate from data recovery:
 

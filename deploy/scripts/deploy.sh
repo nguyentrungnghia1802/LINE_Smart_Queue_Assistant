@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
+# DEPLOY_TOOLING_CONTRACT_VERSION=2
 
 set -Eeuo pipefail
 umask 077
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 DEPLOY_SAFE_SCRIPT="$SCRIPT_DIR/../backup/deploy-safe.sh"
+DEPLOY_COMMON_SCRIPT="$SCRIPT_DIR/../backup/common.sh"
+TOOLING_CONTRACT_MARKER='# DEPLOY_TOOLING_CONTRACT_VERSION=2'
 
 [[ $# -eq 1 ]] || {
   printf 'Usage: %s git-<12-character-lowercase-sha>\n' "$0" >&2
@@ -19,6 +22,17 @@ release_tag=$1
   printf '[release-deploy] ERROR: Missing executable backup gate: %s\n' "$DEPLOY_SAFE_SCRIPT" >&2
   exit 1
 }
+for contract_file in "$DEPLOY_SAFE_SCRIPT" "$DEPLOY_COMMON_SCRIPT"; do
+  [[ -f "$contract_file" ]] || {
+    printf '[release-deploy] ERROR: Missing deployment tooling file: %s\n' "$contract_file" >&2
+    exit 1
+  }
+  grep -Fxq "$TOOLING_CONTRACT_MARKER" "$contract_file" || {
+    printf '[release-deploy] ERROR: Deployment tooling is out of sync: %s\n' "$contract_file" >&2
+    printf '[release-deploy] ERROR: Copy deploy.sh, deploy-safe.sh, and common.sh from the same commit\n' >&2
+    exit 1
+  }
+done
 
 if [[ "${DRY_RUN:-false}" == true ]]; then
   printf '[release-deploy] DRY_RUN: exec %q %q\n' "$DEPLOY_SAFE_SCRIPT" "$release_tag"

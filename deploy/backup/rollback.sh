@@ -25,8 +25,6 @@ log 'This changes application images only. PostgreSQL and media are not restored
 confirm_exact "ROLLBACK $backup_id" "${ROLLBACK_CONFIRMATION:-}" 'Type the application rollback confirmation'
 
 update_env_image_references "$previous_api" "$previous_web"
-export LINE_QUEUE_API_IMAGE=$previous_api
-export LINE_QUEUE_WEB_IMAGE=$previous_web
 compose config -q
 pull_release_images
 compose up -d --remove-orphans --wait api worker web

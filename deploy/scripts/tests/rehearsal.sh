@@ -22,6 +22,13 @@ require bash
 require git
 require grep
 require pwsh
+require rg
+
+test_root=$(mktemp -d "${TMPDIR:-/tmp}/line-queue-deploy-config.XXXXXX")
+cleanup() {
+  rm -rf -- "$test_root"
+}
+trap cleanup EXIT
 
 git_sha=$(git -C "$REPO_ROOT" rev-parse HEAD)
 short_sha=${git_sha:0:12}
@@ -29,7 +36,7 @@ release_tag="git-$short_sha"
 [[ "$release_tag" =~ ^git-[0-9a-f]{12}$ ]]
 
 # The manual wrapper is deliberately short-tag-only, while the shared backup gate must retain
-# compatibility with the full-SHA PowerShell and GitHub CD publishers.
+# compatibility with the full-SHA automatic GitHub CD publisher.
 # shellcheck source=../../backup/common.sh
 # shellcheck disable=SC1091
 source "$BACKUP_COMMON"
@@ -37,6 +44,80 @@ require_release_tag "$release_tag"
 require_release_tag "git-$git_sha"
 if (require_release_tag "git-${short_sha}0") >/dev/null 2>&1; then
   printf 'Shared backup gate unexpectedly accepted a 13-character SHA tag\n' >&2
+  exit 1
+fi
+is_immutable_image 'registry.example:5000/team/api:git-111111111111'
+is_immutable_image 'registry.example/team/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+if is_immutable_image 'registry.example:5000/team/api'; then
+  printf 'Registry port without an image tag was unexpectedly accepted as immutable\n' >&2
+  exit 1
+fi
+if is_immutable_image 'registry.example/team/api@sha256:short'; then
+  printf 'Malformed image digest was unexpectedly accepted as immutable\n' >&2
+  exit 1
+fi
+
+cat > "$test_root/.env" <<'EOF'
+LINE_QUEUE_API_REPOSITORY=example.invalid/line-queue-api
+LINE_QUEUE_WEB_REPOSITORY=example.invalid/line-queue-web
+LINE_QUEUE_API_IMAGE=example.invalid/line-queue-api:latest
+LINE_QUEUE_WEB_IMAGE=example.invalid/line-queue-web:git-111111111111
+BACKUP_ROOT=/var/backups/line-smart-queue
+BACKUP_RETENTION_COUNT=14
+EOF
+chmod 600 "$test_root/.env"
+config_output=$(
+  ENV_FILE="$test_root/.env" bash -c '
+    source "$1"
+    load_release_configuration
+    release_image_references "$2"
+  ' _ "$BACKUP_COMMON" "$release_tag"
+)
+[[ "$config_output" == $'example.invalid/line-queue-api:'"$release_tag"$'\texample.invalid/line-queue-web:'"$release_tag" ]]
+
+printf '%s\n' 'LINE_QUEUE_API_REPOSITORY=example.invalid/duplicate' >> "$test_root/.env"
+if ENV_FILE="$test_root/.env" bash -c 'source "$1"; load_release_configuration' \
+  _ "$BACKUP_COMMON" >/dev/null 2>&1; then
+  printf 'Release configuration unexpectedly accepted a duplicate environment key\n' >&2
+  exit 1
+fi
+sed -i '$d' "$test_root/.env"
+
+mkdir -p "$test_root/bin"
+cat > "$test_root/bin/docker" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\t%s\t%s\t%s\n' \
+  "${LINE_QUEUE_API_REPOSITORY-unset}" "${LINE_QUEUE_WEB_REPOSITORY-unset}" \
+  "${LINE_QUEUE_API_IMAGE-unset}" "${LINE_QUEUE_WEB_IMAGE-unset}" > "$COMPOSE_ENV_PROBE"
+EOF
+chmod +x "$test_root/bin/docker"
+touch "$test_root/docker-compose.yml"
+COMPOSE_ENV_PROBE="$test_root/compose-env.txt" PATH="$test_root/bin:$PATH" \
+  ENV_FILE="$test_root/.env" COMPOSE_FILE="$test_root/docker-compose.yml" \
+  LINE_QUEUE_API_REPOSITORY=ambient.invalid/api \
+  LINE_QUEUE_WEB_REPOSITORY=ambient.invalid/web \
+  LINE_QUEUE_API_IMAGE=ambient.invalid/api:latest \
+  LINE_QUEUE_WEB_IMAGE=ambient.invalid/web:latest \
+  bash -c 'source "$1"; compose config -q' _ "$BACKUP_COMMON"
+[[ $(cat "$test_root/compose-env.txt") == $'unset\tunset\tunset\tunset' ]]
+
+if rg -n '(^|[[:space:]])(source|\.)[[:space:]]+[^#]*\.env' \
+  "$REPO_ROOT/deploy" --glob '*.sh' --glob '*.ps1' >/dev/null; then
+  printf 'Deployment tooling must parse selected keys and never source an environment file\n' >&2
+  exit 1
+fi
+
+for contract_file in "$DEPLOY_SCRIPT" "$REPO_ROOT/deploy/backup/deploy-safe.sh" "$BACKUP_COMMON"; do
+  grep -Fxq '# DEPLOY_TOOLING_CONTRACT_VERSION=2' "$contract_file"
+done
+
+mkdir -p "$test_root/mismatch/scripts" "$test_root/mismatch/backup"
+cp "$DEPLOY_SCRIPT" "$test_root/mismatch/scripts/deploy.sh"
+printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$test_root/mismatch/backup/deploy-safe.sh"
+printf '%s\n' '#!/usr/bin/env bash' > "$test_root/mismatch/backup/common.sh"
+chmod +x "$test_root/mismatch/scripts/deploy.sh" "$test_root/mismatch/backup/deploy-safe.sh"
+if DRY_RUN=true bash "$test_root/mismatch/scripts/deploy.sh" "$release_tag" >/dev/null 2>&1; then
+  printf 'Manual deploy wrapper unexpectedly accepted mixed tooling versions\n' >&2
   exit 1
 fi
 
@@ -71,6 +152,15 @@ deploy_output=$(DRY_RUN=true bash "$DEPLOY_SCRIPT" "$release_tag" 2>&1)
 printf '%s\n' "$deploy_output"
 grep -Fq 'deploy-safe.sh' <<<"$deploy_output"
 grep -Fq "$release_tag" <<<"$deploy_output"
+
+if DRY_RUN=true bash "$DEPLOY_SCRIPT" >/dev/null 2>&1; then
+  printf 'Manual deploy wrapper unexpectedly accepted a missing tag\n' >&2
+  exit 1
+fi
+if DRY_RUN=true bash "$DEPLOY_SCRIPT" "$release_tag" "$release_tag" >/dev/null 2>&1; then
+  printf 'Manual deploy wrapper unexpectedly accepted more than one argument\n' >&2
+  exit 1
+fi
 
 if DRY_RUN=true bash "$DEPLOY_SCRIPT" "git-$git_sha" >/dev/null 2>&1; then
   printf 'Manual deploy wrapper unexpectedly accepted a non-generated full-SHA tag\n' >&2

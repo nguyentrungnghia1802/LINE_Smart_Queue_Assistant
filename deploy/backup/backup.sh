@@ -8,6 +8,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 source "$SCRIPT_DIR/common.sh"
 
 init_runtime
+load_release_configuration
 validate_compose
 require_running_service postgres
 require_running_service api
@@ -41,8 +42,8 @@ case "$media_provider" in
   *) die "Unsupported production media provider for backup: $media_provider" ;;
 esac
 
-api_image=$(image_reference api)
-web_image=$(image_reference web)
+api_image=$(rollback_image_reference api "$RELEASE_API_REPOSITORY")
+web_image=$(rollback_image_reference web "$RELEASE_WEB_REPOSITORY")
 api_image_id=$(image_id api)
 web_image_id=$(image_id web)
 postgres_image=$(image_reference postgres)

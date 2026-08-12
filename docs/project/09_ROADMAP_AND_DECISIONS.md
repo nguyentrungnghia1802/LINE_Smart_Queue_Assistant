@@ -783,6 +783,10 @@ and independently verifies a matched snapshot, then atomically persists only the
 image-reference keys before pull, canonical migration, recreate, and health checks.
 Application rollback obtains both old references exclusively from verified snapshot metadata and
 atomically persists them before recreation; data restore remains a separate confirmation.
+The entry point rejects mixed-version deploy/backup tooling, selected values are parsed from the
+server `.env` without sourcing it, and Compose ignores ambient release-image overrides. A legacy
+running `latest` reference is converted to its matching registry digest during backup or the
+release stops before mutation, preserving immutable rollback through the transition.
 
 **Consequences:** Registry artifacts, live Compose configuration, and future operator commands
 share one Git-derived immutable release identity, while OCI metadata preserves the full source SHA

@@ -95,8 +95,8 @@ DB_USER=rehearsal
 DB_PASSWORD=$test_secret
 LINE_QUEUE_API_REPOSITORY=alpine
 LINE_QUEUE_WEB_REPOSITORY=alpine
-LINE_QUEUE_API_IMAGE=alpine:3.19
-LINE_QUEUE_WEB_IMAGE=alpine:3.19
+LINE_QUEUE_API_IMAGE=alpine:latest
+LINE_QUEUE_WEB_IMAGE=alpine:latest
 EOF
 chmod 600 "$ENV_FILE"
 
@@ -110,6 +110,10 @@ docker exec "$api_id" sh -eu -c 'printf original-media > /app/var/media/probe.tx
 
 backup_id=$("$BACKUP_DIR/backup.sh" 2>>"$log_file")
 "$BACKUP_DIR/verify-backup.sh" "$backup_id" >>"$log_file" 2>&1
+legacy_api_image=$(awk -F '\t' '$1 == "api_image" { print $2 }' "$BACKUP_ROOT/$backup_id/metadata/manifest.tsv")
+legacy_web_image=$(awk -F '\t' '$1 == "web_image" { print $2 }' "$BACKUP_ROOT/$backup_id/metadata/manifest.tsv")
+[[ "$legacy_api_image" == alpine@sha256:* ]]
+[[ "$legacy_web_image" == alpine@sha256:* ]]
 ENV_FILE="$test_root/missing.env" "$BACKUP_DIR/verify-backup.sh" "$backup_id" >>"$log_file" 2>&1
 "$BACKUP_DIR/list-backups.sh" >>"$log_file" 2>&1
 
@@ -171,8 +175,8 @@ if "$BACKUP_DIR/deploy-safe.sh" latest >>"$log_file" 2>&1; then
   echo 'Safe deploy unexpectedly accepted a mutable tag' >&2
   exit 1
 fi
-grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:3.19' "$ENV_FILE"
-grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:3.19' "$ENV_FILE"
+grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:latest' "$ENV_FILE"
+grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:latest' "$ENV_FILE"
 
 printf blocked > "$test_root/not-a-directory"
 if BACKUP_ROOT="$test_root/not-a-directory" \
@@ -181,12 +185,12 @@ if BACKUP_ROOT="$test_root/not-a-directory" \
   exit 1
 fi
 api_id=$("${compose[@]}" ps -q api)
-[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == alpine:3.19 ]]
-grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:3.19' "$ENV_FILE"
-grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:3.19' "$ENV_FILE"
+[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == alpine:latest ]]
+grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:latest' "$ENV_FILE"
+grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:latest' "$ENV_FILE"
 
 sleep 1
-docker tag alpine:3.19 "$release_image"
+docker tag alpine:latest "$release_image"
 export DEPLOY_APPROVED=GITHUB_ENVIRONMENT_APPROVED
 
 # Force a post-mutation migration failure. deploy-safe must return the original failure while its
@@ -198,9 +202,9 @@ if "$BACKUP_DIR/deploy-safe.sh" "$release_tag" >>"$log_file" 2>&1; then
 fi
 export OPS_SKIP_MIGRATIONS=true
 api_id=$("${compose[@]}" ps -q api)
-[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == alpine:3.19 ]]
-grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:3.19' "$ENV_FILE"
-grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:3.19' "$ENV_FILE"
+[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == "$legacy_api_image" ]]
+grep -Fxq "LINE_QUEUE_API_IMAGE=$legacy_api_image" "$ENV_FILE"
+grep -Fxq "LINE_QUEUE_WEB_IMAGE=$legacy_web_image" "$ENV_FILE"
 restored_value=$("${compose[@]}" exec -T postgres sh -eu -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT value FROM restore_probe WHERE id = 1"')
 [[ "$restored_value" == before-backup ]]
@@ -215,9 +219,9 @@ grep -Fxq "LINE_QUEUE_WEB_IMAGE=$release_image" "$ENV_FILE"
 
 ROLLBACK_CONFIRMATION="ROLLBACK $predeploy_id" "$BACKUP_DIR/rollback.sh" "$predeploy_id" >>"$log_file" 2>&1
 api_id=$("${compose[@]}" ps -q api)
-[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == alpine:3.19 ]]
-grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:3.19' "$ENV_FILE"
-grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:3.19' "$ENV_FILE"
+[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == "$legacy_api_image" ]]
+grep -Fxq "LINE_QUEUE_API_IMAGE=$legacy_api_image" "$ENV_FILE"
+grep -Fxq "LINE_QUEUE_WEB_IMAGE=$legacy_web_image" "$ENV_FILE"
 restored_value=$("${compose[@]}" exec -T postgres sh -eu -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT value FROM restore_probe WHERE id = 1"')
 [[ "$restored_value" == before-backup ]]

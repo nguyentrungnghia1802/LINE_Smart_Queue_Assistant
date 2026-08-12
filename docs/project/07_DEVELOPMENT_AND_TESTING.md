@@ -284,7 +284,8 @@ containers and volume.
 The backup rehearsal requires Bash, Docker, and Docker Compose. It creates a unique disposable
 PostgreSQL/Redis/API/worker/Web project and backup root under the OS temporary directory, then proves
 database and local-media restore after mutation. It also rejects corrupt, missing, and incomplete
-snapshots; rejects missing restore confirmation; proves deployment aborts without changing the
+snapshots; resolves a legacy running `latest` image to an immutable registry digest for rollback;
+rejects missing restore confirmation; proves deployment aborts without changing the
 environment when backup fails; proves a successful tag deployment atomically persists both image
 references; forces a post-mutation migration failure and proves automatic image-only rollback;
 and proves the explicit rollback command restores those references without restoring data. The
@@ -304,8 +305,10 @@ image publication, releases are serialized, and `deploy-safe.sh` receives only t
 proves that `deploy/scripts/build-push.ps1` derives one `git-<12-character-sha>` tag from checked-out `HEAD` for
 API and Web without `latest`, retains the full SHA in OCI revision metadata, prints the VPS handoff,
 and rejects operator-supplied tags. It also proves that `deploy/scripts/deploy.sh` accepts the
-generated tag and delegates to the existing backup gate, and that Web nginx uses Docker DNS at
-request time for the `api` service. It is a dry run and does not publish images, modify
+generated tag and delegates to the existing backup gate, rejects mixed tooling versions, parses
+unique release keys without sourcing `.env`, and prevents ambient image variables from overriding
+the server file. It also proves that Web nginx uses Docker DNS at request time for the `api`
+service. It is a dry run and does not publish images, modify
 `deploy/.env`, or touch a production volume; see `deploy/scripts/README.md`.
 
 The GitHub Actions workflow runs these checks as separate jobs so a failure is isolated to one
