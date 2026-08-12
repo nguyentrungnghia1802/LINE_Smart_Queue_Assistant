@@ -689,7 +689,7 @@ cannot affect queue, order, notification, or payment business transactions.
 
 ## ADR-039: Manual environment-gated immutable-image CD
 
-**Status:** accepted (2026-08-11)
+**Status:** superseded by ADR-043 (2026-08-12)
 
 **Context:** The repository had a documented production Compose stack but its GitHub Actions CD
 workflow was only a disabled placeholder. A release needs reproducible API/Web artifacts without
@@ -704,7 +704,9 @@ services, and probes Web health. Database, JWT, LINE, SMTP, payment, and storage
 the server-side `deploy/.env`; the workflow never copies or logs them. Production is not triggered
 by a normal push.
 
-**Consequences:** Releases are auditable and rollback can select a previous immutable tag, while an
+**Consequences:** This manual design established the environment gate and immutable artifact
+boundary. ADR-043 later replaced manual dispatch as the normal trigger while retaining those
+controls. Releases are auditable and rollback can select a previous immutable tag, while an
 operator must supply Docker Hub/SSH configuration and approve each production deployment. Image
 scanning, signed provenance, and staged sandbox deployment remain follow-up hardening rather than
 hidden guarantees; ADR-041 and ADR-042 define the implemented backup and tag/rollback mechanics.
@@ -749,8 +751,9 @@ and worker writes, create a PostgreSQL custom-format dump plus local-media archi
 non-secret version/image metadata, checksum every artifact, and publish a completion marker only
 after structural verification. Reject partial, corrupt, missing, or unsafe snapshots. Require exact
 operator confirmation for destructive restore, keep Redis out of backup/restore, and keep image
-rollback separate from data recovery. Manual CD must run a verified pre-deployment backup before
-pulling images or applying migrations and must never remove persistent volumes.
+rollback separate from data recovery. Release CD must run a verified pre-deployment backup before
+pulling images or applying migrations and must never remove persistent volumes. ADR-043 later made
+that CD path automatic after validated `main`; the backup gate itself is unchanged.
 
 **Consequences:** Operators get repeatable backup, verify, list, restore, deploy, and rollback
 commands with an isolated CI rehearsal and an auditable pre-deployment restore point. Deployment
@@ -789,6 +792,35 @@ explicit server configuration. Publication still needs registry access, the Web 
 image retention, and future signing/scanning controls; the manual 12-character namespace has a
 smaller collision margin than the full-SHA path, and updating mutable `latest` is not atomic across
 both repositories, but neither can affect deployment selection.
+
+## ADR-043: Automatic validated-main production release
+
+**Status:** accepted (2026-08-12)
+
+**Context:** Manual dispatch still required a developer to select and confirm a production source
+revision, even though PR CI and immutable full-SHA artifacts already supplied the required release
+identity. Triggering CD directly on a push could race CI or publish an unvalidated revision. GitHub
+environment values also cannot be used by a build job that must finish before environment approval.
+
+**Decision:** Run PR CI only for pull requests targeting `main`, and run the same gates for the
+resulting `main` revision. Trigger production CD through `workflow_run` only when the same
+repository's `CI Quality Gates` succeeds on `main`. Check out `workflow_run.head_sha` for both image
+builds and release tooling; derive API/Web `git-<full SHA>` tags from that value. Store Docker Hub
+build credentials and public Web build values at repository scope. Build and publish before the
+`production` environment job, then require its reviewer and `main` deployment policy before SSH.
+Serialize releases with a non-canceling concurrency group. Protect `main` with PR, linear-history,
+no-delete/no-force-push, up-to-date, and required-status-check rules. If a post-mutation deployment
+step fails, automatically attempt application-only rollback from the just-verified snapshot while
+leaving database/media restore separately confirmed. Keep the PowerShell publisher only for an
+approved emergency/manual path.
+
+**Consequences:** Merging a validated PR supplies the release SHA without operator tag entry,
+local production builds, or step-by-step SSH deployment. PRs cannot deploy, failed main CI cannot
+publish, approval occurs after artifacts exist but before VPS mutation, and one release cannot
+cancel another. Repository Docker credentials must exist before activation, GitHub ruleset and
+environment policy remain external acceptance, and each actual merge/deploy still needs retained
+CI, approval, backup, registry, and VPS health evidence. Automatic image rollback is not database
+rollback; incompatible migrations still require a forward fix or explicitly approved data restore.
 
 ## OPT-001 cleanup audit (2026-08-11)
 

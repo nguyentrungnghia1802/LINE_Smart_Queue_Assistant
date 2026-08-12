@@ -144,13 +144,14 @@ before deployment. Record any command that cannot run and its residual risk; do 
 check for external acceptance.
 
 The GitHub Actions CI workflow runs the same static, test, migration, build, browser, and Compose
-configuration gates on pushes and pull requests, including immutable publisher-plan and
-backup/deploy/rollback rehearsal. Production CD is a manual workflow: type `DEPLOY`, approve the
-`production` environment, then let it publish API/Web images as exact `git-<full SHA>` plus
-discovery-only `latest`. The VPS accepts only the immutable tag, verifies a restore point, persists
-the two selected refs in its existing `deploy/.env`, pulls, migrates, recreates, and checks health.
-Rollback uses the prior refs in verified backup metadata. Runtime secrets remain only in the server
-file; the workflow does not copy them.
+configuration gates for PRs targeting `main` and for the resulting `main` revision, including
+immutable release-workflow and backup/deploy/rollback rehearsal. A successful `main` CI run starts
+production CD automatically: it publishes API/Web images as exact `git-<full SHA>` plus
+discovery-only `latest`, then waits for `production` environment approval. The VPS accepts only the
+immutable tag, verifies a restore point, persists the two selected refs in its existing
+`deploy/.env`, pulls, migrates, recreates, and checks health. A failed application rollout attempts
+metadata-driven image rollback without automatic database/media restore. Runtime secrets remain
+only in GitHub protected scopes or the server file; the workflow does not copy the latter.
 
 ## 8. Intentionally deferred external acceptance
 

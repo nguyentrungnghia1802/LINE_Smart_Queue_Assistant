@@ -789,14 +789,15 @@ Khi sử dụng từng ngôn ngữ:
 - Khi kiểm tra local, copy `.env.example` thành `.env`, chạy `npm run docker:dev:d`,
   `npm run db:migrate`, rồi `npm run db:fixture:e2e`. URL demo là
   `http://localhost:5173/qr/demo-queue-lab-2026`.
-- Mỗi push và pull request chạy secret scan, audit, format, spell, lint, type-check, OpenAPI, kiểm tra
-  cấu hình cả ba Compose, test API/Web, migration/seed, build và browser E2E.
-- CD production không chạy theo push. Sau khi nhập `DEPLOY` và được duyệt ở GitHub Environment
-  `production`, workflow build/push runner image API/Web bằng `git-<full SHA>` chính xác và tag
-  `latest` chỉ để tra cứu. VPS chỉ nhận tag bất biến, verify backup, lưu hai image ref đã chọn vào
-  `deploy/.env`, pull, migrate, recreate và probe health. Rollback dùng ref cũ trong metadata backup
-  đã verify.
-- Operator Windows có thể publish cùng bộ tag từ commit sạch bằng
+- Pull request vào `main` và revision `main` sau merge chạy secret scan, audit, format, spell, lint,
+  type-check, OpenAPI, kiểm tra cấu hình cả ba Compose, test API/Web, migration/seed, build và browser
+  E2E.
+- Khi CI của revision đã merge trên `main` pass, CD tự động build/push runner image API/Web bằng
+  `git-<full SHA>` chính xác và tag `latest` chỉ để tra cứu, rồi chờ duyệt ở GitHub Environment
+  `production`. VPS chỉ nhận tag bất biến, verify backup, lưu hai image ref đã chọn vào
+  `deploy/.env`, pull, migrate, recreate và probe health. Nếu rollout ứng dụng lỗi, hệ thống tự thử
+  rollback image theo metadata đã verify, không tự restore database/media.
+- Với release emergency/manual đã được duyệt, Operator Windows có thể publish cùng bộ tag từ commit sạch bằng
   `scripts/release/publish-images.ps1`; dùng `RELEASE_TAG` được in ra với
   `deploy/backup/deploy-safe.sh <tag>`, tuyệt đối không deploy `latest`.
 - Database, JWT, LINE, SMTP, payment và storage secret vẫn ở `deploy/.env` trên server; CD không sao chép

@@ -787,15 +787,15 @@ For each language:
 - For local review, copy `.env.example` to `.env`, then run `npm run docker:dev:d`,
   `npm run db:migrate`, and `npm run db:fixture:e2e`. The demo URL is
   `http://localhost:5173/qr/demo-queue-lab-2026`.
-- Every push and pull request runs secret scanning, audit, formatting, spelling, lint, type-check,
-  OpenAPI, all three Compose configuration checks, API/Web tests, migration/seed smoke, build, and
-  browser E2E.
-- Production CD is manual, not push-triggered. After typing `DEPLOY` and receiving approval from the
-  GitHub `production` environment, it publishes API/Web runner images as exact `git-<full SHA>` plus
-  discovery-only `latest`. The VPS accepts only the immutable tag, verifies a backup, persists the
-  selected references in `deploy/.env`, pulls, migrates, recreates, and probes health. Rollback uses
-  the previous references recorded in verified backup metadata.
-- A Windows operator can publish the same tags from a clean commit with
+- Pull requests targeting `main` and the resulting `main` revision run secret scanning, audit,
+  formatting, spelling, lint, type-check, OpenAPI, all three Compose configuration checks, API/Web
+  tests, migration/seed smoke, build, and browser E2E.
+- A successful CI run for merged `main` automatically publishes API/Web runner images as exact
+  `git-<full SHA>` plus discovery-only `latest`, then waits for GitHub `production` environment
+  approval. The VPS accepts only the immutable tag, verifies a backup, persists the selected
+  references in `deploy/.env`, pulls, migrates, recreates, and probes health. Failure automatically
+  attempts previous-image rollback from verified metadata without restoring database/media.
+- For an approved emergency/manual release, a Windows operator can publish the same tags from a clean commit with
   `scripts/release/publish-images.ps1`; use the printed `RELEASE_TAG` with
   `deploy/backup/deploy-safe.sh <tag>`, never `latest`.
 - Database, JWT, LINE, SMTP, payment, and storage secrets remain in the server's `deploy/.env`; CD

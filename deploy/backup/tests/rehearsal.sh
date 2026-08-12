@@ -188,6 +188,24 @@ grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:3.19' "$ENV_FILE"
 sleep 1
 docker tag alpine:3.19 "$release_image"
 export DEPLOY_APPROVED=GITHUB_ENVIRONMENT_APPROVED
+
+# Force a post-mutation migration failure. deploy-safe must return the original failure while its
+# EXIT trap restores the exact pre-deployment application references from verified metadata.
+unset OPS_SKIP_MIGRATIONS
+if "$BACKUP_DIR/deploy-safe.sh" "$release_tag" >>"$log_file" 2>&1; then
+  echo 'Safe deploy unexpectedly succeeded when the migration command was unavailable' >&2
+  exit 1
+fi
+export OPS_SKIP_MIGRATIONS=true
+api_id=$("${compose[@]}" ps -q api)
+[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == alpine:3.19 ]]
+grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:3.19' "$ENV_FILE"
+grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:3.19' "$ENV_FILE"
+restored_value=$("${compose[@]}" exec -T postgres sh -eu -c \
+  'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT value FROM restore_probe WHERE id = 1"')
+[[ "$restored_value" == before-backup ]]
+
+sleep 1
 predeploy_id=$("$BACKUP_DIR/deploy-safe.sh" "$release_tag" 2>>"$log_file")
 api_id=$("${compose[@]}" ps -q api)
 [[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == "$release_image" ]]
