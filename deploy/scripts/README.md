@@ -9,18 +9,21 @@ outside that workflow.
 
 Run from the repository checkout at the exact commit that will be released:
 
-```bash
-export IMAGE_NAMESPACE=docker.io/<docker-user>
-export VITE_LIFF_ID=<production-liff-id>
-bash deploy/scripts/build-push.sh
+```powershell
+$env:VITE_LIFF_ID = '<production-liff-id>'
+pwsh -NoProfile -File deploy/scripts/build-push.ps1
 ```
 
 The script derives the checked-out full `HEAD`, generates `git-<12-character-sha>`, builds the API
 and Web `runner` images with that same tag, and keeps the full SHA in the OCI revision label. It
 pushes no `latest` alias. After both pushes succeed, copy the printed `DEPLOY_TAG`, full API/Web
-references, and VPS command. `IMAGE_NAMESPACE` can be replaced by `DOCKERHUB_NAMESPACE` or
-`DOCKERHUB_USERNAME`; `API_IMAGE_REPOSITORY` and `WEB_IMAGE_REPOSITORY` may override the two
-repository names. Docker credentials must already be available to the local Docker CLI.
+references, and VPS command. By default, the script reads only
+`LINE_QUEUE_API_REPOSITORY`/`LINE_QUEUE_WEB_REPOSITORY` from `deploy/.env` (falling back to
+`deploy/.env.example`) and never reads or prints other runtime values. `-ImageNamespace`,
+`-ApiImageRepository`, and `-WebImageRepository` provide explicit overrides; the legacy
+`IMAGE_NAMESPACE`, `DOCKERHUB_NAMESPACE`, `DOCKERHUB_USERNAME`, `API_IMAGE_REPOSITORY`, and
+`WEB_IMAGE_REPOSITORY` environment variables remain supported. Docker Desktop must be running and
+Docker Hub credentials must already be available to the local Docker CLI.
 
 ## VPS deploy
 
@@ -47,7 +50,7 @@ the proxy pinned to its old container IP.
 
 ## Rehearsal
 
-The dry-run rehearsal checks automatic 12-character tag generation, the full-SHA OCI revision,
+The dry-run rehearsal checks Windows PowerShell 12-character tag generation, the full-SHA OCI revision,
 the printed VPS handoff, the backup-gated delegation boundary, the no-`latest` contract, and the
 runtime-DNS nginx configuration without publishing images or touching a production `.env`:
 
@@ -55,5 +58,5 @@ runtime-DNS nginx configuration without publishing images or touching a producti
 npm run ops:manual-release:rehearse
 ```
 
-The command requires Bash, Git, and the repository files. Run it in the Linux CI container on
-Windows hosts if a native Bash executable is unavailable.
+The command requires PowerShell, Bash, Git, and the repository files. On Windows it can use Git
+for Windows Bash; CI runs it on Linux without publishing images.

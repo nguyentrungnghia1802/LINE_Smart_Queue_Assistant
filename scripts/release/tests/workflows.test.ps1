@@ -33,6 +33,10 @@ Assert-Matches $CiWorkflow '(?ms)^on:\s+push:\s+branches: \[main\]\s+pull_reques
   'CI must validate pushes to main and pull requests targeting main'
 Assert-DoesNotMatch $CiWorkflow 'chore/dev|branches:\s*\[''" ]*\*\*' `
   'CI must not preserve the obsolete intermediate-branch or every-branch trigger'
+Assert-Matches $CiWorkflow 'deploy/scripts/tests/build-push\.test\.ps1' `
+  'CI must validate the canonical Windows manual image publisher'
+Assert-DoesNotMatch $CiWorkflow 'publish-images(?:\.test)?\.ps1|build-push\.sh' `
+  'CI must not reference a removed or superseded manual image publisher'
 
 Assert-Matches $DeployWorkflow '(?ms)^on:\s+workflow_run:\s+workflows: \[''CI Quality Gates''\]\s+types: \[completed\]\s+branches: \[main\]' `
   'CD must be triggered only after completion of the main CI workflow'

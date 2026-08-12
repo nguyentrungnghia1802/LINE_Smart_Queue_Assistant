@@ -771,9 +771,9 @@ so the server's `deploy/.env` could continue naming an old release after a succe
 Local Windows publication also lacked one canonical command, and a moving `latest` tag cannot prove
 which reviewed source produced a running or rollback image.
 
-**Decision:** Derive every release identity from a lowercase Git SHA. The local PowerShell
-publisher and GitHub CD use `git-` plus the full 40-character SHA and may also publish `latest` for
-discovery. The manual Bash publisher accepts no tag argument: it resolves `HEAD`, generates
+**Decision:** Derive every release identity from a lowercase Git SHA. GitHub CD uses `git-` plus
+the full 40-character SHA and may also publish `latest` for discovery. The manual Windows
+PowerShell publisher accepts no tag argument: it resolves `HEAD`, generates
 `git-<12-character-sha>` for both API and Web, retains the full SHA in each OCI revision label,
 pushes no `latest`, and prints the exact VPS handoff only after both pushes succeed. Its thin VPS
 wrapper accepts exactly that 12-character form. The shared `deploy-safe.sh` backup gate accepts
@@ -790,8 +790,8 @@ for the shorter manual tag. A container recreate or host reboot no longer falls 
 `.env` refs, and rollback does not guess or follow `latest`. Repository namespace changes remain
 explicit server configuration. Publication still needs registry access, the Web LIFF build value,
 image retention, and future signing/scanning controls; the manual 12-character namespace has a
-smaller collision margin than the full-SHA path, and updating mutable `latest` is not atomic across
-both repositories, but neither can affect deployment selection.
+smaller collision margin than the full-SHA path, while automatic CD's mutable `latest` updates are
+not atomic across both repositories. Neither can affect deployment selection.
 
 ## ADR-043: Automatic validated-main production release
 

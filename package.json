@@ -41,7 +41,7 @@
     "docker:prod:down": "docker compose --env-file deploy/.env -f deploy/docker-compose.yml down",
     "docker:clean": "docker compose -f docker-compose.dev.yml down --volumes --remove-orphans",
     "media:persistence:verify": "node scripts/deployment/verify-local-media-persistence.mjs",
-    "release:images:verify": "pwsh -NoProfile -File scripts/release/tests/publish-images.test.ps1",
+    "release:images:verify": "pwsh -NoProfile -File deploy/scripts/tests/build-push.test.ps1",
     "release:workflows:verify": "pwsh -NoProfile -File scripts/release/tests/workflows.test.ps1",
     "ops:manual-release:rehearse": "bash deploy/scripts/tests/rehearsal.sh",
     "ops:backup:rehearse": "bash deploy/backup/tests/rehearsal.sh",

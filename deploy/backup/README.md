@@ -70,8 +70,8 @@ do not start writers against partially restored state. External S3-compatible me
 copied by these tools and must use provider versioning/export recovery.
 
 Configure the two untagged repositories once in `deploy/.env`, then pass only the publisher's exact
-immutable tag to the backup gate. The manual shell publisher emits `git-<12-character-sha>`; the
-PowerShell/GitHub publishers retain `git-<40-character-sha>` compatibility:
+immutable tag to the backup gate. The manual Windows PowerShell publisher emits
+`git-<12-character-sha>`; automatic GitHub CD retains `git-<40-character-sha>` compatibility:
 
 ```bash
 # deploy/.env:

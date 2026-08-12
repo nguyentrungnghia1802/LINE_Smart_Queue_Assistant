@@ -230,35 +230,27 @@ images for that exact revision. It publishes both the immutable SHA tag and muta
 `latest`, but only the immutable tag is passed through approval and deployment.
 
 For an explicitly approved emergency/manual publication from a clean reviewed local commit, the
-Windows publisher produces the same identities:
+Windows publisher generates one immutable 12-character deployment tag and retains the full SHA in
+the OCI revision metadata:
 
 ```powershell
 $env:VITE_LIFF_ID = '<production-liff-id>'
-pwsh -NoProfile -File scripts/release/publish-images.ps1 `
-  -RegistryNamespace docker.io/trungnghia2703
+pwsh -NoProfile -File deploy/scripts/build-push.ps1
 ```
 
 The current Docker Hub repositories are `trungnghia2703/line-smart-queue-api` and
 `trungnghia2703/line-smart-queue-web`. In an emergency/manual deployment, pass only the printed
-`git-<40-character-sha>` to the VPS:
+`git-<12-character-sha>` printed as `DEPLOY_TAG` to the VPS:
 
 ```bash
-deploy/backup/deploy-safe.sh git-0123456789abcdef0123456789abcdef01234567
+bash deploy/scripts/deploy.sh git-0123456789ab
 ```
 
-`latest` is published for operator discovery only and is never a deployment or rollback source.
+The manual publisher does not build or push `latest`; automatic CD alone publishes it for
+operator discovery, and it is never a deployment or rollback source.
 The server uses `LINE_QUEUE_API_REPOSITORY` and `LINE_QUEUE_WEB_REPOSITORY` to derive full refs,
 creates and verifies a backup, then atomically updates only `LINE_QUEUE_API_IMAGE` and
 `LINE_QUEUE_WEB_IMAGE` in its existing `deploy/.env` before pull/migration/recreate/health checks.
-
-The reviewed manual shell path is the immutable-only alternative when GitHub Actions is not being
-used. From the repository checkout, let the publisher derive the same 12-character tag for both
-images from the checked-out full SHA:
-
-```bash
-IMAGE_NAMESPACE=docker.io/<docker-user> VITE_LIFF_ID=<production-liff-id> \
-  bash deploy/scripts/build-push.sh
-```
 
 After the versioned `deploy/` tooling is present on the VPS, deploy the same tag without editing
 the server `.env`:
@@ -272,7 +264,7 @@ bash scripts/deploy.sh git-<12-character-sha-printed-as-DEPLOY_TAG>
 `deploy/scripts/deploy.sh` only delegates to `deploy/backup/deploy-safe.sh`; it does not duplicate
 backup, verification, migration, health, or rollback logic. The backup gate updates the API and
 Web image references atomically, and Compose applies the selected tag to API, Worker, and Web.
-The shell publisher never pushes `latest`; its OCI revision label retains the full Git SHA, and it
+The PowerShell publisher never pushes `latest`; its OCI revision label retains the full Git SHA, and it
 prints the exact tag, full image references, and VPS command only after both pushes succeed.
 Rollback continues to use image metadata already stored in the verified snapshot.
 
@@ -739,7 +731,7 @@ revision. It splits the validation gate into independent jobs so failures are ea
 - isolated PostgreSQL/local-media backup, corruption rejection, restore, deploy-gate, and rollback rehearsal.
 - PowerShell immutable-image publisher command-plan validation.
 - automatic validated-main workflow trigger, source-SHA, approval-order, and concurrency validation.
-- manual shell immutable-image build/deploy and runtime-DNS rehearsal.
+- Windows PowerShell immutable-image build/VPS deploy and runtime-DNS rehearsal.
 
 The API tests, migration smoke, and browser E2E jobs use separate PostgreSQL services. Browser E2E
 waits for the earlier quality and Compose jobs, applies migrations, loads only the explicit browser
@@ -824,8 +816,8 @@ VPS scoped.
 ### Emergency/manual application release
 
 If GitHub Actions is unavailable and an authorized incident operator approves a manual release,
-use `scripts/release/publish-images.ps1` from the exact clean commit, then run
-`deploy/backup/deploy-safe.sh <printed-git-SHA-tag>` on the VPS. Record the commit, image refs,
+use `deploy/scripts/build-push.ps1` from the exact clean commit, then run
+`deploy/scripts/deploy.sh <printed-git-SHA-tag>` on the VPS. Record the commit, image refs,
 backup ID, approval, health evidence, and reason in the operations log. This path retains the same
 backup, immutable identity, automatic application rollback, and no-automatic-data-restore rules;
 it is not the normal production workflow.

@@ -795,9 +795,9 @@ For each language:
   approval. The VPS accepts only the immutable tag, verifies a backup, persists the selected
   references in `deploy/.env`, pulls, migrates, recreates, and probes health. Failure automatically
   attempts previous-image rollback from verified metadata without restoring database/media.
-- For an approved emergency/manual release, a Windows operator can publish the same tags from a clean commit with
-  `scripts/release/publish-images.ps1`; use the printed `RELEASE_TAG` with
-  `deploy/backup/deploy-safe.sh <tag>`, never `latest`.
+- For an approved emergency/manual release, a Windows operator runs
+  `deploy/scripts/build-push.ps1` from a clean commit, then passes its printed `DEPLOY_TAG` to
+  `deploy/scripts/deploy.sh <tag>` on the VPS; this manual path never publishes `latest`.
 - Database, JWT, LINE, SMTP, payment, and storage secrets remain in the server's `deploy/.env`; CD
   never copies or regenerates them. Before a server update, run
   `docker compose --env-file deploy/.env -f deploy/docker-compose.yml config -q`.

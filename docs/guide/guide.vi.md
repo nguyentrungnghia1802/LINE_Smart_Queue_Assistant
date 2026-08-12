@@ -797,9 +797,9 @@ Khi sử dụng từng ngôn ngữ:
   `production`. VPS chỉ nhận tag bất biến, verify backup, lưu hai image ref đã chọn vào
   `deploy/.env`, pull, migrate, recreate và probe health. Nếu rollout ứng dụng lỗi, hệ thống tự thử
   rollback image theo metadata đã verify, không tự restore database/media.
-- Với release emergency/manual đã được duyệt, Operator Windows có thể publish cùng bộ tag từ commit sạch bằng
-  `scripts/release/publish-images.ps1`; dùng `RELEASE_TAG` được in ra với
-  `deploy/backup/deploy-safe.sh <tag>`, tuyệt đối không deploy `latest`.
+- Với release emergency/manual đã được duyệt, Operator Windows chạy
+  `deploy/scripts/build-push.ps1` từ commit sạch, rồi truyền `DEPLOY_TAG` được in ra cho
+  `deploy/scripts/deploy.sh <tag>` trên VPS; luồng thủ công này không publish `latest`.
 - Database, JWT, LINE, SMTP, payment và storage secret vẫn ở `deploy/.env` trên server; CD không sao chép
   hoặc tạo lại file này. Trước khi cập nhật server, chạy
   `docker compose --env-file deploy/.env -f deploy/docker-compose.yml config -q`.

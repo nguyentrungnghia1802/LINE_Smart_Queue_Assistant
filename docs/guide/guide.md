@@ -794,8 +794,9 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
   approvalを待ちます。VPSは不変タグだけを受け付け、backupを検証し、選択した2つのimage参照を
   `deploy/.env` に保存してpull、migration、recreate、health checkを行います。失敗時は検証済みmetadataから
   application imageの自動rollbackを試行し、database／mediaは自動restoreしません。
-- 承認済みの緊急／手動releaseでは、Windows operatorがclean commitから `scripts/release/publish-images.ps1` を実行して同じタグを公開できます。
-  出力された `RELEASE_TAG` を `deploy/backup/deploy-safe.sh <tag>` に渡し、`latest` はdeployしません。
+- 承認済みの緊急／手動releaseでは、Windows operatorがclean commitから
+  `deploy/scripts/build-push.ps1` を実行し、出力された `DEPLOY_TAG` をVPS上の
+  `deploy/scripts/deploy.sh <tag>` に渡します。この手動経路では `latest` をpublishしません。
 - 本番のDB、JWT、LINE、SMTP、payment、storage secretはサーバーの `deploy/.env` に残し、CDはコピーも
   再生成もしません。サーバー更新前は `docker compose --env-file deploy/.env -f deploy/docker-compose.yml config -q`
   を実行します。

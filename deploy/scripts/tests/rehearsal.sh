@@ -5,7 +5,7 @@ umask 077
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd -P)
-BUILD_SCRIPT="$REPO_ROOT/deploy/scripts/build-push.sh"
+BUILD_SCRIPT="$REPO_ROOT/deploy/scripts/build-push.ps1"
 DEPLOY_SCRIPT="$REPO_ROOT/deploy/scripts/deploy.sh"
 BACKUP_COMMON="$REPO_ROOT/deploy/backup/common.sh"
 NGINX_CONFIG="$REPO_ROOT/docker/nginx/default.conf"
@@ -21,6 +21,7 @@ require() {
 require bash
 require git
 require grep
+require pwsh
 
 git_sha=$(git -C "$REPO_ROOT" rev-parse HEAD)
 short_sha=${git_sha:0:12}
@@ -40,10 +41,11 @@ if (require_release_tag "git-${short_sha}0") >/dev/null 2>&1; then
 fi
 
 build_output=$(
-  IMAGE_NAMESPACE=example.invalid/line-queue \
-  VITE_LIFF_ID=rehearsal-liff-id \
-  DRY_RUN=true \
-  bash "$BUILD_SCRIPT" 2>&1
+  pwsh -NoProfile -File "$BUILD_SCRIPT" \
+    -ImageNamespace example.invalid/line-queue \
+    -LiffId rehearsal-liff-id \
+    -DryRun \
+    -AllowDirty 2>&1
 )
 printf '%s\n' "$build_output"
 grep -Fq "line-smart-queue-api:$release_tag" <<<"$build_output"
@@ -52,14 +54,15 @@ grep -Fq "org.opencontainers.image.revision=$git_sha" <<<"$build_output"
 grep -Fq "DEPLOY_TAG=$release_tag" <<<"$build_output"
 grep -Fq "API_IMAGE=example.invalid/line-queue/line-smart-queue-api:$release_tag" <<<"$build_output"
 grep -Fq "WEB_IMAGE=example.invalid/line-queue/line-smart-queue-web:$release_tag" <<<"$build_output"
-grep -Fq "VPS_COMMAND=./scripts/deploy.sh $release_tag" <<<"$build_output"
+grep -Fq "VPS_COMMAND=bash deploy/scripts/deploy.sh $release_tag" <<<"$build_output"
 if grep -Eq '(:latest|latest)' <<<"$build_output"; then
   printf 'Manual build/push plan unexpectedly references latest\n' >&2
   exit 1
 fi
 
-if IMAGE_NAMESPACE=example.invalid/line-queue VITE_LIFF_ID=rehearsal-liff-id DRY_RUN=true \
-  bash "$BUILD_SCRIPT" "$release_tag" >/dev/null 2>&1; then
+if pwsh -NoProfile -File "$BUILD_SCRIPT" "$release_tag" \
+  -ImageNamespace example.invalid/line-queue -LiffId rehearsal-liff-id \
+  -DryRun -AllowDirty >/dev/null 2>&1; then
   printf 'Manual build/push unexpectedly accepted an operator-supplied tag\n' >&2
   exit 1
 fi

@@ -290,17 +290,18 @@ references; forces a post-mutation migration failure and proves automatic image-
 and proves the explicit rollback command restores those references without restoring data. The
 harness never reads production `deploy/.env` and must not be pointed at a production Compose file.
 
-`npm run release:images:verify` runs the PowerShell publisher in dry-run mode and proves it derives
-the full Git SHA, plans two runner builds, applies revision/release metadata, and plans four pushes:
-immutable plus `latest` for API and Web. It also rejects malformed registry namespaces. The real
-publisher requires a clean worktree and Docker login; see `scripts/release/README.md`.
+`npm run release:images:verify` runs the Windows PowerShell publisher in dry-run mode and proves it
+derives one `git-<12-character-sha>` tag from the full Git SHA, plans two runner builds and two
+immutable pushes, retains the full revision/release metadata, prints the exact VPS handoff, and
+rejects mutable or malformed repositories. The real publisher requires a clean worktree and
+Docker login; see `deploy/scripts/README.md`.
 
 `npm run release:workflows:verify` proves PR CI targets `main`, CD is triggered only by a successful
 same-repository `main` CI run, both checkouts use that run's exact SHA, production approval follows
 image publication, releases are serialized, and `deploy-safe.sh` receives only the immutable tag.
 
-`npm run ops:manual-release:rehearse` validates the separate manual shell path. It proves that
-`deploy/scripts/build-push.sh` derives one `git-<12-character-sha>` tag from checked-out `HEAD` for
+`npm run ops:manual-release:rehearse` validates the paired Windows-publisher/VPS-shell path. It
+proves that `deploy/scripts/build-push.ps1` derives one `git-<12-character-sha>` tag from checked-out `HEAD` for
 API and Web without `latest`, retains the full SHA in OCI revision metadata, prints the VPS handoff,
 and rejects operator-supplied tags. It also proves that `deploy/scripts/deploy.sh` accepts the
 generated tag and delegates to the existing backup gate, and that Web nginx uses Docker DNS at
@@ -346,12 +347,15 @@ verified pre-deployment backup ID with `rollback.sh`; it persists the exact prev
 from metadata before recreating images. Use the separately confirmed `restore.sh` only when data
 recovery is actually needed.
 
-For a reviewed manual/emergency release outside GitHub Actions, use the shell scripts instead of
-editing image references by hand:
+For a reviewed manual/emergency release outside GitHub Actions, use the Windows publisher and VPS
+wrapper instead of editing image references by hand:
+
+```powershell
+$env:VITE_LIFF_ID = '<production-liff-id>'
+pwsh -NoProfile -File deploy/scripts/build-push.ps1
+```
 
 ```bash
-IMAGE_NAMESPACE=docker.io/<docker-user> VITE_LIFF_ID=<production-liff-id> \
-  bash deploy/scripts/build-push.sh
 bash deploy/scripts/deploy.sh git-<12-character-sha-printed-as-DEPLOY_TAG>
 ```
 

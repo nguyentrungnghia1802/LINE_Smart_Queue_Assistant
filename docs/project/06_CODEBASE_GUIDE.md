@@ -22,7 +22,7 @@ worker source paths that must be reviewed together.
 |-- docker/                  API/web Dockerfiles and nginx config
 |-- scripts/
 |   |-- deployment/         Persistent-media validation
-|   |-- release/            Emergency PowerShell publisher plus release-workflow tests
+|   |-- release/            Automatic release-workflow contract tests
 |   \-- scalability/        Isolated scale/failure runners
 |-- deploy/
 |   |-- docker-compose.yml   Production immutable-image stack and persistent volumes
