@@ -139,6 +139,15 @@ describe('LoginPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows a localized service-unavailable message for an upstream gateway failure', async () => {
+    mockLogin.mockRejectedValueOnce(new ApiClientError('SERVICE_UNAVAILABLE', 502));
+
+    renderPage();
+    await submitLogin();
+
+    expect(await screen.findByText('サービスを一時的に利用できません。')).toBeInTheDocument();
+  });
+
   it('shows translated validation fallback when backend message is absent', async () => {
     mockLogin.mockRejectedValueOnce(new ApiClientError('VALIDATION_ERROR', 422));
 

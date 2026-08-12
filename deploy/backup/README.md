@@ -11,6 +11,19 @@ Runtime snapshots must stay outside the Git checkout. The default is
 encrypted off-host storage. The scripts never copy or print `deploy/.env`, database passwords,
 LINE credentials, or other secrets.
 
+## Script reference
+
+| Script               | Purpose                                                                                                                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `common.sh`          | Shared runtime configuration, Compose helpers, validation, image-reference handling, snapshot metadata, and safety checks used by the other scripts.                                              |
+| `backup.sh`          | Creates a quiesced PostgreSQL and local-media snapshot, writes non-secret release metadata, verifies the payloads, and publishes the completed backup ID.                                         |
+| `verify-backup.sh`   | Independently verifies a selected snapshot's marker, required files, checksums, archive safety, and PostgreSQL dump readability.                                                                  |
+| `list-backups.sh`    | Lists completed snapshots that are present and verifiable under `BACKUP_ROOT`.                                                                                                                    |
+| `restore.sh`         | Destructively restores PostgreSQL and local media from a verified snapshot after exact confirmation, then runs migrations and health checks.                                                      |
+| `deploy-safe.sh`     | Creates and verifies a pre-deployment backup, persists only the requested immutable API/Web image references, deploys them, and attempts application-only rollback if a post-mutation step fails. |
+| `rollback.sh`        | Restores the previous immutable API/Web image references recorded in verified snapshot metadata without restoring database or media data.                                                         |
+| `tests/rehearsal.sh` | Runs the isolated Docker recovery/deploy rehearsal, including corrupt-backup rejection, backup-gated deployment, automatic application rollback, and explicit rollback coverage.                  |
+
 ## Snapshot layout and guarantees
 
 Each UTC `YYYYMMDD_HHMMSS` directory contains:
@@ -57,13 +70,14 @@ do not start writers against partially restored state. External S3-compatible me
 copied by these tools and must use provider versioning/export recovery.
 
 Configure the two untagged repositories once in `deploy/.env`, then pass only the publisher's exact
-`git-<40-character-sha>` release tag to the backup gate:
+immutable tag to the backup gate. The manual shell publisher emits `git-<12-character-sha>`; the
+PowerShell/GitHub publishers retain `git-<40-character-sha>` compatibility:
 
 ```bash
 # deploy/.env:
 # LINE_QUEUE_API_REPOSITORY=docker.io/example/line-smart-queue-api
 # LINE_QUEUE_WEB_REPOSITORY=docker.io/example/line-smart-queue-web
-deploy/backup/deploy-safe.sh git-0123456789abcdef0123456789abcdef01234567
+deploy/backup/deploy-safe.sh git-0123456789ab
 # Type: DEPLOY <the-printed-predeployment-backup-id>
 ```
 

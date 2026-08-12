@@ -294,10 +294,12 @@ immutable plus `latest` for API and Web. It also rejects malformed registry name
 publisher requires a clean worktree and Docker login; see `scripts/release/README.md`.
 
 `npm run ops:manual-release:rehearse` validates the separate manual shell path. It proves that
-`deploy/scripts/build-push.sh` derives one checked-out full-SHA tag for API and Web without
-`latest`, that `deploy/scripts/deploy.sh` delegates to the existing backup gate, and that Web nginx
-uses Docker DNS at request time for the `api` service. It is a dry run and does not publish images,
-modify `deploy/.env`, or touch a production volume; see `deploy/scripts/README.md`.
+`deploy/scripts/build-push.sh` derives one `git-<12-character-sha>` tag from checked-out `HEAD` for
+API and Web without `latest`, retains the full SHA in OCI revision metadata, prints the VPS handoff,
+and rejects operator-supplied tags. It also proves that `deploy/scripts/deploy.sh` accepts the
+generated tag and delegates to the existing backup gate, and that Web nginx uses Docker DNS at
+request time for the `api` service. It is a dry run and does not publish images, modify
+`deploy/.env`, or touch a production volume; see `deploy/scripts/README.md`.
 
 The GitHub Actions workflow runs these checks as separate jobs so a failure is isolated to one
 quality surface: secret scan, dependency audit, formatting, spelling, lint, type-check, OpenAPI,
@@ -340,13 +342,13 @@ editing image references by hand:
 
 ```bash
 IMAGE_NAMESPACE=docker.io/<docker-user> VITE_LIFF_ID=<production-liff-id> \
-  bash deploy/scripts/build-push.sh git-<40-character-commit-sha>
-bash deploy/scripts/deploy.sh git-<40-character-commit-sha>
+  bash deploy/scripts/build-push.sh
+bash deploy/scripts/deploy.sh git-<12-character-sha-printed-as-DEPLOY_TAG>
 ```
 
 This path publishes only the immutable tag and delegates every VPS safety step to
-`deploy/backup/deploy-safe.sh`; API, Worker, and Web are updated together. The tag must equal the
-checked-out commit, and the server `.env` remains server-owned.
+`deploy/backup/deploy-safe.sh`; API, Worker, and Web are updated together. The tag is generated
+from the checked-out commit, while the server `.env` remains server-owned.
 
 Target one workspace:
 

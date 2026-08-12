@@ -16,17 +16,16 @@ log() {
 }
 
 usage() {
-  printf 'Usage: %s git-<40-character-lowercase-sha>\n' "$0" >&2
+  printf 'Usage: %s\n' "$0" >&2
   exit 2
 }
 
-[[ $# -eq 1 ]] || usage
-release_tag=$1
-[[ "$release_tag" =~ ^git-[0-9a-f]{40}$ ]] || die 'Release tag must be git- followed by a full lowercase Git SHA'
+[[ $# -eq 0 ]] || usage
 
 git_sha=$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null) || die 'Unable to resolve the repository HEAD SHA'
-[[ "$release_tag" == "git-$git_sha" ]] ||
-  die "Release tag must match the checked-out HEAD ($git_sha)"
+[[ "$git_sha" =~ ^[0-9a-f]{40}$ ]] || die 'Repository HEAD must resolve to a full lowercase Git SHA'
+short_sha=${git_sha:0:12}
+release_tag="git-$short_sha"
 
 image_namespace=${IMAGE_NAMESPACE:-${DOCKERHUB_NAMESPACE:-}}
 if [[ -z "$image_namespace" && -n "${DOCKERHUB_USERNAME:-}" ]]; then
@@ -92,6 +91,7 @@ run_docker build \
 
 run_docker push "$api_image"
 run_docker push "$web_image"
-printf 'RELEASE_TAG=%s\n' "$release_tag"
+printf 'DEPLOY_TAG=%s\n' "$release_tag"
 printf 'API_IMAGE=%s\n' "$api_image"
 printf 'WEB_IMAGE=%s\n' "$web_image"
+printf 'VPS_COMMAND=./scripts/deploy.sh %s\n' "$release_tag"

@@ -99,6 +99,50 @@ describe('apiClient authentication interceptor', () => {
     expect(auth.refreshAuthSession).toHaveBeenCalledTimes(1);
     expect(auth.terminateAuthSession).toHaveBeenCalledTimes(1);
   });
+
+  it('normalizes a plain-text upstream 502 without reading a missing error code', async () => {
+    apiClient.defaults.adapter = (config) =>
+      Promise.reject(
+        new AxiosError(
+          'Request failed with status code 502',
+          'ERR_BAD_RESPONSE',
+          config,
+          undefined,
+          {
+            data: 'error code: 502',
+            status: 502,
+            statusText: 'Bad Gateway',
+            headers: { 'content-type': 'text/plain' },
+            config,
+          }
+        )
+      );
+
+    await expect(get('/api/v1/health')).rejects.toMatchObject({
+      code: 'SERVICE_UNAVAILABLE',
+      status: 502,
+    });
+    expect(auth.refreshAuthSession).not.toHaveBeenCalled();
+    expect(auth.terminateAuthSession).not.toHaveBeenCalled();
+  });
+
+  it('normalizes a malformed non-server error response without exposing transport text', async () => {
+    apiClient.defaults.adapter = (config) =>
+      Promise.reject(
+        new AxiosError('unsafe proxy detail', 'ERR_BAD_RESPONSE', config, undefined, {
+          data: { success: false },
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: {},
+          config,
+        })
+      );
+
+    await expect(get('/api/v1/public')).rejects.toMatchObject({
+      code: 'UNKNOWN',
+      status: 429,
+    });
+  });
 });
 
 function success<T>(config: InternalAxiosRequestConfig, data: T) {

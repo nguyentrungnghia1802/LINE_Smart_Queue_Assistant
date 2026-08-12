@@ -1,38 +1,32 @@
-## Task — Manual Docker Build & Deploy Scripts
+## Task — Auto-generate Manual Release Tag
 
 **Status:** [x] Completed (2026-08-12)
 
-- [x] Tạo folder `deploy/scripts/` chứa các script hỗ trợ build/push và deploy Docker production thủ công.
-- [x] Tạo `build-push.sh <tag>` để build và push API + Web với cùng một immutable tag (ưu tiên Git SHA), không phụ thuộc `latest`.
-- [x] Tạo `deploy.sh <tag>` để deploy đúng API/Web image theo tag trên VPS mà không cần sửa `.env` thủ công.
-- [x] `deploy.sh` phải reuse `deploy/backup/deploy-safe.sh`; không viết lại logic backup, verify hoặc rollback đã có.
-- [x] Đảm bảo API, Worker và Web sau deploy sử dụng đúng release tag.
-- [x] Sửa vấn đề Web Nginx giữ stale IP của API sau khi API restart/recreate, tránh `/api/*` bị `502 Bad Gateway` sau backup/deploy.
-- [x] Đảm bảo các script backup/restore/rollback hiện tại tương thích với immutable image tag `<git-sha>`.
-- [x] Không hard-code hoặc log secrets.
-- [x] Thêm tests/rehearsal cần thiết và chạy validation theo `docs/agent/AGENTS.md`.
-- [x] Cập nhật canonical docs/runbook liên quan.
-
-### Kết quả mong muốn
-
-Manual workflow chỉ còn:
-
-```bash
-# Local
-./deploy/scripts/build-push.sh <tag>
-
-# VPS
-./scripts/deploy.sh <tag>
-```
+- [x] Sửa `deploy/scripts/build-push.sh` để không yêu cầu operator nhập tag.
+- [x] Script tự lấy Git HEAD và sinh release tag dạng `git-<short-sha>`, ưu tiên 12 ký tự.
+- [x] Build và push API + Web với cùng release tag.
+- [x] Giữ OCI revision label bằng full Git SHA.
+- [x] Sau khi push thành công, in rõ:
+  - `DEPLOY_TAG=<tag>`
+  - full API image reference
+  - full Web image reference
+  - command VPS cần chạy: `./scripts/deploy.sh <tag>`
+- [x] `deploy/scripts/deploy.sh` phải chấp nhận đúng tag tự sinh này.
+- [x] Không thay đổi logic backup/verify/rollback hiện có.
+- [x] Update tests/docs và chạy validation theo `AGENTS.md`.
 
 ### Verification evidence
 
-- `deploy/scripts/build-push.sh` requires the checked-out full SHA and emits only one API/Web
-  immutable tag; it does not publish `latest`.
-- `deploy/scripts/deploy.sh` is a thin delegation to `deploy/backup/deploy-safe.sh`, so the
-  existing backup, verification, migration, health, and image-metadata rollback safeguards remain
-  authoritative.
-- `docker/nginx/default.conf` resolves `api` through Docker's embedded DNS at request time for
-  API, realtime, and media proxy paths, preventing stale container-IP references after recreate.
-- `deploy/scripts/tests/rehearsal.sh` and CI exercise tag parity, no-`latest`, delegation, and
-  runtime-DNS invariants without changing production state.
+- Manual release rehearsal verifies the generated 12-character tag, full-SHA OCI revision,
+  shared API/Web tag, printed VPS handoff, and strict deploy-wrapper contract.
+- Backup rehearsal verifies short-tag deploy, backup/restore, application rollback, and retained
+  full-SHA compatibility for PowerShell/GitHub CD.
+- Shell syntax, ShellCheck, affected Web tests/lint/typecheck/build, formatting, and spelling pass.
+
+### Kết quả mong muốn
+
+Local chỉ cần:
+
+```bash
+bash ./deploy/scripts/build-push.sh
+```

@@ -12,12 +12,13 @@ Run from the repository checkout at the exact commit that will be released:
 ```bash
 export IMAGE_NAMESPACE=docker.io/<docker-user>
 export VITE_LIFF_ID=<production-liff-id>
-bash deploy/scripts/build-push.sh git-<40-character-commit-sha>
+bash deploy/scripts/build-push.sh
 ```
 
-The script derives the checked-out `HEAD`, requires the supplied full lowercase SHA tag to match
-it, builds the API and Web `runner` images, and pushes only that same immutable tag. It never
-publishes or resolves `latest`. `IMAGE_NAMESPACE` can be replaced by `DOCKERHUB_NAMESPACE` or
+The script derives the checked-out full `HEAD`, generates `git-<12-character-sha>`, builds the API
+and Web `runner` images with that same tag, and keeps the full SHA in the OCI revision label. It
+pushes no `latest` alias. After both pushes succeed, copy the printed `DEPLOY_TAG`, full API/Web
+references, and VPS command. `IMAGE_NAMESPACE` can be replaced by `DOCKERHUB_NAMESPACE` or
 `DOCKERHUB_USERNAME`; `API_IMAGE_REPOSITORY` and `WEB_IMAGE_REPOSITORY` may override the two
 repository names. Docker credentials must already be available to the local Docker CLI.
 
@@ -27,9 +28,9 @@ Copy the versioned `deploy/` tooling to the VPS through the approved delivery pa
 the repository root (or use the equivalent path after changing into `deploy/`):
 
 ```bash
-bash deploy/scripts/deploy.sh git-<40-character-commit-sha>
+bash deploy/scripts/deploy.sh git-<12-character-sha>
 # from the deploy directory:
-bash scripts/deploy.sh git-<40-character-commit-sha>
+bash scripts/deploy.sh git-<12-character-sha>
 ```
 
 `deploy.sh` is intentionally a thin entry point. It delegates to `deploy/backup/deploy-safe.sh`,
@@ -46,9 +47,9 @@ the proxy pinned to its old container IP.
 
 ## Rehearsal
 
-The dry-run rehearsal checks full-SHA/tag parity, the backup-gated delegation boundary, the
-no-`latest` contract, and the runtime-DNS nginx configuration without publishing images or
-touching a production `.env`:
+The dry-run rehearsal checks automatic 12-character tag generation, the full-SHA OCI revision,
+the printed VPS handoff, the backup-gated delegation boundary, the no-`latest` contract, and the
+runtime-DNS nginx configuration without publishing images or touching a production `.env`:
 
 ```bash
 npm run ops:manual-release:rehearse
