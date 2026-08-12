@@ -787,14 +787,14 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
 - ローカルでは `.env.example` を `.env` にコピーし、`npm run docker:dev:d`、`npm run db:migrate`、
   `npm run db:fixture:e2e` の順で確認します。デモURLは
   `http://localhost:5173/qr/demo-queue-lab-2026` です。
-- Push／Pull Requestごとに、secret scan、audit、format、spell、lint、type-check、OpenAPI、
-  3種類のCompose設定、API／Webテスト、migration／seed、build、browser E2EをCIで実行します。
-- 本番CDは自動Pushではなく手動dispatchです。`DEPLOY` の明示確認とGitHub `production` Environmentの
-  approval後、選択したcommitからAPI／Webのrunner imageを正確な `git-<full SHA>` と参照用のみの
-  `latest` で公開します。VPSは不変タグだけを受け付け、backupを検証し、選択した2つのimage参照を
-  `deploy/.env` に保存してからpull、migration、recreate、health checkを行います。rollbackは検証済み
-  backup metadataに記録された以前の参照を使用します。
-- Windows operatorはclean commitから `scripts/release/publish-images.ps1` を実行して同じタグを公開できます。
+- `main` 向けPull Requestとmerge後の `main` revisionで、secret scan、audit、format、spell、lint、
+  type-check、OpenAPI、3種類のCompose設定、API／Webテスト、migration／seed、build、browser E2EをCIで実行します。
+- merge済み `main` のCI成功後、本番CDは同じfull SHAからAPI／Web runner imageを自動build/pushし、
+  正確な `git-<full SHA>` と参照用のみの `latest` を公開してからGitHub `production` Environmentの
+  approvalを待ちます。VPSは不変タグだけを受け付け、backupを検証し、選択した2つのimage参照を
+  `deploy/.env` に保存してpull、migration、recreate、health checkを行います。失敗時は検証済みmetadataから
+  application imageの自動rollbackを試行し、database／mediaは自動restoreしません。
+- 承認済みの緊急／手動releaseでは、Windows operatorがclean commitから `scripts/release/publish-images.ps1` を実行して同じタグを公開できます。
   出力された `RELEASE_TAG` を `deploy/backup/deploy-safe.sh <tag>` に渡し、`latest` はdeployしません。
 - 本番のDB、JWT、LINE、SMTP、payment、storage secretはサーバーの `deploy/.env` に残し、CDはコピーも
   再生成もしません。サーバー更新前は `docker compose --env-file deploy/.env -f deploy/docker-compose.yml config -q`

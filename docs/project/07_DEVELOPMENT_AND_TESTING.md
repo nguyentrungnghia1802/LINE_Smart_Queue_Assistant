@@ -264,6 +264,7 @@ npm run spell:check
 npm run e2e:all
 npm run media:persistence:verify
 npm run release:images:verify
+npm run release:workflows:verify
 npm run ops:manual-release:rehearse
 npm run ops:backup:rehearse
 ```
@@ -285,13 +286,18 @@ PostgreSQL/Redis/API/worker/Web project and backup root under the OS temporary d
 database and local-media restore after mutation. It also rejects corrupt, missing, and incomplete
 snapshots; rejects missing restore confirmation; proves deployment aborts without changing the
 environment when backup fails; proves a successful tag deployment atomically persists both image
-references; and proves image-only rollback restores those references without restoring data. The
+references; forces a post-mutation migration failure and proves automatic image-only rollback;
+and proves the explicit rollback command restores those references without restoring data. The
 harness never reads production `deploy/.env` and must not be pointed at a production Compose file.
 
 `npm run release:images:verify` runs the PowerShell publisher in dry-run mode and proves it derives
 the full Git SHA, plans two runner builds, applies revision/release metadata, and plans four pushes:
 immutable plus `latest` for API and Web. It also rejects malformed registry namespaces. The real
 publisher requires a clean worktree and Docker login; see `scripts/release/README.md`.
+
+`npm run release:workflows:verify` proves PR CI targets `main`, CD is triggered only by a successful
+same-repository `main` CI run, both checkouts use that run's exact SHA, production approval follows
+image publication, releases are serialized, and `deploy-safe.sh` receives only the immutable tag.
 
 `npm run ops:manual-release:rehearse` validates the separate manual shell path. It proves that
 `deploy/scripts/build-push.sh` derives one `git-<12-character-sha>` tag from checked-out `HEAD` for
@@ -304,7 +310,7 @@ request time for the `api` service. It is a dry run and does not publish images,
 The GitHub Actions workflow runs these checks as separate jobs so a failure is isolated to one
 quality surface: secret scan, dependency audit, formatting, spelling, lint, type-check, OpenAPI,
 development/validation/production Compose config, API tests, web/shared tests, migration/seed
-smoke, production build, immutable publisher plan validation, local-media named-volume persistence,
+smoke, production build, immutable publisher/workflow validation, local-media named-volume persistence,
 manual immutable release/runtime-DNS rehearsal, isolated backup/restore rehearsal, and browser E2E.
 The API tests,
 migration smoke, and browser E2E jobs each
@@ -324,14 +330,17 @@ historical test-password literals and obsolete example-environment placeholders.
 whole rule or path; a new finding must be investigated as a potential credential before any exact
 fingerprint is added.
 
-Production CD is manual and environment-gated. Type `DEPLOY` in the workflow dispatch form; the
-workflow builds API/Web from the selected commit and pushes both exact `git-<full SHA>` and
-`latest`, waits for approval on the `production` environment, and copies only versioned
-Compose/backup tooling to the server. Deployment passes only the immutable tag. `deploy-safe.sh`
+Production CD is automatic after validation and environment-gated. A successful CI run for the
+merged `main` revision triggers the workflow, which checks out that exact SHA, builds API/Web and
+pushes both exact `git-<full SHA>` and discovery-only `latest`, then waits for approval on the
+`production` environment. It copies only versioned Compose/backup tooling to the server and passes
+only the immutable tag. `deploy-safe.sh`
 derives full references from the two repository values already in `deploy/.env`, requires a
 verified PostgreSQL/local-media restore point, atomically persists those references, pulls images,
 runs canonical migrations, recreates application services, and probes API health/readiness plus
-Web health. Runtime secrets stay in the same server file; CD never copies or prints them. The
+Web health. A post-mutation failure automatically attempts application-only rollback from the
+verified snapshot and remains a failed deployment; data restore is never automatic. Runtime
+secrets stay in the same server file; CD never copies or prints them. The
 rollout never removes volumes, so PostgreSQL and `media_data` survive image replacement. Use the
 verified pre-deployment backup ID with `rollback.sh`; it persists the exact previous references
 from metadata before recreating images. Use the separately confirmed `restore.sh` only when data
