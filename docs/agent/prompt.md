@@ -22,7 +22,8 @@ Tuân thủ `docs/agent/AGENTS.md`.
 
 Chỉ thực hiện task đó. Không chuyển sang task tiếp theo.
 
-Finalization mode: Commit + push task branch.
+Finalization mode: Commit + push + create/update Pull Request vào `main`.
+Không merge Pull Request.
 ```
 
 Dùng `Finalization mode: Implementation only.` nếu chỉ muốn Agent triển khai local, không commit/push.
@@ -39,7 +40,8 @@ Tuân thủ `docs/agent/AGENTS.md`.
 Xác định phần đã hoàn thành và phần còn thiếu từ implementation, tests, docs và working tree hiện tại.
 Không làm lại phần đã đúng và không chuyển sang task khác.
 
-Finalization mode: Commit + push task branch.
+Finalization mode: Commit + push + create/update Pull Request vào `main`.
+Không merge Pull Request.
 ```
 
 ---
@@ -56,7 +58,8 @@ Review và hoàn tất các thay đổi hiện tại trong working tree.
 Không thực hiện task mới và không mở rộng phạm vi ngoài các thay đổi hiện có.
 Chỉ sửa thêm những gì thực sự cần để các thay đổi hiện tại hoàn chỉnh và hợp lệ.
 
-Finalization mode: Commit + push task branch.
+Finalization mode: Commit + push + create/update Pull Request vào `main`.
+Không merge Pull Request.
 ```
 
 ---
