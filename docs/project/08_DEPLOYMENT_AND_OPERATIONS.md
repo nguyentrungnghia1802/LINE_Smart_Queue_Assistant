@@ -310,7 +310,12 @@ buffering or closing the stream. Do not add a trailing slash to `proxy_pass http
 
 The current production-oriented VPS demo sets `MEDIA_STORAGE_PROVIDER=local`, serves stable
 same-origin `/media/*` URLs through nginx/API, and fixes `MEDIA_LOCAL_DIR=/app/var/media` in Compose.
-The named `media_data` volume is outside the API container writable layer. `docker compose up -d`,
+The production Compose file pins the default project name to `line-smart-queue`; the named
+`media_data` volume therefore resolves to `line-smart-queue_media_data` (with matching
+`postgres_data` and `redis_data` names) when the documented Compose invocation is used. Keep the
+Compose file/path and project name stable across redeploys unless a separately approved volume
+migration exists. The named `media_data` volume is outside the API container writable layer.
+`docker compose up -d`,
 `--force-recreate`, image replacement, and the CD workflow preserve it; `docker compose down -v` or
 explicit volume removal destroys it and is prohibited during normal rollout.
 
@@ -324,8 +329,9 @@ mounted during a future S3 migration so rollback does not discard existing VPS m
 
 ### VPS-local media operations
 
-1. Keep the production Compose project/deploy path stable and confirm `media_data` appears in
-   `docker compose ... config` before rollout. Do not rename the volume casually.
+1. Keep the production Compose project name (`line-smart-queue`), file, and deploy path stable and
+   confirm `media_data` appears in `docker compose ... config` before rollout. Do not rename the
+   volume casually.
 2. Verify ownership by uploading an image through the API. The runner creates `/app/var/media` for
    UID/GID `1001`; a new named volume copies that safe directory metadata on first mount.
 3. Before and after an API recreate, verify the same `/media/...` URL and a reviewed storage object.
