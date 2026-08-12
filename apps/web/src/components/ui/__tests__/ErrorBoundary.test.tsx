@@ -13,13 +13,23 @@ function BrokenView(): never {
   throw new Error('render failed');
 }
 
+function preventExpectedWindowError(event: ErrorEvent): void {
+  if (event.error instanceof Error && event.error.message === 'render failed') {
+    event.preventDefault();
+  }
+}
+
 describe('ErrorBoundary observability', () => {
   beforeEach(() => {
     captureFrontendException.mockClear();
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    window.addEventListener('error', preventExpectedWindowError);
   });
 
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    window.removeEventListener('error', preventExpectedWindowError);
+    vi.restoreAllMocks();
+  });
 
   it('captures a React render failure and preserves the localized fallback', () => {
     render(

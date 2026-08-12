@@ -89,11 +89,11 @@ CREATE TYPE order_status AS ENUM (
 
 CREATE TYPE payment_status AS ENUM (
   'unpaid',
-  'pending',
-  'authorized',
   'paid',
   'refunded',
   'failed',
+  'pending',
+  'authorized',
   'cancelled'
 );
 

@@ -131,7 +131,7 @@ restored_value=$("${compose[@]}" exec -T postgres sh -eu -c \
   'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT value FROM restore_probe WHERE id = 1"')
 [[ "$restored_value" == before-backup ]]
 api_id=$("${compose[@]}" ps -q api)
-[[ $(docker exec "$api_id" cat /app/var/media/probe.txt) == original-media ]]
+[[ $(docker exec "$api_id" sh -eu -c 'cat /app/var/media/probe.txt') == original-media ]]
 
 clone_snapshot_as() {
   local clone_id=$1 clone="$BACKUP_ROOT/$1"
@@ -161,7 +161,7 @@ if "$BACKUP_DIR/verify-backup.sh" 20990101_010103 >>"$log_file" 2>&1; then
   exit 1
 fi
 clone_snapshot_as 20990101_010104
-sed -i '\|  media/media.tar.gz$|d' "$BACKUP_ROOT/20990101_010104/SHA256SUMS"
+sed -i '\|[ *]media/media.tar.gz$|d' "$BACKUP_ROOT/20990101_010104/SHA256SUMS"
 if "$BACKUP_DIR/verify-backup.sh" 20990101_010104 >>"$log_file" 2>&1; then
   echo 'Snapshot with an unchecksummed required artifact unexpectedly verified' >&2
   exit 1

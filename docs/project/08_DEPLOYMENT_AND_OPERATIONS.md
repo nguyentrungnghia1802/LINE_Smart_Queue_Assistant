@@ -809,7 +809,7 @@ VPS scoped.
    its value in a variable, workflow, log, or committed env file.
 2. Open **Settings → Environments → production**. Add at least one authorized required reviewer,
    restrict deployment branches/tags to the `main` branch, add `PRODUCTION_DEPLOY_PATH`, and add the
-   six `PRODUCTION_SSH_*` secrets listed above.
+   five `PRODUCTION_SSH_*` secrets listed above.
 3. Open **Settings → Rules → Rulesets** and create or update the branch ruleset targeting only
    `main`. Set enforcement to **Active**, block deletion and force pushes, require a pull request,
    require linear history, and require branches to be up to date before merge.

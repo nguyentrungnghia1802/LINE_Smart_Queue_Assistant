@@ -17,8 +17,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src'),
-      '@line-queue/shared': resolve(__dirname, '../../packages/shared/src/index.ts'),
+      '@': resolve(import.meta.dirname, './src'),
+      '@line-queue/shared': resolve(import.meta.dirname, '../../packages/shared/src/index.ts'),
     },
   },
 });

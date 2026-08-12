@@ -181,9 +181,13 @@ resolve_snapshot() {
 }
 
 validate_checksum_paths() {
-  local file=$1 path
-  while IFS= read -r path; do
-    path=${path#*  }
+  local file=$1 line marker path
+  while IFS= read -r line; do
+    [[ ${#line} -gt 66 ]] || return 1
+    [[ ${line:0:64} =~ ^[0-9a-f]{64}$ ]] || return 1
+    marker=${line:64:2}
+    [[ "$marker" == '  ' || "$marker" == ' *' ]] || return 1
+    path=${line:66}
     [[ -n "$path" && "$path" != /* && "$path" != ../* && "$path" != *'/../'* ]] ||
       return 1
   done < "$file"
@@ -192,7 +196,7 @@ validate_checksum_paths() {
 checksum_contains_path() {
   local checksum_file=$1 expected_path=$2
   awk -v expected="$expected_path" \
-    '$2 == expected && length($1) == 64 { found = 1 } END { exit(found ? 0 : 1) }' \
+    'length($1) == 64 && (substr($0, 65, 2) == "  " || substr($0, 65, 2) == " *") && substr($0, 67) == expected { found = 1 } END { exit(found ? 0 : 1) }' \
     "$checksum_file"
 }
 

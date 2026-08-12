@@ -305,7 +305,9 @@ then allow a completed dispatch to clear its next-retry timestamp. Migration `00
 LINE notification consent constraint with the verified LIFF friendship synchronization source used
 by the API. The reset schema produces the
 same 44 application tables (excluding `pgmigrations`), 602 application column signatures, and 188
-application index definitions as the ordered migration history.
+application index definitions as the ordered migration history. PostgreSQL enum label order is part
+of that contract as well; the reset snapshot must preserve the order produced by the migrations,
+including values appended by later `ALTER TYPE ... ADD VALUE` statements.
 
 ## 10. Seed baseline
 
