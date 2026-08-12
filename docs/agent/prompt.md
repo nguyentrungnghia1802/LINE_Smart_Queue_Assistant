@@ -1,38 +1,60 @@
 # Quick Prompts
 
-Các prompt dưới đây được thiết kế để dùng cùng `docs/agent/AGENTS.md`.
+Các prompt dưới đây dùng cùng `docs/agent/AGENTS.md`.
 
-`AGENTS.md` chịu trách nhiệm về các rule ổn định của repository: scope, architecture, security, validation,
-documentation, branch safety và giới hạn Git/remote operations.
-
-Mỗi prompt chỉ mô tả **mục tiêu hiện tại** và **mức finalization được phép**. Không lặp lại các rule đã có trong
-`AGENTS.md`.
+`AGENTS.md` chịu trách nhiệm cho các quy tắc ổn định của repository.
+`prompt.md` chỉ xác định mục tiêu của lượt làm việc và mức finalization
+được phép.
 
 ---
 
-## 1. Task tiếp theo
+## 1. One Task
+
+Dùng nhiều nhất: thực hiện duy nhất một task tiếp theo trong `task.md`.
 
 ```text
 Tuân thủ `docs/agent/AGENTS.md`.
 
 Đọc `docs/agent/tasks/task.md` và thực hiện duy nhất task chưa hoàn thành, không Deferred tiếp theo.
 
-Chỉ thực hiện task đó. Không chuyển sang task tiếp theo.
+Không chuyển sang task tiếp theo.
 
-Finalization mode: Implementation only.
+Finalization mode: Commit + push task branch.
 ```
 
-Có thể thay dòng cuối bằng `Finalization mode: Commit + push task branch.` nếu muốn Agent
-commit/push sau khi hoàn tất task.
+---
 
-## 2. Resume task dang dở
+## 2. Multiple Tasks
+
+Dùng khi muốn Agent làm liên tục nhiều task.
+
+```text
+Tuân thủ `docs/agent/AGENTS.md`.
+
+Đọc `docs/agent/tasks/task.md` và lần lượt thực hiện tất cả task chưa hoàn thành, không Deferred.
+
+Hoàn thành đầy đủ từng task trước khi chuyển sang task tiếp theo.
+
+Mỗi task phải có branch phù hợp theo dependency workflow trong AGENTS.md.
+
+Finalization mode cho mỗi task: Commit + push task branch.
+
+Không tạo Pull Request và không merge.
+```
+
+---
+
+## 3. Resume Task
+
+Dùng khi task đang làm bị ngắt giữa chừng.
 
 ```text
 Tuân thủ `docs/agent/AGENTS.md`.
 
 Đọc `docs/agent/tasks/task.md` và tiếp tục duy nhất task đang dang dở.
 
-Xác định phần đã hoàn thành và phần còn thiếu từ implementation, tests, docs và working tree hiện tại.
+Xác định phần đã hoàn thành và phần còn thiếu từ trạng thái repository và implementation hiện tại.
+
 Không làm lại phần đã đúng và không chuyển sang task khác.
 
 Finalization mode: Commit + push task branch.
@@ -40,78 +62,143 @@ Finalization mode: Commit + push task branch.
 
 ---
 
-## 3. Finalize current changes
+## 4. Custom Task
 
-Dùng khi các thay đổi hiện tại do tôi tự sửa hoặc không thuộc task trong `task.md`.
+Dùng cho yêu cầu riêng không thuộc `task.md`.
 
 ```text
 Tuân thủ `docs/agent/AGENTS.md`.
 
-Review và hoàn tất các thay đổi hiện tại trong working tree.
+Yêu cầu:
 
-Không thực hiện task mới và không mở rộng phạm vi ngoài các thay đổi hiện có.
-Chỉ sửa thêm những gì thực sự cần để các thay đổi hiện tại hoàn chỉnh và hợp lệ.
+<MÔ TẢ YÊU CẦU>
 
 Finalization mode: Commit + push task branch.
 ```
 
----
-
-## 4. Commit + Push
-
-Dùng khi implementation đã xong và chỉ muốn lưu thay đổi lên remote branch.
+Nếu chỉ muốn implementation mà chưa commit/push, đổi dòng cuối thành:
 
 ```text
-Tuân thủ `docs/agent/AGENTS.md`.
-
-Review trạng thái hiện tại và hoàn tất validation phù hợp nếu còn thiếu.
-
-Finalization mode: Commit + push task branch.
+Finalization mode: Implementation only.
 ```
 
 ---
 
-## 5. Create PR, không merge
+## 5. Quick Commit + Push
 
-Dùng khi muốn tạo Pull Request để review thủ công.
-
-```text
-Tuân thủ `docs/agent/AGENTS.md`.
-
-Review công việc hiện tại và hoàn tất các bước cần thiết để sẵn sàng review.
-
-Finalization mode: Commit + push + create/update Pull Request vào `main`.
-
-Không merge Pull Request và không bật auto-merge.
-
-Báo cáo PR và trạng thái CI hiện tại.
-```
-
----
-
-## 6. PR + Auto-merge
-
-Dùng cho thay đổi đã được phép tự động merge sau khi CI/ruleset đạt yêu cầu.
+Dùng cho các thay đổi do tôi tự sửa hoặc không thuộc task trong
+`task.md`.
 
 ```text
 Tuân thủ `docs/agent/AGENTS.md`.
 
-Review công việc hiện tại và hoàn tất các bước cần thiết để sẵn sàng merge.
-
-Finalization mode: Commit + push + Pull Request + auto-merge vào `main`.
-
-Chỉ merge sau khi repository requirements cho phép.
-
-Báo cáo PR, CI và merge status cuối cùng.
-
-Nếu xảy ra Conflict hoặc CI fail, tự động kiểm tra lỗi, sửa và retry merge. Không bỏ qua lỗi.
+Review và finalization các thay đổi nhỏ hiện tại.
+Chạy validation tối thiểu phù hợp với impact surface, commit và push branch hiện tại.
+Sau khi push thành công, không cần chờ remote CI hoàn tất.
+Không tạo Pull Request hoặc merge.
 ```
 
 ---
 
-## 7. Build + Push Docker
+## 6. Branch Status Audit
 
-Dùng để publish release image nhưng chưa deploy production.
+Dùng để kiểm tra toàn bộ trạng thái branch trước khi tạo PR, merge hoặc
+cleanup.
+
+```text
+Tuân thủ `docs/agent/AGENTS.md`.
+
+Audit toàn bộ local/remote branches và Pull Requests hiện tại.
+
+Phân loại rõ:
+- branch đã merge vào `main` và có thể xoá local an toàn;
+- branch đã bị xoá remote nhưng local vẫn còn;
+- branch đã push nhưng chưa có Pull Request;
+- branch đang có Pull Request;
+- branch có Pull Request đã merge;
+- branch chưa push;
+- branch có uncommitted work;
+- branch ahead/behind remote;
+- branch phụ thuộc branch khác;
+- branch obsolete/superseded nếu có bằng chứng rõ ràng;
+- branch đang phát triển hoặc chưa hoàn thành.
+
+Xác định dependency và thứ tự Pull Request/merge an toàn cho các branch chưa merge.
+
+Không sửa, commit, push, merge hoặc xoá gì.
+
+Chỉ báo cáo trạng thái và đề xuất hành động.
+```
+
+---
+
+## 7. PR + Merge All
+
+Dùng khi muốn Agent tự xử lý toàn bộ các branch hợp lệ vào `main`.
+
+```text
+Tuân thủ `docs/agent/AGENTS.md`.
+
+Audit toàn bộ task branches chưa merge vào `main`, xác định dependency/ancestry và thứ tự merge an toàn.
+
+Tạo hoặc cập nhật Pull Request cho tất cả branch hợp lệ và lần lượt merge theo đúng dependency order khi CI/repository rules cho phép.
+
+Nếu một PR gặp conflict hoặc CI failure:
+- chẩn đoán nguyên nhân;
+- tự sửa nếu lỗi trực tiếp thuộc branch/PR đang xử lý;
+- validate và retry tối đa 1 lần;
+- nếu vẫn fail hoặc lỗi nằm ngoài phạm vi, dừng PR đó, báo blocker và tiếp tục chỉ với các PR độc lập không phụ thuộc vào nó.
+
+Không bypass CI hoặc repository protection.
+
+Finalization mode: Commit + push + Pull Request + merge.
+
+Cuối cùng báo cáo toàn bộ PR, merge order, branch đã merge và blocker còn lại.
+```
+
+---
+
+## 8. PR All, No Merge
+
+Dùng khi muốn tạo toàn bộ PR nhưng tự review/merge sau.
+
+```text
+Tuân thủ `docs/agent/AGENTS.md`.
+
+Audit tất cả task branches chưa merge vào `main`, xác định dependency và tạo/cập nhật Pull Request cho tất cả branch hợp lệ theo đúng dependency order.
+
+Không merge và không bật auto-merge.
+
+Báo cáo các Pull Request và thứ tự merge đề xuất.
+
+Finalization mode: Commit + push + create/update Pull Request.
+```
+
+---
+
+## 9. Cleanup Merged Branches
+
+Dùng sau khi các PR đã merge xong.
+
+```text
+Tuân thủ `docs/agent/AGENTS.md`.
+
+Audit local/remote branches.
+
+Xoá các task branch đã được xác minh merge hoàn toàn vào `main` và không còn unique work.
+
+Xoá local branch; xoá remote branch nếu vẫn còn và an toàn.
+
+Không xoá `main`, branch chưa merge, branch đang phát triển hoặc branch còn unique work.
+
+Báo cáo các branch đã xoá và branch được giữ lại.
+```
+
+---
+
+## 10. Build + Push Docker
+
+Dùng để publish production images nhưng chưa deploy VPS.
 
 ```text
 Tuân thủ `docs/agent/AGENTS.md`.
@@ -131,9 +218,9 @@ Cuối cùng, in rõ:
 
 ---
 
-## 8. Deploy production
+## 11. Deploy Production
 
-Dùng sau khi release image đã được publish và có release tag cụ thể.
+Dùng sau khi production images đã được publish.
 
 ```text
 Tuân thủ `docs/agent/AGENTS.md`.
@@ -145,42 +232,14 @@ Deploy production bằng canonical deployment tooling hiện tại với release
 Không build hoặc publish image mới.
 Không thay đổi release tag.
 
-Thực hiện đúng các safety gate, backup/verification, health check và rollback behavior đã được repository quy định.
-
 Báo cáo release đã deploy và trạng thái production cuối cùng.
 ```
 
 ---
 
-## 9. Task riêng
+## 12. Create New Task Plan
 
-```text
-Tuân thủ `docs/agent/AGENTS.md`.
-
-Yêu cầu:
-<MÔ TẢ YÊU CẦU>
-
-Finalization mode: Implementation only.
-```
-
-Nếu muốn Agent commit/push sau task riêng, thay dòng cuối bằng:
-
-```text
-Finalization mode: Commit + push task branch.
-```
-
-Nếu muốn tạo PR nhưng tự review:
-
-```text
-Finalization mode: Commit + push + create/update Pull Request vào `main`.
-Không merge Pull Request.
-```
-
----
-
-## 10. Create Task
-
-Dùng để tạo chu kỳ task mới sau khi plan hiện tại đã hoàn tất.
+Dùng khi muốn tạo chu kỳ task mới.
 
 ```text
 Tuân thủ `docs/agent/AGENTS.md`.
@@ -213,15 +272,28 @@ Finalization mode: Implementation only.
 
 ---
 
-# Recommended Default
+# Recommended Usage
 
-Với công việc phát triển thông thường, ưu tiên:
+Workflow thông thường:
 
 ```text
-Finalization mode: Commit + push task branch.
+One Task / Multiple Tasks
+        ↓
+Commit + push task branch
+        ↓
+Branch Status Audit (khi cần)
+        ↓
+PR All, No Merge
+        ↓
+Review / CI
+        ↓
+Merge
+        ↓
+Cleanup Merged Branches
 ```
 
-Chỉ dùng PR/merge prompt khi thực sự muốn Agent thực hiện bước remote tương ứng.
+Khi muốn tự động hóa toàn bộ giai đoạn integration, dùng
+`PR + Merge All` thay cho `PR All, No Merge`.
 
-Đối với thay đổi quan trọng, security-sensitive, database, authentication, payment, deployment hoặc CI/CD,
-ưu tiên **Create PR, không merge** để review thủ công trước.
+Với thay đổi quan trọng hoặc có rủi ro cao, ưu tiên tạo PR nhưng không
+tự merge để có bước review thủ công.
