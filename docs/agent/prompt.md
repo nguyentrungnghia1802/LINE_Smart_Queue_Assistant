@@ -84,7 +84,7 @@ Finalization mode: Implementation only.
 
 ---
 
-## 5. Finalize Current Changes
+## 5. Quick Commit + Push
 
 Dùng cho các thay đổi do tôi tự sửa hoặc không thuộc task trong
 `task.md`.
@@ -92,11 +92,10 @@ Dùng cho các thay đổi do tôi tự sửa hoặc không thuộc task trong
 ```text
 Tuân thủ `docs/agent/AGENTS.md`.
 
-Review và hoàn tất các thay đổi hiện tại trong working tree do tôi tự sửa hoặc không thuộc task trong `docs/agent/tasks/task.md`.
-
-Không thực hiện task mới và không mở rộng phạm vi ngoài các thay đổi hiện có.
-
-Finalization mode: Commit + push task branch.
+Review và finalization các thay đổi nhỏ hiện tại.
+Chạy validation tối thiểu phù hợp với impact surface, commit và push branch hiện tại.
+Sau khi push thành công, không cần chờ remote CI hoàn tất.
+Không tạo Pull Request hoặc merge.
 ```
 
 ---
