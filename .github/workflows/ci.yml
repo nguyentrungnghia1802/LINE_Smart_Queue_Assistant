@@ -121,6 +121,8 @@ jobs:
       - name: 🔁 Validate automatic validated-main release workflow
         shell: pwsh
         run: ./scripts/release/tests/workflows.test.ps1
+      - name: 🚀 Validate manual immutable release scripts and runtime DNS proxy
+        run: bash deploy/scripts/tests/rehearsal.sh
 
   backup-recovery:
     name: 🛟 Backup and restore rehearsal

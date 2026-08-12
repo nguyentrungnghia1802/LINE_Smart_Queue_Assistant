@@ -251,6 +251,31 @@ The server uses `LINE_QUEUE_API_REPOSITORY` and `LINE_QUEUE_WEB_REPOSITORY` to d
 creates and verifies a backup, then atomically updates only `LINE_QUEUE_API_IMAGE` and
 `LINE_QUEUE_WEB_IMAGE` in its existing `deploy/.env` before pull/migration/recreate/health checks.
 
+The reviewed manual shell path is the immutable-only alternative when GitHub Actions is not being
+used. From the repository checkout, let the publisher derive the same 12-character tag for both
+images from the checked-out full SHA:
+
+```bash
+IMAGE_NAMESPACE=docker.io/<docker-user> VITE_LIFF_ID=<production-liff-id> \
+  bash deploy/scripts/build-push.sh
+```
+
+After the versioned `deploy/` tooling is present on the VPS, deploy the same tag without editing
+the server `.env`:
+
+```bash
+bash deploy/scripts/deploy.sh git-<12-character-sha-printed-as-DEPLOY_TAG>
+# or, from the deploy directory:
+bash scripts/deploy.sh git-<12-character-sha-printed-as-DEPLOY_TAG>
+```
+
+`deploy/scripts/deploy.sh` only delegates to `deploy/backup/deploy-safe.sh`; it does not duplicate
+backup, verification, migration, health, or rollback logic. The backup gate updates the API and
+Web image references atomically, and Compose applies the selected tag to API, Worker, and Web.
+The shell publisher never pushes `latest`; its OCI revision label retains the full Git SHA, and it
+prints the exact tag, full image references, and VPS command only after both pushes succeed.
+Rollback continues to use image metadata already stored in the verified snapshot.
+
 `deploy/docker-compose.yml` is the canonical production Compose file. It requires prebuilt
 `LINE_QUEUE_API_IMAGE` and `LINE_QUEUE_WEB_IMAGE` values (there is no silent `latest` fallback) and
 does not publish PostgreSQL or API port `4000` to the host. Normal releases let `deploy-safe.sh`
@@ -326,7 +351,10 @@ path, uses HTTP/1.1, disables proxy buffering/cache/gzip, clears the hop-by-hop 
 and uses six-minute read/send timeouts. The host TLS nginx must apply equivalent SSE behavior for
 this path, especially `proxy_buffering off` and a read timeout longer than
 `SSE_MAX_CONNECTION_DURATION_MS`; otherwise the inner proxy cannot prevent the outer hop from
-buffering or closing the stream. Do not add a trailing slash to `proxy_pass http://api:4000`.
+buffering or closing the stream. The inner nginx resolves `api` through Docker DNS with a short
+validity window, so API container recreation refreshes the upstream address instead of retaining a
+stale startup IP. Do not add a trailing slash to the `proxy_pass` variable in
+`docker/nginx/default.conf`.
 
 The current production-oriented VPS demo sets `MEDIA_STORAGE_PROVIDER=local`, serves stable
 same-origin `/media/*` URLs through nginx/API, and fixes `MEDIA_LOCAL_DIR=/app/var/media` in Compose.
@@ -397,8 +425,9 @@ production-oriented demo baseline, not shared multi-host or high-availability st
 ## 4. Deployment sequence
 
 1. Back up database and verify recent restore test.
-2. From a clean reviewed commit, publish API/Web images with the full-SHA local PowerShell script
-   or the manual CD workflow. Record the exact `git-<40-character-sha>`; never deploy `latest`.
+2. From a clean reviewed commit, publish API/Web images with the full-SHA local PowerShell script,
+   the auto-generated 12-character immutable shell tag, or the manual CD workflow. Record the
+   exact printed immutable tag; never deploy `latest`.
    The API image contains canonical migrations and compiled demo seed scripts so
    deployment tooling can run them without TypeScript development dependencies.
    Production rollout applies migrations explicitly and must not seed demo data.
@@ -634,7 +663,11 @@ Run a documented restore drill on a schedule. Define RPO/RTO with the business b
 
 ### API unavailable / Vite proxy refused
 
-Check container/process status, API logs, port binding, then database readiness. Restore API before changing frontend proxy settings unless the target is actually wrong.
+Check container/process status, API logs, port binding, then database readiness. Restore API before changing frontend proxy settings unless the target is actually wrong. After an API
+restart/recreate, confirm the Web container is running the current `docker/nginx/default.conf` and
+that its Docker DNS resolver can resolve `api`; the variable-based proxy is the protection against
+the old container IP causing a transient `502 Bad Gateway`. Do not work around this by publishing
+API port `4000` publicly or by deleting the persistent Compose volumes.
 
 ### Database unavailable
 
@@ -706,6 +739,7 @@ revision. It splits the validation gate into independent jobs so failures are ea
 - isolated PostgreSQL/local-media backup, corruption rejection, restore, deploy-gate, and rollback rehearsal.
 - PowerShell immutable-image publisher command-plan validation.
 - automatic validated-main workflow trigger, source-SHA, approval-order, and concurrency validation.
+- manual shell immutable-image build/deploy and runtime-DNS rehearsal.
 
 The API tests, migration smoke, and browser E2E jobs use separate PostgreSQL services. Browser E2E
 waits for the earlier quality and Compose jobs, applies migrations, loads only the explicit browser

@@ -24,7 +24,7 @@ export OPS_TEST_MODE=true
 export OPS_SKIP_MIGRATIONS=true
 export OPS_SKIP_HEALTH=true
 export OPS_SKIP_PULL=true
-release_tag="git-$(printf '2%.0s' {1..40})"
+release_tag="git-$(printf '2%.0s' {1..12})"
 release_image="alpine:$release_tag"
 test_secret='rehearsal-password-must-not-appear'
 log_file="$test_root/rehearsal.log"
@@ -33,7 +33,9 @@ cleanup() {
   local status=$?
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" down --remove-orphans >/dev/null 2>&1 || true
   for volume in "${project}_postgres_data" "${project}_media_data" "${project}_redis_data"; do
-    docker volume inspect "$volume" >/dev/null 2>&1 && docker volume rm "$volume" >/dev/null 2>&1 || true
+    if docker volume inspect "$volume" >/dev/null 2>&1; then
+      docker volume rm "$volume" >/dev/null 2>&1 || true
+    fi
   done
   docker image rm "$release_image" >/dev/null 2>&1 || true
   if ((status == 0)); then
@@ -184,8 +186,7 @@ grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:3.19' "$ENV_FILE"
 grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:3.19' "$ENV_FILE"
 
 sleep 1
-docker pull alpine:3.20 >>"$log_file" 2>&1
-docker tag alpine:3.20 "$release_image"
+docker tag alpine:3.19 "$release_image"
 export DEPLOY_APPROVED=GITHUB_ENVIRONMENT_APPROVED
 
 # Force a post-mutation migration failure. deploy-safe must return the original failure while its

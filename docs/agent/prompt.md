@@ -1,248 +1,227 @@
-# 1. Quick Prompts
+# Quick Prompts
 
-## Task tiếp theo
+Các prompt dưới đây được thiết kế để dùng cùng `docs/agent/AGENTS.md`.
+
+`AGENTS.md` chịu trách nhiệm về các rule ổn định của repository: scope, architecture, security, validation,
+documentation, branch safety và giới hạn Git/remote operations.
+
+Mỗi prompt chỉ mô tả **mục tiêu hiện tại** và **mức finalization được phép**. Không lặp lại các rule đã có trong
+`AGENTS.md`.
+
+---
+
+## 1. Task tiếp theo
 
 ```text
-Tuân thủ docs\agent\AGENTS.md. Tôi có các yêu cầu sau:
+Tuân thủ `docs/agent/AGENTS.md`.
 
-Đọc `docs/agent/tasks/task.md` và thực hiện duy nhất 1 task chưa đánh dấu hoàn thành, không Deferred tiếp theo.
+Đọc `docs/agent/tasks/task.md` và thực hiện duy nhất task chưa hoàn thành, không Deferred tiếp theo.
 
-Trước tiên kiểm tra branch, git status, implementation/dependency liên quan và xác định chính xác phạm vi task trước khi sửa.
+Chỉ thực hiện task đó. Không chuyển sang task tiếp theo.
 
-Không làm lại phần đã đúng và không chuyển sang task tiếp theo.
-
-Hoàn thiện implementation, tests, canonical docs và trạng thái task; chạy đầy đủ validation theo AGENTS.md.
-
-Sau khi hoàn thành, thực hiện Git/Remote Finalization theo AGENTS.md: commit trên task branch, push task branch và tạo/cập nhật Pull Request vào `main` khi tooling/quyền cho phép. Không merge trực tiếp hoặc push trực tiếp vào `main`, không bypass required CI/ruleset.
-
-Nếu còn bước GitHub bắt buộc chưa thể thực hiện, dừng ở trạng thái an toàn và báo rõ bước thủ công còn lại.
+Finalization mode: Implementation only.
 ```
 
-## Resume task dang dở
+Có thể thay dòng cuối bằng `Finalization mode: Commit + push task branch.` nếu muốn Agent
+commit/push sau khi hoàn tất task.
+
+## 2. Resume task dang dở
 
 ```text
-Tuân thủ docs\agent\AGENTS.md. Tôi có các yêu cầu sau:
+Tuân thủ `docs/agent/AGENTS.md`.
 
 Đọc `docs/agent/tasks/task.md` và tiếp tục duy nhất task đang dang dở.
 
-Trước tiên kiểm tra branch, git status, các thay đổi hiện tại, implementation/dependency liên quan và xác định phần đã làm đúng/phần còn thiếu.
+Xác định phần đã hoàn thành và phần còn thiếu từ implementation, tests, docs và working tree hiện tại.
+Không làm lại phần đã đúng và không chuyển sang task khác.
 
-Không làm lại phần đã đúng và không chuyển sang task tiếp theo.
-
-Hoàn thành task, tests, canonical docs, task status và toàn bộ validation theo AGENTS.md.
-
-Sau khi hoàn thành, thực hiện Git/Remote Finalization theo AGENTS.md: commit trên task branch, push task branch và tạo/cập nhật Pull Request vào `main` khi tooling/quyền cho phép. Không merge trực tiếp hoặc push trực tiếp vào `main`, không bypass required CI/ruleset.
-
-Nếu còn bước GitHub bắt buộc chưa thể thực hiện, dừng ở trạng thái an toàn và báo rõ bước thủ công còn lại.
+Finalization mode: Commit + push task branch.
 ```
 
-## Finalize Current Changes
+---
+
+## 3. Finalize current changes
+
+Dùng khi các thay đổi hiện tại do tôi tự sửa hoặc không thuộc task trong `task.md`.
 
 ```text
-Tuân thủ docs\agent\AGENTS.md. Tôi có các yêu cầu sau:
+Tuân thủ `docs/agent/AGENTS.md`.
 
-Review và hoàn tất các thay đổi hiện tại trong working tree do tôi tự sửa hoặc không thuộc task trong `docs/agent/tasks/task.md`.
+Review và hoàn tất các thay đổi hiện tại trong working tree.
 
-Kiểm tra branch, git status, toàn bộ diff và remote state. Không thực hiện task mới và không mở rộng phạm vi.
+Không thực hiện task mới và không mở rộng phạm vi ngoài các thay đổi hiện có.
+Chỉ sửa thêm những gì thực sự cần để các thay đổi hiện tại hoàn chỉnh và hợp lệ.
 
-Chỉ sửa tối thiểu nếu cần để các thay đổi hiện tại hợp lệ. Loại trừ secret, runtime `.env`, backup data, temporary/debug/generated artifacts và các file không nên commit.
-
-Chạy validation phù hợp theo AGENTS.md.
-
-Nếu hợp lệ, thực hiện Git/Remote Finalization theo AGENTS.md: tạo branch phù hợp nếu đang ở `main`, commit các thay đổi hiện tại, push branch, tạo/cập nhật PR vào `main`, chờ required CI và merge qua protected PR workflow khi được phép.
-
-Không local merge/push trực tiếp vào `main`, không bypass ruleset, không force push và không sử dụng `chore/dev` làm branch trung gian nếu không có yêu cầu riêng.
-
-Nếu có thay đổi không xác định được mục đích hoặc không thể hoàn tất PR/merge an toàn, giữ nguyên và báo rõ thay vì tự xử lý.
-
-Báo cáo trạng thái Git/PR/CI cuối cùng.
+Finalization mode: Commit + push task branch.
 ```
 
-## Finalize Git
+---
+
+## 4. Commit + Push
+
+Dùng khi implementation đã xong và chỉ muốn lưu thay đổi lên remote branch.
 
 ```text
-Tuân thủ Git/Remote Finalization workflow trong docs\agent\AGENTS.md.
+Tuân thủ `docs/agent/AGENTS.md`.
 
-Kiểm tra branch, git status, diff, validation và remote state của công việc hiện tại.
+Review trạng thái hiện tại và hoàn tất validation phù hợp nếu còn thiếu.
 
-Nếu công việc đã hoàn thành và validation đạt yêu cầu:
-- commit các thay đổi thuộc đúng task trên task branch;
-- push task branch lên remote;
-- tạo hoặc cập nhật Pull Request vào `main` khi tooling/quyền cho phép;
-- để required CI/status checks và repository rules quyết định merge eligibility;
-- chỉ merge thông qua protected Pull Request workflow khi AGENTS.md, quyền hiện tại và repository rules cho phép;
-- sau merge, xác minh remote `main` chứa công việc đã hoàn thành;
-- chỉ xoá task branch đã merge an toàn khi phù hợp.
-
-Không local merge task branch vào `main`.
-Không push trực tiếp task changes vào `main`.
-Không sử dụng `chore/dev` như branch trung gian trừ khi repository hiện tại có yêu cầu riêng rõ ràng.
-Không bypass branch protection.
-Không force push.
-Không xoá branch còn work chưa merge.
-Không xoá `main`.
-
-Nếu không thể hoàn tất PR/merge vì CI, quyền, approval hoặc GitHub settings, giữ task branch an toàn và báo chính xác bước còn lại.
-
-Báo cáo trạng thái Git/PR/CI cuối cùng và phân biệt rõ repository finalization với production deployment.
+Finalization mode: Commit + push task branch.
 ```
 
-## Release / Build + Push Docker
+---
 
-> Tôi khuyên **đổi tên prompt cũ** từ `Build + push Docker` thành `Release / Build + Push Docker`, vì normal production image bây giờ phải thuộc CI/CD.
+## 5. Create PR, không merge
+
+Dùng khi muốn tạo Pull Request để review thủ công.
 
 ```text
-Tuân thủ docs\agent\AGENTS.md và production release workflow hiện tại.
+Tuân thủ `docs/agent/AGENTS.md`.
 
-Kiểm tra Git revision, Docker/Compose configuration, GitHub Actions và trạng thái release hiện tại.
+Review công việc hiện tại và hoàn tất các bước cần thiết để sẵn sàng review.
 
-Nếu CI/CD đã là canonical production release mechanism, không build/push production image thủ công từ local và không thay thế CI/CD bằng ad-hoc Docker commands.
+Finalization mode: Commit + push + create/update Pull Request vào `main`.
 
-Thay vào đó:
-- xác định release/CI workflow tương ứng với revision cần phát hành;
-- kiểm tra immutable Docker tag phải derive từ Git commit SHA theo convention hiện tại;
-- kiểm tra API/Web production artifacts phải thuộc cùng release;
-- sử dụng canonical CI/CD workflow để build và push production images khi tooling/quyền hiện tại cho phép;
-- xác minh kết quả build/push từ workflow.
+Không merge Pull Request và không bật auto-merge.
 
-Không sử dụng `latest` làm production release identity.
-Không sửa production image tag thủ công.
-Không deploy/restart production trừ khi tôi yêu cầu deployment rõ ràng.
-Không bypass PR, CI, production approval hoặc repository protection.
-
-Nếu canonical CI/CD chưa thể được trigger/thực hiện từ môi trường hiện tại, không tự chuyển sang manual production build; báo rõ bước thủ công cần thực hiện.
-
-Báo cáo revision, immutable image tags/artifacts, workflow status và những bước còn lại.
+Báo cáo PR và trạng thái CI hiện tại.
 ```
 
-## Deploy Production
+---
 
-Tôi khuyên **thêm prompt này** vì sau khi có CI/CD, `build release` và `deploy production` là hai việc khác nhau.
+## 6. PR + Auto-merge
+
+Dùng cho thay đổi đã được phép tự động merge sau khi CI/ruleset đạt yêu cầu.
 
 ```text
-Tuân thủ docs\agent\AGENTS.md và canonical production deployment workflow hiện tại.
+Tuân thủ `docs/agent/AGENTS.md`.
 
-Kiểm tra release hiện tại, CI/CD status, immutable image references, production deployment configuration và các prerequisite trước khi thực hiện.
+Review công việc hiện tại và hoàn tất các bước cần thiết để sẵn sàng merge.
 
-Chỉ deploy production artifact đã được build/push bởi canonical CI/CD workflow và xác định chính xác bằng immutable release identity.
+Finalization mode: Commit + push + Pull Request + auto-merge vào `main`.
 
-Tuân thủ đầy đủ production safety flow hiện tại, bao gồm:
-- production approval nếu được cấu hình;
-- concurrency protection;
-- backup;
-- backup verification;
-- migration;
-- deploy đúng immutable release;
-- health/readiness verification;
-- rollback application release khi cần.
+Chỉ merge sau khi repository requirements cho phép.
 
-Không rebuild production image trên VPS.
-Không sử dụng `latest` làm release identity.
-Không tự restore database/media khi application deployment fail.
-Không bypass backup gate, approval hoặc required protection.
-Không thực hiện ad-hoc deployment nếu canonical CD workflow đang chịu trách nhiệm deployment.
+Báo cáo PR, CI và merge status cuối cùng.
 
-Sau khi hoàn thành, báo cáo release đã deploy, backup ID, migration/deployment result, health status và rollback state nếu có.
+Nếu xảy ra Conflict hoặc CI fail, tự động kiểm tra lỗi, sửa và retry merge. Không bỏ qua lỗi.
 ```
 
-## Task riêng
+---
 
-Prompt này vốn đã tốt. Tôi chỉ thêm finalization để hành vi nhất quán:
+## 7. Build + Push Docker
+
+Dùng để publish release image nhưng chưa deploy production.
 
 ```text
-Tuân thủ docs\agent\AGENTS.md. Tôi có các yêu cầu sau:
+Tuân thủ `docs/agent/AGENTS.md`.
 
+Build và push các production Docker image cần thiết bằng canonical release tooling hiện tại của repository.
+
+Dùng cùng một immutable release tag cho các image thuộc cùng release và xác minh push thành công.
+
+Không deploy hoặc restart production.
+
+Cuối cùng, in rõ:
+- release tag;
+- full API image reference;
+- full Web image reference;
+- command/tag cần dùng cho bước deploy trên VPS.
+```
+
+---
+
+## 8. Deploy production
+
+Dùng sau khi release image đã được publish và có release tag cụ thể.
+
+```text
+Tuân thủ `docs/agent/AGENTS.md`.
+
+Deploy production bằng canonical deployment tooling hiện tại với release tag sau:
+
+<RELEASE_TAG>
+
+Không build hoặc publish image mới.
+Không thay đổi release tag.
+
+Thực hiện đúng các safety gate, backup/verification, health check và rollback behavior đã được repository quy định.
+
+Báo cáo release đã deploy và trạng thái production cuối cùng.
+```
+
+---
+
+## 9. Task riêng
+
+```text
+Tuân thủ `docs/agent/AGENTS.md`.
+
+Yêu cầu:
 <MÔ TẢ YÊU CẦU>
 
-Trước khi sửa, kiểm tra branch, git status, implementation/dependency và tài liệu liên quan để xác định trạng thái thực tế.
-
-Chỉ thực hiện đúng phạm vi yêu cầu, không tự mở rộng sang task khác.
-
-Hoàn thiện implementation, tests, canonical docs và validation cần thiết theo AGENTS.md.
-
-Nếu yêu cầu này bao gồm Git/Remote Finalization, thực hiện theo canonical Pull Request workflow trong AGENTS.md; không merge/push trực tiếp vào `main` và không bypass repository protection.
+Finalization mode: Implementation only.
 ```
 
-## Create Task
-
-Phần này tôi sẽ sửa một điểm quan trọng: **Create Task chỉ tạo kế hoạch**, không nên vô tình implementation thêm 4–6 task vừa tạo.
+Nếu muốn Agent commit/push sau task riêng, thay dòng cuối bằng:
 
 ```text
-Tuân thủ docs\agent\AGENTS.md. Tôi có các yêu cầu sau:
+Finalization mode: Commit + push task branch.
+```
 
-Trước tiên đọc `docs/agent/tasks/task.md` và kiểm tra trạng thái thực tế của task plan hiện tại.
+Nếu muốn tạo PR nhưng tự review:
+
+```text
+Finalization mode: Commit + push + create/update Pull Request vào `main`.
+Không merge Pull Request.
+```
+
+---
+
+## 10. Create Task
+
+Dùng để tạo chu kỳ task mới sau khi plan hiện tại đã hoàn tất.
+
+```text
+Tuân thủ `docs/agent/AGENTS.md`.
+
+Kiểm tra `docs/agent/tasks/task.md`.
 
 Nếu vẫn còn task chưa hoàn thành và không Deferred:
-- không tạo task plan mới;
-- không xoá task plan hiện tại;
-- báo rõ task nào còn phải hoàn thành.
+- không tạo plan mới;
+- không xoá hoặc ghi đè `idea.md` / `task.md`;
+- dừng và báo task còn lại.
 
-Chỉ khi toàn bộ task hiện tại đã hoàn thành hoặc Deferred hợp lệ, thực hiện các bước sau:
+Nếu plan hiện tại đã hoàn thành hoặc Deferred toàn bộ:
 
-1. Viết 8 idea mới phù hợp với trạng thái hiện tại của dự án vào `docs/agent/tasks/idea.md`, thay thế nội dung idea cũ.
+1. Thay toàn bộ nội dung `docs/agent/tasks/idea.md` bằng 8 idea mới phù hợp với trạng thái thực tế của dự án.
+   - Ưu tiên giá trị thực tế, khả thi và phù hợp kiến trúc hiện tại.
+   - Không tạo idea chỉ để mở rộng tech stack.
+   - Mỗi idea tối đa 45 dòng.
 
-2. Mỗi idea:
-- mô tả chức năng/mục tiêu rõ ràng;
-- phù hợp architecture và product scope hiện tại;
-- ưu tiên giá trị thực tế, khả thi và tránh over-engineering;
-- xem xét implementation/dependency hiện có để tránh đề xuất chức năng đã tồn tại;
-- không quá 45 dòng.
+2. Chọn 4 idea tốt nhất.
 
-3. Đánh giá 8 idea và chọn 4 idea tốt nhất dựa trên:
-- giá trị thực tế;
-- mức độ phù hợp với dự án;
-- feasibility;
-- dependency/risk;
-- chi phí vận hành;
-- tránh duplicate chức năng hiện có.
+3. Thay toàn bộ nội dung `docs/agent/tasks/task.md` bằng 4-6 task để hiện thực hóa các idea đã chọn.
+   - Task phải rõ phạm vi, outcome và checklist.
+   - Mỗi task tối đa 80 dòng.
+   - Sắp xếp theo dependency và mức ưu tiên hợp lý.
 
-4. Từ 4 idea được chọn, xây dựng khoảng 4–6 task implementation chi tiết trong `docs/agent/tasks/task.md`, thay thế task plan cũ đã hoàn thành.
+Không triển khai các task mới trong cùng lượt này.
 
-5. Mỗi task:
-- không quá 80 dòng;
-- có mục tiêu và phạm vi rõ ràng;
-- có checklist theo dõi trạng thái;
-- nêu dependency quan trọng;
-- có acceptance/validation criteria đủ để Agent biết khi nào task hoàn thành;
-- được sắp xếp theo dependency order hợp lý;
-- không đánh dấu hoàn thành trước khi implementation thực sự tồn tại và được validation.
-
-Không implementation các task mới vừa tạo trong cùng lượt này.
-Không chuyển sang task đầu tiên sau khi hoàn thành việc lập kế hoạch.
-
-Sau khi cập nhật idea/task plan, thực hiện documentation validation phù hợp theo AGENTS.md.
-
-Nếu yêu cầu bao gồm Git/Remote Finalization, commit trên task branch, push task branch và tạo/cập nhật Pull Request vào `main` theo AGENTS.md; không merge/push trực tiếp vào `main` và không bypass repository protection.
-
-Báo cáo ngắn gọn 8 idea, 4 idea được chọn, task plan mới và trạng thái Git/PR.
+Finalization mode: Implementation only.
 ```
 
-## Một thay đổi tôi đặc biệt khuyên giữ
+---
 
-Từ giờ tránh viết trong Quick Prompts:
+# Recommended Default
+
+Với công việc phát triển thông thường, ưu tiên:
 
 ```text
-commit/merge/push
+Finalization mode: Commit + push task branch.
 ```
 
-vì câu này hơi mơ hồ và Agent có thể hiểu là:
+Chỉ dùng PR/merge prompt khi thực sự muốn Agent thực hiện bước remote tương ứng.
 
-```text
-git checkout main
-git merge ...
-git push origin main
-```
-
-Thay vào đó dùng một cụm thống nhất:
-
-```text
-thực hiện Git/Remote Finalization theo AGENTS.md
-```
-
-hoặc nếu muốn explicit:
-
-```text
-commit trên task branch, push task branch và tạo/cập nhật Pull Request vào `main` theo AGENTS.md
-```
-
-Như vậy **AGENTS.md là single source of truth cho Git workflow**. Sau này bạn đổi ruleset, merge strategy hay CI/CD thì không phải đi sửa hàng loạt prompt nữa.
+Đối với thay đổi quan trọng, security-sensitive, database, authentication, payment, deployment hoặc CI/CD,
+ưu tiên **Create PR, không merge** để review thủ công trước.

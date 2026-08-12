@@ -7,7 +7,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/common.sh"
 
-[[ $# -eq 1 ]] || die 'Usage: deploy-safe.sh <git-40-character-sha-tag>'
+[[ $# -eq 1 ]] || die 'Usage: deploy-safe.sh <git-12-or-40-character-sha-tag>'
 release_tag=$1
 require_release_tag "$release_tag"
 init_runtime

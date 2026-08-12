@@ -11,6 +11,17 @@ All notable project changes should be recorded here. This file tracks delivered 
   the workflow then deploys only that SHA. Static workflow validation covers triggers, source SHA,
   approval ordering, concurrency, and immutable deployment input.
 
+- Hardened the Web API client against non-JSON proxy and upstream responses. Malformed HTTP errors
+  now become localized safe client errors instead of dereferencing a missing API error envelope,
+  so login displays a service-unavailable message for gateway failures rather than crashing.
+
+- Added a reviewed manual immutable release path under `deploy/scripts`: the local shell
+  publisher now derives `git-<12-character-sha>` from `HEAD`, builds/pushes API and Web with that
+  one tag and no `latest`, preserves the full SHA in OCI revision metadata, and prints the exact
+  VPS handoff. The VPS wrapper delegates backup, verification, migration, recreation, health, and
+  image-metadata rollback to `deploy/backup/deploy-safe.sh`. Web nginx resolves the API service
+  through Docker DNS at request time so API recreation does not retain a stale upstream IP.
+
 - Standardized immutable API/Web releases around the full Git SHA. A local PowerShell publisher
   builds and pushes both `git-<40-character-sha>` and `latest`; production deployment accepts only
   the immutable tag, verifies a pre-deployment backup before atomically updating image references

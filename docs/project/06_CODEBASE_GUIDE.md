@@ -26,6 +26,7 @@ worker source paths that must be reviewed together.
 |   \-- scalability/        Isolated scale/failure runners
 |-- deploy/
 |   |-- docker-compose.yml   Production immutable-image stack and persistent volumes
+|   |-- scripts/              Manual immutable build/push, deploy wrapper, and rehearsal
 |   \-- backup/              Versioned VPS backup, verify, restore, deploy, rollback, and rehearsal tooling
 |-- docs/                    Canonical documentation and historical archive
 |-- .github/workflows/       PR/main CI gates and automatic validated-main production CD

@@ -88,9 +88,10 @@ validate_compose() {
   [[ -f "$COMPOSE_FILE" ]] || die "Compose file not found: $COMPOSE_FILE"
   [[ -f "$ENV_FILE" ]] || die "Environment file not found: $ENV_FILE"
   compose config -q
-  local service
+  local service services
+  services=$(compose config --services)
   for service in postgres api worker web; do
-    compose config --services | grep -Fxq "$service" || die "Compose service missing: $service"
+    grep -Fx "$service" <<<"$services" >/dev/null || die "Compose service missing: $service"
   done
 }
 
@@ -289,8 +290,8 @@ require_immutable_image() {
 
 require_release_tag() {
   local tag=$1
-  [[ "$tag" =~ ^git-[0-9a-f]{40}$ ]] ||
-    die 'Release tag must be git- followed by the full 40-character lowercase Git SHA'
+  [[ "$tag" =~ ^git-([0-9a-f]{12}|[0-9a-f]{40})$ ]] ||
+    die 'Release tag must be git- followed by a 12- or 40-character lowercase Git SHA'
 }
 
 require_image_repository() {

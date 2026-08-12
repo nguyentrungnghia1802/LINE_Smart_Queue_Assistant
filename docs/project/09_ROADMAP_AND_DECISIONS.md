@@ -762,7 +762,7 @@ business-approved RPO/RTO, encrypted off-host replication, scheduled production 
 and separately protected/rotatable secrets. S3-compatible media remains optional and uses its own
 provider backup/export controls when selected.
 
-## ADR-042: Full-SHA image publication and metadata-driven rollback
+## ADR-042: Git-derived image publication and metadata-driven rollback
 
 **Status:** accepted (2026-08-12)
 
@@ -771,22 +771,27 @@ so the server's `deploy/.env` could continue naming an old release after a succe
 Local Windows publication also lacked one canonical command, and a moving `latest` tag cannot prove
 which reviewed source produced a running or rollback image.
 
-**Decision:** Standardize release identity as `git-` plus the full 40-character lowercase Git SHA.
-The local PowerShell publisher resolves `HEAD`, refuses a dirty worktree by default, builds API and
-Web runner images with revision metadata, and pushes both the immutable SHA tag and `latest`.
-GitHub CD uses the same tags. `latest` is discovery-only. VPS `deploy-safe.sh` accepts only the
-strict SHA tag, derives full references from untagged repository keys in the existing server
-environment, creates and independently verifies a matched snapshot, then atomically persists only
-the two image-reference keys before pull, canonical migration, recreate, and health checks.
+**Decision:** Derive every release identity from a lowercase Git SHA. The local PowerShell
+publisher and GitHub CD use `git-` plus the full 40-character SHA and may also publish `latest` for
+discovery. The manual Bash publisher accepts no tag argument: it resolves `HEAD`, generates
+`git-<12-character-sha>` for both API and Web, retains the full SHA in each OCI revision label,
+pushes no `latest`, and prints the exact VPS handoff only after both pushes succeed. Its thin VPS
+wrapper accepts exactly that 12-character form. The shared `deploy-safe.sh` backup gate accepts
+only strict 12- or 40-character Git-derived tags so both publication paths remain compatible,
+derives full references from untagged repository keys in the existing server environment, creates
+and independently verifies a matched snapshot, then atomically persists only the two
+image-reference keys before pull, canonical migration, recreate, and health checks.
 Application rollback obtains both old references exclusively from verified snapshot metadata and
 atomically persists them before recreation; data restore remains a separate confirmation.
 
-**Consequences:** The selected commit, registry artifacts, live Compose configuration, and future
-operator commands share one durable release identity. A container recreate or host reboot no longer
-falls back to stale `.env` refs, and rollback does not guess or follow `latest`. Repository
-namespace changes remain explicit server configuration. Publication still needs registry access,
-the Web LIFF build value, image retention, and future signing/scanning controls; updating mutable
-`latest` is not atomic across both repositories but cannot affect deployment selection.
+**Consequences:** Registry artifacts, live Compose configuration, and future operator commands
+share one Git-derived immutable release identity, while OCI metadata preserves the full source SHA
+for the shorter manual tag. A container recreate or host reboot no longer falls back to stale
+`.env` refs, and rollback does not guess or follow `latest`. Repository namespace changes remain
+explicit server configuration. Publication still needs registry access, the Web LIFF build value,
+image retention, and future signing/scanning controls; the manual 12-character namespace has a
+smaller collision margin than the full-SHA path, and updating mutable `latest` is not atomic across
+both repositories, but neither can affect deployment selection.
 
 ## ADR-043: Automatic validated-main production release
 
