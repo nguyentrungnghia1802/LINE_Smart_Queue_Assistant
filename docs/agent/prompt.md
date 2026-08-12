@@ -103,6 +103,8 @@ Finalization mode: Commit + push + Pull Request + auto-merge vào `main`.
 Chỉ merge sau khi repository requirements cho phép.
 
 Báo cáo PR, CI và merge status cuối cùng.
+
+Nếu xảy ra Conflict hoặc CI fail, tự động kiểm tra lỗi, sửa và retry merge. Không bỏ qua lỗi.
 ```
 
 ---
