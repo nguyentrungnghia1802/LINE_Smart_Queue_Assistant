@@ -4,6 +4,11 @@ $ErrorActionPreference = 'Stop'
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
 $CiWorkflow = Get-Content -Raw (Join-Path $RepositoryRoot '.github/workflows/ci.yml')
 $DeployWorkflow = Get-Content -Raw (Join-Path $RepositoryRoot '.github/workflows/deploy.yml')
+$AllWorkflows = "$CiWorkflow`n$DeployWorkflow"
+$BuildPublishJob = [regex]::Match(
+  $DeployWorkflow,
+  '(?ms)^  build-publish:.*?(?=^  deploy:)'
+).Value
 $RetiredLiffVariable = 'VITE_' + 'LIFF_ID'
 
 function Assert-Matches {
@@ -38,6 +43,20 @@ Assert-Matches $CiWorkflow 'deploy/scripts/tests/build-push\.test\.ps1' `
   'CI must validate the canonical Windows manual image publisher'
 Assert-DoesNotMatch $CiWorkflow 'publish-images(?:\.test)?\.ps1|build-push\.sh' `
   'CI must not reference a removed or superseded manual image publisher'
+Assert-Matches $AllWorkflows 'actions/checkout@v7' `
+  'Workflows must use the Node 24 checkout action'
+Assert-Matches $CiWorkflow 'actions/setup-node@v7' `
+  'CI must use the Node 24 setup-node action'
+Assert-Matches $CiWorkflow 'gitleaks/gitleaks-action@v3' `
+  'CI must use the Node 24 Gitleaks action'
+Assert-Matches $DeployWorkflow 'docker/setup-buildx-action@v4' `
+  'CD must use the Node 24 Buildx action'
+Assert-Matches $DeployWorkflow 'docker/login-action@v4' `
+  'CD must use the Node 24 Docker login action'
+Assert-Matches $DeployWorkflow 'docker/build-push-action@v7' `
+  'CD must use the Node 24 Docker build and push action'
+Assert-DoesNotMatch $AllWorkflows '(?:actions/checkout|actions/setup-node)@v[1-6]\b|gitleaks/gitleaks-action@v[12]\b|docker/setup-buildx-action@v[1-3]\b|docker/login-action@v[1-3]\b|docker/build-push-action@v[1-6]\b' `
+  'Workflows must not retain action majors that use a deprecated Node runtime'
 
 Assert-Matches $DeployWorkflow '(?ms)^on:\s+workflow_run:\s+workflows: \[''CI Quality Gates''\]\s+types: \[completed\]\s+branches: \[main\]' `
   'CD must be triggered only after completion of the main CI workflow'
@@ -61,6 +80,12 @@ Assert-Matches $DeployWorkflow 'LINE_LOGIN_LIFF_ID=\$\{\{ vars\.LINE_LOGIN_LIFF_
   'CD must pass the canonical public LIFF ID into the Web image build'
 Assert-DoesNotMatch $DeployWorkflow ([regex]::Escape($RetiredLiffVariable)) `
   'CD must not use the retired ambiguous LIFF variable name'
+Assert-DoesNotMatch $BuildPublishJob '(?m)^    environment:' `
+  'The immutable image build must remain outside production approval'
+Assert-Matches $BuildPublishJob 'DOCKERHUB_TOKEN: \$\{\{ secrets\.DOCKERHUB_TOKEN \}\}' `
+  'The image build must read the repository-scoped Docker Hub token'
+Assert-Matches $BuildPublishJob '-z "\$DOCKERHUB_TOKEN"' `
+  'CD must fail clearly when the repository-scoped Docker Hub token is unavailable'
 Assert-Matches $DeployWorkflow '(?ms)needs: build-publish.*environment:\s+name: production' `
   'Production approval must occur after immutable images are built and published'
 Assert-Matches $DeployWorkflow '(?ms)concurrency:\s+group: production-deploy\s+cancel-in-progress: false' `
