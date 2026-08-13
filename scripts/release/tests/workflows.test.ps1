@@ -92,6 +92,10 @@ Assert-DoesNotMatch $DeployWorkflow ([regex]::Escape($RetiredLiffVariable)) `
   'CD must not use the retired ambiguous LIFF variable name'
 Assert-Matches $ReleaseJob '(?ms)^  release:.*?environment:\s+name: production.*?docker/login-action@v4.*?Configure pinned SSH.*?deploy/backup/deploy-safe\.sh "\$IMAGE_TAG"' `
   'One protected production job must gate image publication and the subsequent VPS deployment'
+Assert-Matches $ReleaseJob '(?ms)environment:\s+name: production\s+url:\s+https://smartqueue\.io\.vn/' `
+  'The protected production environment must advertise the canonical production URL'
+Assert-Matches $ReleaseJob '(?ms)if:\s+\$\{\{\s*success\(\)\s*\}\}.*?\[Open production\]\(https://smartqueue\.io\.vn/\).*?\$GITHUB_STEP_SUMMARY' `
+  'A successful CD run must publish a clickable production URL in the job summary'
 Assert-Matches $ReleaseJob 'DOCKERHUB_TOKEN: \$\{\{ secrets\.DOCKERHUB_TOKEN \}\}' `
   'The protected release job must read the production environment Docker Hub token'
 Assert-Matches $ReleaseJob 'require_value DOCKERHUB_TOKEN "\$DOCKERHUB_TOKEN"' `

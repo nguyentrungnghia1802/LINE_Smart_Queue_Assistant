@@ -228,6 +228,10 @@ The normal release path is automatic: merge a reviewed PR to `main`, let `CI Qua
 validate the resulting `main` SHA, and let `.github/workflows/deploy.yml` build/push API/Web runner
 images for that exact revision. It publishes both the immutable SHA tag and mutable discovery tag
 `latest`, but only the immutable tag is passed through approval and deployment.
+The protected `production` environment advertises the canonical deployment URL
+`https://smartqueue.io.vn/`; after the backup-gated release succeeds, the final CD step writes a
+clickable **Open production** link to the GitHub Actions job summary. This link is a status shortcut,
+not a replacement for the release health checks or operator acceptance evidence.
 
 For an explicitly approved emergency/manual publication from a clean reviewed local commit, the
 Windows publisher generates one immutable 12-character deployment tag and retains the full SHA in
