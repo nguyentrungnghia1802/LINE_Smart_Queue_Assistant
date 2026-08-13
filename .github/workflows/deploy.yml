@@ -137,6 +137,7 @@ jobs:
           TOOLING_ARCHIVE: /tmp/line-smart-queue-deploy-${{ github.run_id }}.tar.gz
         run: |
           tar -czf "$RUNNER_TEMP/deploy-tooling.tar.gz" deploy/docker-compose.yml deploy/backup deploy/scripts
+          tar -tzf "$RUNNER_TEMP/deploy-tooling.tar.gz" >/dev/null
           scp -i "$RUNNER_TEMP/production_deploy_key" \
             -P "$SSH_PORT" \
             -o IdentitiesOnly=yes \
@@ -148,13 +149,25 @@ jobs:
             -p "$SSH_PORT" \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
-            "$SSH_USER@$SSH_HOST" "$remote_env bash -se" <<'REMOTE'
+          "$SSH_USER@$SSH_HOST" "$remote_env bash -se" <<'REMOTE'
           set -euo pipefail
-          test -d "$DEPLOY_PATH"
-          test -f "$DEPLOY_PATH/deploy/.env"
-          cd "$DEPLOY_PATH"
+          resolve_project_root() {
+            local configured=${1%/}
+            if [[ -f "$configured/deploy/.env" ]]; then
+              (cd -- "$configured" && pwd -P)
+              return
+            fi
+            if [[ "$configured" == */deploy && -f "$configured/.env" ]]; then
+              (cd -- "${configured%/deploy}" && pwd -P)
+              return
+            fi
+            printf '[release-deploy] ERROR: PRODUCTION_DEPLOY_PATH must be the project root containing deploy/.env or that deploy directory: %s\n' "$configured" >&2
+            return 1
+          }
+          trap 'rm -f -- "$TOOLING_ARCHIVE"' EXIT
+          project_root=$(resolve_project_root "$DEPLOY_PATH")
+          cd -- "$project_root"
           tar -xzf "$TOOLING_ARCHIVE"
-          rm -f -- "$TOOLING_ARCHIVE"
           chmod 700 deploy/backup/*.sh deploy/backup/tests/*.sh deploy/scripts/*.sh deploy/scripts/tests/*.sh
           REMOTE
 
@@ -167,10 +180,23 @@ jobs:
             -p "$SSH_PORT" \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
-            "$SSH_USER@$SSH_HOST" "$remote_env bash -se" <<'REMOTE'
+          "$SSH_USER@$SSH_HOST" "$remote_env bash -se" <<'REMOTE'
           set -euo pipefail
-          cd "$DEPLOY_PATH"
-          test -f deploy/.env
+          resolve_project_root() {
+            local configured=${1%/}
+            if [[ -f "$configured/deploy/.env" ]]; then
+              (cd -- "$configured" && pwd -P)
+              return
+            fi
+            if [[ "$configured" == */deploy && -f "$configured/.env" ]]; then
+              (cd -- "${configured%/deploy}" && pwd -P)
+              return
+            fi
+            printf '[release-deploy] ERROR: PRODUCTION_DEPLOY_PATH must be the project root containing deploy/.env or that deploy directory: %s\n' "$configured" >&2
+            return 1
+          }
+          project_root=$(resolve_project_root "$DEPLOY_PATH")
+          cd -- "$project_root"
           export BACKUP_TOOLING_REVISION="$TOOLING_REVISION"
           export DEPLOY_APPROVED=GITHUB_ENVIRONMENT_APPROVED
           backup_id=$(deploy/backup/deploy-safe.sh "$IMAGE_TAG")

@@ -301,7 +301,8 @@ Docker login; see `deploy/scripts/README.md`.
 `npm run release:workflows:verify` proves PR CI targets `main`, CD is triggered only by a successful
 same-repository `main` CI run, the release checkout uses that run's exact SHA, production approval
 precedes image publication and VPS access, releases are serialized, and `deploy-safe.sh` receives
-only the immutable tag.
+only the immutable tag. It also verifies that the remote sync normalizes
+`PRODUCTION_DEPLOY_PATH` safely whether it identifies the project root or its `deploy` directory.
 
 `npm run ops:manual-release:rehearse` validates the paired Windows-publisher/VPS-shell path. It
 proves that `deploy/scripts/build-push.ps1` derives one `git-<12-character-sha>` tag from checked-out `HEAD` for

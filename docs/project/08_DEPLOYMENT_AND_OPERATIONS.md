@@ -757,7 +757,9 @@ any release credential. After approval, the protected job checks out that run's 
 the API and Web `runner` images, pushes `git-<full SHA>` plus discovery-only `latest` to Docker Hub,
 and connects to the server. A pull request never triggers production CD. The SSH host key is pinned with
 `PRODUCTION_SSH_KNOWN_HOSTS`. CD copies the selected commit's Compose file and versioned recovery
-tooling, but never the server `.env`, then passes only the immutable tag to `deploy-safe.sh`. The
+tooling, but never the server `.env`. It accepts `PRODUCTION_DEPLOY_PATH` as either the project root
+or that root's `deploy` directory, verifies the matching `.env`, and normalizes to the project root
+before extraction and release. It then passes only the immutable tag to `deploy-safe.sh`. The
 remote sequence derives repositories from that file and cannot update image refs, pull, or migrate
 unless a matched PostgreSQL/media snapshot passes independent verification. After confirmation it
 atomically persists both refs, pulls, applies canonical migrations, recreates application services,
@@ -772,11 +774,11 @@ verifies that `/app/var/media` is both the configured path and writable by the n
 
 `production` environment variables used by the protected release job:
 
-| Variable                 | Example                 | Purpose                                               |
-| ------------------------ | ----------------------- | ----------------------------------------------------- |
-| `DOCKERHUB_USERNAME`     | `trungnghia2703`        | Docker Hub image namespace                            |
-| `LINE_LOGIN_LIFF_ID`     | LINE Login LIFF ID      | Shared public API/Web configuration                   |
-| `PRODUCTION_DEPLOY_PATH` | `/opt/line-smart-queue` | Server directory containing Compose and `deploy/.env` |
+| Variable                 | Example                        | Purpose                                                  |
+| ------------------------ | ------------------------------ | -------------------------------------------------------- |
+| `DOCKERHUB_USERNAME`     | `trungnghia2703`               | Docker Hub image namespace                               |
+| `LINE_LOGIN_LIFF_ID`     | LINE Login LIFF ID             | Shared public API/Web configuration                      |
+| `PRODUCTION_DEPLOY_PATH` | `/opt/line-smart-queue/deploy` | Project root or its `deploy` directory containing `.env` |
 
 `production` environment secrets:
 
@@ -803,7 +805,9 @@ required variable and secret by name without printing any value.
 2. In that environment, add `DOCKERHUB_USERNAME`, `LINE_LOGIN_LIFF_ID`, and
    `PRODUCTION_DEPLOY_PATH` as variables. Add `DOCKERHUB_TOKEN` from a Docker Hub personal access
    token with at least Read & Write permission and the five `PRODUCTION_SSH_*` values as secrets.
-   Never put secret values in a variable, workflow, log, or committed env file.
+   `PRODUCTION_DEPLOY_PATH` may be `/opt/line-smart-queue` or
+   `/opt/line-smart-queue/deploy`; no other directory shape is accepted. Never put secret values in
+   a variable, workflow, log, or committed env file.
 3. Open **Settings → Rules → Rulesets** and create or update the branch ruleset targeting only
    `main`. Set enforcement to **Active**, block deletion and force pushes, require a pull request,
    require linear history, and require branches to be up to date before merge.

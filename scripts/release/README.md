@@ -6,5 +6,6 @@ publishes, and deploys that exact revision in one protected job.
 
 `tests/workflows.test.ps1` statically verifies the validated-main trigger, exact source SHA,
 immutable deployment tag, single protected-job approval boundary, and serialized rollout contract.
-The canonical Windows emergency/manual publisher and its matching VPS wrapper live together under
-`deploy/scripts`; see `deploy/scripts/README.md`.
+It also verifies archive integrity and safe normalization of a production path configured as either
+the project root or its `deploy` directory. The canonical Windows emergency/manual publisher and its
+matching VPS wrapper live together under `deploy/scripts`; see `deploy/scripts/README.md`.
