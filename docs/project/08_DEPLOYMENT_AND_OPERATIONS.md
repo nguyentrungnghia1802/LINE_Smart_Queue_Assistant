@@ -779,9 +779,9 @@ Repository-level GitHub Actions variables used by the pre-approval image build:
 
 Repository-level GitHub Actions secret used by the pre-approval image build:
 
-| Secret            | Purpose                                      |
-| ----------------- | -------------------------------------------- |
-| `DOCKERHUB_TOKEN` | Docker Hub access token with push permission |
+| Secret            | Purpose                                                                 |
+| ----------------- | ----------------------------------------------------------------------- |
+| `DOCKERHUB_TOKEN` | Docker Hub personal access token; Read & Write permission is sufficient |
 
 `production` environment variable:
 
@@ -802,13 +802,19 @@ Repository-level GitHub Actions secret used by the pre-approval image build:
 The repository scope for the Docker Hub build credentials is intentional: GitHub does not expose
 environment variables or secrets until the environment-protected deploy job starts, but images
 must be built and pushed before production approval. Runtime/server secrets remain environment or
-VPS scoped.
+VPS scoped. A `DOCKERHUB_TOKEN` created only under **Environments → production** is therefore empty
+inside `build-publish` and causes Docker login to fail before the approval gate. Create the same-named
+secret under the repository's **Actions secrets**; the workflow validates its presence without
+printing it. The production required-reviewer gate remains attached only to the SSH deploy job, so
+publishing images cannot deploy or mutate the VPS without approval.
 
 ### Required GitHub repository setup
 
 1. Open **Settings → Secrets and variables → Actions**. Under **Variables**, create
-   `DOCKERHUB_USERNAME` and `LINE_LOGIN_LIFF_ID`. Under **Secrets**, create `DOCKERHUB_TOKEN`; never put
-   its value in a variable, workflow, log, or committed env file.
+   `DOCKERHUB_USERNAME` and `LINE_LOGIN_LIFF_ID`. Under **Repository secrets**, create
+   `DOCKERHUB_TOKEN` from a Docker Hub personal access token with at least Read & Write permission;
+   never put its value in a variable, workflow, log, committed env file, or only in the protected
+   `production` environment.
 2. Open **Settings → Environments → production**. Add at least one authorized required reviewer,
    restrict deployment branches/tags to the `main` branch, add `PRODUCTION_DEPLOY_PATH`, and add the
    five `PRODUCTION_SSH_*` secrets listed above.
