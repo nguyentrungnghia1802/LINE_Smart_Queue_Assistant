@@ -26,6 +26,7 @@ jobs:
     timeout-minutes: 60
     environment:
       name: production
+      url: https://smartqueue.io.vn/
     env:
       RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
       DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
@@ -204,3 +205,14 @@ jobs:
           docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps
           printf 'Verified pre-deployment backup: %s\n' "$backup_id"
           REMOTE
+
+      - name: 🔗 Show production URL
+        if: ${{ success() }}
+        run: |
+          {
+            echo '## Production deployment'
+            echo ''
+            echo 'The immutable release completed successfully.'
+            echo ''
+            echo '[Open production](https://smartqueue.io.vn/)'
+          } >> "$GITHUB_STEP_SUMMARY"
