@@ -789,9 +789,9 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
   `http://localhost:5173/qr/demo-queue-lab-2026` です。
 - `main` 向けPull Requestとmerge後の `main` revisionで、secret scan、audit、format、spell、lint、
   type-check、OpenAPI、3種類のCompose設定、API／Webテスト、migration／seed、build、browser E2EをCIで実行します。
-- merge済み `main` のCI成功後、本番CDは同じfull SHAからAPI／Web runner imageを自動build/pushし、
-  正確な `git-<full SHA>` と参照用のみの `latest` を公開してからGitHub `production` Environmentの
-  approvalを待ちます。VPSは不変タグだけを受け付け、backupを検証し、選択した2つのimage参照を
+- merge済み `main` のCI成功後、本番CDはGitHub `production` Environmentのapprovalを待ち、
+  承認後に同じfull SHAからAPI／Web runner imageを自動build/pushし、正確な
+  `git-<full SHA>` と参照用のみの `latest` を公開します。VPSは不変タグだけを受け付け、backupを検証し、選択した2つのimage参照を
   `deploy/.env` に保存してpull、migration、recreate、health checkを行います。失敗時は検証済みmetadataから
   application imageの自動rollbackを試行し、database／mediaは自動restoreしません。
 - 承認済みの緊急／手動releaseでは、Windows operatorがclean commitから

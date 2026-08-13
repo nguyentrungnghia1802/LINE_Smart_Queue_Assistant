@@ -5,10 +5,7 @@ $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
 $CiWorkflow = Get-Content -Raw (Join-Path $RepositoryRoot '.github/workflows/ci.yml')
 $DeployWorkflow = Get-Content -Raw (Join-Path $RepositoryRoot '.github/workflows/deploy.yml')
 $AllWorkflows = "$CiWorkflow`n$DeployWorkflow"
-$BuildPublishJob = [regex]::Match(
-  $DeployWorkflow,
-  '(?ms)^  build-publish:.*?(?=^  deploy:)'
-).Value
+$ReleaseJob = [regex]::Match($DeployWorkflow, '(?ms)^  release:.*').Value
 $RetiredLiffVariable = 'VITE_' + 'LIFF_ID'
 
 function Assert-Matches {
@@ -80,14 +77,14 @@ Assert-Matches $DeployWorkflow 'LINE_LOGIN_LIFF_ID=\$\{\{ vars\.LINE_LOGIN_LIFF_
   'CD must pass the canonical public LIFF ID into the Web image build'
 Assert-DoesNotMatch $DeployWorkflow ([regex]::Escape($RetiredLiffVariable)) `
   'CD must not use the retired ambiguous LIFF variable name'
-Assert-DoesNotMatch $BuildPublishJob '(?m)^    environment:' `
-  'The immutable image build must remain outside production approval'
-Assert-Matches $BuildPublishJob 'DOCKERHUB_TOKEN: \$\{\{ secrets\.DOCKERHUB_TOKEN \}\}' `
-  'The image build must read the repository-scoped Docker Hub token'
-Assert-Matches $BuildPublishJob '-z "\$DOCKERHUB_TOKEN"' `
-  'CD must fail clearly when the repository-scoped Docker Hub token is unavailable'
-Assert-Matches $DeployWorkflow '(?ms)needs: build-publish.*environment:\s+name: production' `
-  'Production approval must occur after immutable images are built and published'
+Assert-Matches $ReleaseJob '(?ms)^  release:.*?environment:\s+name: production.*?docker/login-action@v4.*?Configure pinned SSH.*?deploy/backup/deploy-safe\.sh "\$IMAGE_TAG"' `
+  'One protected production job must gate image publication and the subsequent VPS deployment'
+Assert-Matches $ReleaseJob 'DOCKERHUB_TOKEN: \$\{\{ secrets\.DOCKERHUB_TOKEN \}\}' `
+  'The protected release job must read the production environment Docker Hub token'
+Assert-Matches $ReleaseJob 'require_value DOCKERHUB_TOKEN "\$DOCKERHUB_TOKEN"' `
+  'CD must validate all protected production configuration before publishing images'
+Assert-DoesNotMatch $DeployWorkflow '(?m)^  (build-publish|deploy):|needs: build-publish' `
+  'CD must not split production credentials across separately approved jobs'
 Assert-Matches $DeployWorkflow '(?ms)concurrency:\s+group: production-deploy\s+cancel-in-progress: false' `
   'Production releases must be serialized without canceling an in-flight deployment'
 Assert-Matches $DeployWorkflow 'deploy/backup/deploy-safe\.sh "\$IMAGE_TAG"' `

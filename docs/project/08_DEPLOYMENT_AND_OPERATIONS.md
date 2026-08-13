@@ -752,10 +752,10 @@ advisories in production dependencies and keeps its single narrow, reviewed exce
 
 Production delivery is automatic after validated `main`, backup-gated, and environment-gated.
 `.github/workflows/deploy.yml` listens only for a successful same-repository `CI Quality Gates`
-completion on `main`, checks out that run's exact SHA, builds the API and Web `runner` images, and
-pushes `git-<full SHA>` plus discovery-only `latest` to Docker Hub. The deploy job then waits for
-approval on the GitHub `production` environment before connecting to the server. A pull request
-never triggers production CD. The SSH host key is pinned with
+completion on `main` and requires approval on the GitHub `production` environment before accessing
+any release credential. After approval, the protected job checks out that run's exact SHA, builds
+the API and Web `runner` images, pushes `git-<full SHA>` plus discovery-only `latest` to Docker Hub,
+and connects to the server. A pull request never triggers production CD. The SSH host key is pinned with
 `PRODUCTION_SSH_KNOWN_HOSTS`. CD copies the selected commit's Compose file and versioned recovery
 tooling, but never the server `.env`, then passes only the immutable tag to `deploy-safe.sh`. The
 remote sequence derives repositories from that file and cannot update image refs, pull, or migrate
@@ -770,54 +770,40 @@ the media volume name or mount target requires a separate migration and backup p
 After recreation, CD inspects the live API mount as a Docker volume and, when local media is active,
 verifies that `/app/var/media` is both the configured path and writable by the non-root process.
 
-Repository-level GitHub Actions variables used by the pre-approval image build:
-
-| Variable             | Example            | Purpose                             |
-| -------------------- | ------------------ | ----------------------------------- |
-| `DOCKERHUB_USERNAME` | `trungnghia2703`   | Docker Hub image namespace          |
-| `LINE_LOGIN_LIFF_ID` | LINE Login LIFF ID | Shared public API/Web configuration |
-
-Repository-level GitHub Actions secret used by the pre-approval image build:
-
-| Secret            | Purpose                                                                 |
-| ----------------- | ----------------------------------------------------------------------- |
-| `DOCKERHUB_TOKEN` | Docker Hub personal access token; Read & Write permission is sufficient |
-
-`production` environment variable:
+`production` environment variables used by the protected release job:
 
 | Variable                 | Example                 | Purpose                                               |
 | ------------------------ | ----------------------- | ----------------------------------------------------- |
+| `DOCKERHUB_USERNAME`     | `trungnghia2703`        | Docker Hub image namespace                            |
+| `LINE_LOGIN_LIFF_ID`     | LINE Login LIFF ID      | Shared public API/Web configuration                   |
 | `PRODUCTION_DEPLOY_PATH` | `/opt/line-smart-queue` | Server directory containing Compose and `deploy/.env` |
 
 `production` environment secrets:
 
-| Secret                       | Purpose                                                |
-| ---------------------------- | ------------------------------------------------------ |
-| `PRODUCTION_SSH_HOST`        | Production hostname or IP                              |
-| `PRODUCTION_SSH_PORT`        | SSH port; may be omitted to use `22`                   |
-| `PRODUCTION_SSH_USER`        | Restricted deployment user                             |
-| `PRODUCTION_SSH_PRIVATE_KEY` | Private half of a dedicated deployment key             |
-| `PRODUCTION_SSH_KNOWN_HOSTS` | Pinned server host-key line from trusted `ssh-keyscan` |
+| Secret                       | Purpose                                                  |
+| ---------------------------- | -------------------------------------------------------- |
+| `DOCKERHUB_TOKEN`            | Docker Hub personal access token; Read & Write is enough |
+| `PRODUCTION_SSH_HOST`        | Production hostname or IP                                |
+| `PRODUCTION_SSH_PORT`        | SSH port; may be omitted to use `22`                     |
+| `PRODUCTION_SSH_USER`        | Restricted deployment user                               |
+| `PRODUCTION_SSH_PRIVATE_KEY` | Private half of a dedicated deployment key               |
+| `PRODUCTION_SSH_KNOWN_HOSTS` | Pinned server host-key line from trusted `ssh-keyscan`   |
 
-The repository scope for the Docker Hub build credentials is intentional: GitHub does not expose
-environment variables or secrets until the environment-protected deploy job starts, but images
-must be built and pushed before production approval. Runtime/server secrets remain environment or
-VPS scoped. A `DOCKERHUB_TOKEN` created only under **Environments → production** is therefore empty
-inside `build-publish` and causes Docker login to fail before the approval gate. Create the same-named
-secret under the repository's **Actions secrets**; the workflow validates its presence without
-printing it. The production required-reviewer gate remains attached only to the SSH deploy job, so
-publishing images cannot deploy or mutate the VPS without approval.
+The single protected release job intentionally keeps Docker Hub and SSH credentials in the
+`production` environment. GitHub does not expose those values until a required reviewer approves
+the job. After approval, the job builds and publishes both immutable images, then performs the
+backup-gated VPS rollout. This provides one approval boundary and prevents a split workflow from
+requesting multiple approvals or seeing an empty environment token. The workflow validates every
+required variable and secret by name without printing any value.
 
 ### Required GitHub repository setup
 
-1. Open **Settings → Secrets and variables → Actions**. Under **Variables**, create
-   `DOCKERHUB_USERNAME` and `LINE_LOGIN_LIFF_ID`. Under **Repository secrets**, create
-   `DOCKERHUB_TOKEN` from a Docker Hub personal access token with at least Read & Write permission;
-   never put its value in a variable, workflow, log, committed env file, or only in the protected
-   `production` environment.
-2. Open **Settings → Environments → production**. Add at least one authorized required reviewer,
-   restrict deployment branches/tags to the `main` branch, add `PRODUCTION_DEPLOY_PATH`, and add the
-   five `PRODUCTION_SSH_*` secrets listed above.
+1. Open **Settings → Environments → production**. Add at least one authorized required reviewer
+   and restrict deployment branches/tags to `main`.
+2. In that environment, add `DOCKERHUB_USERNAME`, `LINE_LOGIN_LIFF_ID`, and
+   `PRODUCTION_DEPLOY_PATH` as variables. Add `DOCKERHUB_TOKEN` from a Docker Hub personal access
+   token with at least Read & Write permission and the five `PRODUCTION_SSH_*` values as secrets.
+   Never put secret values in a variable, workflow, log, or committed env file.
 3. Open **Settings → Rules → Rulesets** and create or update the branch ruleset targeting only
    `main`. Set enforcement to **Active**, block deletion and force pushes, require a pull request,
    require linear history, and require branches to be up to date before merge.

@@ -799,20 +799,22 @@ not atomic across both repositories. Neither can affect deployment selection.
 
 ## ADR-043: Automatic validated-main production release
 
-**Status:** accepted (2026-08-12)
+**Status:** accepted (2026-08-12), amended (2026-08-13)
 
 **Context:** Manual dispatch still required a developer to select and confirm a production source
 revision, even though PR CI and immutable full-SHA artifacts already supplied the required release
-identity. Triggering CD directly on a push could race CI or publish an unvalidated revision. GitHub
-environment values also cannot be used by a build job that must finish before environment approval.
+identity. Triggering CD directly on a push could race CI or publish an unvalidated revision. The
+initial split-job design placed image publication before approval and therefore required separate
+repository-scoped Docker credentials.
 
 **Decision:** Run PR CI only for pull requests targeting `main`, and run the same gates for the
 resulting `main` revision. Trigger production CD through `workflow_run` only when the same
 repository's `CI Quality Gates` succeeds on `main`. Check out `workflow_run.head_sha` for both image
-builds and release tooling; derive API/Web `git-<full SHA>` tags from that value. Store Docker Hub
-build credentials and public Web build values at repository scope. Build and publish before the
-`production` environment job, then require its reviewer and `main` deployment policy before SSH.
-Serialize releases with a non-canceling concurrency group. Protect `main` with PR, linear-history,
+builds and release tooling; derive API/Web `git-<full SHA>` tags from that value. Run image
+publication and VPS deployment in one job protected by the `production` environment reviewer and
+`main` deployment policy. Read Docker Hub and SSH credentials only after that approval, publish the
+immutable images, then perform the backup-gated rollout in the same approved job. Serialize
+releases with a non-canceling concurrency group. Protect `main` with PR, linear-history,
 no-delete/no-force-push, up-to-date, and required-status-check rules. If a post-mutation deployment
 step fails, automatically attempt application-only rollback from the just-verified snapshot while
 leaving database/media restore separately confirmed. Keep the PowerShell publisher only for an
@@ -820,11 +822,18 @@ approved emergency/manual path.
 
 **Consequences:** Merging a validated PR supplies the release SHA without operator tag entry,
 local production builds, or step-by-step SSH deployment. PRs cannot deploy, failed main CI cannot
-publish, approval occurs after artifacts exist but before VPS mutation, and one release cannot
-cancel another. Repository Docker credentials must exist before activation, GitHub ruleset and
-environment policy remain external acceptance, and each actual merge/deploy still needs retained
-CI, approval, backup, registry, and VPS health evidence. Automatic image rollback is not database
-rollback; incompatible migrations still require a forward fix or explicitly approved data restore.
+publish, and no Docker Hub or VPS mutation occurs before approval. One protected job avoids empty
+environment secrets and repeated approval prompts, and one release cannot cancel another. GitHub
+ruleset and environment policy remain external acceptance, and each actual merge/deploy still needs
+retained CI, approval, backup, registry, and VPS health evidence. Automatic image rollback is not
+database rollback; incompatible migrations still require a forward fix or explicitly approved data
+restore.
+
+**Amendment rationale (2026-08-13):** The operational environment already owned the Docker Hub PAT,
+while repository secrets were intentionally empty. The earlier split job therefore received an empty
+`DOCKERHUB_TOKEN`. Moving publication into the same protected job as deployment supersedes the
+repository-scope credential choice without weakening validated-main, immutable-tag, backup, health,
+rollback, or manual approval controls.
 
 ## OPT-001 cleanup audit (2026-08-11)
 

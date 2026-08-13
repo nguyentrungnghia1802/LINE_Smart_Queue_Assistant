@@ -790,9 +790,9 @@ For each language:
 - Pull requests targeting `main` and the resulting `main` revision run secret scanning, audit,
   formatting, spelling, lint, type-check, OpenAPI, all three Compose configuration checks, API/Web
   tests, migration/seed smoke, build, and browser E2E.
-- A successful CI run for merged `main` automatically publishes API/Web runner images as exact
-  `git-<full SHA>` plus discovery-only `latest`, then waits for GitHub `production` environment
-  approval. The VPS accepts only the immutable tag, verifies a backup, persists the selected
+- A successful CI run for merged `main` waits for GitHub `production` environment approval, then
+  automatically publishes API/Web runner images as exact `git-<full SHA>` plus discovery-only
+  `latest`. The VPS accepts only the immutable tag, verifies a backup, persists the selected
   references in `deploy/.env`, pulls, migrates, recreates, and probes health. Failure automatically
   attempts previous-image rollback from verified metadata without restoring database/media.
 - For an approved emergency/manual release, a Windows operator runs
