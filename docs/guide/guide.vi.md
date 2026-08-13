@@ -792,9 +792,9 @@ Khi sử dụng từng ngôn ngữ:
 - Pull request vào `main` và revision `main` sau merge chạy secret scan, audit, format, spell, lint,
   type-check, OpenAPI, kiểm tra cấu hình cả ba Compose, test API/Web, migration/seed, build và browser
   E2E.
-- Khi CI của revision đã merge trên `main` pass, CD tự động build/push runner image API/Web bằng
-  `git-<full SHA>` chính xác và tag `latest` chỉ để tra cứu, rồi chờ duyệt ở GitHub Environment
-  `production`. VPS chỉ nhận tag bất biến, verify backup, lưu hai image ref đã chọn vào
+- Khi CI của revision đã merge trên `main` pass, CD chờ duyệt ở GitHub Environment
+  `production`, sau đó tự động build/push runner image API/Web bằng `git-<full SHA>` chính xác
+  và tag `latest` chỉ để tra cứu. VPS chỉ nhận tag bất biến, verify backup, lưu hai image ref đã chọn vào
   `deploy/.env`, pull, migrate, recreate và probe health. Nếu rollout ứng dụng lỗi, hệ thống tự thử
   rollback image theo metadata đã verify, không tự restore database/media.
 - Với release emergency/manual đã được duyệt, Operator Windows chạy

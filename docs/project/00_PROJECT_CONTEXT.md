@@ -202,8 +202,8 @@ acceptance still use the independent `docs/checklists/LINE_REAL_DEVICE_E2E.md` a
 against the intended Official Account configuration.
 
 API/Web release artifacts use the full reviewed Git SHA. After the merged `main` revision passes
-CI, GitHub CD builds and pushes `git-<40-character-sha>` plus the mutable discovery tag `latest`,
-then waits for the protected `production` environment approval. The VPS deploy gate accepts only
+CI, GitHub CD waits for the protected `production` environment approval, then builds and pushes
+`git-<40-character-sha>` plus the mutable discovery tag `latest`. The VPS deploy gate accepts only
 the immutable tag and persists the selected full image references in its existing `deploy/.env`.
 A failed post-mutation release automatically attempts application-only rollback from verified
 snapshot metadata; database/media restore remains separate. The local PowerShell publisher is an

@@ -16,24 +16,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-publish:
-    name: Build and publish immutable images
+  release:
+    name: Approve, publish, and deploy immutable release
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    outputs:
-      image_tag: ${{ steps.metadata.outputs.image_tag }}
-      api_image: ${{ steps.metadata.outputs.api_image }}
-      web_image: ${{ steps.metadata.outputs.web_image }}
-      api_latest: ${{ steps.metadata.outputs.api_latest }}
-      web_latest: ${{ steps.metadata.outputs.web_latest }}
+    timeout-minutes: 60
+    environment:
+      name: production
     env:
       RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
       DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
       LINE_LOGIN_LIFF_ID: ${{ vars.LINE_LOGIN_LIFF_ID }}
+      DEPLOY_PATH: ${{ vars.PRODUCTION_DEPLOY_PATH }}
+      SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+      SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT || '22' }}
+      SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
     steps:
       - name: 📥 Checkout validated main revision
         uses: actions/checkout@v7
@@ -45,10 +47,21 @@ jobs:
         env:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          if [[ -z "$DOCKERHUB_USERNAME" || -z "$LINE_LOGIN_LIFF_ID" || -z "$DOCKERHUB_TOKEN" ]]; then
-            echo "DOCKERHUB_USERNAME and LINE_LOGIN_LIFF_ID repository variables and the DOCKERHUB_TOKEN repository secret are required." >&2
-            exit 1
-          fi
+          require_value() {
+            if [[ -z "$2" ]]; then
+              echo "$1 is required in the protected production environment." >&2
+              exit 1
+            fi
+          }
+          require_value DOCKERHUB_USERNAME "$DOCKERHUB_USERNAME"
+          require_value LINE_LOGIN_LIFF_ID "$LINE_LOGIN_LIFF_ID"
+          require_value DOCKERHUB_TOKEN "$DOCKERHUB_TOKEN"
+          require_value PRODUCTION_DEPLOY_PATH "$DEPLOY_PATH"
+          require_value PRODUCTION_SSH_HOST "$SSH_HOST"
+          require_value PRODUCTION_SSH_PORT "$SSH_PORT"
+          require_value PRODUCTION_SSH_USER "$SSH_USER"
+          require_value PRODUCTION_SSH_PRIVATE_KEY "$SSH_PRIVATE_KEY"
+          require_value PRODUCTION_SSH_KNOWN_HOSTS "$SSH_KNOWN_HOSTS"
           if [[ ! "$DOCKERHUB_USERNAME" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$ ]]; then
             echo "DOCKERHUB_USERNAME contains unsupported characters." >&2
             exit 1
@@ -111,28 +124,6 @@ jobs:
             ${{ steps.metadata.outputs.web_latest }}
           labels: org.opencontainers.image.revision=${{ env.RELEASE_SHA }}
 
-  deploy:
-    name: Deploy to production server
-    needs: build-publish
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    environment:
-      name: production
-    env:
-      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
-      IMAGE_TAG: ${{ needs.build-publish.outputs.image_tag }}
-      DEPLOY_PATH: ${{ vars.PRODUCTION_DEPLOY_PATH }}
-      SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-      SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT || '22' }}
-      SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-      SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
-      SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
-    steps:
-      - name: 📥 Checkout validated release tooling
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_SHA }}
-
       - name: 🔐 Configure pinned SSH
         run: |
           install -m 700 -d "$HOME/.ssh"
@@ -168,6 +159,8 @@ jobs:
           REMOTE
 
       - name: 🚀 Backup-gated immutable release
+        env:
+          IMAGE_TAG: ${{ steps.metadata.outputs.image_tag }}
         run: |
           remote_env=$(printf 'DEPLOY_PATH=%q IMAGE_TAG=%q TOOLING_REVISION=%q' "$DEPLOY_PATH" "$IMAGE_TAG" "$RELEASE_SHA")
           ssh -i "$RUNNER_TEMP/production_deploy_key" \

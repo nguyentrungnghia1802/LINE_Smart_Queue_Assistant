@@ -299,8 +299,9 @@ rejects mutable or malformed repositories. The real publisher requires a clean w
 Docker login; see `deploy/scripts/README.md`.
 
 `npm run release:workflows:verify` proves PR CI targets `main`, CD is triggered only by a successful
-same-repository `main` CI run, both checkouts use that run's exact SHA, production approval follows
-image publication, releases are serialized, and `deploy-safe.sh` receives only the immutable tag.
+same-repository `main` CI run, the release checkout uses that run's exact SHA, production approval
+precedes image publication and VPS access, releases are serialized, and `deploy-safe.sh` receives
+only the immutable tag.
 
 `npm run ops:manual-release:rehearse` validates the paired Windows-publisher/VPS-shell path. It
 proves that `deploy/scripts/build-push.ps1` derives one `git-<12-character-sha>` tag from checked-out `HEAD` for
@@ -336,10 +337,10 @@ whole rule or path; a new finding must be investigated as a potential credential
 fingerprint is added.
 
 Production CD is automatic after validation and environment-gated. A successful CI run for the
-merged `main` revision triggers the workflow, which checks out that exact SHA, builds API/Web and
-pushes both exact `git-<full SHA>` and discovery-only `latest`, then waits for approval on the
-`production` environment. It copies only versioned Compose/backup tooling to the server and passes
-only the immutable tag. `deploy-safe.sh`
+merged `main` revision triggers the workflow, whose single release job waits for approval on the
+`production` environment. After approval, it checks out that exact SHA, builds API/Web, pushes both
+exact `git-<full SHA>` and discovery-only `latest`, copies only versioned Compose/backup tooling to
+the server, and passes only the immutable tag. `deploy-safe.sh`
 derives full references from the two repository values already in `deploy/.env`, requires a
 verified PostgreSQL/local-media restore point, atomically persists those references, pulls images,
 runs canonical migrations, recreates application services, and probes API health/readiness plus

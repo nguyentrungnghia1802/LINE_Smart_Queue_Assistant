@@ -146,8 +146,8 @@ check for external acceptance.
 The GitHub Actions CI workflow runs the same static, test, migration, build, browser, and Compose
 configuration gates for PRs targeting `main` and for the resulting `main` revision, including
 immutable release-workflow and backup/deploy/rollback rehearsal. A successful `main` CI run starts
-production CD automatically: it publishes API/Web images as exact `git-<full SHA>` plus
-discovery-only `latest`, then waits for `production` environment approval. The VPS accepts only the
+production CD automatically: it waits for `production` environment approval, then publishes
+API/Web images as exact `git-<full SHA>` plus discovery-only `latest`. The VPS accepts only the
 immutable tag, verifies a restore point, persists the two selected refs in its existing
 `deploy/.env`, pulls, migrates, recreates, and checks health. A failed application rollout attempts
 metadata-driven image rollback without automatic database/media restore. Runtime secrets remain
