@@ -12,8 +12,10 @@ const apiProxyTarget = process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:4000';
 export default defineConfig(({ mode }) => ({
   plugins: [liffCspPlugin(), react(), tailwindcss()],
   // Share the repository-root .env with the API during native local development.
-  // Vite only exposes variables prefixed with VITE_ to browser code.
+  // LINE_LOGIN_LIFF_ID is a public identifier. Expose exactly that additional
+  // name without exposing the wider server-side LINE_LOGIN_* namespace.
   envDir: resolve(import.meta.dirname, '../..'),
+  envPrefix: ['VITE_', 'LINE_LOGIN_LIFF_ID'],
 
   resolve: {
     alias: {

@@ -11,11 +11,11 @@ Record the environment, release commit, tester, timestamp, device model, OS vers
 ## Configuration
 
 - [ ] The LINE Login channel and Messaging API channel belong to the intended provider and environment.
-- [ ] The LIFF endpoint is the deployed HTTPS `/liff` base path, for example `https://<web-origin>/liff`, and the frontend `VITE_LIFF_ID` matches it.
+- [ ] The LIFF endpoint is the deployed HTTPS `/liff` base path, for example `https://<web-origin>/liff`, and the shared public `LINE_LOGIN_LIFF_ID` matches it.
 - [ ] The LIFF app uses the `Full` view size, enables **Scan QR**, includes the `profile` scope, links the intended Official Account, and has the Add Friend option enabled.
 - [ ] Backend `LINE_LOGIN_CHANNEL_ID` is the LINE Login channel ID used for ID-token verification.
 - [ ] `LINE_MESSAGING_CHANNEL_SECRET` and `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN` come from the intended Messaging API channel.
-- [ ] Backend `LINE_LOGIN_LIFF_ID`, frontend `VITE_LIFF_ID`, and `WEB_ORIGIN` generate valid ticket deeplinks.
+- [ ] `LINE_LOGIN_LIFF_ID` and `WEB_ORIGIN` generate valid frontend and backend ticket deeplinks.
 - [ ] The HTTPS webhook URL is reachable, signature verification passes, and an invalid signature is rejected.
 - [ ] The customer follows the Official Account and device/LINE notification settings permit alerts.
 - [ ] A production-valid Rich Menu image is synced explicitly with `npm run line:rich-menu:sync`.

@@ -60,7 +60,7 @@ describe('useLiff', () => {
     }));
 
     if (!mockMode) {
-      vi.stubEnv('VITE_LIFF_ID', '1234567890-AbCdEfGh');
+      vi.stubEnv('LINE_LOGIN_LIFF_ID', '1234567890-AbCdEfGh');
     }
 
     const { useLiff } = await import('../useLiff');

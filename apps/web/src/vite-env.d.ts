@@ -19,8 +19,8 @@ interface ImportMetaEnv {
   readonly VITE_PAYMENT_REDIRECT_BASE_URL: string;
 
   // ── LIFF (real) ────────────────────────────────────────────────────────────
-  /** LINE LIFF ID — required in production, ignored when VITE_LIFF_MOCK=true */
-  readonly VITE_LIFF_ID: string;
+  /** Public LINE LIFF ID — required in production, ignored when VITE_LIFF_MOCK=true */
+  readonly LINE_LOGIN_LIFF_ID: string;
 
   // ── LIFF mock (local development) ─────────────────────────────────────────
   /**

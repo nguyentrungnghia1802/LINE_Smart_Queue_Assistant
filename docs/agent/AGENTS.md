@@ -221,7 +221,7 @@ Never commit or expose:
 - SSH private keys;
 - production backup payloads.
 
-Treat every `VITE_*` variable as public browser data.
+Treat every `VITE_*` variable and `LINE_LOGIN_LIFF_ID` as public browser data.
 
 Authentication/authorization:
 

@@ -20,9 +20,10 @@ cp .env.example .env
 
 Required production-like values include database credentials, a strong JWT secret, CORS/web
 origin, `LINE_LOGIN_CHANNEL_ID`, `LINE_MESSAGING_CHANNEL_SECRET`,
-`LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`, frontend `VITE_LIFF_ID`, backend
-`LINE_LOGIN_LIFF_ID` for notification/Rich Menu deep links, and `LINE_RICH_MENU_IMAGE_PATH` for real
-Rich Menu sync. `VITE_*` variables are compiled into browser code and must never contain secrets.
+`LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`, shared public `LINE_LOGIN_LIFF_ID` for the Web LIFF SDK and
+backend notification/Rich Menu deep links, and `LINE_RICH_MENU_IMAGE_PATH` for real Rich Menu sync.
+`LINE_LOGIN_LIFF_ID` and `VITE_*` variables are compiled into browser code and must never contain
+secrets.
 
 Authentication defaults are `JWT_ACCESS_EXPIRES_IN=15m`,
 `AUTH_BUSINESS_IDLE_TIMEOUT_MINUTES=15`, `AUTH_BUSINESS_ABSOLUTE_TIMEOUT_HOURS=12`, and
@@ -354,7 +355,7 @@ For a reviewed manual/emergency release outside GitHub Actions, use the Windows 
 wrapper instead of editing image references by hand:
 
 ```powershell
-$env:VITE_LIFF_ID = '<production-liff-id>'
+$env:LINE_LOGIN_LIFF_ID = '<production-liff-id>'
 pwsh -NoProfile -File deploy/scripts/build-push.ps1
 ```
 

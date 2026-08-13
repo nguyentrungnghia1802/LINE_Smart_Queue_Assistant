@@ -3,7 +3,7 @@
  *
  * Selects the correct adapter at build time based on VITE_LIFF_MOCK:
  *   • VITE_LIFF_MOCK=true  → MockLiffAdapter (no real LINE SDK calls)
- *   • otherwise            → RealLiffAdapter (requires VITE_LIFF_ID)
+ *   • otherwise            → RealLiffAdapter (requires LINE_LOGIN_LIFF_ID)
  *
  * The singleton is created once and shared across the app via useLiff().
  */

@@ -163,7 +163,7 @@ export const manager = {
     web: 'Web',
     receptionQr: '受付QRコード',
     liffMissing:
-      'VITE_LIFF_IDが未設定のため、現在はWeb受付が印刷対象です。本番環境ではLIFF IDを設定してください。',
+      'LINE_LOGIN_LIFF_IDが未設定のため、現在はWeb受付が印刷対象です。本番環境ではLIFF IDを設定してください。',
     printPreview: '印刷プレビュー',
     printHint: '印刷時は店舗名、住所、QRコードのみを出力します。',
     scanHint: 'QRコードを読み取って受付番号を取得',

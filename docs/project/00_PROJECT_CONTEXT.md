@@ -156,7 +156,8 @@ real-money payment or notification platform.
 - Public routes must work without authentication, but LINE push requires a verified linked identity.
 - Database migrations are the executable schema source of truth.
 - Visible application copy is translated for `ja`, `vi`, and `en`; Japanese is the default/fallback, while technical code and documentation are English.
-- Vite environment variables are public at build time; secrets stay on the API side.
+- Browser build variables, including `VITE_*` and `LINE_LOGIN_LIFF_ID`, are public at build time;
+  secrets stay on the API side.
 
 ## 9. Known problems and risks
 

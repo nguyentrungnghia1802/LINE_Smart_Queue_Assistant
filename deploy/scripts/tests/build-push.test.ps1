@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 
 $Publisher = (Resolve-Path (Join-Path $PSScriptRoot '../build-push.ps1')).Path
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
+$RetiredLiffVariable = 'VITE_' + 'LIFF_ID'
 
 Push-Location $RepositoryRoot
 try {
@@ -22,6 +23,7 @@ try {
     "example.invalid/line-queue/line-smart-queue-api:$releaseTag",
     "example.invalid/line-queue/line-smart-queue-web:$releaseTag",
     "org.opencontainers.image.revision=$gitSha",
+    'LINE_LOGIN_LIFF_ID=test-liff-id',
     "VITE_SENTRY_RELEASE=$gitSha",
     "DEPLOY_TAG=$releaseTag",
     "VPS_COMMAND=bash deploy/scripts/deploy.sh $releaseTag"
@@ -42,6 +44,9 @@ try {
   }
   if ($output.Contains("git-$gitSha")) {
     throw 'Manual publisher unexpectedly used the full-SHA tag instead of the canonical 12-character tag'
+  }
+  if ($output.Contains($RetiredLiffVariable)) {
+    throw "Manual publisher still uses the retired $RetiredLiffVariable build argument"
   }
 
   $configuredOutput = & $Publisher -LiffId 'test-liff-id' -DryRun -AllowDirty | Out-String

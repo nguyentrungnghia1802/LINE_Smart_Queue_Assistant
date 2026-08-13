@@ -11,7 +11,7 @@ Run from the repository checkout at the exact commit that will be released:
 
 ```powershell
 # Optional: the script otherwise reads LINE_LOGIN_LIFF_ID from deploy/.env.
-$env:VITE_LIFF_ID = '<production-liff-id>'
+$env:LINE_LOGIN_LIFF_ID = '<production-liff-id>'
 pwsh -NoProfile -File deploy/scripts/build-push.ps1
 ```
 

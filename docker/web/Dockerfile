@@ -32,10 +32,10 @@ CMD ["npm", "run", "dev", "--workspace=apps/web", "--", "--host", "0.0.0.0"]
 # ── builder: Vite production build ─────────────────────────────────────────────
 FROM base AS builder
 
-# VITE_* vars must be available at build time — they are bundled into the JS output
+# Public Web variables must be available at build time — they are bundled into the JS output
 ARG VITE_API_URL=
 ARG VITE_APP_NAME="LINE Smart Queue Assistant"
-ARG VITE_LIFF_ID
+ARG LINE_LOGIN_LIFF_ID
 ARG VITE_LIFF_DEFAULT_BOOKING_PATH=
 ARG VITE_LIFF_ENDPOINT_PATH=/liff
 ARG VITE_LIFF_MOCK=false
@@ -46,7 +46,7 @@ ARG VITE_SENTRY_ENVIRONMENT=production
 ARG VITE_SENTRY_RELEASE=
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_APP_NAME=$VITE_APP_NAME
-ENV VITE_LIFF_ID=$VITE_LIFF_ID
+ENV LINE_LOGIN_LIFF_ID=$LINE_LOGIN_LIFF_ID
 ENV VITE_LIFF_DEFAULT_BOOKING_PATH=$VITE_LIFF_DEFAULT_BOOKING_PATH
 ENV VITE_LIFF_ENDPOINT_PATH=$VITE_LIFF_ENDPOINT_PATH
 ENV VITE_LIFF_MOCK=$VITE_LIFF_MOCK

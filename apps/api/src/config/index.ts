@@ -266,8 +266,7 @@ export const config = {
     /** LINE Login / LIFF channel ID — required to verify OIDC id_tokens. */
     loginChannelId: process.env.LINE_LOGIN_CHANNEL_ID ?? process.env.LINE_CHANNEL_ID ?? '',
     /** LIFF app ID used to generate customer deep links in LINE push messages. */
-    loginLiffId:
-      process.env.LINE_LOGIN_LIFF_ID ?? process.env.LINE_LIFF_ID ?? process.env.VITE_LIFF_ID ?? '',
+    loginLiffId: process.env.LINE_LOGIN_LIFF_ID ?? process.env.LINE_LIFF_ID ?? '',
     /** Path configured in the LINE Developers Console LIFF Endpoint URL. */
     liffEndpointPath: process.env.LINE_LIFF_ENDPOINT_PATH ?? '/liff',
     /** Local PNG/JPEG image used by the explicit Rich Menu sync command. */

@@ -7,7 +7,6 @@ const lineEnvironmentKeys = [
   'LINE_LIFF_ID',
   'LINE_CHANNEL_SECRET',
   'LINE_CHANNEL_ACCESS_TOKEN',
-  'VITE_LIFF_ID',
 ] as const;
 
 const originalEnvironment = Object.fromEntries(

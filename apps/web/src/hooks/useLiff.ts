@@ -18,7 +18,7 @@ import type {
  * LIFF ID resolved from env.
  * In mock mode this value is ignored by the adapter (no real SDK call is made).
  */
-const LIFF_ID = import.meta.env.VITE_LIFF_ID ?? '';
+const LIFF_ID = import.meta.env.LINE_LOGIN_LIFF_ID ?? '';
 
 /**
  * Initialises the LIFF SDK (or mock adapter), exposes profile / auth state,
@@ -32,7 +32,7 @@ const LIFF_ID = import.meta.env.VITE_LIFF_ID ?? '';
  *   - Mock mode stays in the browser and can be configured as signed-in/out.
  *
  * Environment variables:
- *   VITE_LIFF_ID        — required for production; ignored when mock mode is on.
+ *   LINE_LOGIN_LIFF_ID  — required for production; ignored when mock mode is on.
  *   VITE_LIFF_MOCK=true — enables MockLiffAdapter for local development.
  *
  * See apps/web/.env.example for a full reference.

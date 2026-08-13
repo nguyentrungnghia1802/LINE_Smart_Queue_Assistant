@@ -52,8 +52,7 @@ LINE production configuration is intentionally separated by channel:
 | LINE Console source                                        | Variable                                   | Secret              | Where to provide it                    |
 | ---------------------------------------------------------- | ------------------------------------------ | ------------------- | -------------------------------------- |
 | LINE Login channel, Basic settings, Channel ID             | `LINE_LOGIN_CHANNEL_ID`                    | No                  | Server `deploy/.env`                   |
-| LINE Login channel, LIFF app, LIFF ID                      | `LINE_LOGIN_LIFF_ID`                       | No                  | Server `deploy/.env`                   |
-| Same LIFF app ID                                           | `VITE_LIFF_ID`                             | No, browser-visible | Web image build argument               |
+| LINE Login channel, LIFF app, LIFF ID                      | `LINE_LOGIN_LIFF_ID`                       | No, browser-visible | Server `deploy/.env` and Web build arg |
 | Messaging API channel, Basic settings, Channel secret      | `LINE_MESSAGING_CHANNEL_SECRET`            | Yes                 | Server `deploy/.env` or secret manager |
 | Messaging API channel, Messaging API, Channel access token | `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`      | Yes                 | Server `deploy/.env` or secret manager |
 | Messaging API channel, Webhook settings                    | `https://<web-origin>/api/v1/line/webhook` | No                  | LINE Developers Console                |
@@ -73,9 +72,10 @@ variables above; a new value takes precedence over its legacy alias.
 
 For native local API development and the root Compose stack, copy `.env.example` to the repository
 root as `.env`. For the production image-based stack, place runtime values in the untracked
-`deploy/.env` file and invoke Compose with `--env-file deploy/.env`. The public `VITE_LIFF_ID` is
-different: provide it as a web-image build argument (and optionally in `apps/web/.env.local` for a
-native local Vite process). Never place the Messaging API secret or access token in a `VITE_*`
+`deploy/.env` file and invoke Compose with `--env-file deploy/.env`. The public
+`LINE_LOGIN_LIFF_ID` is also provided as a Web-image build argument (and optionally in
+`apps/web/.env.local` for a native local Vite process). Vite explicitly exposes only this public
+non-`VITE_` identifier. Never place the Messaging API secret or access token in a browser build
 variable.
 
 The root `.env.example` is the superset for native development and image builds.
@@ -117,7 +117,7 @@ Browser-visible configuration:
 
 - `VITE_API_URL`
 - `VITE_APP_NAME`
-- `VITE_LIFF_ID`
+- `LINE_LOGIN_LIFF_ID`
 - `VITE_LIFF_ENDPOINT_PATH`
 - `VITE_LIFF_DEFAULT_BOOKING_PATH`
 - payment mode/redirect base URL and webhook timing limits (identifiers/URLs only, never keys)
@@ -138,7 +138,7 @@ external credential set is incomplete. Browser return state never marks a transa
 refunded.
 
 For production web builds, keep `VITE_API_URL` empty, set `VITE_LIFF_ENDPOINT_PATH=/liff`, provide
-a real `VITE_LIFF_ID`, and keep `VITE_LIFF_DEFAULT_BOOKING_PATH` empty for multi-organization
+a real `LINE_LOGIN_LIFF_ID`, and keep `VITE_LIFF_DEFAULT_BOOKING_PATH` empty for multi-organization
 deployments. Frontend request
 paths already start with `/api/v1`; nginx proxies `/api/*` to the internal `api:4000` service and
 preserves that prefix. Setting `VITE_API_URL=/api` would incorrectly produce
@@ -234,7 +234,7 @@ Windows publisher generates one immutable 12-character deployment tag and retain
 the OCI revision metadata:
 
 ```powershell
-$env:VITE_LIFF_ID = '<production-liff-id>'
+$env:LINE_LOGIN_LIFF_ID = '<production-liff-id>'
 pwsh -NoProfile -File deploy/scripts/build-push.ps1
 ```
 
@@ -284,13 +284,13 @@ code does not update an already-pushed tag automatically.
 
 Use `--env-file deploy/.env` when invoking the file from the repository root. Without it, Compose interpolation may read a different `.env` from the current working directory even though the API container's `env_file` is resolved from the deploy directory.
 
-The web image must be built ahead of time with a real public `VITE_LIFF_ID`. The Dockerfile
+The web image must be built ahead of time with a real public `LINE_LOGIN_LIFF_ID`. The Dockerfile
 provides production-safe defaults for the other public values: empty `VITE_API_URL` for
 same-origin routing, `VITE_LIFF_ENDPOINT_PATH=/liff`, empty
 `VITE_LIFF_DEFAULT_BOOKING_PATH`, `VITE_LIFF_MOCK=false`, `VITE_PAYMENT_MODE=demo`, and an empty
 `VITE_PAYMENT_REDIRECT_BASE_URL`. Therefore the normal production build command only needs to
-override `VITE_LIFF_ID`. `VITE_LIFF_ID` must equal the runtime API's
-`LINE_LOGIN_LIFF_ID`; it is
+override `LINE_LOGIN_LIFF_ID`. The same variable is used by the runtime API and compiled into the
+Web image; it is
 compiled into the image and cannot be supplied later through production Compose. In LINE
 Developers Console, set the LIFF endpoint to the deployed HTTPS base path such as
 `https://<web-origin>/liff`. Permanent links then append endpoint-relative paths such as
@@ -775,7 +775,7 @@ Repository-level GitHub Actions variables used by the pre-approval image build:
 | Variable             | Example            | Purpose                             |
 | -------------------- | ------------------ | ----------------------------------- |
 | `DOCKERHUB_USERNAME` | `trungnghia2703`   | Docker Hub image namespace          |
-| `VITE_LIFF_ID`       | LINE Login LIFF ID | Public Web build-time configuration |
+| `LINE_LOGIN_LIFF_ID` | LINE Login LIFF ID | Shared public API/Web configuration |
 
 Repository-level GitHub Actions secret used by the pre-approval image build:
 
@@ -807,7 +807,7 @@ VPS scoped.
 ### Required GitHub repository setup
 
 1. Open **Settings → Secrets and variables → Actions**. Under **Variables**, create
-   `DOCKERHUB_USERNAME` and `VITE_LIFF_ID`. Under **Secrets**, create `DOCKERHUB_TOKEN`; never put
+   `DOCKERHUB_USERNAME` and `LINE_LOGIN_LIFF_ID`. Under **Secrets**, create `DOCKERHUB_TOKEN`; never put
    its value in a variable, workflow, log, or committed env file.
 2. Open **Settings → Environments → production**. Add at least one authorized required reviewer,
    restrict deployment branches/tags to the `main` branch, add `PRODUCTION_DEPLOY_PATH`, and add the

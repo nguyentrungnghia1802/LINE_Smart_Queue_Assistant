@@ -44,7 +44,7 @@ describe('LIFF entry URL', () => {
 
   it('keeps local mock entry on the current web origin even when a real LIFF ID exists', () => {
     vi.stubEnv('VITE_LIFF_MOCK', 'true');
-    vi.stubEnv('VITE_LIFF_ID', '1234567890-AbCdEfGh');
+    vi.stubEnv('LINE_LOGIN_LIFF_ID', '1234567890-AbCdEfGh');
 
     expect(getCustomerLineEntryUrl('/liff/qr/store-token')).toBe('/liff/qr/store-token');
   });

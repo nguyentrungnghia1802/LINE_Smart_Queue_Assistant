@@ -184,7 +184,7 @@ try {
   Assert-ImageRepository -Repository $webRepository -Label 'Web image repository'
 
   if (-not $LiffId) {
-    $LiffId = [Environment]::GetEnvironmentVariable('VITE_LIFF_ID')
+    $LiffId = [Environment]::GetEnvironmentVariable('LINE_LOGIN_LIFF_ID')
   }
   if (-not $LiffId) {
     $LiffId = Read-EnvironmentFileValue -Path $DeployEnvFile -Key 'LINE_LOGIN_LIFF_ID'
@@ -193,7 +193,7 @@ try {
     $LiffId = Read-EnvironmentFileValue -Path $DeployEnvExampleFile -Key 'LINE_LOGIN_LIFF_ID'
   }
   if (-not $LiffId -or $LiffId -like 'replace-with-*') {
-    throw 'LIFF ID is required. Set VITE_LIFF_ID or LINE_LOGIN_LIFF_ID in deploy/.env.'
+    throw 'LIFF ID is required. Set LINE_LOGIN_LIFF_ID or configure it in deploy/.env.'
   }
   if ($LiffId -notmatch '^[A-Za-z0-9._-]+$') {
     throw 'LiffId may contain only letters, numbers, dot, underscore, and hyphen'
@@ -230,7 +230,7 @@ try {
     'build', '--platform', $Platform, '--target', 'runner',
     '--label', "org.opencontainers.image.revision=$gitSha",
     '--build-arg', 'VITE_API_URL=',
-    '--build-arg', "VITE_LIFF_ID=$LiffId",
+    '--build-arg', "LINE_LOGIN_LIFF_ID=$LiffId",
     '--build-arg', 'VITE_LIFF_ENDPOINT_PATH=/liff',
     '--build-arg', 'VITE_LIFF_MOCK=false',
     '--build-arg', 'VITE_PAYMENT_MODE=demo',

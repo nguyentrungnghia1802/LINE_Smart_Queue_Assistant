@@ -19,7 +19,7 @@ interface BranchInfo {
   address_line2: string | null;
 }
 
-const LIFF_ID = import.meta.env.VITE_LIFF_ID as string | undefined;
+const LIFF_ID = import.meta.env.LINE_LOGIN_LIFF_ID as string | undefined;
 
 export function ManagerQRPage({
   endpoint = '/api/v1/branches/me',

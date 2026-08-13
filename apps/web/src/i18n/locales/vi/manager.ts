@@ -164,7 +164,7 @@ export const manager = {
     web: 'Web',
     receptionQr: 'Mã QR tiếp nhận',
     liffMissing:
-      'Chưa cấu hình VITE_LIFF_ID nên QR web đang được dùng để in. Hãy cấu hình LIFF ID trong production.',
+      'Chưa cấu hình LINE_LOGIN_LIFF_ID nên QR web đang được dùng để in. Hãy cấu hình LIFF ID trong production.',
     printPreview: 'Xem trước bản in',
     printHint: 'Bản in chỉ gồm tên cửa hàng, địa chỉ và mã QR.',
     scanHint: 'Quét mã QR để lấy mã lượt',

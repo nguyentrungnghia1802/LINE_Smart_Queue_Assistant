@@ -164,7 +164,7 @@ export const manager = {
     web: 'Web',
     receptionQr: 'Reception QR code',
     liffMissing:
-      'VITE_LIFF_ID is not configured, so the web fallback will be printed. Configure the LIFF ID in production.',
+      'LINE_LOGIN_LIFF_ID is not configured, so the web fallback will be printed. Configure the LIFF ID in production.',
     printPreview: 'Print preview',
     printHint: 'Printing includes only the store name, address, and QR code.',
     scanHint: 'Scan the QR code to get a ticket',

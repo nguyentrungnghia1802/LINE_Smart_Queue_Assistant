@@ -4,6 +4,7 @@ $ErrorActionPreference = 'Stop'
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
 $CiWorkflow = Get-Content -Raw (Join-Path $RepositoryRoot '.github/workflows/ci.yml')
 $DeployWorkflow = Get-Content -Raw (Join-Path $RepositoryRoot '.github/workflows/deploy.yml')
+$RetiredLiffVariable = 'VITE_' + 'LIFF_ID'
 
 function Assert-Matches {
   param(
@@ -54,6 +55,12 @@ Assert-Matches $DeployWorkflow 'ref: \$\{\{ env\.RELEASE_SHA \}\}' `
   'CD must check out the exact validated revision'
 Assert-Matches $DeployWorkflow 'tag="git-\$\{RELEASE_SHA\}"' `
   'CD must derive the immutable image tag from the validated full SHA'
+Assert-Matches $DeployWorkflow 'LINE_LOGIN_LIFF_ID: \$\{\{ vars\.LINE_LOGIN_LIFF_ID \}\}' `
+  'CD must read the canonical public LIFF ID repository variable'
+Assert-Matches $DeployWorkflow 'LINE_LOGIN_LIFF_ID=\$\{\{ vars\.LINE_LOGIN_LIFF_ID \}\}' `
+  'CD must pass the canonical public LIFF ID into the Web image build'
+Assert-DoesNotMatch $DeployWorkflow ([regex]::Escape($RetiredLiffVariable)) `
+  'CD must not use the retired ambiguous LIFF variable name'
 Assert-Matches $DeployWorkflow '(?ms)needs: build-publish.*environment:\s+name: production' `
   'Production approval must occur after immutable images are built and published'
 Assert-Matches $DeployWorkflow '(?ms)concurrency:\s+group: production-deploy\s+cancel-in-progress: false' `

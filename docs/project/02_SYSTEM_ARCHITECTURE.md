@@ -259,7 +259,7 @@ same-browser concurrent-refresh grace period, and treats later replay as comprom
 ### LINE LIFF
 
 1. Customer-facing manager print/copy actions generate permanent links such as `https://liff.line.me/{LIFF_ID}/qr/:token`. The configured endpoint is normally `/liff`, so the additional path is endpoint-relative and must not contain another `/liff`.
-2. Public `/qr` and `/q` routes resolve the requested customer destination and redirect into LINE. LIFF initializes with public `VITE_LIFF_ID`. In real mode, including an external browser, a signed-out customer is automatically sent through LINE Login.
+2. Public `/qr` and `/q` routes resolve the requested customer destination and redirect into LINE. LIFF initializes with the public `LINE_LOGIN_LIFF_ID`. In real mode, including an external browser, a signed-out customer is automatically sent through LINE Login.
 3. After LINE login, the client obtains an OIDC ID token and posts it to `/api/v1/auth/line`.
 4. API verifies it against the configured LINE Login channel ID and may persist the optional verified email claim when the channel has email permission and the address is not already owned.
 5. API finds or creates the customer, links `line_accounts.line_user_id` transactionally, and

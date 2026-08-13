@@ -132,6 +132,13 @@ printf '%s\n' "$build_output"
 grep -Fq "line-smart-queue-api:$release_tag" <<<"$build_output"
 grep -Fq "line-smart-queue-web:$release_tag" <<<"$build_output"
 grep -Fq "org.opencontainers.image.revision=$git_sha" <<<"$build_output"
+grep -Fq 'LINE_LOGIN_LIFF_ID=rehearsal-liff-id' <<<"$build_output"
+retired_liff_variable='VITE_''LIFF_ID'
+if grep -Fq "$retired_liff_variable" <<<"$build_output"; then
+  printf 'Manual build/push plan still uses the retired %s build argument\n' \
+    "$retired_liff_variable" >&2
+  exit 1
+fi
 grep -Fq "DEPLOY_TAG=$release_tag" <<<"$build_output"
 grep -Fq "API_IMAGE=example.invalid/line-queue/line-smart-queue-api:$release_tag" <<<"$build_output"
 grep -Fq "WEB_IMAGE=example.invalid/line-queue/line-smart-queue-web:$release_tag" <<<"$build_output"

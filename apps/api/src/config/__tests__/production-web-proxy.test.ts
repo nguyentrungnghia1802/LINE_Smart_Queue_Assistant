@@ -69,7 +69,7 @@ describe('production web reverse proxy configuration', () => {
     const publicBuildArgs = [
       'VITE_API_URL',
       'VITE_APP_NAME',
-      'VITE_LIFF_ID',
+      'LINE_LOGIN_LIFF_ID',
       'VITE_LIFF_DEFAULT_BOOKING_PATH',
       'VITE_LIFF_ENDPOINT_PATH',
       'VITE_LIFF_MOCK',
@@ -81,6 +81,10 @@ describe('production web reverse proxy configuration', () => {
       expect(dockerfile).toContain(`ARG ${arg}`);
       expect(dockerfile).toContain(`ENV ${arg}=$${arg}`);
     }
+
+    const viteConfig = readRepoFile('apps/web/vite.config.ts');
+    expect(viteConfig).toContain("envPrefix: ['VITE_', 'LINE_LOGIN_LIFF_ID']");
+    expect(viteConfig).not.toContain("envPrefix: ['VITE_', 'LINE_LOGIN_']");
 
     expect(compose).toContain(
       'image: ${LINE_QUEUE_WEB_IMAGE:?LINE_QUEUE_WEB_IMAGE must be set to an immutable Web image}'

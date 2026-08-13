@@ -53,7 +53,7 @@ export function getCustomerLineEntryUrl(route: string): string | null {
   if (import.meta.env.VITE_LIFF_MOCK === 'true') return normalizedRoute;
 
   return buildLiffEntryUrl(
-    import.meta.env.VITE_LIFF_ID,
+    import.meta.env.LINE_LOGIN_LIFF_ID,
     normalizedRoute,
     import.meta.env.VITE_LIFF_ENDPOINT_PATH
   );

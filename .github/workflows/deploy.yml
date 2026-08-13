@@ -33,7 +33,7 @@ jobs:
     env:
       RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
       DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
-      VITE_LIFF_ID: ${{ vars.VITE_LIFF_ID }}
+      LINE_LOGIN_LIFF_ID: ${{ vars.LINE_LOGIN_LIFF_ID }}
     steps:
       - name: 📥 Checkout validated main revision
         uses: actions/checkout@v4
@@ -43,16 +43,16 @@ jobs:
       - name: 🏷️ Resolve immutable image tag
         id: metadata
         run: |
-          if [[ -z "$DOCKERHUB_USERNAME" || -z "$VITE_LIFF_ID" ]]; then
-            echo "DOCKERHUB_USERNAME and VITE_LIFF_ID repository variables are required." >&2
+          if [[ -z "$DOCKERHUB_USERNAME" || -z "$LINE_LOGIN_LIFF_ID" ]]; then
+            echo "DOCKERHUB_USERNAME and LINE_LOGIN_LIFF_ID repository variables are required." >&2
             exit 1
           fi
           if [[ ! "$DOCKERHUB_USERNAME" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$ ]]; then
             echo "DOCKERHUB_USERNAME contains unsupported characters." >&2
             exit 1
           fi
-          if [[ ! "$VITE_LIFF_ID" =~ ^[A-Za-z0-9._-]+$ ]]; then
-            echo "VITE_LIFF_ID contains unsupported characters." >&2
+          if [[ ! "$LINE_LOGIN_LIFF_ID" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "LINE_LOGIN_LIFF_ID contains unsupported characters." >&2
             exit 1
           fi
           tag="git-${RELEASE_SHA}"
@@ -100,7 +100,7 @@ jobs:
           push: true
           build-args: |
             VITE_API_URL=
-            VITE_LIFF_ID=${{ vars.VITE_LIFF_ID }}
+            LINE_LOGIN_LIFF_ID=${{ vars.LINE_LOGIN_LIFF_ID }}
             VITE_LIFF_MOCK=false
             VITE_PAYMENT_MODE=demo
             VITE_SENTRY_RELEASE=${{ env.RELEASE_SHA }}
