@@ -22,7 +22,6 @@ require bash
 require git
 require grep
 require pwsh
-require rg
 
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/line-queue-deploy-config.XXXXXX")
 cleanup() {
@@ -101,8 +100,17 @@ COMPOSE_ENV_PROBE="$test_root/compose-env.txt" PATH="$test_root/bin:$PATH" \
   bash -c 'source "$1"; compose config -q' _ "$BACKUP_COMMON"
 [[ $(cat "$test_root/compose-env.txt") == $'unset\tunset\tunset\tunset' ]]
 
-if rg -n '(^|[[:space:]])(source|\.)[[:space:]]+[^#]*\.env' \
-  "$REPO_ROOT/deploy" --glob '*.sh' --glob '*.ps1' >/dev/null; then
+env_source_pattern='(^|[[:space:]])(source|\.)[[:space:]]+[^#]*\.env'
+mkdir -p "$test_root/source-scan"
+printf '%s\n' 'source deploy/.env' > "$test_root/source-scan/unsafe.sh"
+if ! grep -R -E --include='*.sh' --include='*.ps1' \
+  "$env_source_pattern" "$test_root/source-scan" >/dev/null; then
+  printf 'Environment-source safety scan did not detect its unsafe fixture\n' >&2
+  exit 1
+fi
+
+if grep -R -n -E --include='*.sh' --include='*.ps1' \
+  "$env_source_pattern" "$REPO_ROOT/deploy" >/dev/null; then
   printf 'Deployment tooling must parse selected keys and never source an environment file\n' >&2
   exit 1
 fi
