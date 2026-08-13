@@ -32,6 +32,19 @@ function Assert-DoesNotMatch {
   }
 }
 
+function Assert-MatchCount {
+  param(
+    [Parameter(Mandatory)] [string] $Content,
+    [Parameter(Mandatory)] [string] $Pattern,
+    [Parameter(Mandatory)] [int] $Expected,
+    [Parameter(Mandatory)] [string] $Message
+  )
+
+  if ([regex]::Matches($Content, $Pattern).Count -ne $Expected) {
+    throw $Message
+  }
+}
+
 Assert-Matches $CiWorkflow '(?ms)^on:\s+push:\s+branches: \[main\]\s+pull_request:\s+branches: \[main\]' `
   'CI must validate pushes to main and pull requests targeting main'
 Assert-DoesNotMatch $CiWorkflow 'chore/dev|branches:\s*\[''" ]*\*\*' `
@@ -85,6 +98,14 @@ Assert-Matches $ReleaseJob 'require_value DOCKERHUB_TOKEN "\$DOCKERHUB_TOKEN"' `
   'CD must validate all protected production configuration before publishing images'
 Assert-DoesNotMatch $DeployWorkflow '(?m)^  (build-publish|deploy):|needs: build-publish' `
   'CD must not split production credentials across separately approved jobs'
+Assert-Matches $ReleaseJob 'tar -tzf "\$RUNNER_TEMP/deploy-tooling\.tar\.gz" >/dev/null' `
+  'CD must verify the deployment tooling archive before transfer'
+Assert-MatchCount $ReleaseJob 'resolve_project_root\(\)' 2 `
+  'Both remote phases must normalize the configured deployment path independently'
+Assert-Matches $ReleaseJob '(?ms)-f "\$configured/deploy/\.env".*?"\$configured" == \*/deploy.*?-f "\$configured/\.env"' `
+  'CD must accept either the project root or its deploy directory'
+Assert-DoesNotMatch $ReleaseJob 'test -f "\$DEPLOY_PATH/deploy/\.env"|cd "\$DEPLOY_PATH"' `
+  'CD must not append deploy to an already normalized production path'
 Assert-Matches $DeployWorkflow '(?ms)concurrency:\s+group: production-deploy\s+cancel-in-progress: false' `
   'Production releases must be serialized without canceling an in-flight deployment'
 Assert-Matches $DeployWorkflow 'deploy/backup/deploy-safe\.sh "\$IMAGE_TAG"' `
