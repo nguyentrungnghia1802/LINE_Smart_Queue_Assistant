@@ -750,7 +750,9 @@ revision. It splits the validation gate into independent jobs so failures are ea
 
 The API tests, migration smoke, and browser E2E jobs use separate PostgreSQL services. Browser E2E
 waits for the earlier quality and Compose jobs, applies migrations, loads only the explicit browser
-fixtures, and then starts the API/Web test servers. CI uses PostgreSQL 16 and does not receive real
+fixtures, and then runs desktop and mobile Playwright projects sequentially with fresh API/Web test
+servers for each project. This prevents one viewport suite from exhausting the next suite's
+in-memory request budget without weakening the application rate-limit policy. CI uses PostgreSQL 16 and does not receive real
 LINE, PSP, SMTP, SSH, or customer credentials. `npm run audit:ci` blocks new high/critical
 advisories in production dependencies and keeps its single narrow, reviewed exception in
 `audit-ci.jsonc`.

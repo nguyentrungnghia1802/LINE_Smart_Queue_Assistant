@@ -26,7 +26,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.eslint.json && npm run typecheck --workspaces --if-present",
     "openapi:check": "npm run openapi:check -w apps/api",
     "e2e": "npm run build -w packages/shared && npm run build -w apps/api && playwright test --project=desktop-chromium",
-    "e2e:all": "npm run build -w packages/shared && npm run build -w apps/api && playwright test",
+    "e2e:all": "npm run build -w packages/shared && npm run build -w apps/api && playwright test --project=desktop-chromium && playwright test --project=mobile-chromium",
     "e2e:install": "playwright install chromium",
     "spell:check": "cspell \"**/*.{ts,tsx,md}\" --no-progress --show-context",
     "clean": "npm run clean --workspaces --if-present",

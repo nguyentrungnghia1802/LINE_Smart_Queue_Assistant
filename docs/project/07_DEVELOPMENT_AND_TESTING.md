@@ -322,7 +322,9 @@ manual immutable release/runtime-DNS rehearsal, isolated backup/restore rehearsa
 The API tests,
 migration smoke, and browser E2E jobs each
 use their own PostgreSQL service. Browser E2E prepares its own database and loads the explicit
-browser-only fixtures before starting Playwright. The E2E job waits for the static, unit, contract,
+browser-only fixtures before starting Playwright. `npm run e2e:all` runs the desktop and mobile
+projects sequentially in separate Playwright processes, so each viewport suite gets fresh API/Web
+test servers and cannot inherit another suite's in-memory rate-limit state. The E2E job waits for the static, unit, contract,
 Compose, migration, and build jobs, so it does not hide an earlier failure behind a browser timeout.
 
 `npm run audit:ci` audits dependencies shipped to production and fails on new
