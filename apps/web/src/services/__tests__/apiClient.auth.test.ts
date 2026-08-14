@@ -1,7 +1,7 @@
 import { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { apiClient, ApiClientError, get } from '../apiClient';
+import { apiClient, ApiClientError, del, get } from '../apiClient';
 
 const auth = vi.hoisted(() => ({
   token: 'expired-token' as string | null,
@@ -141,6 +141,32 @@ describe('apiClient authentication interceptor', () => {
     await expect(get('/api/v1/public')).rejects.toMatchObject({
       code: 'UNKNOWN',
       status: 429,
+    });
+  });
+});
+
+describe('apiClient delete helper', () => {
+  beforeEach(() => {
+    auth.token = null;
+  });
+
+  it('treats a 204 No Content response as a successful void result', async () => {
+    apiClient.defaults.adapter = async (config) => ({
+      data: '',
+      status: 204,
+      statusText: 'No Content',
+      headers: {},
+      config,
+    });
+
+    await expect(del('/api/v1/admin/organizations/organization-id')).resolves.toBeUndefined();
+  });
+
+  it('still unwraps content returned by a delete endpoint', async () => {
+    apiClient.defaults.adapter = (config) => success(config, { deletedSnapshots: 2 });
+
+    await expect(del<{ deletedSnapshots: number }>('/api/v1/line/location-data')).resolves.toEqual({
+      deletedSnapshots: 2,
     });
   });
 });
