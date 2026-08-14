@@ -145,6 +145,7 @@ export async function put<T>(url: string, data?: unknown, config?: AxiosRequestC
 
 export async function del<T = void>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const res = await apiClient.delete<ApiResponse<T>>(url, config);
+  if (res.status === 204) return undefined as T;
   return unwrap(res.data);
 }
 
