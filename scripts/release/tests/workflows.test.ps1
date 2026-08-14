@@ -6,6 +6,10 @@ $CiWorkflow = Get-Content -Raw (Join-Path $RepositoryRoot '.github/workflows/ci.
 $DeployWorkflow = Get-Content -Raw (Join-Path $RepositoryRoot '.github/workflows/deploy.yml')
 $AllWorkflows = "$CiWorkflow`n$DeployWorkflow"
 $ReleaseJob = [regex]::Match($DeployWorkflow, '(?ms)^  release:.*').Value
+$MediaPersistenceJob = [regex]::Match(
+  $CiWorkflow,
+  '(?ms)^  media-persistence:.*?(?=^  release-tooling:)'
+).Value
 $RetiredLiffVariable = 'VITE_' + 'LIFF_ID'
 
 function Assert-Matches {
@@ -67,6 +71,14 @@ Assert-Matches $DeployWorkflow 'docker/build-push-action@v7' `
   'CD must use the Node 24 Docker build and push action'
 Assert-DoesNotMatch $AllWorkflows '(?:actions/checkout|actions/setup-node)@v[1-6]\b|gitleaks/gitleaks-action@v[12]\b|docker/setup-buildx-action@v[1-3]\b|docker/login-action@v[1-3]\b|docker/build-push-action@v[1-6]\b' `
   'Workflows must not retain action majors that use a deprecated Node runtime'
+Assert-Matches $MediaPersistenceJob 'max_attempts=3' `
+  'The media persistence image build must bound transient registry retries'
+Assert-Matches $MediaPersistenceJob 'unexpected status\.\*\(429\|500\|502\|503\|504\)' `
+  'The media persistence image build must recognize transient registry HTTP failures'
+Assert-Matches $MediaPersistenceJob 'Non-transient Docker build failure; not retrying\.' `
+  'The media persistence image build must fail immediately for real build errors'
+Assert-DoesNotMatch $MediaPersistenceJob 'continue-on-error' `
+  'The media persistence gate must never hide an exhausted or permanent build failure'
 
 Assert-Matches $DeployWorkflow '(?ms)^on:\s+workflow_run:\s+workflows: \[''CI Quality Gates''\]\s+types: \[completed\]\s+branches: \[main\]' `
   'CD must be triggered only after completion of the main CI workflow'

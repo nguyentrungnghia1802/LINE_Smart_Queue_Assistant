@@ -105,7 +105,31 @@ jobs:
         with:
           node-version-file: .nvmrc
       - name: 🐳 Build production API runner
-        run: docker build --target runner -t line-smart-queue-api:media-persistence-validation -f docker/api/Dockerfile .
+        run: |
+          set -o pipefail
+          max_attempts=3
+          build_log="$RUNNER_TEMP/media-persistence-image-build.log"
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            : > "$build_log"
+            if docker build --target runner -t line-smart-queue-api:media-persistence-validation -f docker/api/Dockerfile . 2>&1 | tee "$build_log"; then
+              exit 0
+            fi
+
+            if ! grep -Eqi '(unexpected status.*(429|500|502|503|504)|(429|500|502|503|504) (Bad Gateway|Internal Server Error|Service Unavailable|Gateway Timeout|Too Many Requests)|TLS handshake timeout|i/o timeout|connection reset by peer|temporary failure|unexpected EOF|failed to do request.*(timeout|EOF))' "$build_log"; then
+              echo '::error::Non-transient Docker build failure; not retrying.'
+              exit 1
+            fi
+
+            if (( attempt == max_attempts )); then
+              echo "::error::Docker registry/network failure persisted after ${max_attempts} attempts."
+              exit 1
+            fi
+
+            delay=$((attempt * 15))
+            echo "::warning::Transient Docker registry/network failure on attempt ${attempt}/${max_attempts}; retrying in ${delay}s."
+            sleep "$delay"
+          done
       - name: 💾 Verify named-volume persistence across container recreation
         run: npm run media:persistence:verify
 
