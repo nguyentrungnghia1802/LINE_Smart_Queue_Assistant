@@ -737,6 +737,7 @@ revision. It splits the validation gate into independent jobs so failures are ea
 - dependency audit;
 - formatting, spelling, lint, type-check, and OpenAPI contract checks;
 - development, validation, and production Compose configuration checks;
+- production API image build plus named-volume media persistence across container recreation;
 - API tests with coverage thresholds;
 - Web/shared tests;
 - clean PostgreSQL migration/status and repeated administrator seed smoke;
@@ -753,6 +754,11 @@ fixtures, and then starts the API/Web test servers. CI uses PostgreSQL 16 and do
 LINE, PSP, SMTP, SSH, or customer credentials. `npm run audit:ci` blocks new high/critical
 advisories in production dependencies and keeps its single narrow, reviewed exception in
 `audit-ci.jsonc`.
+
+The media-persistence image build retries at most three times when Docker output identifies a
+transient registry or network failure such as HTTP `429`/`5xx`, a TLS timeout, connection reset, or
+unexpected EOF. Non-transient Dockerfile/build failures stop immediately, and an exhausted retry
+still fails the CI gate; the retry policy never converts a failed validation into success.
 
 Production delivery is automatic after validated `main`, backup-gated, and environment-gated.
 `.github/workflows/deploy.yml` listens only for a successful same-repository `CI Quality Gates`
