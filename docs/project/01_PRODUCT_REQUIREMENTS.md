@@ -279,6 +279,9 @@ Notification operations authorization is server-derived: platform Admin and Orga
   wrapping. Descriptive columns may use the remaining space and truncate oversized values with the
   complete value available on hover. Narrow screens use the corresponding card layout instead of
   compressing desktop actions into unreadable rows.
+- The Admin organization detail heading displays at most 40 characters, appends `...` when the
+  stored name is longer, and keeps the complete organization name available on hover and to
+  assistive technology.
 - Authenticated navigation keeps the account name readable without an avatar: long names use a
   smaller label, wrap to at most two lines, and only then truncate. The account trigger and chevron
   retain stable dimensions across supported viewport sizes.

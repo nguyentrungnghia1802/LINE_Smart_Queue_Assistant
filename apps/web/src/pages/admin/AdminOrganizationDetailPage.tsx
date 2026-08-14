@@ -22,6 +22,15 @@ interface OwnerManager {
   is_active: boolean;
 }
 
+const ORGANIZATION_NAME_DISPLAY_LIMIT = 40;
+
+function truncateOrganizationName(name: string) {
+  const characters = Array.from(name);
+  return characters.length > ORGANIZATION_NAME_DISPLAY_LIMIT
+    ? `${characters.slice(0, ORGANIZATION_NAME_DISPLAY_LIMIT).join('')}...`
+    : name;
+}
+
 export function AdminOrganizationDetailPage() {
   const { t } = useTranslation(['admin', 'common', 'marketing']);
   const { orgId = '' } = useParams();
@@ -102,11 +111,17 @@ export function AdminOrganizationDetailPage() {
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
             {t('labels.organization', { ns: 'common' })}
           </p>
-          <h1 className="mt-2 text-3xl font-bold text-gray-950">{org.name}</h1>
+          <h1
+            aria-label={org.name}
+            title={org.name}
+            className="mt-2 [overflow-wrap:anywhere] text-3xl font-bold text-gray-950"
+          >
+            {truncateOrganizationName(org.name)}
+          </h1>
           <div className="mt-2">
             <OrganizationStatusBadge status={org.activation_status} />
           </div>

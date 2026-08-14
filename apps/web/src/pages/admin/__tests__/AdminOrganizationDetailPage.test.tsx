@@ -109,4 +109,14 @@ describe('AdminOrganizationDetailPage suspension', () => {
     expect(screen.getByText('Contract ended on 31 August')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '利用を停止' })).not.toBeInTheDocument();
   });
+
+  it('truncates organization names longer than 40 characters in the detail heading', async () => {
+    const visiblePrefix = '1234567890123456789012345678901234567890';
+    const longName = `${visiblePrefix}Extended organization name`;
+    renderPage({ ...activeOrganization, name: longName });
+
+    const heading = await screen.findByRole('heading', { name: longName });
+    expect(heading).toHaveTextContent(`${visiblePrefix}...`);
+    expect(heading).toHaveAttribute('title', longName);
+  });
 });
