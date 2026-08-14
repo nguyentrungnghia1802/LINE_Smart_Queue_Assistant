@@ -215,8 +215,9 @@ paths and `_form` for non-field issues.
 | `000026`          | Durable BullMQ notification dispatch ownership, retry, recovery fields, and due/claim indexes            |
 | `000027`          | Nullable next-retry timestamp after notification dispatch completes                                      |
 | `000028`          | LIFF friendship as a valid LINE notification consent source                                              |
+| `000029`          | Controlled organization suspension reason and optional operator note                                     |
 
-After `000028`, the reset schema contains 44 application tables, 602 application column
+After `000029`, the reset schema contains 44 application tables, 604 application column
 signatures, and 188 application index definitions; the `pgmigrations` bookkeeping table is not
 included in those counts. `branch_memberships.queue_id` is nullable for managers, required for
 active Staff, references a queue in the same organization and branch, and has a partial unique

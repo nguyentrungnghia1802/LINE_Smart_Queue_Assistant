@@ -86,6 +86,9 @@ beforeEach(() => {
     payment_info: null,
     public_qr_token: null,
     is_active: true,
+    activation_status: 'active',
+    suspension_reason: null,
+    suspension_note: null,
     created_at: new Date(),
     updated_at: new Date(),
   });

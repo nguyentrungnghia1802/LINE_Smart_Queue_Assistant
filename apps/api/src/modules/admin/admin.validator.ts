@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+import {
+  ORGANIZATION_SUSPENSION_NOTE_MAX_LENGTH,
+  ORGANIZATION_SUSPENSION_REASONS,
+} from '@line-queue/shared';
+
 import { JapanesePhoneSchema } from '../shared/shared.validator';
 
 export const AdminOrgIdParamSchema = z.object({
@@ -68,7 +73,20 @@ export const UpdateOwnerEmailSchema = z
   })
   .strict();
 
+export const SuspendOrganizationSchema = z
+  .object({
+    reason: z.enum(ORGANIZATION_SUSPENSION_REASONS),
+    note: z
+      .string()
+      .trim()
+      .max(ORGANIZATION_SUSPENSION_NOTE_MAX_LENGTH)
+      .transform((value) => value || undefined)
+      .optional(),
+  })
+  .strict();
+
 export type CreateManagerDto = z.infer<typeof CreateManagerSchema>;
 export type CreateOrganizationDto = z.infer<typeof CreateOrganizationSchema>;
 export type UpdateOwnerEmailDto = z.infer<typeof UpdateOwnerEmailSchema>;
 export type UpdateOrganizationDto = z.infer<typeof UpdateOrganizationSchema>;
+export type SuspendOrganizationDto = z.infer<typeof SuspendOrganizationSchema>;

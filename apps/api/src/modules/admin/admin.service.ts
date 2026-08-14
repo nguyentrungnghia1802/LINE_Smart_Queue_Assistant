@@ -6,11 +6,11 @@ import { authSessionService } from '../auth/auth-session.service';
 import { organizationApplicationsRepository } from '../organization-applications/organization-applications.repository';
 import { toUserResponse } from '../users/user-response';
 
-import { UpdateOwnerEmailDto } from './admin.validator';
+import { SuspendOrganizationDto, UpdateOwnerEmailDto } from './admin.validator';
 
 export const adminService = {
   async listOrganizations() {
-    const organizations = await organizationsRepository.listActive();
+    const organizations = await organizationsRepository.listForAdmin();
     return organizations.map((organization) => ({
       ...organization,
       subscription_plan:
@@ -25,10 +25,24 @@ export const adminService = {
     return organizationApplicationsRepository.getAdminDashboard();
   },
 
-  async removeOrganization(orgId: string, actorId: string) {
-    const org = await organizationsRepository.findById(orgId);
-    if (!org) throw AppError.notFound('Organization not found');
-    await withTransaction(async (client) => {
+  async suspendOrganization(orgId: string, actorId: string, dto: SuspendOrganizationDto) {
+    return withTransaction(async (client) => {
+      const organizationResult = await client.query<{
+        activation_status: 'pending_activation' | 'active' | 'suspended';
+        is_active: boolean;
+      }>(
+        `SELECT activation_status, is_active
+         FROM organizations
+         WHERE id = $1
+         FOR UPDATE`,
+        [orgId]
+      );
+      const organization = organizationResult.rows[0];
+      if (!organization) throw AppError.notFound('Organization');
+      if (!organization.is_active || organization.activation_status !== 'active') {
+        throw AppError.conflict('Only an active organization can be suspended');
+      }
+
       const members = await client.query<{ user_id: string }>(
         `SELECT user_id FROM organization_members
          WHERE organization_id = $1
@@ -38,9 +52,13 @@ export const adminService = {
       const userIds = members.rows.map((member) => member.user_id);
       await client.query(
         `UPDATE organizations
-         SET is_active = FALSE, activation_status = 'suspended', updated_at = NOW()
+         SET is_active = FALSE,
+             activation_status = 'suspended',
+             suspension_reason = $2,
+             suspension_note = $3,
+             updated_at = NOW()
          WHERE id = $1`,
-        [orgId]
+        [orgId, dto.reason, dto.note ?? null]
       );
       await client.query(
         `UPDATE organization_branches SET is_active = FALSE, updated_at = NOW()
@@ -83,14 +101,29 @@ export const adminService = {
       await client.query(
         `INSERT INTO audit_logs
            (actor_id, action, resource_type, resource_id, organization_id, changes)
-         VALUES ($1,'organization.deactivate','organization',$2,$2,$3)`,
-        [actorId, orgId, JSON.stringify({ deactivatedUserCount: userIds.length })]
+         VALUES ($1,'organization.suspend','organization',$2,$2,$3)`,
+        [
+          actorId,
+          orgId,
+          JSON.stringify({
+            reason: dto.reason,
+            note: dto.note ?? null,
+            deactivatedUserCount: userIds.length,
+          }),
+        ]
       );
+
+      return {
+        id: orgId,
+        activationStatus: 'suspended' as const,
+        suspensionReason: dto.reason,
+        suspensionNote: dto.note ?? null,
+      };
     });
   },
 
   async listManagers(orgId: string) {
-    const org = await organizationsRepository.findById(orgId);
+    const org = await organizationsRepository.findByIdForAdmin(orgId);
     if (!org) throw AppError.notFound('Organization not found');
     const owner = await usersRepository.findOrganizationOwner(orgId);
     return owner ? [toUserResponse(owner)] : [];

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
-import type { SupportedLocale } from '@line-queue/shared';
+import type { OrganizationSuspensionReason, SupportedLocale } from '@line-queue/shared';
 import { API_BASE_PATH } from '@line-queue/shared';
 
 import { Pagination } from '../../components/ui/Pagination';
@@ -22,7 +22,14 @@ export interface OrgRow {
   created_at?: string;
   default_locale: SupportedLocale;
   subscription_plan: 'starter' | 'standard' | 'scale';
+  is_active: boolean;
+  activation_status: 'pending_activation' | 'active' | 'suspended';
+  suspension_reason: OrganizationSuspensionReason | null;
+  suspension_note: string | null;
 }
+
+const ORGANIZATION_STATUS_FILTERS = ['active', 'suspended', 'all'] as const;
+type OrganizationStatusFilter = (typeof ORGANIZATION_STATUS_FILTERS)[number];
 
 export function AdminOrganizationsPage() {
   const { t } = useTranslation(['admin', 'common']);
@@ -31,16 +38,18 @@ export function AdminOrganizationsPage() {
     queryFn: () => get<OrgRow[]>(`${API_BASE_PATH}/admin/organizations`),
   });
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<OrganizationStatusFilter>('active');
   const [page, setPage] = useState(1);
   const visibleOrganizations = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return orgs.filter(
       (org) =>
-        !query ||
-        org.name.toLocaleLowerCase().includes(query) ||
-        org.slug.toLocaleLowerCase().includes(query)
+        (statusFilter === 'all' || org.activation_status === statusFilter) &&
+        (!query ||
+          org.name.toLocaleLowerCase().includes(query) ||
+          org.slug.toLocaleLowerCase().includes(query))
     );
-  }, [orgs, search]);
+  }, [orgs, search, statusFilter]);
   const pageOrganizations = visibleOrganizations.slice((page - 1) * 15, page * 15);
 
   return (
@@ -57,30 +66,57 @@ export function AdminOrganizationsPage() {
           {t('applications.viewApplications')}
         </Link>
       </div>
-      <label className="flex max-w-xl items-center gap-2 rounded-lg border border-gray-300 bg-white px-3">
-        <Search className="h-4 w-4 text-gray-400" aria-hidden="true" />
-        <span className="sr-only">{t('organizations.search')}</span>
-        <input
-          type="search"
-          name="organizationSearch"
-          maxLength={160}
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(1);
-          }}
-          placeholder={t('organizations.searchPlaceholder')}
-          className="min-w-0 flex-1 border-0 py-2.5 text-sm outline-none"
-        />
-      </label>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div
+          role="group"
+          aria-label={t('organizations.filters.label')}
+          className="flex w-fit rounded-lg border border-gray-200 bg-white p-1"
+        >
+          {ORGANIZATION_STATUS_FILTERS.map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              aria-pressed={statusFilter === filter}
+              onClick={() => {
+                setStatusFilter(filter);
+                setPage(1);
+              }}
+              className={`rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+                statusFilter === filter
+                  ? 'bg-gray-950 text-white'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {t(`organizations.filters.${filter}`)}
+            </button>
+          ))}
+        </div>
+        <label className="flex w-full max-w-xl items-center gap-2 rounded-lg border border-gray-300 bg-white px-3">
+          <Search className="h-4 w-4 text-gray-400" aria-hidden="true" />
+          <span className="sr-only">{t('organizations.search')}</span>
+          <input
+            type="search"
+            name="organizationSearch"
+            maxLength={160}
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder={t('organizations.searchPlaceholder')}
+            className="min-w-0 flex-1 border-0 py-2.5 text-sm outline-none"
+          />
+        </label>
+      </div>
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-        <div className="grid grid-cols-[48px_64px_minmax(0,1fr)_160px_160px] gap-3 border-b border-gray-100 px-4 py-3 text-xs font-medium text-gray-500 max-md:hidden">
+        <div className="grid grid-cols-[48px_64px_minmax(0,1fr)_140px_140px_128px] gap-3 border-b border-gray-100 px-4 py-3 text-xs font-medium text-gray-500 max-md:hidden">
           <span>{t('labels.number', { ns: 'common' })}</span>
           <span>{t('organizations.logo')}</span>
           <span>{t('organizations.name')}</span>
           <span>{t('organizations.slug')}</span>
           <span>{t('labels.phone', { ns: 'common' })}</span>
+          <span>{t('organizations.status')}</span>
         </div>
 
         {isLoading ? (
@@ -96,7 +132,7 @@ export function AdminOrganizationsPage() {
               <Link
                 key={org.id}
                 to={`/admin/orgs/${org.id}`}
-                className="grid grid-cols-[32px_56px_minmax(0,1fr)] items-center gap-3 px-4 py-4 hover:bg-gray-50 md:grid-cols-[48px_64px_minmax(0,1fr)_160px_160px]"
+                className="grid grid-cols-[32px_56px_minmax(0,1fr)] items-center gap-3 px-4 py-4 hover:bg-gray-50 md:grid-cols-[48px_64px_minmax(0,1fr)_140px_140px_128px]"
               >
                 <span className="self-center text-left text-sm text-gray-500">
                   {(page - 1) * 15 + index + 1}
@@ -110,12 +146,18 @@ export function AdminOrganizationsPage() {
                   <div className="mt-1 truncate text-xs text-gray-500 md:hidden">
                     {org.phone || t('organizations.phoneMissing')}
                   </div>
+                  <div className="mt-2 md:hidden">
+                    <OrganizationStatusBadge status={org.activation_status} />
+                  </div>
                 </div>
                 <div className="hidden self-center truncate font-mono text-sm text-gray-600 md:block">
                   {org.slug}
                 </div>
                 <div className="hidden self-center truncate text-sm text-gray-600 md:block">
                   {org.phone || '-'}
+                </div>
+                <div className="hidden self-center md:block">
+                  <OrganizationStatusBadge status={org.activation_status} />
                 </div>
               </Link>
             ))}
@@ -133,6 +175,21 @@ export function AdminOrganizationsPage() {
         }
       />
     </div>
+  );
+}
+
+function OrganizationStatusBadge({ status }: Readonly<{ status: OrgRow['activation_status'] }>) {
+  const { t } = useTranslation('admin');
+  const color =
+    status === 'active'
+      ? 'bg-emerald-50 text-emerald-700'
+      : status === 'suspended'
+        ? 'bg-red-50 text-red-700'
+        : 'bg-amber-50 text-amber-700';
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${color}`}>
+      {t(`organizations.statuses.${status}`)}
+    </span>
   );
 }
 

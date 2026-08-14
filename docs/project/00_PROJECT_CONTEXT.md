@@ -70,6 +70,9 @@ real-money payment or notification platform.
 - Public business onboarding with organization/contact/address/usage/plan details, a work-email
   owner invitation, optional compressed logo, server-calculated demo payment, and admin
   approval/rejection. Applicants do not submit account credentials.
+- Platform Admin organization management defaults to active tenants, can filter suspended/all
+  tenants, and records a required suspension reason plus an optional note while retaining the
+  organization detail and audit history.
 - Organization-level product/service CRUD for owners, including prepayment flag, service duration,
   and active state; stock is branch-owned and may be finite or unlimited, while queue configuration
   owns the queue-to-product catalog mapping.

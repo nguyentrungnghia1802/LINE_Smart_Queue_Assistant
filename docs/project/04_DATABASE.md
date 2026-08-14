@@ -32,6 +32,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 26. `000026_bullmq_notification_dispatch.js`
 27. `000027_notification_dispatch_retry_nullable.js`
 28. `000028_liff_friendship_consent_source.js`
+29. `000029_organization_suspension_details.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -333,9 +334,12 @@ the administrator; it is blocked in production and requires
   are added to the schema. Long-term automated archival remains deferred; production retention is
   an operator policy described in `08_DEPLOYMENT_AND_OPERATIONS.md`.
 
-## 12. Account lifecycle, branch scope, and receipts (migrations 000015-000017)
+## 12. Account lifecycle, branch scope, and receipts (migrations 000015-000017, 000029)
 
 - `organizations.activation_status` separates pending activation, active, and suspended tenants.
+- `organizations.suspension_reason` stores one controlled reason for every suspended tenant;
+  `suspension_note` stores at most 1,000 characters of optional operator context. Migration `000029`
+  backfills legacy suspended rows as `other` and enforces lifecycle/detail consistency.
 - `users.account_status` and invitation/profile fields model invited, active, and disabled business accounts.
 - `organization_members.is_owner` identifies the immutable organization owner manager.
 - `organization_branches` and `branch_memberships` scope managers and staff to physical branches.

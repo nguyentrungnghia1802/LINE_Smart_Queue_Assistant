@@ -39,8 +39,8 @@ Role-aware session settings are non-secret runtime values:
 - `AUTH_SESSION_CLEANUP_INTERVAL_MS=3600000`
 - `AUTH_REVOKED_SESSION_RETENTION_DAYS=7`
 
-Deploy the complete ordered migration history through `000028` before serving the updated API.
-Migrations `000021` through `000028` are additive/normalization changes that preserve business
+Deploy the complete ordered migration history through `000029` before serving the updated API.
+Migrations `000021` through `000029` are additive/normalization changes that preserve business
 data when applied through the forward migration command; they do not require seed/reset. Access
 tokens issued by older releases have no session-family claim and are intentionally rejected; users
 sign in once after rollout. The same-origin production proxy

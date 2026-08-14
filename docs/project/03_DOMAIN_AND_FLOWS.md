@@ -71,6 +71,19 @@ not create a branch or queue. Rejection marks a paid demo application refunded a
 localized applicant email containing the review result and any admin note. Reviewed applications
 cannot be processed twice.
 
+### Organization lifecycle
+
+| Current              | Action                                        | Next        | Actor          |
+| -------------------- | --------------------------------------------- | ----------- | -------------- |
+| `pending_activation` | Complete the single-use owner activation flow | `active`    | Owner manager  |
+| `active`             | Suspend with a reason and optional note       | `suspended` | Platform admin |
+
+Admin suspension accepts only `contract_renewal_cancelled`, `organization_request`, or `other`.
+It retains organization and audit records for Admin inspection while atomically disabling tenant
+accounts, memberships, branches, queues, and products. The current Admin workflow does not expose
+a reactivation transition; reactivation requires a separately defined restoration policy so prior
+resource states are not guessed.
+
 ### Queue
 
 PostgreSQL values are `closed`, `open`, `paused`, and `archived`.
@@ -447,6 +460,9 @@ There is no OpenAI or Gemini call in this flow. Adding a generative-AI API key w
 - Platform-admin owner recovery is limited to replacing the owner manager's sign-in email. The
   owner changes their own display name and password; an admin email change revokes existing owner
   sessions and never grants access to other tenant accounts.
+- Platform Admin organization lists default to `active`, can filter `suspended` or all lifecycle
+  states, and keep suspended organization details readable. Suspension requires a controlled reason
+  plus an optional note and writes immutable audit evidence instead of deleting the tenant record.
 - An owner manager may create branches, edit branch contact/address/map details, and invite one or
   more branch managers. Before activation, the owner may revoke pending invitations as long as at
   least one active or pending manager assignment remains. Every branch retains at least one such

@@ -14,12 +14,13 @@ import {
   getOperationalHealth,
   listManagers,
   listOrganizations,
-  removeOrganization,
+  suspendOrganization,
   updateOwnerEmail,
 } from './admin.controller';
 import {
   AdminOrgIdParamSchema,
   AdminOrgManagerParamSchema,
+  SuspendOrganizationSchema,
   UpdateOwnerEmailSchema,
 } from './admin.validator';
 
@@ -30,11 +31,12 @@ adminRouter.use(requireAuth, requireRole(UserRole.ADMIN));
 adminRouter.get('/dashboard', getDashboard);
 adminRouter.get('/operations/health', getOperationalHealth);
 adminRouter.get('/organizations', listOrganizations);
-adminRouter.delete(
-  '/organizations/:orgId',
+adminRouter.post(
+  '/organizations/:orgId/suspend',
   authenticatedActionRateLimiter,
   validate(AdminOrgIdParamSchema, 'params'),
-  removeOrganization
+  validate(SuspendOrganizationSchema),
+  suspendOrganization
 );
 adminRouter.get(
   '/organizations/:orgId/managers',

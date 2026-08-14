@@ -1,6 +1,7 @@
 import { PoolClient } from 'pg';
 
 import type { SupportedLocale } from '@line-queue/shared';
+import type { OrganizationSuspensionReason } from '@line-queue/shared';
 
 import { BaseRepository } from './base.repository';
 
@@ -28,7 +29,9 @@ export interface OrganizationRow {
   payment_info: string | null;
   public_qr_token: string | null;
   is_active: boolean;
-  activation_status?: 'pending_activation' | 'active' | 'suspended';
+  activation_status: 'pending_activation' | 'active' | 'suspended';
+  suspension_reason: OrganizationSuspensionReason | null;
+  suspension_note: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -81,11 +84,19 @@ export class OrganizationsRepository extends BaseRepository {
     );
   }
 
+  async listForAdmin(): Promise<OrganizationRow[]> {
+    return this.query<OrganizationRow>('SELECT * FROM organizations ORDER BY created_at DESC');
+  }
+
   async findById(id: string): Promise<OrganizationRow | null> {
     return this.queryOne<OrganizationRow>(
       'SELECT * FROM organizations WHERE id = $1 AND is_active = TRUE',
       [id]
     );
+  }
+
+  async findByIdForAdmin(id: string): Promise<OrganizationRow | null> {
+    return this.queryOne<OrganizationRow>('SELECT * FROM organizations WHERE id = $1', [id]);
   }
 
   async findBySlug(slug: string): Promise<OrganizationRow | null> {

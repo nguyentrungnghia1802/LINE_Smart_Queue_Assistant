@@ -152,6 +152,8 @@ CREATE TABLE organizations (
   settings          JSONB NOT NULL DEFAULT '{}',
   is_active         BOOLEAN NOT NULL DEFAULT TRUE,
   activation_status TEXT NOT NULL DEFAULT 'active' CHECK (activation_status IN ('pending_activation','active','suspended')),
+  suspension_reason TEXT,
+  suspension_note   TEXT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -161,7 +163,17 @@ CREATE TABLE organizations (
     CHECK (public_qr_token ~ '^[A-Za-z0-9_-]{8,128}$'),
   CONSTRAINT organizations_latitude_range CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
   CONSTRAINT organizations_longitude_range CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180),
-  CONSTRAINT organizations_postal_code_format CHECK (postal_code IS NULL OR postal_code ~ '^[0-9]{3}-?[0-9]{4}$')
+  CONSTRAINT organizations_postal_code_format CHECK (postal_code IS NULL OR postal_code ~ '^[0-9]{3}-?[0-9]{4}$'),
+  CONSTRAINT organizations_suspension_reason CHECK (
+    suspension_reason IS NULL OR suspension_reason IN ('contract_renewal_cancelled','organization_request','other')
+  ),
+  CONSTRAINT organizations_suspension_note_length CHECK (
+    suspension_note IS NULL OR char_length(suspension_note) <= 1000
+  ),
+  CONSTRAINT organizations_suspension_details CHECK (
+    (activation_status = 'suspended' AND suspension_reason IS NOT NULL)
+    OR (activation_status <> 'suspended' AND suspension_reason IS NULL AND suspension_note IS NULL)
+  )
 );
 
 CREATE TRIGGER trg_organizations_updated_at
