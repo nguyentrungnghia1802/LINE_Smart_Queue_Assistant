@@ -1,11 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
-import { API_BASE_PATH } from '@line-queue/shared';
+import type { OrganizationSuspensionReason } from '@line-queue/shared';
+import {
+  API_BASE_PATH,
+  ORGANIZATION_SUSPENSION_NOTE_MAX_LENGTH,
+  ORGANIZATION_SUSPENSION_REASONS,
+} from '@line-queue/shared';
 
-import { del, get, patch } from '../../services/apiClient';
+import { get, patch, post } from '../../services/apiClient';
 
 import type { OrgRow } from './AdminOrganizationsPage';
 
@@ -20,10 +25,12 @@ interface OwnerManager {
 export function AdminOrganizationDetailPage() {
   const { t } = useTranslation(['admin', 'common', 'marketing']);
   const { orgId = '' } = useParams();
-  const navigate = useNavigate();
   const client = useQueryClient();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [showSuspensionForm, setShowSuspensionForm] = useState(false);
+  const [suspensionReason, setSuspensionReason] = useState<OrganizationSuspensionReason | ''>('');
+  const [suspensionNote, setSuspensionNote] = useState('');
 
   const organizations = useQuery<OrgRow[]>({
     queryKey: ['admin-orgs'],
@@ -58,11 +65,21 @@ export function AdminOrganizationDetailPage() {
       setError(cause instanceof Error ? cause.message : t('organizations.operationFailed')),
   });
 
-  const removeOrganization = useMutation({
-    mutationFn: () => del(`${API_BASE_PATH}/admin/organizations/${orgId}`),
+  const suspendOrganization = useMutation({
+    mutationFn: () => {
+      if (!suspensionReason) throw new Error(t('organizations.suspensionReasonRequired'));
+      const note = suspensionNote.trim();
+      return post(`${API_BASE_PATH}/admin/organizations/${orgId}/suspend`, {
+        reason: suspensionReason,
+        ...(note ? { note } : {}),
+      });
+    },
     onSuccess: () => {
+      setError('');
+      setShowSuspensionForm(false);
+      setSuspensionReason('');
+      setSuspensionNote('');
       void client.invalidateQueries({ queryKey: ['admin-orgs'] });
-      navigate('/admin/orgs', { replace: true });
     },
     onError: (cause) =>
       setError(cause instanceof Error ? cause.message : t('organizations.operationFailed')),
@@ -90,6 +107,9 @@ export function AdminOrganizationDetailPage() {
             {t('labels.organization', { ns: 'common' })}
           </p>
           <h1 className="mt-2 text-3xl font-bold text-gray-950">{org.name}</h1>
+          <div className="mt-2">
+            <OrganizationStatusBadge status={org.activation_status} />
+          </div>
           <p className="mt-1 text-sm text-gray-500">{t('organizations.adminReadOnlyHint')}</p>
         </div>
         <Link
@@ -121,23 +141,116 @@ export function AdminOrganizationDetailPage() {
             <Info label={t('labels.address', { ns: 'common' })} value={org.address ?? '-'} wide />
             <Info label={t('organizations.defaultLocale')} value={org.default_locale ?? 'ja'} />
             <Info
+              label={t('organizations.status')}
+              value={t(`organizations.statuses.${org.activation_status}`)}
+            />
+            <Info
               label={t('organizations.subscriptionPlan')}
               value={t(`pricing.${org.subscription_plan}.name`, { ns: 'marketing' })}
             />
           </dl>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm(t('organizations.deleteConfirm', { name: org.name }))) {
-                removeOrganization.mutate();
-              }
-            }}
-            className="self-start rounded-lg px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50"
-          >
-            {t('organizations.deleteOrganization')}
-          </button>
+          {org.activation_status === 'active' && (
+            <button
+              type="button"
+              onClick={() => {
+                setError('');
+                setShowSuspensionForm(true);
+              }}
+              className="self-start rounded-lg px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50"
+            >
+              {t('organizations.suspendOrganization')}
+            </button>
+          )}
         </div>
       </section>
+
+      {showSuspensionForm && org.activation_status === 'active' && (
+        <form
+          aria-labelledby="organization-suspension-title"
+          onSubmit={(event) => {
+            event.preventDefault();
+            suspendOrganization.mutate();
+          }}
+          className="rounded-lg border border-red-200 bg-red-50 p-5"
+        >
+          <h2 id="organization-suspension-title" className="font-bold text-gray-950">
+            {t('organizations.suspensionFormTitle')}
+          </h2>
+          <p className="mt-1 text-sm text-gray-600">
+            {t('organizations.suspensionFormDescription', { name: org.name })}
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <label className="text-sm font-medium text-gray-700">
+              {t('organizations.suspensionReason')}
+              <select
+                name="suspensionReason"
+                required
+                value={suspensionReason}
+                onChange={(event) =>
+                  setSuspensionReason(event.target.value as OrganizationSuspensionReason | '')
+                }
+                className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm"
+              >
+                <option value="">{t('organizations.suspensionReasonPlaceholder')}</option>
+                {ORGANIZATION_SUSPENSION_REASONS.map((reason) => (
+                  <option key={reason} value={reason}>
+                    {t(`organizations.suspensionReasons.${reason}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm font-medium text-gray-700">
+              {t('organizations.suspensionNote')}
+              <textarea
+                name="suspensionNote"
+                maxLength={ORGANIZATION_SUSPENSION_NOTE_MAX_LENGTH}
+                value={suspensionNote}
+                onChange={(event) => setSuspensionNote(event.target.value)}
+                placeholder={t('organizations.suspensionNotePlaceholder')}
+                rows={4}
+                className="mt-1 w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm"
+              />
+            </label>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={!suspensionReason || suspendOrganization.isPending}
+              className="rounded-lg bg-red-700 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {t('organizations.confirmSuspension')}
+            </button>
+            <button
+              type="button"
+              disabled={suspendOrganization.isPending}
+              onClick={() => {
+                setShowSuspensionForm(false);
+                setSuspensionReason('');
+                setSuspensionNote('');
+              }}
+              className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 disabled:opacity-50"
+            >
+              {t('organizations.cancelSuspension')}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {org.activation_status === 'suspended' && org.suspension_reason && (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-5">
+          <h2 className="font-bold text-gray-950">{t('organizations.suspensionDetails')}</h2>
+          <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+            <Info
+              label={t('organizations.suspensionReason')}
+              value={t(`organizations.suspensionReasons.${org.suspension_reason}`)}
+            />
+            <Info
+              label={t('organizations.suspensionNote')}
+              value={org.suspension_note || t('organizations.suspensionNoteEmpty')}
+            />
+          </dl>
+        </section>
+      )}
 
       <form
         onSubmit={(event) => {
@@ -181,6 +294,21 @@ export function AdminOrganizationDetailPage() {
         )}
       </form>
     </div>
+  );
+}
+
+function OrganizationStatusBadge({ status }: Readonly<{ status: OrgRow['activation_status'] }>) {
+  const { t } = useTranslation('admin');
+  const color =
+    status === 'active'
+      ? 'bg-emerald-50 text-emerald-700'
+      : status === 'suspended'
+        ? 'bg-red-50 text-red-700'
+        : 'bg-amber-50 text-amber-700';
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${color}`}>
+      {t(`organizations.statuses.${status}`)}
+    </span>
   );
 }
 

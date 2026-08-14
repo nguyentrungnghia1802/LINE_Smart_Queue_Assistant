@@ -1,5 +1,8 @@
+import type { PoolClient } from 'pg';
+
 import { organizationsRepository } from '../../../db/repositories/organizations.repository';
 import { usersRepository } from '../../../db/repositories/users.repository';
+import { withTransaction } from '../../../db/transaction';
 import { authSessionService } from '../../auth/auth-session.service';
 import { organizationApplicationsRepository } from '../../organization-applications/organization-applications.repository';
 import { adminService } from '../admin.service';
@@ -10,9 +13,13 @@ jest.mock('../../../db/transaction');
 jest.mock('../../auth/auth-session.service');
 jest.mock('../../organization-applications/organization-applications.repository');
 
-const mockListActive = organizationsRepository.listActive as jest.MockedFunction<
-  typeof organizationsRepository.listActive
+const mockListForAdmin = organizationsRepository.listForAdmin as jest.MockedFunction<
+  typeof organizationsRepository.listForAdmin
 >;
+const mockFindOrganizationForAdmin =
+  organizationsRepository.findByIdForAdmin as jest.MockedFunction<
+    typeof organizationsRepository.findByIdForAdmin
+  >;
 const mockGetAdminDashboard =
   organizationApplicationsRepository.getAdminDashboard as jest.MockedFunction<
     typeof organizationApplicationsRepository.getAdminDashboard
@@ -32,6 +39,9 @@ const mockUpdateProfile = usersRepository.updateProfile as jest.MockedFunction<
 const mockRevokeAllForUser = authSessionService.revokeAllForUser as jest.MockedFunction<
   typeof authSessionService.revokeAllForUser
 >;
+const mockFindOrganizationOwner = usersRepository.findOrganizationOwner as jest.MockedFunction<
+  typeof usersRepository.findOrganizationOwner
+>;
 
 describe('adminService dashboard and organization plans', () => {
   beforeEach(() => {
@@ -39,7 +49,7 @@ describe('adminService dashboard and organization plans', () => {
   });
 
   it('normalizes the organization subscription plan for admin lists', async () => {
-    mockListActive.mockResolvedValue([
+    mockListForAdmin.mockResolvedValue([
       { id: 'starter-org', settings: {} },
       { id: 'standard-org', settings: { subscriptionPlan: 'standard' } },
       { id: 'scale-org', settings: { subscriptionPlan: 'scale' } },
@@ -52,6 +62,104 @@ describe('adminService dashboard and organization plans', () => {
       expect.objectContaining({ id: 'scale-org', subscription_plan: 'scale' }),
       expect.objectContaining({ id: 'invalid-org', subscription_plan: 'starter' }),
     ]);
+  });
+
+  it('lists suspended organizations for the admin status filters', async () => {
+    mockListForAdmin.mockResolvedValue([
+      {
+        id: 'suspended-org',
+        settings: {},
+        is_active: false,
+        activation_status: 'suspended',
+        suspension_reason: 'organization_request',
+        suspension_note: 'Seasonal closure',
+      },
+    ] as never);
+
+    await expect(adminService.listOrganizations()).resolves.toEqual([
+      expect.objectContaining({
+        id: 'suspended-org',
+        activation_status: 'suspended',
+        suspension_reason: 'organization_request',
+        suspension_note: 'Seasonal closure',
+      }),
+    ]);
+  });
+
+  it('suspends an active organization with a reason, note, and audit evidence', async () => {
+    const query = jest.fn(async (sql: string) => {
+      if (sql.includes('SELECT activation_status')) {
+        return { rows: [{ activation_status: 'active', is_active: true }], rowCount: 1 };
+      }
+      if (sql.includes('SELECT user_id FROM organization_members')) {
+        return { rows: [{ user_id: 'owner-user' }, { user_id: 'staff-user' }], rowCount: 2 };
+      }
+      return { rows: [], rowCount: 1 };
+    });
+    const client = { query } as unknown as PoolClient;
+    jest.mocked(withTransaction).mockImplementation(async (callback) => callback(client));
+
+    await expect(
+      adminService.suspendOrganization('organization-id', 'admin-user', {
+        reason: 'organization_request',
+        note: 'Requested by the owner',
+      })
+    ).resolves.toEqual({
+      id: 'organization-id',
+      activationStatus: 'suspended',
+      suspensionReason: 'organization_request',
+      suspensionNote: 'Requested by the owner',
+    });
+
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('suspension_reason = $2'), [
+      'organization-id',
+      'organization_request',
+      'Requested by the owner',
+    ]);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("'organization.suspend'"), [
+      'admin-user',
+      'organization-id',
+      JSON.stringify({
+        reason: 'organization_request',
+        note: 'Requested by the owner',
+        deactivatedUserCount: 2,
+      }),
+    ]);
+  });
+
+  it('rejects suspension when the organization is not active', async () => {
+    const query = jest.fn().mockResolvedValue({
+      rows: [{ activation_status: 'suspended', is_active: false }],
+      rowCount: 1,
+    });
+    const client = { query } as unknown as PoolClient;
+    jest.mocked(withTransaction).mockImplementation(async (callback) => callback(client));
+
+    await expect(
+      adminService.suspendOrganization('organization-id', 'admin-user', {
+        reason: 'other',
+      })
+    ).rejects.toMatchObject({ statusCode: 409, code: 'CONFLICT' });
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads the owner for a suspended organization detail view', async () => {
+    mockFindOrganizationForAdmin.mockResolvedValue({
+      id: 'organization-id',
+      activation_status: 'suspended',
+      is_active: false,
+    } as never);
+    mockFindOrganizationOwner.mockResolvedValue({
+      id: 'owner-user',
+      display_name: 'Owner',
+      email: 'owner@example.jp',
+      password_hash: 'must-not-leak',
+    } as never);
+
+    await expect(adminService.listManagers('organization-id')).resolves.toEqual([
+      expect.objectContaining({ id: 'owner-user', email: 'owner@example.jp' }),
+    ]);
+    expect(mockFindOrganizationForAdmin).toHaveBeenCalledWith('organization-id');
   });
 
   it('returns platform subscription revenue metrics from the application repository', async () => {

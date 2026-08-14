@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 
 import { asyncHandler } from '../../utils/asyncHandler';
-import { sendNoContent, sendSuccess } from '../../utils/response';
+import { sendSuccess } from '../../utils/response';
 
 import { adminService } from './admin.service';
-import { UpdateOwnerEmailDto } from './admin.validator';
+import { SuspendOrganizationDto, UpdateOwnerEmailDto } from './admin.validator';
 import { operationalHealthService } from './operational-health.service';
 
 export const getDashboard = asyncHandler(async (_req: Request, res: Response) => {
@@ -20,9 +20,13 @@ export const listOrganizations = asyncHandler(async (_req: Request, res: Respons
   sendSuccess(res, orgs);
 });
 
-export const removeOrganization = asyncHandler(async (req: Request, res: Response) => {
-  await adminService.removeOrganization(req.params['orgId'] ?? '', req.user?.id ?? '');
-  sendNoContent(res);
+export const suspendOrganization = asyncHandler(async (req: Request, res: Response) => {
+  const result = await adminService.suspendOrganization(
+    req.params['orgId'] ?? '',
+    req.user?.id ?? '',
+    req.body as SuspendOrganizationDto
+  );
+  sendSuccess(res, result);
 });
 
 export const listManagers = asyncHandler(async (req: Request, res: Response) => {

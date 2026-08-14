@@ -112,14 +112,20 @@ notice instead of rendering the backend message.
 
 All paths require `admin`.
 
-| Method | Path                                                  | Purpose                                                   |
-| ------ | ----------------------------------------------------- | --------------------------------------------------------- |
-| GET    | `/api/v1/admin/dashboard`                             | Plan adoption and platform subscription revenue metrics   |
-| GET    | `/api/v1/admin/operations/health`                     | Sanitized platform runtime and delivery health aggregates |
-| GET    | `/api/v1/admin/organizations`                         | List organizations without tenant operational data        |
-| DELETE | `/api/v1/admin/organizations/:orgId`                  | Soft-deactivate organization and every tenant account     |
-| GET    | `/api/v1/admin/organizations/:orgId/managers`         | Read only the immutable organization-owner manager        |
-| PATCH  | `/api/v1/admin/organizations/:orgId/managers/:userId` | Replace only the owner manager sign-in email for recovery |
+| Method | Path                                                  | Purpose                                                       |
+| ------ | ----------------------------------------------------- | ------------------------------------------------------------- |
+| GET    | `/api/v1/admin/dashboard`                             | Plan adoption and platform subscription revenue metrics       |
+| GET    | `/api/v1/admin/operations/health`                     | Sanitized platform runtime and delivery health aggregates     |
+| GET    | `/api/v1/admin/organizations`                         | List all organizations with lifecycle/suspension metadata     |
+| POST   | `/api/v1/admin/organizations/:orgId/suspend`          | Suspend one active organization with reason and optional note |
+| GET    | `/api/v1/admin/organizations/:orgId/managers`         | Read the owner manager, including for a suspended tenant      |
+| PATCH  | `/api/v1/admin/organizations/:orgId/managers/:userId` | Replace only the owner manager sign-in email for recovery     |
+
+The suspension POST accepts the strict body
+`{ "reason": "contract_renewal_cancelled|organization_request|other", "note"?: "..." }`.
+The trimmed note is limited to 1,000 characters. Only an active organization can transition to
+`suspended`; the transaction records the reason/note, disables tenant accounts and operational
+resources, and writes `organization.suspend` audit evidence without deleting tenant data.
 
 The owner recovery PATCH accepts the strict body `{ "email": "owner@example.jp" }`. Extra fields,
 including `displayName`, `password`, and `isActive`, fail validation. A successful email change

@@ -5,6 +5,14 @@
 export const API_VERSION = 'v1' as const;
 export const API_BASE_PATH = `/api/${API_VERSION}` as const;
 
+export const ORGANIZATION_SUSPENSION_REASONS = [
+  'contract_renewal_cancelled',
+  'organization_request',
+  'other',
+] as const;
+export type OrganizationSuspensionReason = (typeof ORGANIZATION_SUSPENSION_REASONS)[number];
+export const ORGANIZATION_SUSPENSION_NOTE_MAX_LENGTH = 1_000;
+
 // ─────────────────────────────────────────────────────
 // Pagination defaults
 // ─────────────────────────────────────────────────────

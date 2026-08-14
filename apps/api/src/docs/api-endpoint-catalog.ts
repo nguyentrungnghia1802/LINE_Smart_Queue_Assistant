@@ -93,7 +93,9 @@ export const apiEndpointCatalog: ApiEndpointDefinition[] = [
     'organization-applications',
     { validator: 'ReviewOrganizationApplicationSchema' }
   ),
-  endpoint('delete', '/api/v1/admin/organizations/{orgId}', 'admin'),
+  endpoint('post', '/api/v1/admin/organizations/{orgId}/suspend', 'admin', {
+    validator: 'SuspendOrganizationSchema',
+  }),
   endpoint('get', '/api/v1/admin/organizations/{orgId}/managers', 'admin'),
   endpoint('patch', '/api/v1/admin/organizations/{orgId}/managers/{userId}', 'admin', {
     validator: 'UpdateOwnerEmailSchema',

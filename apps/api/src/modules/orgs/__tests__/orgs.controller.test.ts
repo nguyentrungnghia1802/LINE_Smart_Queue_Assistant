@@ -75,6 +75,9 @@ const orgRow = {
   payment_info: null,
   public_qr_token: 'legacy_org_abc123def456',
   is_active: true,
+  activation_status: 'active' as const,
+  suspension_reason: null,
+  suspension_note: null,
   created_at: new Date(),
   updated_at: new Date(),
 };
