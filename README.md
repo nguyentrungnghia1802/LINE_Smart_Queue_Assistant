@@ -34,9 +34,9 @@ _受付周辺の混雑と呼出し待ちによる不安、運用負担の発生�
 - LINE通知でcreated、5人待ち、called、completed、不在・取消のイベントを伝えます。
 - 日本語、ベトナム語、英語でレビューできます。
 
-> **図版プレースホルダー — コンセプト**
->
-> **延期（デモの非ブロッカー）：** 承認済みのフロー図版を将来追加します。
+![お客様とシステムの利用フロー（コンセプト）](./docs/images/readme/concept-flow.png)
+
+_LINEを活用した来店から受付、呼出し、サービス完了までの一連フロー。_
 
 ### 利用者と主な機能
 
@@ -108,9 +108,16 @@ _Staffは顧客、注文、Ticket状態、残金、対応操作を1画面で扱�
 - LINE配信運用画面はBranch Managerと割り当てられたStaffが利用できます。実LINE端末、友だち状態、通知表示、
   retention・監視運用は別途受入が必要です。
 
-### 短い技術情報
+### Technical
 
-システムはReact/ViteのWeb UI、Express/TypeScript API、PostgreSQLで構成され、Docker Composeで隔離されたローカル検証ができます。Customer認証のLINE Login/LIFFと通知のLINE Messaging APIは別機能です。価格、Organization、Branch、LINE User ID、payment status、権限範囲はbrowser入力を信用せず、server側で確認します。CIはsecret、依存、format、spell、Compose、automatic workflow、manual PowerShell release/DNS、backup/restore、test、build、browser E2Eを検証します。検証済みcodeが`main`へmergeされると、本番CDは`production` approvalを待ち、承認後にそのfull SHAのAPI/Web imageを自動発行して不変tagだけをdeployします。application rolloutが失敗した場合は以前のimage metadataへ自動rollbackしますが、database/mediaは自動restoreしません。緊急時はWindows上の`deploy/scripts/build-push.ps1`がHEADから12文字のtagを生成してDocker Hubへpushし、VPSの`deploy/scripts/deploy.sh`が同じtagをbackup gateへ渡します。full SHAはOCI metadataに保持され、サーバーの`deploy/.env`はコピーしません。
+| レイヤー / 領域        | 主要技術・スタック                               | 特徴・役割                                                                 |
+| ---------------------- | ------------------------------------------------ | -------------------------------------------------------------------------- |
+| **Frontend**           | React 18, Vite, TypeScript, Tailwind CSS         | 役割別Web UI（Admin / Owner / Manager / Staff）、3言語対応（JA / EN / VI） |
+| **Customer Interface** | LINE Front-end Framework (LIFF), LINE Login      | 専用アプリ不要のモバイルWeb受付・予約・Ticket表示                          |
+| **Backend API**        | Node.js, Express, TypeScript, Zod, BullMQ, Redis | 厳格なサーバー検証、非同期ジョブ、レート制限、リアルタイム通知連携         |
+| **Database & Storage** | PostgreSQL, Docker Volume                        | 整合性を担保するリレーショナル設計、メディア永続化とバックアップ管理       |
+| **LINE Integration**   | LINE Messaging API, Flex Message                 | 呼出し・5人待ち・完了・不在通知の自動配信とWebhook処理                     |
+| **Testing & CI/CD**    | Playwright, Vitest, Docker, GitHub Actions       | E2E/単体テスト、不変タグCDデプロイ、自動ロールバック安全設計               |
 
 ### ガイドと連絡先
 
@@ -156,9 +163,9 @@ The product provides:
 - LINE lifecycle notifications for created, exactly-five-ahead, called, completed, absence, and cancellation events;
 - Japanese, Vietnamese, and English review experiences.
 
-> **Illustration placeholder — Concept**
->
-> **Deferred (non-blocking for the demo):** Add an approved flow illustration in a future content release.
+![Customer & System interaction flow (Concept)](./docs/images/readme/concept-flow.png)
+
+_End-to-end customer journey from QR scan and booking to notification and service completion._
 
 ### Roles and key features
 
@@ -230,9 +237,16 @@ _Staff sees customer, order, Ticket state, balance, and service actions together
 - The LINE delivery operations page is available to Branch Managers and assigned Staff. Physical LINE
   devices, friend state, rendered notifications, retention, and monitoring still require separate acceptance.
 
-### Short technical note
+### Technical
 
-The system uses a React/Vite web UI, an Express/TypeScript API, and PostgreSQL, and supports isolated local verification through Docker Compose. LINE Login/LIFF customer authentication and LINE Messaging API notification delivery are separate. The server revalidates price, Organization, Branch, LINE User ID, payment status, and authorization rather than trusting browser input. CI validates secrets, dependencies, formatting, spelling, Compose files, automatic release workflows, manual PowerShell release/DNS rehearsal, backup/restore rehearsal, tests, build, and browser E2E. After validated code is merged to `main`, CD waits for production approval, publishes API/Web images as `git-<full SHA>` plus discovery-only `latest`, and deploys only that immutable tag. The VPS creates and verifies a restore point, persists the selected image references in its existing `deploy/.env`, and keeps media in the persistent Compose volume. A failed application rollout automatically attempts metadata-driven image rollback without restoring database/media. `deploy/scripts/build-push.ps1` on Windows and `deploy/scripts/deploy.sh` on the VPS form the manual fallback: the publisher derives `git-<12-character-sha>` from HEAD, pushes both immutable images, retains the full SHA in OCI metadata, and hands the exact tag to the backup-gated deploy wrapper.
+| Layer / Domain         | Core Stack                                       | Description & Highlights                                                               |
+| ---------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| **Frontend**           | React 18, Vite, TypeScript, Tailwind CSS         | Role-based workspaces (Admin / Owner / Manager / Staff), 3-language UI (JA / EN / VI)  |
+| **Customer Interface** | LINE Front-end Framework (LIFF), LINE Login      | Frictionless mobile customer booking & live Ticket display without native app install  |
+| **Backend API**        | Node.js, Express, TypeScript, Zod, BullMQ, Redis | Strict server-side validation, async jobs, rate limiting, and real-time event pipeline |
+| **Database & Storage** | PostgreSQL, Docker Persistent Volume             | Relational schema with transactional integrity, synchronized database/media backup     |
+| **LINE Integration**   | LINE Messaging API, Flex Message                 | Automated lifecycle notifications (created, 5-ahead, called, completed) via Webhooks   |
+| **Testing & CI/CD**    | Playwright, Vitest, Docker, GitHub Actions       | Desktop/Mobile E2E, Vitest unit tests, immutable tag CD release with safety rollback   |
 
 ### Guide and contact
 
@@ -278,9 +292,9 @@ Giá trị chính:
 - LINE thông báo các mốc created, còn đúng 5 người, called, completed, vắng mặt và hủy.
 - Có thể review bằng tiếng Nhật, tiếng Việt và tiếng Anh.
 
-> **Placeholder minh họa — Khái niệm**
->
-> **Deferred (không chặn demo):** Bổ sung sơ đồ luồng đã được duyệt trong một bản nội dung sau.
+![Sơ đồ luồng tương tác giữa khách hàng và hệ thống (Khái niệm)](./docs/images/readme/concept-flow.png)
+
+_Quy trình khép kín từ quét QR, đặt chỗ, nhận số thứ tự đến nhận thông báo và hoàn tất dịch vụ._
 
 ### Vai trò và chức năng chính
 
@@ -352,9 +366,16 @@ _Staff xem khách, đơn, trạng thái Ticket, số dư và thao tác phục v�
 - Màn hình vận hành LINE dành cho Branch Manager và Staff được gán đã có. Thiết bị LINE thật, trạng thái kết bạn,
   hiển thị notification, retention và monitoring vẫn cần nghiệm thu riêng.
 
-### Ghi chú kỹ thuật ngắn
+### Technical
 
-Hệ thống dùng Web UI React/Vite, API Express/TypeScript và PostgreSQL; có thể kiểm thử local cô lập bằng Docker Compose. LINE Login/LIFF dùng để xác thực Customer, còn LINE Messaging API dùng để gửi notification — đây là hai capability riêng. Server xác minh lại price, Organization, Branch, LINE User ID, payment status và authorization thay vì tin dữ liệu browser gửi lên. CI kiểm tra secret, dependency, format, spell, Compose, automatic workflow, manual PowerShell release/DNS rehearsal, backup/restore rehearsal, test, build và browser E2E. Sau khi code đã validate được merge vào `main`, CD production tự động phát hành API/Web theo full SHA, chờ phê duyệt ở Environment `production` rồi chỉ deploy immutable tag đó. Nếu application rollout lỗi, hệ thống tự rollback image theo metadata nhưng không tự restore database/media. Luồng fallback thủ công dùng `deploy/scripts/build-push.ps1` trên Windows để sinh và push cùng tag `git-<12 ký tự SHA>`, rồi truyền chính tag đó cho `deploy/scripts/deploy.sh` trên VPS; full SHA vẫn được giữ trong OCI metadata và mọi safety gate vẫn do `deploy/backup/deploy-safe.sh` thực hiện.
+| Tầng / Hạng mục             | Công nghệ chính                                  | Mô tả & Điểm nổi bật                                                                     |
+| --------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| **Frontend**                | React 18, Vite, TypeScript, Tailwind CSS         | Workspace phân quyền (Admin / Owner / Manager / Staff), đa ngôn ngữ (JA / EN / VI)       |
+| **Giao diện Khách hàng**    | LINE Front-end Framework (LIFF), LINE Login      | Trải nghiệm đặt chỗ và theo dõi Ticket trực tiếp trên mobile, không cần cài app          |
+| **Backend API**             | Node.js, Express, TypeScript, Zod, BullMQ, Redis | Xác thực chặt chẽ tại server, xử lý hàng đợi bất đồng bộ, rate limit và scheduler        |
+| **Cơ sở dữ liệu & Lưu trữ** | PostgreSQL, Docker Volume                        | Đảm bảo tính toàn vẹn giao dịch (ACID), sao lưu đồng bộ dữ liệu và media                 |
+| **Tích hợp LINE**           | LINE Messaging API, Flex Message                 | Tự động gửi thông báo theo vòng đời Ticket (5 người chờ, gọi lượt, hoàn tất, vắng)       |
+| **Kiểm thử & CI/CD**        | Playwright, Vitest, Docker, GitHub Actions       | Kiểm thử E2E desktop & mobile, CI/CD tự động phát hành immutable tag và rollback an toàn |
 
 ### Hướng dẫn và liên hệ
 
