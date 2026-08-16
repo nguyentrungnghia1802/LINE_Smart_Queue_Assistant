@@ -13,13 +13,13 @@ LINE Smart Queue Assistantは、日本の店舗、サロン、クリニック、
 
 対面サービスでは、待ち時間が見えないためにお客様が受付付近を離れられず、スタッフも口頭での呼出し、予約、商品、在庫、支払、領収書、通知を別々に扱うことがあります。これにより、お客様の不安、受付の混雑、呼出し漏れ、運用データの分断が生じます。
 
-> **図版プレースホルダー — 背景**
->
-> **延期（デモの非ブロッカー）：** 実在顧客データを使わない承認済み図版を将来追加します。
+![店舗前の行列（背景）](./docs/images/readme/waiting-ramen.jpg)
 
-> **図版プレースホルダー — 課題**
->
-> **延期（デモの非ブロッカー）：** 承認済みの課題図版を将来追加します。
+_待ち時間が見えないため、お客様が店舗前を離れられず行列が発生します。_
+
+![受付待合の混雑（課題）](./docs/images/readme/waiting-sushi.jpg)
+
+_受付周辺の混雑と呼出し待ちによる不安、運用負担の発生。_
 
 ### 解決方法と提供価値
 
@@ -135,13 +135,13 @@ LINE Smart Queue Assistant is a queue, reservation, ordering, payment-foundation
 
 In many in-person services, customers cannot see when their turn will arrive and are reluctant to leave the waiting area. Staff may separately manage verbal calls, reservations, products, stock, payments, receipts, and customer messages. This produces anxiety, crowding, missed calls, and fragmented operational data.
 
-> **Illustration placeholder — Background**
->
-> **Deferred (non-blocking for the demo):** Add an approved illustration without real customer data in a future content release.
+![Queuing outside a shop (Background)](./docs/images/readme/waiting-ramen.jpg)
 
-> **Illustration placeholder — Problem**
->
-> **Deferred (non-blocking for the demo):** Add an approved problem illustration in a future content release.
+_Customers waiting outside without visibility into wait times._
+
+![Crowded waiting area (Problem)](./docs/images/readme/waiting-sushi.jpg)
+
+_Crowded waiting areas and anxiety caused by uncertain call times._
 
 ### Solution and value
 
@@ -257,13 +257,13 @@ LINE Smart Queue Assistant là nền tảng quản lý hàng đợi, đặt ch�
 
 Trong nhiều dịch vụ trực tiếp, khách không biết khi nào đến lượt nên khó rời khu vực chờ. Nhân viên có thể phải tách rời việc gọi khách, đặt chỗ, sản phẩm, stock, thanh toán, biên nhận và nhắn tin. Hệ quả là khách lo lắng, khu vực tiếp nhận đông, dễ bỏ lỡ lượt và dữ liệu vận hành bị phân tán.
 
-> **Placeholder minh họa — Bối cảnh**
->
-> **Deferred (không chặn demo):** Bổ sung hình đã được duyệt và không dùng dữ liệu khách hàng thật trong một bản nội dung sau.
+![Xếp hàng chờ trước cửa hàng (Bối cảnh)](./docs/images/readme/waiting-ramen.jpg)
 
-> **Placeholder minh họa — Vấn đề**
->
-> **Deferred (không chặn demo):** Bổ sung hình minh họa vấn đề đã được duyệt trong một bản nội dung sau.
+_Khách phải đứng chờ trước cửa hàng vì không biết chính xác thời gian đến lượt._
+
+![Ùn ứ khu vực chờ tiếp nhận (Vấn đề)](./docs/images/readme/waiting-sushi.jpg)
+
+_Khu vực chờ đông đúc, khách lo lắng và nhân viên chịu áp lực điều phối._
 
 ### Giải pháp và giá trị
 
