@@ -6,10 +6,10 @@ The following versions are currently supported with security updates:
 
 | Version | Supported |
 | ------- | --------- |
-| 5.1.x   | ✅         |
-| 5.0.x   | ❌         |
-| 4.0.x   | ✅         |
-| < 4.0   | ❌         |
+| 5.1.x   | ✅        |
+| 5.0.x   | ❌        |
+| 4.0.x   | ✅        |
+| < 4.0   | ❌        |
 
 We recommend using a supported version to ensure that you receive the latest security fixes and updates.
 
@@ -19,11 +19,11 @@ If you discover a security vulnerability, please report it privately rather than
 
 When submitting a report, please include:
 
-* A clear description of the vulnerability
-* Steps to reproduce the issue
-* The affected version(s)
-* The potential impact
-* Any relevant logs, screenshots, or proof-of-concept details
+- A clear description of the vulnerability
+- Steps to reproduce the issue
+- The affected version(s)
+- The potential impact
+- Any relevant logs, screenshots, or proof-of-concept details
 
 We will acknowledge your report within **3 business days** and provide updates as we investigate the issue.
 
