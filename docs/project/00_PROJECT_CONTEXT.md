@@ -84,7 +84,9 @@ real-money payment or notification platform.
   method UI, signed demo completion, return status, and reconciliation hooks. Demo mode requires
   no real PSP credentials and makes no real PSP call.
 - Staff order details with booking name, telephone, verified LINE display name, item images, manual payment/status controls, queue actions, and receipt printing.
-- Staff product cards open a read-only detail dialog with a prominent, accessible close control.
+- Staff product cards use fixed, aspect-preserving cropped media and fixed-height truncated text
+  regions so mixed catalog content stays aligned; the full content remains available in a read-only
+  detail dialog with a prominent, accessible close control.
 - Customer ticket and Staff queue views share a centralized authenticated SSE client. Events only
   invalidate TanStack Query snapshots; REST remains authoritative, polling stays active at a lower
   frequency while connected, and returns to the existing frequency when realtime is unavailable.

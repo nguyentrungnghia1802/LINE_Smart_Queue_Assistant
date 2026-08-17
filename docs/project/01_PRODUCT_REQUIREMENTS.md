@@ -91,6 +91,7 @@ role and does not use branch-operation endpoints.
 | FR-CAT-006 | Cancellation/expiry restores finite stock to the same branch exactly once                              | Implemented                             |
 | FR-CAT-007 | Branch managers select organization-catalog products for each assigned-branch queue                    | Implemented                             |
 | FR-CAT-008 | Product/service codes are unique per organization and generated as `SPn`/`DVn`                         | Implemented                             |
+| FR-CAT-009 | Staff catalog cards preserve image aspect ratio and stable card alignment for long or optional content | Implemented                             |
 
 ### Booking, ordering, and payment
 

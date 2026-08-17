@@ -80,48 +80,76 @@ export function StaffProductsPage() {
             type="button"
             key={p.id}
             onClick={() => setSelectedProduct(p)}
-            className="overflow-hidden rounded-lg border border-gray-200 bg-white text-left shadow-sm transition hover:border-brand-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white text-left shadow-sm transition hover:border-brand-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
-            {p.image_url ? (
-              <img
-                src={p.image_url}
-                alt={p.name}
-                loading="lazy"
-                decoding="async"
-                className="aspect-square w-full object-cover"
-              />
-            ) : (
-              <div className="flex aspect-square w-full items-center justify-center bg-gray-100 text-xl font-bold text-gray-400">
-                {p.name.slice(0, 1)}
-              </div>
-            )}
-            <div className="space-y-1 p-3">
-              <p className="font-mono text-[11px] font-bold text-brand-700">{p.product_code}</p>
-              <p className="truncate text-sm font-semibold text-gray-800">{p.name}</p>
-              {p.description && (
-                <p className="text-sm text-gray-500 line-clamp-2">{p.description}</p>
+            <div className="aspect-square w-full shrink-0 overflow-hidden bg-gray-100">
+              {p.image_url ? (
+                <img
+                  src={p.image_url}
+                  alt={p.name}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover object-center"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xl font-bold text-gray-400">
+                  {p.name.slice(0, 1)}
+                </div>
               )}
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-brand-700 font-bold">
+            </div>
+            <div className="grid min-h-40 w-full min-w-0 flex-1 grid-rows-[1rem_1.25rem_1.25rem_1.5rem_1.25rem_1rem] gap-1 p-3">
+              <p
+                className="truncate font-mono text-[11px] font-bold text-brand-700"
+                title={p.product_code}
+              >
+                {p.product_code}
+              </p>
+              <p className="truncate text-sm font-semibold text-gray-800" title={p.name}>
+                {p.name}
+              </p>
+              <p className="truncate text-xs text-gray-500" title={p.description ?? undefined}>
+                {p.description}
+              </p>
+              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 pt-1">
+                <span
+                  className="truncate text-xs font-bold text-brand-700 sm:text-sm"
+                  title={formatCurrency(Number(p.price), i18n.resolvedLanguage ?? 'ja')}
+                >
                   {formatCurrency(Number(p.price), i18n.resolvedLanguage ?? 'ja')}
                 </span>
-                <span className="text-xs text-gray-400">
+                <span
+                  className="max-w-16 truncate text-xs text-gray-400"
+                  title={t('units.minutes', {
+                    ns: 'common',
+                    count: p.service_time_minutes,
+                  })}
+                >
                   {t('units.minutes', {
                     ns: 'common',
                     count: p.service_time_minutes,
                   })}
                 </span>
               </div>
-              {p.requires_prepayment && (
-                <span className="inline-block text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
-                  {t('products.prepaymentRequired')}
-                </span>
-              )}
-              {p.stock_quantity !== null && (
-                <p className="text-xs text-gray-400">
-                  {t('products.remaining', { count: p.stock_quantity })}
-                </p>
-              )}
+              <div className="min-w-0 overflow-hidden">
+                {p.requires_prepayment && (
+                  <span
+                    className="inline-block max-w-full truncate rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700"
+                    title={t('products.prepaymentRequired')}
+                  >
+                    {t('products.prepaymentRequired')}
+                  </span>
+                )}
+              </div>
+              <p
+                className="truncate text-xs text-gray-400"
+                title={
+                  p.stock_quantity === null
+                    ? undefined
+                    : t('products.remaining', { count: p.stock_quantity })
+                }
+              >
+                {p.stock_quantity !== null && t('products.remaining', { count: p.stock_quantity })}
+              </p>
             </div>
           </button>
         ))}
