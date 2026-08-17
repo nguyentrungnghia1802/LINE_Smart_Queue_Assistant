@@ -45,7 +45,45 @@ describe('StaffProductsPage', () => {
         requires_prepayment: true,
         stock_quantity: 5,
       },
+      {
+        id: 'product-2',
+        product_code: 'PRD-002-WITH-A-LONG-CODE',
+        name: '非常に長い名前を持つレイアウト確認用の商品サービス',
+        description: 'カードの固定領域を超える長い説明文です。詳細はダイアログで確認できます。',
+        image_url: 'https://example.com/product.jpg',
+        price: '123456789',
+        service_time_minutes: 120,
+        max_wait_minutes: null,
+        requires_prepayment: false,
+        stock_quantity: null,
+      },
     ]);
+  });
+
+  it('keeps product images and long content inside fixed card regions', async () => {
+    renderPage();
+
+    const productName = await screen.findByText(
+      '非常に長い名前を持つレイアウト確認用の商品サービス'
+    );
+    const productButton = productName.closest('button');
+    if (!productButton) throw new Error('Expected the product name to be inside a button');
+
+    expect(productButton).toHaveClass('flex', 'h-full', 'min-w-0', 'flex-col');
+    expect(productName).toHaveClass('truncate');
+    expect(productName).toHaveAttribute(
+      'title',
+      '非常に長い名前を持つレイアウト確認用の商品サービス'
+    );
+
+    const productImage = within(productButton).getByRole('img', {
+      name: '非常に長い名前を持つレイアウト確認用の商品サービス',
+    });
+    expect(productImage).toHaveClass('h-full', 'w-full', 'object-cover', 'object-center');
+    expect(productImage.parentElement).toHaveClass('aspect-square', 'overflow-hidden');
+
+    expect(within(productButton).getByText('PRD-002-WITH-A-LONG-CODE')).toHaveClass('truncate');
+    expect(within(productButton).getByText(/123,456,789/)).toHaveClass('truncate');
   });
 
   it('opens product details and provides a prominent visible close control', async () => {
