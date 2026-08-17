@@ -1,21 +1,20 @@
 import { isAxiosError } from 'axios';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { UserRole } from '@line-queue/shared';
 
 import { BrandLogo } from '../components/BrandLogo';
 import { LanguageSwitcher } from '../components/i18n/LanguageSwitcher';
 import { ApiClientError } from '../services/apiClient';
-import { getCustomerLineEntryUrl } from '../services/liff/entryUrl';
+import { getCustomerLineEntryUrl, sanitizeLiffRoute } from '../services/liff/entryUrl';
 import { consumeAuthSessionNotice } from '../store/authSession';
 import { useAuthStore } from '../store/authStore';
 
-const CUSTOMER_LINE_ENTRY_URL = getCustomerLineEntryUrl('/liff/home');
-
 export function LoginPage() {
   const { t } = useTranslation(['auth', 'common']);
+  const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, login, user } = useAuthStore();
   const [email, setEmail] = useState('');
@@ -24,12 +23,14 @@ export function LoginPage() {
   const [sessionNotice, setSessionNotice] = useState(() => consumeAuthSessionNotice());
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const returnTo = sanitizeLiffRoute(new URLSearchParams(location.search).get('returnTo') ?? '');
+  const customerLineEntryUrl = getCustomerLineEntryUrl(returnTo ?? '/liff/home');
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      navigate(roleHomePath(user.role), { replace: true });
+      navigate(customerDestination(user.role, returnTo), { replace: true });
     }
-  }, [isAuthenticated, navigate, user]);
+  }, [isAuthenticated, navigate, returnTo, user]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,7 +41,9 @@ export function LoginPage() {
       await login(email, password);
       // get updated user from store after login
       const updatedUser = useAuthStore.getState().user;
-      navigate(updatedUser ? roleHomePath(updatedUser.role) : '/dashboard', { replace: true });
+      navigate(updatedUser ? customerDestination(updatedUser.role, returnTo) : '/dashboard', {
+        replace: true,
+      });
     } catch (err) {
       setError(resolveLoginErrorMessage(err, t));
     } finally {
@@ -101,9 +104,9 @@ export function LoginPage() {
             </p>
           </div>
 
-          {CUSTOMER_LINE_ENTRY_URL && (
+          {customerLineEntryUrl && (
             <a
-              href={CUSTOMER_LINE_ENTRY_URL}
+              href={customerLineEntryUrl}
               className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#06C755] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#05b54c] focus:outline-none focus:ring-4 focus:ring-[#06C755]/20"
             >
               <LineIcon />
@@ -387,4 +390,8 @@ function roleHomePath(role: UserRole): string {
   if (role === UserRole.STAFF) return '/staff';
   if (role === UserRole.CUSTOMER) return '/liff/home';
   return '/dashboard';
+}
+
+function customerDestination(role: UserRole, returnTo: string | null): string {
+  return role === UserRole.CUSTOMER && returnTo ? returnTo : roleHomePath(role);
 }

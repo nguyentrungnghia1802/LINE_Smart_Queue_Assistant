@@ -69,29 +69,27 @@ describe('line-notification.templates', () => {
     });
   });
 
-  it('uses a distinct accent color for every customer-facing event', () => {
-    const events: TicketNotificationEventType[] = [
-      'booking_created',
-      'eta_warning',
-      'called',
-      'serving',
-      'completed',
-      'cancelled',
-      'no_show',
-      'deferred',
-      'location_warning',
-    ];
-    const colors = events.map((eventType) => {
-      const notification = buildTicketNotification({
-        eventType,
-        ticketCode: 'A019',
-        ticketUrl: 'https://queue.example.com/liff/tickets/entry-123',
-      });
-      return (notification.flexMessage.contents.header as { backgroundColor?: string } | undefined)
-        ?.backgroundColor;
+  it.each<[TicketNotificationEventType, string]>([
+    ['booking_created', '#A16207'],
+    ['eta_warning', '#15803D'],
+    ['called', '#15803D'],
+    ['serving', '#15803D'],
+    ['completed', '#15803D'],
+    ['cancelled', '#DC2626'],
+    ['no_show', '#DC2626'],
+    ['deferred', '#A16207'],
+    ['location_warning', '#A16207'],
+  ])('uses the semantic accent color for %s', (eventType, expectedColor) => {
+    const notification = buildTicketNotification({
+      eventType,
+      ticketCode: 'A019',
+      ticketUrl: 'https://queue.example.com/liff/tickets/entry-123',
     });
 
-    expect(new Set(colors).size).toBe(events.length);
+    expect(
+      (notification.flexMessage.contents.header as { backgroundColor?: string } | undefined)
+        ?.backgroundColor
+    ).toBe(expectedColor);
   });
 
   it.each<[TicketNotificationEventType, string]>([

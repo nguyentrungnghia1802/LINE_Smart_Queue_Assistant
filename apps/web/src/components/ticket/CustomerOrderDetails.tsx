@@ -108,22 +108,18 @@ export function CustomerOrderDetails({ order }: Readonly<CustomerOrderDetailsPro
       </div>
 
       <footer className="space-y-2 border-t border-gray-100 bg-gray-50 px-4 py-3 text-sm">
-        {payment.prepaid > 0 && (
-          <div className="flex items-center justify-between text-emerald-700">
-            <span>{t('orderDetails.paid', { ns: 'customer' })}</span>
-            <strong>{formatCurrency(payment.prepaid, locale)}</strong>
-          </div>
-        )}
         <div className="flex items-center justify-between text-gray-950">
           <span className="font-semibold">{t('orderDetails.total', { ns: 'customer' })}</span>
           <strong className="text-lg">{formatCurrency(payment.total, locale)}</strong>
         </div>
-        {payment.amountDue > 0 && (
-          <div className="flex items-center justify-between text-amber-700">
-            <span>{t('orderDetails.amountDue', { ns: 'customer' })}</span>
-            <strong>{formatCurrency(payment.amountDue, locale)}</strong>
-          </div>
-        )}
+        <div className="flex items-center justify-between text-emerald-700">
+          <span>{t('orderDetails.paid', { ns: 'customer' })}</span>
+          <strong>{formatCurrency(payment.prepaid, locale)}</strong>
+        </div>
+        <div className="flex items-center justify-between border-t border-gray-200 pt-2 text-amber-700">
+          <span className="font-semibold">{t('orderDetails.amountDue', { ns: 'customer' })}</span>
+          <strong className="text-lg">{formatCurrency(payment.amountDue, locale)}</strong>
+        </div>
       </footer>
     </section>
   );

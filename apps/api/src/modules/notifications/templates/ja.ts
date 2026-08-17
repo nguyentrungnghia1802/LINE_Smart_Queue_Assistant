@@ -24,56 +24,47 @@ export const jaLineNotificationCopy: LineNotificationCopy = {
       headline: '受付が完了しました',
       status: '受付完了',
       guidance: '順番が近づくまで、受付状況を確認しながらお待ちください。',
-      accentColor: '#06C755',
     },
     eta_warning: {
       headline: 'まもなく順番です',
       status: '順番が近づいています',
       guidance: 'カウンター付近でお待ちください。',
-      accentColor: '#F59E0B',
     },
     called: {
       headline: '順番になりました',
       status: '呼び出し中',
       guidance: 'カウンターまでお越しください。',
-      accentColor: '#E11D48',
     },
     serving: {
       headline: '対応を開始しました',
       status: '対応中',
       guidance: 'スタッフの案内に沿ってお進みください。',
-      accentColor: '#2563EB',
     },
     completed: {
       headline: '対応が完了しました',
       status: '完了',
       guidance: 'ご利用ありがとうございました。',
-      accentColor: '#4B5563',
     },
     cancelled: {
       headline: '受付をキャンセルしました',
       status: 'キャンセル済み',
       guidance: '必要な場合は、もう一度受付を行ってください。',
-      accentColor: '#DC2626',
     },
     no_show: {
       headline: '不在として処理されました',
       status: '不在',
       guidance: 'お手数ですが、必要な場合はスタッフへお声がけください。',
-      accentColor: '#7C3AED',
     },
     deferred: {
       headline: '順番を後ろへ移動しました',
       status: '到着待ち',
       guidance: '不在のため3枠後ろへ移動しました。受付状況をご確認のうえ、店舗へお越しください。',
-      accentColor: '#EA580C',
     },
     location_warning: {
       headline: '店舗までの距離をご確認ください',
       status: '移動のご案内',
       guidance:
         '現在地から店舗までの移動時間が待ち時間を上回っています。間に合うよう、すぐに店舗へお戻りください。',
-      accentColor: '#0F766E',
     },
   },
   statuses: {

@@ -25,56 +25,47 @@ export const viLineNotificationCopy: LineNotificationCopy = {
       headline: 'Đã tiếp nhận đặt chỗ',
       status: 'Đã tiếp nhận',
       guidance: 'Vui lòng theo dõi thông tin lượt trong khi chờ đến gần lượt.',
-      accentColor: '#06C755',
     },
     eta_warning: {
       headline: 'Sắp đến lượt của bạn',
       status: 'Đang đến gần lượt',
       guidance: 'Vui lòng quay lại và chờ gần quầy.',
-      accentColor: '#F59E0B',
     },
     called: {
       headline: 'Đã đến lượt của bạn',
       status: 'Đang gọi',
       guidance: 'Vui lòng đến quầy phục vụ.',
-      accentColor: '#E11D48',
     },
     serving: {
       headline: 'Đã bắt đầu phục vụ',
       status: 'Đang phục vụ',
       guidance: 'Vui lòng làm theo hướng dẫn của nhân viên.',
-      accentColor: '#2563EB',
     },
     completed: {
       headline: 'Đã hoàn thành phục vụ',
       status: 'Hoàn thành',
       guidance: 'Cảm ơn bạn đã sử dụng dịch vụ.',
-      accentColor: '#4B5563',
     },
     cancelled: {
       headline: 'Đã hủy lượt',
       status: 'Đã hủy',
       guidance: 'Vui lòng đặt lại nếu bạn vẫn cần sử dụng dịch vụ.',
-      accentColor: '#DC2626',
     },
     no_show: {
       headline: 'Đã ghi nhận vắng mặt',
       status: 'Vắng mặt',
       guidance: 'Vui lòng liên hệ nhân viên nếu bạn vẫn cần được hỗ trợ.',
-      accentColor: '#7C3AED',
     },
     deferred: {
       headline: 'Lượt của bạn đã được chuyển xuống',
       status: 'Đang chờ khách đến',
       guidance: 'Do bạn vắng mặt, lượt đã được chuyển xuống 3 vị trí. Vui lòng quay lại cửa hàng.',
-      accentColor: '#EA580C',
     },
     location_warning: {
       headline: 'Vui lòng kiểm tra khoảng cách tới cửa hàng',
       status: 'Nhắc quay lại',
       guidance:
         'Thời gian từ vị trí hiện tại đến cửa hàng đang lớn hơn thời gian chờ dự kiến. Vui lòng quay lại ngay để kịp lượt.',
-      accentColor: '#0F766E',
     },
   },
   statuses: {
