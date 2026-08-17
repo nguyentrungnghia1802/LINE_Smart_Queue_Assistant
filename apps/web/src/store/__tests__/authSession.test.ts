@@ -95,11 +95,11 @@ describe('authSession lifecycle', () => {
   it('preserves only an internal LIFF route when redirecting to login', () => {
     expect(
       buildLoginRedirectPath({
-        pathname: '/liff/qr/branch-token',
-        search: '?queue=queue-1',
+        pathname: '/liff/qr/demo-123',
+        search: '?q=id-1',
         hash: '',
       })
-    ).toBe('/login?returnTo=%2Fliff%2Fqr%2Fbranch-token%3Fqueue%3Dqueue-1');
+    ).toBe('/login?returnTo=%2Fliff%2Fqr%2Fdemo-123%3Fq%3Did-1');
 
     expect(buildLoginRedirectPath({ pathname: '/staff', search: '?tab=queue', hash: '' })).toBe(
       '/login'

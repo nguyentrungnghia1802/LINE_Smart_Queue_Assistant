@@ -102,17 +102,18 @@ describe('LoginPage', () => {
   });
 
   it('preserves a scanned LIFF booking route for customer LINE login', () => {
-    renderPage('/login?returnTo=%2Fliff%2Fqr%2Fbranch-token');
+    renderPage('/login?returnTo=%2Fliff%2Fqr%2Fdemo-123');
 
-    expect(mockGetCustomerLineEntryUrl).toHaveBeenCalledWith('/liff/qr/branch-token');
+    expect(mockGetCustomerLineEntryUrl).toHaveBeenCalledWith('/liff/qr/demo-123');
     expect(screen.getByRole('link', { name: 'LINEで受付を始める' })).toHaveAttribute(
       'href',
-      'https://liff.line.me/1234567890-AbCdEfGh/qr/branch-token'
+      'https://liff.line.me/1234567890-AbCdEfGh/qr/demo-123'
     );
   });
 
   it('rejects an external return target and falls back to LIFF Home', () => {
-    renderPage('/login?returnTo=https%3A%2F%2Fevil.example%2Fsteal');
+    const externalReturnTo = encodeURIComponent('https://example.com');
+    renderPage(`/login?returnTo=${externalReturnTo}`);
 
     expect(mockGetCustomerLineEntryUrl).toHaveBeenCalledWith('/liff/home');
   });
