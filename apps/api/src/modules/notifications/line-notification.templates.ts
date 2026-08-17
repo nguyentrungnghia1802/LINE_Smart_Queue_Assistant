@@ -37,6 +37,18 @@ const COPY_BY_LOCALE: Record<SupportedLocale, LineNotificationCopy> = {
   en: enLineNotificationCopy,
 };
 
+const EVENT_ACCENT_COLORS: Record<TicketNotificationEventType, string> = {
+  booking_created: '#A16207',
+  eta_warning: '#15803D',
+  called: '#15803D',
+  serving: '#15803D',
+  completed: '#15803D',
+  cancelled: '#DC2626',
+  no_show: '#DC2626',
+  deferred: '#A16207',
+  location_warning: '#A16207',
+};
+
 export function getLineNotificationCopy(locale?: string | null): LineNotificationCopy {
   return COPY_BY_LOCALE[normalizeLocale(locale) ?? 'ja'];
 }
@@ -104,7 +116,7 @@ export function buildTicketNotification(
       header: {
         type: 'box',
         layout: 'vertical',
-        backgroundColor: event.accentColor,
+        backgroundColor: EVENT_ACCENT_COLORS[input.eventType],
         paddingAll: '12px',
         contents: [
           { type: 'text', text: copy.systemName, color: '#FFFFFF', size: 'xs', weight: 'bold' },

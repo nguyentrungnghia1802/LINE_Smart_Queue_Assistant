@@ -2,6 +2,7 @@ import axios from 'axios';
 
 import type { ApiResponse } from '@line-queue/shared';
 
+import { sanitizeLiffRoute } from '../services/liff/entryUrl';
 import { queryClient } from '../services/queryClient';
 
 import type { AuthenticationResponse } from './authTypes';
@@ -77,6 +78,16 @@ export function consumeAuthSessionNotice(): AuthSessionNoticeCode | null {
   return notice === 'AUTH_SESSION_EXPIRED' ? notice : null;
 }
 
+export function buildLoginRedirectPath(
+  location: Pick<Location, 'pathname' | 'search' | 'hash'>
+): string {
+  const returnTo = sanitizeLiffRoute(`${location.pathname}${location.search}${location.hash}`);
+  if (!returnTo) return '/login';
+
+  const search = new URLSearchParams({ returnTo });
+  return `/login?${search.toString()}`;
+}
+
 export async function refreshAuthSession(): Promise<AuthenticationResponse> {
   if (!refreshPromise) {
     refreshPromise = authTransport
@@ -114,7 +125,7 @@ export function terminateAuthSession(
     : Promise.resolve();
 
   if (window.location.pathname !== '/login') {
-    window.location.replace('/login');
+    window.location.replace(buildLoginRedirectPath(window.location));
   }
 
   return terminationPromise;

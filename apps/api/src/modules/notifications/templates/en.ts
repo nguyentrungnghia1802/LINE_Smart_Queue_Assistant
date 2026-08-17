@@ -25,57 +25,48 @@ export const enLineNotificationCopy: LineNotificationCopy = {
       headline: 'Booking confirmed',
       status: 'Confirmed',
       guidance: 'Please monitor your ticket while you wait for your turn.',
-      accentColor: '#06C755',
     },
     eta_warning: {
       headline: 'Your turn is approaching',
       status: 'Approaching',
       guidance: 'Please return and wait near the counter.',
-      accentColor: '#F59E0B',
     },
     called: {
       headline: 'It is your turn',
       status: 'Called',
       guidance: 'Please come to the counter.',
-      accentColor: '#E11D48',
     },
     serving: {
       headline: 'Service has started',
       status: 'Serving',
       guidance: 'Please follow the staff instructions.',
-      accentColor: '#2563EB',
     },
     completed: {
       headline: 'Service completed',
       status: 'Completed',
       guidance: 'Thank you for using our service.',
-      accentColor: '#4B5563',
     },
     cancelled: {
       headline: 'Ticket cancelled',
       status: 'Cancelled',
       guidance: 'Please make a new booking if you still need service.',
-      accentColor: '#DC2626',
     },
     no_show: {
       headline: 'Marked as no-show',
       status: 'No-show',
       guidance: 'Please speak with staff if you still need assistance.',
-      accentColor: '#7C3AED',
     },
     deferred: {
       headline: 'Your place was moved back',
       status: 'Waiting for arrival',
       guidance:
         'Because you were absent, your ticket was moved back three places. Please return to the store.',
-      accentColor: '#EA580C',
     },
     location_warning: {
       headline: 'Check your distance from the store',
       status: 'Return reminder',
       guidance:
         'You are farther from the store than the estimated wait allows. Please return now to arrive in time.',
-      accentColor: '#0F766E',
     },
   },
   statuses: {

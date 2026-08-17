@@ -7,10 +7,11 @@ import { LoginPage } from '../../pages/LoginPage';
 import { ApiClientError } from '../../services/apiClient';
 import { AUTH_SESSION_NOTICE_STORAGE_KEY } from '../../store/authSession';
 
-const { mockNavigate, mockLogin, mockGetState } = vi.hoisted(() => ({
+const { mockNavigate, mockLogin, mockGetState, mockGetCustomerLineEntryUrl } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
   mockLogin: vi.fn(),
   mockGetState: vi.fn(),
+  mockGetCustomerLineEntryUrl: vi.fn(),
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -33,7 +34,9 @@ vi.mock('../../store/authStore', () => ({
 }));
 
 vi.mock('../../services/liff/entryUrl', () => ({
-  getCustomerLineEntryUrl: () => 'https://liff.line.me/1234567890-AbCdEfGh/home',
+  getCustomerLineEntryUrl: mockGetCustomerLineEntryUrl,
+  sanitizeLiffRoute: (route: string) =>
+    route.startsWith('/liff/') && !route.startsWith('//') ? route : null,
 }));
 
 describe('LoginPage', () => {
@@ -41,7 +44,11 @@ describe('LoginPage', () => {
     mockNavigate.mockReset();
     mockLogin.mockReset();
     mockGetState.mockReset();
+    mockGetCustomerLineEntryUrl.mockReset();
     mockGetState.mockReturnValue({ user: null });
+    mockGetCustomerLineEntryUrl.mockImplementation(
+      (route: string) => `https://liff.line.me/1234567890-AbCdEfGh${route.slice('/liff'.length)}`
+    );
     sessionStorage.clear();
   });
 
@@ -92,6 +99,22 @@ describe('LoginPage', () => {
     expect(
       screen.getByText('スタッフ、マネージャー、管理者はメールでログインしてください。')
     ).toBeInTheDocument();
+  });
+
+  it('preserves a scanned LIFF booking route for customer LINE login', () => {
+    renderPage('/login?returnTo=%2Fliff%2Fqr%2Fbranch-token');
+
+    expect(mockGetCustomerLineEntryUrl).toHaveBeenCalledWith('/liff/qr/branch-token');
+    expect(screen.getByRole('link', { name: 'LINEで受付を始める' })).toHaveAttribute(
+      'href',
+      'https://liff.line.me/1234567890-AbCdEfGh/qr/branch-token'
+    );
+  });
+
+  it('rejects an external return target and falls back to LIFF Home', () => {
+    renderPage('/login?returnTo=https%3A%2F%2Fevil.example%2Fsteal');
+
+    expect(mockGetCustomerLineEntryUrl).toHaveBeenCalledWith('/liff/home');
   });
 
   it('shows the business application link on its own line', () => {
@@ -171,9 +194,9 @@ describe('LoginPage', () => {
   });
 });
 
-function renderPage() {
+function renderPage(initialEntry = '/login') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <LoginPage />
     </MemoryRouter>
   );

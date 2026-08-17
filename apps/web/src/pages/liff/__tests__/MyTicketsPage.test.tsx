@@ -106,5 +106,8 @@ describe('MyTicketsPage', () => {
     expect(screen.getByText('健康相談')).toBeInTheDocument();
     expect(screen.getByText('東京店')).toBeInTheDocument();
     expect(screen.getByText('美容受付')).toBeInTheDocument();
+    expect(screen.getByText('合計').parentElement).toHaveTextContent('8,000');
+    expect(screen.getByText('お支払い済み').parentElement).toHaveTextContent('8,000');
+    expect(screen.getByText('お支払い残額').parentElement).toHaveTextContent('0');
   });
 });

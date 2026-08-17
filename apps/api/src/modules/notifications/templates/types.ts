@@ -32,7 +32,7 @@ export interface LineNotificationCopy {
   };
   events: Record<
     TicketNotificationEventType,
-    { headline: string; status: string; guidance: string; accentColor: string }
+    { headline: string; status: string; guidance: string }
   >;
   statuses: Record<string, string>;
   commands: {

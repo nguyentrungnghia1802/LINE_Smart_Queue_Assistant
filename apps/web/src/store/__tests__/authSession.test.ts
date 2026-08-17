@@ -5,6 +5,7 @@ import {
   AUTH_ACTIVITY_STORAGE_KEY,
   AUTH_REFRESH_STORAGE_KEY,
   AUTH_SESSION_NOTICE_STORAGE_KEY,
+  buildLoginRedirectPath,
   consumeAuthSessionNotice,
   establishAuthSession,
   getAuthToken,
@@ -89,5 +90,19 @@ describe('authSession lifecycle', () => {
 
     expect(consumeAuthSessionNotice()).toBe('AUTH_SESSION_EXPIRED');
     expect(consumeAuthSessionNotice()).toBeNull();
+  });
+
+  it('preserves only an internal LIFF route when redirecting to login', () => {
+    expect(
+      buildLoginRedirectPath({
+        pathname: '/liff/qr/branch-token',
+        search: '?queue=queue-1',
+        hash: '',
+      })
+    ).toBe('/login?returnTo=%2Fliff%2Fqr%2Fbranch-token%3Fqueue%3Dqueue-1');
+
+    expect(buildLoginRedirectPath({ pathname: '/staff', search: '?tab=queue', hash: '' })).toBe(
+      '/login'
+    );
   });
 });

@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test';
 
+test('customer LINE login returns to the scanned booking route', async ({ page }) => {
+  await page.goto('/login?returnTo=%2Fliff%2Fqr%2Fdemo-queue-lab-2026');
+
+  await page.getByRole('link', { name: 'LINEで受付を始める' }).click();
+
+  await expect(page).toHaveURL(/\/liff\/qr\/demo-queue-lab-2026$/);
+  await expect(page.getByRole('heading', { name: '商品 / サービス' })).toBeVisible();
+});
+
 test('LIFF mock authenticates, pays required items, books, and opens the ticket', async ({
   page,
 }) => {
@@ -28,6 +37,9 @@ test('LIFF mock authenticates, pays required items, books, and opens the ticket'
   await expect(page).toHaveURL(/\/liff\/tickets\/[0-9a-f-]+$/);
   await expect(page.getByText('受付番号', { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/[A-Z]+\d{3}/).first()).toBeVisible();
+  await expect(page.getByText('合計', { exact: true })).toBeVisible();
+  await expect(page.getByText('お支払い済み', { exact: true })).toBeVisible();
+  await expect(page.getByText('お支払い残額', { exact: true })).toBeVisible();
 });
 
 test('LIFF home resolves the authenticated customer and booking navigation', async ({ page }) => {
