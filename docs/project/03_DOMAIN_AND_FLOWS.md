@@ -461,7 +461,7 @@ There is no OpenAI or Gemini call in this flow. Adding a generative-AI API key w
 - The “arrival wait after call” value remains a branch/queue operational setting consumed by the
   existing no-show worker; the settings UI must not introduce a second competing timer.
 
-# Business account lifecycle and branches
+## 14. Business account lifecycle and branches
 
 - A public organization application never accepts or stores a manager password.
 - Admin approval atomically creates an inactive organization, an invited owner-manager membership,

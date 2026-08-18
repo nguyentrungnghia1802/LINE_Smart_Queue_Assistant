@@ -1,10 +1,10 @@
 # Scalability Baseline and Target Architecture
 
-Last consolidated on 2026-08-11 after adopting persistent VPS-local media for the current
-production-oriented demo. This document records the current runtime boundary, reproducible local
-evidence, target SLOs, and remaining production acceptance work. It does not claim production
-capacity. Redis, bounded public caches, BullMQ LINE delivery, cross-replica SSE, optional
-observability, persistent local media, and an optional S3-compatible adapter are implemented.
+Last consolidated on 2026-08-18 after the repo-wide documentation reconciliation audit. This
+document records the current runtime boundary, reproducible local evidence, target SLOs, and
+remaining production acceptance work. It does not claim production capacity. Redis, bounded public
+caches, BullMQ LINE delivery, cross-replica SSE, optional observability, persistent local media, and
+an optional S3-compatible adapter are implemented.
 
 ## 1. Scope and evidence
 
@@ -169,14 +169,14 @@ therefore consume pool capacity even when their inner query is idle or waiting o
 
 ## 8. External provider boundaries
 
-| Provider        | Current protection                                                                       | Capacity/availability risk                                                                             |
-| --------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| LINE Messaging  | Durable outbox, bounded timeout, provider-aware retry/backoff and retry key              | Real quota/account/device acceptance remains external                                                  |
-| SMTP            | Durable outbox, max attempts, backoff                                                    | Sequential batches; throughput and timeout behavior depend on the SMTP adapter/provider                |
-| Google Routes   | 10-second request timeout, bounded location batch                                        | One request per claimed alert; external calls currently occur inside a DB transaction                  |
-| payOS           | 10-second intent timeout, signed webhook, idempotency                                    | Intent creation is synchronous on the API request; provider quota and outage affect checkout           |
-| VPS local media | Server validation/compression, non-root API writes, named-volume mount and recreate test | Single-host capacity, off-host backup/restore, scanning, and recovery acceptance remain operational    |
-| S3/R2 media     | Retained bounded adapter, stable object key and failure tests; disabled by default       | Credentials, lifecycle, CDN, scanning, migration, and recovery acceptance are required before enabling |
+| Provider        | Current protection                                                                       | Capacity/availability risk                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| LINE Messaging  | Durable outbox, bounded timeout, provider-aware retry/backoff and retry key              | Real quota/account/device acceptance remains external                                                               |
+| SMTP            | Durable outbox, max attempts, backoff                                                    | Sequential batches; throughput and timeout behavior depend on the SMTP adapter/provider                             |
+| Google Routes   | 10-second request timeout, bounded location batch                                        | One request per claimed alert; external calls occur outside transactions with short claim-finalization transactions |
+| payOS           | 10-second intent timeout, signed webhook, idempotency                                    | Intent creation is synchronous on the API request; provider quota and outage affect checkout                        |
+| VPS local media | Server validation/compression, non-root API writes, named-volume mount and recreate test | Single-host capacity, off-host backup/restore, scanning, and recovery acceptance remain operational                 |
+| S3/R2 media     | Retained bounded adapter, stable object key and failure tests; disabled by default       | Credentials, lifecycle, CDN, scanning, migration, and recovery acceptance are required before enabling              |
 
 Provider rate limits and quotas must be read from the contracted provider account before setting
 worker concurrency. Retry logic must respect provider retry guidance and jitter; blindly increasing

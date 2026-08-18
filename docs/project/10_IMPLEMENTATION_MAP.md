@@ -1,6 +1,6 @@
 # Current Implementation Map
 
-Last verified on 2026-08-11 after the persistent VPS-local media decision. The baseline rechecks
+Last verified on 2026-08-18 after the repo-wide documentation reconciliation audit. The baseline rechecks
 route/API/migration inventories, runtime configuration, demo fixtures, role journeys,
 Storybook/browser evidence, security gates, media recreate behavior, and isolated recovery against
 the executable repository.
@@ -168,7 +168,7 @@ verified LINE identity when Home or Rich Menu opens without a fixed entry ID.
 
 ## 6. API inventory
 
-The executable catalog in `apps/api/src/docs/api-endpoint-catalog.ts` currently contains 110
+The executable catalog in `apps/api/src/docs/api-endpoint-catalog.ts` currently contains 113
 versioned operations. The OpenAPI contract test compares it with mounted Express routes and the
 assembled Swagger document. Current operation counts by tag are:
 
@@ -177,7 +177,7 @@ assembled Swagger document. Current operation counts by tag are:
 | `admin`                     |          6 |
 | `auth`                      |          8 |
 | `bookings`                  |          2 |
-| `branches`                  |         12 |
+| `branches`                  |         13 |
 | `forecasts`                 |          2 |
 | `line`                      |          4 |
 | `location`                  |          4 |
@@ -190,6 +190,7 @@ assembled Swagger document. Current operation counts by tag are:
 | `products`                  |          6 |
 | `queue-entry`               |         11 |
 | `queues`                    |          6 |
+| `realtime`                  |          2 |
 | `staff`                     |          9 |
 | `users`                     |          8 |
 

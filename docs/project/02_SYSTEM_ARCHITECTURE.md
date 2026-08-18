@@ -128,20 +128,30 @@ published directly to the internet.
 
 The API entry is `apps/api/src/server.ts`; `app.ts` composes middleware, health routes, docs, and `/api/v1` modules.
 
-| Module              | Responsibility                                                 |
-| ------------------- | -------------------------------------------------------------- |
-| `account-lifecycle` | Activation, password reset, and email action tokens            |
-| `admin`             | Approved organization and owner-manager recovery               |
-| `auth`              | Business email/password and customer LINE ID-token login       |
-| `bookings`          | Authenticated current/history booking-group reads              |
-| `branches`          | Owner branch lifecycle/analytics and branch-manager settings   |
-| `email`             | Durable invitation/reset/application email delivery            |
-| `eta`, `forecasts`  | Wait calculation, historical metrics, and staffing advice      |
-| `inventory`         | Branch stock reservations and expiry                           |
-| `line`              | Webhook, friendship, location consent, and Rich Menu transport |
-| `location`          | Consent-based snapshots, routes, and travel alerts             |
-| `media`             | Validated image upload, compression, and storage adapters      |
-| `notifications`     | Durable LINE outbox, templates, delivery, and operations       |
+| Module                      | Responsibility                                                    |
+| --------------------------- | ----------------------------------------------------------------- |
+| `account-lifecycle`         | Activation, password reset, and email action tokens               |
+| `admin`                     | Approved organization and owner-manager recovery                  |
+| `auth`                      | Business email/password and customer LINE ID-token login          |
+| `bookings`                  | Authenticated current/history booking-group reads                 |
+| `branches`                  | Owner branch lifecycle/analytics and branch-manager settings      |
+| `email`                     | Durable invitation/reset/application email delivery               |
+| `eta`, `forecasts`          | Wait calculation, historical metrics, and staffing advice         |
+| `inventory`                 | Branch stock reservations and expiry                              |
+| `line`                      | Webhook, friendship, location consent, and Rich Menu transport    |
+| `location`                  | Consent-based snapshots, routes, and travel alerts                |
+| `media`                     | Validated image upload, compression, and storage adapters         |
+| `notifications`             | Durable LINE outbox, templates, delivery, and operations          |
+| `observability`             | OTel/Sentry lifecycle, safe spans, correlation, and sanitization  |
+| `orders`, `payments`        | Atomic booking, fulfillment, payment, QR, webhook, reconciliation |
+| `organization-applications` | Public submission, server demo pricing, and admin review          |
+| `orgs`                      | Public organization/branch booking resolution                     |
+| `products`, `queues`        | Organization catalog and branch queue configuration               |
+| `queue`, `staff`            | Customer tickets and branch-scoped operations                     |
+| `realtime`                  | Authorized SSE streams, event contracts, local hub, Redis Pub/Sub |
+| `skip-penalty`              | Absence/defer/no-show policy and refund boundary                  |
+| `shared`                    | Shared validators and cross-module request contracts              |
+| `users`                     | Profiles, owner/manager/staff accounts, and audit-aware changes   |
 
 The `admin` module also owns a Platform Admin-only operational health read model. It composes
 existing probes and safe aggregates without entering tenant repositories: PostgreSQL/Redis state,
@@ -153,19 +163,9 @@ and never participates in queue/order/payment transactions.
 Notification operations preserve the outbox boundary: read models join tickets/queues/branches for
 server-derived scope. Branch Managers are pinned to their single active branch, Staff are pinned to
 their assigned queue, and platform Admin/Organization Owner are rejected. Manual retry updates the
-same event-key row and schedules a new
-deterministic dispatch generation. Cancellation is permitted only for pending delivery rows whose
-ticket is terminal. Neither operation calls LINE inside the request transaction or mutates queue/order state.
-| `observability` | OTel/Sentry lifecycle, safe spans, correlation, and sanitization |
-| `orders`, `payments` | Atomic booking, fulfillment, payment, QR, webhook, reconciliation |
-| `organization-applications` | Public submission, server demo pricing, and admin review |
-| `orgs` | Public organization/branch booking resolution |
-| `products`, `queues` | Organization catalog and branch queue configuration |
-| `queue`, `staff` | Customer tickets and branch-scoped operations |
-| `realtime` | Authorized SSE streams, event contracts, local hub, Redis Pub/Sub |
-| `skip-penalty` | Absence/defer/no-show policy and refund boundary |
-| `shared` | Shared validators and cross-module request contracts |
-| `users` | Profiles, owner/manager/staff accounts, and audit-aware changes |
+same event-key row and schedules a new deterministic dispatch generation. Cancellation is permitted
+only for pending delivery rows whose ticket is terminal. Neither operation calls LINE inside the
+request transaction or mutates queue/order state.
 
 ### Media persistence boundary
 

@@ -874,7 +874,7 @@ inferred from mock CI.
   [`11_SCALABILITY_BASELINE.md`](11_SCALABILITY_BASELINE.md).
 - On-call ownership, dashboards, alerts, and incident communication.
 
-# Transactional email configuration
+## 12. Transactional email configuration
 
 Local development uses `EMAIL_TRANSPORT=mock` and writes preview HTML files under `var/email-preview`. Production must set `EMAIL_TRANSPORT=smtp`, sender details, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and an independent `EMAIL_TOKEN_ENCRYPTION_KEY` of at least 32 random characters. These are backend secrets and must never use a `VITE_*` name.
 

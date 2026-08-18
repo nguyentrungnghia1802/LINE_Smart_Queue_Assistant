@@ -1,6 +1,6 @@
 # Project Context
 
-Last verified against the repository on 2026-08-12 after the production backup/recovery tooling audit.
+Last verified against the repository on 2026-08-18 after the repo-wide documentation reconciliation audit.
 
 ## 1. Problem
 
@@ -124,7 +124,7 @@ real-money payment or notification platform.
   but it is inactive in the current demo runtime. Merchant onboarding, provider production
   credentials, real-money payment/refund acceptance, settlement/reconciliation operations, and
   Japan PSP selection remain external launch gates.
-- LINE operator APIs and customer preferences are implemented; production Rich Menu asset/E2E verification, an operator dashboard, and multi-organization channel configuration remain pending.
+- LINE operator APIs, customer preferences, and Notification Operations UI are implemented; production Rich Menu asset/device E2E verification and multi-organization LINE channel configuration remain pending.
 - Location alerts support deterministic mock travel time and a Google Routes walking adapter.
   Restricted provider credentials, quota monitoring, privacy/legal review, and physical-device E2E
   remain deployment gates.

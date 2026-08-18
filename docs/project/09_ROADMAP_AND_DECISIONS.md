@@ -2,7 +2,7 @@
 
 # Roadmap and Decisions
 
-Last reviewed: 2026-08-12 after adding verified VPS backup/recovery and backup-gated deployment. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
+Last reviewed on 2026-08-18 after the repo-wide documentation reconciliation audit. This file records current priorities and accepted architectural decisions. Completed behavior belongs in `CHANGELOG.md` and current-state docs.
 
 ## 1. Prioritized roadmap
 
@@ -14,7 +14,7 @@ Last reviewed: 2026-08-12 after adding verified VPS backup/recovery and backup-g
 
 ### P1: Complete requested product capabilities
 
-1. Add LINE consent/preferences, richer post-follow experience, production Rich Menu asset/E2E verification, and organization channel configuration strategy.
+1. Production Rich Menu asset/device E2E verification, richer post-follow experience, and multi-organization LINE channel configuration strategy (consent and user preferences are implemented in code).
 2. Complete legal review and connect an approved travel-time provider to the implemented privacy-aware location worker boundary.
 3. Connect the implemented audited reconciliation/refund boundary to a real PSP and settlement process.
 4. Calibrate the measured forecast/staffing heuristic with production history and accuracy reporting.
@@ -29,7 +29,7 @@ Last reviewed: 2026-08-12 after adding verified VPS backup/recovery and backup-g
 2. Complete production browser/device acceptance and capacity measurement for the implemented SSE
    queue/ticket updates before reducing the retained polling safety net further.
 3. Consider a separate scheduler worker after measuring the implemented PostgreSQL advisory-lock design.
-4. Add observability dashboards, SLOs, tracing, centralized logs, and provider/webhook alerts.
+4. Add production external observability dashboards, alerting thresholds, centralized log aggregation, and provider/webhook alerts (OpenTelemetry, Sentry, and Admin Operations health are implemented).
 5. Run staged load tests and optimize indexes/queries from measured bottlenecks.
 6. Expand accessibility and Japanese copy review with native-user testing.
 
@@ -37,7 +37,6 @@ Last reviewed: 2026-08-12 after adding verified VPS backup/recovery and backup-g
 
 | ID     | Issue                                                               | Impact                                  | Planned control                                                      |
 | ------ | ------------------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------- |
-| TD-001 | Shared TypeScript enum values differ from PostgreSQL in places      | Incorrect assumptions/contracts         | Align shared types and add serialization tests                       |
 | TD-002 | Notification operations retention is policy-driven, not automated   | Old terminal delivery rows require care | Add reviewed archival after legal and operational retention approval |
 | TD-003 | Inventory lifecycle needs production load validation                | Rare race behavior may be undiscovered  | Staged concurrent integration/load tests                             |
 | TD-004 | payOS collection exists but settlement/refund E2E is incomplete     | Production refund/operations risk       | Merchant E2E, refund adapter, settlement runbook                     |
@@ -86,23 +85,23 @@ redirects into LIFF, not a second guest-booking application.
 
 ## ADR-004: REST `/api/v1` with polling at current scale
 
-**Status:** Accepted
+**Status:** Extended by ADR-032
 
 **Context:** The current application needs predictable HTTP contracts and does not yet require realtime infrastructure.
 
-**Decision:** Use versioned REST and periodic client/job polling. Evaluate SSE before WebSocket when measured update latency becomes unacceptable.
+**Decision:** Use versioned REST and periodic client/job polling. Evaluate SSE before WebSocket when measured update latency becomes unacceptable. ADR-032 extends this baseline by introducing authenticated SSE streams with Redis Pub/Sub cross-replica fan-out for transient invalidation hints, while retaining REST snapshots as authoritative state and polling as degraded fallback.
 
 **Consequences:** Simpler clients and operations; extra reads and up-to-interval update latency.
 
 ## ADR-005: In-process scheduler for single-instance baseline
 
-**Status:** Accepted with exit criteria
+**Status:** Amended / Partially superseded by ADR-030 and ADR-031 for LINE delivery; retained for remaining API-owned schedulers
 
 **Context:** ETA scans and reminders are modest and Redis is not currently required.
 
-**Decision:** Run interval jobs in the API process. Notification delivery uses row claims; other logical jobs use session-level PostgreSQL advisory locks and durable `scheduler_job_runs` health records.
+**Decision:** Run interval jobs in the API process. Notification delivery uses row claims; other logical jobs use session-level PostgreSQL advisory locks and durable `scheduler_job_runs` health records. ADR-030 and ADR-031 extract LINE notification dispatch and delivery into a dedicated BullMQ worker process, while ETA, warnings, counter reset, forecasting, and session cleanup remain API-owned.
 
-**Consequences:** Multiple API replicas do not execute the same logical job concurrently, and PostgreSQL releases session locks when a worker disconnects. A dedicated worker remains an operational scaling option, not a correctness prerequisite for the current jobs.
+**Consequences:** Multiple API replicas do not execute the same logical job concurrently, and PostgreSQL releases session locks when a worker disconnects. A separate worker for the remaining API-owned schedulers remains an operational scaling option, not a correctness prerequisite for those jobs.
 
 ## ADR-006: Demo-first payment behind a provider boundary
 
@@ -196,13 +195,13 @@ redirects into LIFF, not a second guest-booking application.
 
 ## ADR-014: LINE notifications use a durable PostgreSQL outbox
 
-**Status:** Accepted
+**Status:** Accepted; extended by ADR-030, ADR-031, and Notification Operations
 
 **Context:** Process-local deduplication and retry are unsafe across API restarts, repeated scans, and multiple workers.
 
 **Decision:** Queue/order services enqueue LINE notification intents into the `notifications` table inside the same database transaction as the business state change. Each lifecycle event uses a unique event key. A scheduled worker claims due rows with PostgreSQL row locking, sends through `LineNotificationService` and the messaging adapter, then marks rows `sent`, schedules exponential retry, or leaves them `failed` after the configured attempt limit.
 
-**Consequences:** Queue/order transactions do not call LINE and are not rolled back by provider failures. Notification delivery survives API restarts and duplicate scans. The remaining production work is operator visibility, audited replay/cancel controls, and broader scheduler ownership decisions for non-notification jobs.
+**Consequences:** Queue/order transactions do not call LINE and are not rolled back by provider failures. Notification delivery survives API restarts and duplicate scans. Operator visibility and audited retry/cancel controls are implemented via Notification Operations (`/api/v1/notifications/operations/*`), while BullMQ worker delivery is implemented via ADR-030 and ADR-031.
 
 ## 4. Open product decisions
 
@@ -231,7 +230,7 @@ settlement claim; a production subscription PSP and terms versioning remain futu
 
 Decide these before implementing the corresponding P0/P1 contracts; record each material choice as a new ADR.
 
-# ADR-017: Invitation-based business identities and branch scope
+## ADR-017: Invitation-based business identities and branch scope
 
 **Status:** accepted (2026-07-27)
 
