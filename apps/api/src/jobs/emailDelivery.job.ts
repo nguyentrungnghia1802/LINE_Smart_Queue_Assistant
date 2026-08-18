@@ -8,6 +8,7 @@ import {
   type EmailOutboxRow,
 } from '../modules/email/email-outbox.repository';
 import { decryptEmailActionToken } from '../modules/email/email-token.crypto';
+import { logMonitoringClient } from '../modules/log-monitoring';
 import { logger } from '../utils/logger';
 import { metricsService } from '../utils/metrics';
 
@@ -69,6 +70,10 @@ export async function deliverEmail(
     await repository.markSent(row.id);
     metricsService.increment('email_outbox_sent_total');
   } catch (error) {
+    logMonitoringClient.error('EMAIL_DELIVERY_FAILED', 'Email outbox delivery failed', error, {
+      emailId: row.id,
+      templateKey: row.template_key,
+    });
     if (row.attempt_count >= row.max_attempts) {
       await repository.markFailed(row.id, error);
       metricsService.increment('email_outbox_failed_total');

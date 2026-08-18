@@ -5,6 +5,7 @@ import { closePool } from './db/client';
 import { bullMqRuntime } from './infrastructure/bullmq';
 import { WorkerHeartbeat } from './infrastructure/bullmq/worker-heartbeat';
 import { redisService } from './infrastructure/redis';
+import { logMonitoringClient } from './modules/log-monitoring';
 import { captureException, shutdownObservability } from './observability/runtime';
 import { logger } from './utils/logger';
 
@@ -35,6 +36,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   await heartbeat.stop();
   await redisService.stop();
   await closePool();
+  await logMonitoringClient.close();
   await shutdownObservability();
   logger.info('Worker shutdown complete');
   process.exit(exitCode);

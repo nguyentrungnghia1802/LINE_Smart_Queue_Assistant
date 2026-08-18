@@ -5,6 +5,7 @@ import { UserRole } from '@line-queue/shared';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
+import { logMonitoringClient } from '../log-monitoring';
 import { paymentsService } from '../payments/payments.service';
 
 import { ordersService } from './orders.service';
@@ -70,7 +71,19 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const actor = { userId: req.user.id, lineUserId: req.user.lineUserId };
-  const result = await ordersService.create(req.body as CreateOrderDto, actor);
+  let result: Awaited<ReturnType<typeof ordersService.create>>;
+  try {
+    result = await ordersService.create(req.body as CreateOrderDto, actor);
+  } catch (error) {
+    logMonitoringClient.error(
+      'ORDER_CREATE_FAILED',
+      'Order creation failed',
+      error,
+      { organizationId: req.user.organizationId },
+      { requestId: typeof req.id === 'string' ? req.id : undefined }
+    );
+    throw error;
+  }
   res.status(201).json({ success: true, data: { order: result.order, queueEntry: result.entry } });
 });
 

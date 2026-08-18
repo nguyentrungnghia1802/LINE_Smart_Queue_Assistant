@@ -48,6 +48,7 @@ apps/api/src/
 |-- infrastructure/redis/   Shared Redis lifecycle, rate limits, and public read-model cache
 |-- middlewares/             Auth, role, validation, rate, idempotency, logs, metrics
 |-- modules/<domain>/        Route/controller/service/validator and tests
+|-- modules/log-monitoring/ Bounded platform HTTP adapter and source instrumentation
 |-- observability/           OpenTelemetry, Sentry, trace propagation, sanitization
 |-- routes/                  Health and router composition
 |-- types/                   Express/auth-local types
@@ -70,6 +71,14 @@ infrastructure probes, process metrics, and aggregate outbox counts only. Never 
 customer records, notification payloads, payment transactions, or secret values to this contract.
 `infrastructure/bullmq/worker-heartbeat.ts` maintains both the container health file and the
 short-lived Redis heartbeat consumed by this read model.
+
+The `modules/log-monitoring` adapter is intentionally fail-open and disabled
+by default. When enabled with a project-scoped `LOG_MONITORING_API_KEY`, it
+uses the platform batch ingestion contract with bounded queue memory, retry
+and shutdown limits, server-admission-only `202` semantics, request/trace
+correlation, and telemetry sanitization. It is called from high-value queue,
+authentication, payment webhook, LINE, email, scheduler, error, and slow-query
+failure paths; monitoring transport failure must never change business state.
 
 ### Layer rules
 

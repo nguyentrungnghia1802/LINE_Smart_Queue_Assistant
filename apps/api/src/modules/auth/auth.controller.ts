@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
+import { logMonitoringClient } from '../log-monitoring';
 
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from './auth.cookies';
 import { authService } from './auth.service';
@@ -25,7 +26,20 @@ function publicSession(session: {
  */
 export const loginWithLine = asyncHandler(async (req: Request, res: Response) => {
   const { idToken } = req.body as LineLoginDto;
-  const { token, user, session } = await authService.loginWithLineToken(idToken);
+  let result: Awaited<ReturnType<typeof authService.loginWithLineToken>>;
+  try {
+    result = await authService.loginWithLineToken(idToken);
+  } catch (error) {
+    logMonitoringClient.error(
+      'AUTH_LOGIN_FAILED',
+      'LINE login failed',
+      error,
+      { method: 'line' },
+      { requestId: typeof req.id === 'string' ? req.id : undefined }
+    );
+    throw error;
+  }
+  const { token, user, session } = result;
   setRefreshCookie(res, session.refreshToken, session.refreshExpiresAt);
   sendSuccess(res, { token, user, session: publicSession(session) });
 });
@@ -36,7 +50,20 @@ export const loginWithLine = asyncHandler(async (req: Request, res: Response) =>
  */
 export const loginWithEmailPassword = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body as EmailPasswordLoginDto;
-  const { token, user, session } = await authService.loginWithEmailPassword(email, password);
+  let result: Awaited<ReturnType<typeof authService.loginWithEmailPassword>>;
+  try {
+    result = await authService.loginWithEmailPassword(email, password);
+  } catch (error) {
+    logMonitoringClient.error(
+      'AUTH_LOGIN_FAILED',
+      'Password login failed',
+      error,
+      { method: 'password' },
+      { requestId: typeof req.id === 'string' ? req.id : undefined }
+    );
+    throw error;
+  }
+  const { token, user, session } = result;
   setRefreshCookie(res, session.refreshToken, session.refreshExpiresAt);
   sendSuccess(res, { token, user, session: publicSession(session) });
 });
