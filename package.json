@@ -57,6 +57,7 @@
     "db:fixture:e2e": "npm run db:fixture:e2e -w apps/api",
     "line:verify": "npm run line:verify -w apps/api",
     "line:rich-menu:sync": "npm run line:rich-menu:sync -w apps/api",
+    "log-monitoring:verify": "npm run log-monitoring:verify -w apps/api",
     "storybook": "npm run storybook --workspace=apps/web",
     "storybook:build": "npm run storybook:build --workspace=apps/web",
     "scale:load": "node scripts/scalability/http-load.mjs",

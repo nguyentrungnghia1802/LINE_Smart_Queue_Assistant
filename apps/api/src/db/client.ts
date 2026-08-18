@@ -1,6 +1,7 @@
 import { Pool, PoolClient } from 'pg';
 
 import { config } from '../config';
+import { logMonitoringClient } from '../modules/log-monitoring';
 import { logger } from '../utils/logger';
 import { metricsService } from '../utils/metrics';
 
@@ -31,6 +32,20 @@ export function updatePoolMetrics(): void {
   metricsService.setGauge('postgres_pool_waiting', pool.waitingCount);
 }
 
+function reportSlowQuery(sql: string, startedAt: number): void {
+  const durationMs = Date.now() - startedAt;
+  if (durationMs < config.logMonitoring.slowQueryThresholdMs) return;
+  logMonitoringClient.error(
+    'DATABASE_QUERY_SLOW',
+    'PostgreSQL query exceeded the monitoring threshold',
+    undefined,
+    {
+      durationMs,
+      statement: sql.replace(/\s+/g, ' ').trim().slice(0, 160),
+    }
+  );
+}
+
 // ── Typed query helpers ────────────────────────────────────────────────────────
 
 /**
@@ -38,8 +53,10 @@ export function updatePoolMetrics(): void {
  * Returns typed rows array (empty array when zero rows).
  */
 export async function query<T>(sql: string, params?: unknown[]): Promise<T[]> {
+  const startedAt = Date.now();
   const result = await pool.query(sql, params);
   updatePoolMetrics();
+  reportSlowQuery(sql, startedAt);
   return result.rows as T[];
 }
 
@@ -47,8 +64,10 @@ export async function query<T>(sql: string, params?: unknown[]): Promise<T[]> {
  * Run a query and return the first row, or `null` if no rows match.
  */
 export async function queryOne<T>(sql: string, params?: unknown[]): Promise<T | null> {
+  const startedAt = Date.now();
   const result = await pool.query(sql, params);
   updatePoolMetrics();
+  reportSlowQuery(sql, startedAt);
   return (result.rows[0] as T) ?? null;
 }
 
@@ -60,8 +79,10 @@ export async function queryWithClient<T>(
   sql: string,
   params?: unknown[]
 ): Promise<T[]> {
+  const startedAt = Date.now();
   const result = await client.query(sql, params);
   updatePoolMetrics();
+  reportSlowQuery(sql, startedAt);
   return result.rows as T[];
 }
 

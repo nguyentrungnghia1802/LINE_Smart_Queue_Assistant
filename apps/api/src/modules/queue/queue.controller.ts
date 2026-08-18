@@ -7,6 +7,7 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { logger } from '../../utils/logger';
 import { sendCreated, sendSuccess } from '../../utils/response';
 import { requireBranchOperator } from '../branches/branch-scope';
+import { logMonitoringClient } from '../log-monitoring';
 import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
 import { queueService } from './queue.service';
@@ -21,6 +22,20 @@ import { CurrentQueueQuery, EntryIdParam, JoinQueueDto, QueueIdParam } from './q
  */
 function reqLog(req: Request) {
   return (req as { log?: typeof logger }).log ?? logger;
+}
+
+function reportQueueTransitionFailure(
+  req: Request,
+  error: unknown,
+  context: Record<string, unknown>
+): void {
+  logMonitoringClient.error(
+    'QUEUE_TRANSITION_CONFLICT',
+    'Queue transition failed',
+    error,
+    context,
+    { requestId: typeof req.id === 'string' ? req.id : undefined }
+  );
 }
 
 // ── POST /api/v1/queue/join ───────────────────────────────────────────────────
@@ -45,7 +60,19 @@ export const joinQueue = asyncHandler(async (req: Request, res: Response) => {
     userId: req.user?.id,
     lineUserId: req.user?.lineUserId,
   };
-  const result = await queueService.joinQueue(joinRequest);
+  let result: Awaited<ReturnType<typeof queueService.joinQueue>>;
+  try {
+    result = await queueService.joinQueue(joinRequest);
+  } catch (error) {
+    logMonitoringClient.error(
+      'QUEUE_CREATE_FAILED',
+      'Queue join failed',
+      error,
+      { queueId: dto.queueId },
+      { requestId: typeof req.id === 'string' ? req.id : undefined }
+    );
+    throw error;
+  }
 
   reqLog(req).info(
     {
@@ -143,7 +170,13 @@ export const callNextTicket = asyncHandler(async (req: Request, res: Response) =
   const { queueId } = req.params as unknown as QueueIdParam;
   if (!req.user) throw AppError.unauthorized();
   const scope = requireBranchOperator(req.user);
-  const entry = await queueService.callNextTicket(queueId, scope.organizationId, scope.branchId);
+  let entry: Awaited<ReturnType<typeof queueService.callNextTicket>>;
+  try {
+    entry = await queueService.callNextTicket(queueId, scope.organizationId, scope.branchId);
+  } catch (error) {
+    reportQueueTransitionFailure(req, error, { action: 'call_next', queueId });
+    throw error;
+  }
 
   reqLog(req).info({ queueId, entryId: entry.id, ticket: entry.ticket_code }, 'queue.callNext');
 
@@ -157,12 +190,18 @@ export const serveTicket = asyncHandler(async (req: Request, res: Response) => {
   const { entryId } = req.params as unknown as EntryIdParam;
   if (!req.user) throw AppError.unauthorized();
   const scope = requireBranchOperator(req.user);
-  const entry = await queueService.serveTicket({
-    entryId,
-    actorUserId: scope.actorId,
-    actorOrganizationId: scope.organizationId,
-    actorBranchId: scope.branchId,
-  });
+  let entry: Awaited<ReturnType<typeof queueService.serveTicket>>;
+  try {
+    entry = await queueService.serveTicket({
+      entryId,
+      actorUserId: scope.actorId,
+      actorOrganizationId: scope.organizationId,
+      actorBranchId: scope.branchId,
+    });
+  } catch (error) {
+    reportQueueTransitionFailure(req, error, { action: 'serve', entryId });
+    throw error;
+  }
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'queue.serve');
 
@@ -176,12 +215,18 @@ export const completeTicket = asyncHandler(async (req: Request, res: Response) =
   const { entryId } = req.params as unknown as EntryIdParam;
   if (!req.user) throw AppError.unauthorized();
   const scope = requireBranchOperator(req.user);
-  const entry = await queueService.completeTicket({
-    entryId,
-    actorUserId: scope.actorId,
-    actorOrganizationId: scope.organizationId,
-    actorBranchId: scope.branchId,
-  });
+  let entry: Awaited<ReturnType<typeof queueService.completeTicket>>;
+  try {
+    entry = await queueService.completeTicket({
+      entryId,
+      actorUserId: scope.actorId,
+      actorOrganizationId: scope.organizationId,
+      actorBranchId: scope.branchId,
+    });
+  } catch (error) {
+    reportQueueTransitionFailure(req, error, { action: 'complete', entryId });
+    throw error;
+  }
 
   reqLog(req).info({ entryId, ticket: entry.ticket_code }, 'queue.complete');
 

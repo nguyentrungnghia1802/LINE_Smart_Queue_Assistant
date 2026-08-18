@@ -5,6 +5,7 @@ import { config } from './config';
 import { closePool } from './db/client';
 import { redisService } from './infrastructure/redis';
 import { scheduler } from './jobs/scheduler';
+import { logMonitoringClient } from './modules/log-monitoring';
 import { realtimeService } from './modules/realtime';
 import { captureException, shutdownObservability } from './observability/runtime';
 import { logger } from './utils/logger';
@@ -30,7 +31,12 @@ async function startServer(): Promise<void> {
     scheduler.stop();
     await realtimeService.stop();
     server.close(async () => {
-      await Promise.all([closePool(), redisService.stop(), shutdownObservability()]);
+      await Promise.all([
+        closePool(),
+        redisService.stop(),
+        logMonitoringClient.close(),
+        shutdownObservability(),
+      ]);
       logger.info('API shutdown complete');
       process.exit(0);
     });

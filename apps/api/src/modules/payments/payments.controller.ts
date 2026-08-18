@@ -6,6 +6,7 @@ import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendCreated, sendSuccess } from '../../utils/response';
 import { requireBranchManager } from '../branches/branch-scope';
+import { logMonitoringClient } from '../log-monitoring';
 
 import { paymentsService } from './payments.service';
 import { CompleteDemoPaymentDto, CreatePaymentIntentDto } from './payments.validator';
@@ -36,11 +37,23 @@ export const getPaymentReturnStatus = asyncHandler(async (req: Request, res: Res
 export const handlePaymentWebhook = asyncHandler(async (req: Request, res: Response) => {
   const rawBody = req.rawBody;
   if (!rawBody) throw AppError.badRequest('Raw payment webhook body is unavailable');
-  const result = await paymentsService.handleWebhook(
-    req.params.provider as never,
-    rawBody,
-    req.headers
-  );
+  let result: Awaited<ReturnType<typeof paymentsService.handleWebhook>>;
+  try {
+    result = await paymentsService.handleWebhook(
+      req.params.provider as never,
+      rawBody,
+      req.headers
+    );
+  } catch (error) {
+    logMonitoringClient.error(
+      'PAYMENT_WEBHOOK_FAILED',
+      'Payment webhook processing failed',
+      error,
+      { provider: req.params.provider },
+      { requestId: typeof req.id === 'string' ? req.id : undefined }
+    );
+    throw error;
+  }
   sendSuccess(res, { received: true, duplicate: result.duplicate });
 });
 
