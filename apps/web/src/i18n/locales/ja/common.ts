@@ -78,6 +78,7 @@ export const common = {
     price: '価格',
     description: '説明',
     ticketCode: '受付番号',
+    orderNumber: '注文番号',
     peopleAhead: '前の人数',
     estimatedWait: '待ち時間目安',
     organization: '組織',
@@ -114,7 +115,7 @@ export const common = {
     FORBIDDEN: 'この操作を行う権限がありません。',
     CUSTOMER_ACCOUNT_REQUIRED: '受付にはお客様アカウントが必要です。',
     BRANCH_PLAN_LIMIT_REACHED: '現在のサービスプランでは、これ以上の支店を追加できません。',
-    QUEUE_NOT_ACCEPTING: '現在受付中のキューはありません。',
+    QUEUE_NOT_ACCEPTING: '現在受付を行っておりません。',
     PAYMENT_ALREADY_USED:
       '前回のお支払い情報はすでに使用されています。もう一度お支払い手続きを行ってください。',
     NOT_FOUND: '指定された情報が見つかりません。',

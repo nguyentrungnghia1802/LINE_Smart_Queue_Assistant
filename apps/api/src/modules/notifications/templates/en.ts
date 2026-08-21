@@ -4,6 +4,7 @@ export const enLineNotificationCopy: LineNotificationCopy = {
   locale: 'en',
   systemName: 'LINE Smart Queue Assistant',
   labels: {
+    order: 'Order Number',
     ticket: 'Ticket',
     status: 'Status',
     ahead: 'People ahead',

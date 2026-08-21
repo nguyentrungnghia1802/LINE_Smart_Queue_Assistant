@@ -88,8 +88,8 @@ export function HistoryPage() {
                     {order.order_number}
                   </span>
                   {order.ticket && (
-                    <span className="text-xs font-medium text-gray-500">
-                      {t('labels.ticketCode', { ns: 'common' })} {order.ticket.ticket_code}
+                    <span className="font-mono text-xs font-semibold text-gray-500">
+                      {t('labels.ticketCode', { ns: 'common' })}: {order.ticket.ticket_code}
                     </span>
                   )}
                 </div>

@@ -4,6 +4,7 @@ export const viLineNotificationCopy: LineNotificationCopy = {
   locale: 'vi',
   systemName: 'LINE Smart Queue Assistant',
   labels: {
+    order: 'Mã đơn hàng',
     ticket: 'Mã lượt',
     status: 'Trạng thái',
     ahead: 'Số người phía trước',

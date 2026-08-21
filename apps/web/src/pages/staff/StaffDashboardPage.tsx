@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { CheckCircle2, ExternalLink, Printer, QrCode, ReceiptText, X } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Printer, QrCode, TicketCheck, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -200,6 +200,8 @@ function printReceipt(order: Order, ticketCode: string) {
         <style>
           body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 24px; color: #111827; }
           h1 { font-size: 20px; margin: 0 0 8px; }
+          .order-main { font-size: 16px; font-weight: 700; color: #111827; margin: 12px 0 4px; }
+          .ticket-sub { font-size: 13px; color: #4b5563; font-weight: 600; margin-bottom: 12px; }
           .meta { color: #6b7280; font-size: 12px; line-height: 1.7; margin-bottom: 20px; }
           table { width: 100%; border-collapse: collapse; font-size: 12px; }
           th, td { border-bottom: 1px solid #e5e7eb; padding: 8px 0; text-align: left; }
@@ -210,12 +212,12 @@ function printReceipt(order: Order, ticketCode: string) {
       </head>
       <body>
         <h1>${i18n.t('staff:dashboard.printReceipt')}</h1>
+        <div class="order-main">${i18n.t('staff:dashboard.receiptOrderNumber')}: ${escapeHtml(order.order_number)}</div>
+        <div class="ticket-sub">${i18n.t('staff:dashboard.receiptTicketNumber')}: ${escapeHtml(ticketCode)}</div>
         <div class="meta">
           ${i18n.t('staff:dashboard.receiptOrganization')}: ${escapeHtml(order.organization_name_snapshot)}<br />
           ${i18n.t('staff:dashboard.receiptBranch')}: ${escapeHtml(order.branch_name_snapshot)}<br />
           ${i18n.t('staff:dashboard.receiptQueue')}: ${escapeHtml(order.queue_name_snapshot)}<br />
-          ${i18n.t('staff:dashboard.receiptOrderNumber')}: ${escapeHtml(order.order_number)}<br />
-          ${i18n.t('staff:dashboard.receiptTicketNumber')}: ${escapeHtml(ticketCode)}<br />
           ${i18n.t('staff:dashboard.receiptCustomer')}: ${escapeHtml(order.customer_name ?? i18n.t('staff:dashboard.guest'))}<br />
           ${i18n.t('staff:dashboard.receiptStaff')}: ${escapeHtml(order.fulfilled_by_name ?? i18n.t('staff:dashboard.contactUnavailable'))}${order.fulfilled_by_employee_code ? ` (${escapeHtml(order.fulfilled_by_employee_code)})` : ''}<br />
           ${i18n.t('staff:dashboard.receiptOrderedAt')}: ${formatDateTime(order.created_at, i18n.resolvedLanguage ?? 'ja')}<br />
@@ -502,8 +504,8 @@ export function StaffDashboardPage() {
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-sm font-bold text-gray-800 md:text-base">
-                    {entry.ticket_code}
+                  <span className="font-mono text-sm font-bold text-gray-900 md:text-base">
+                    {ord ? ord.order_number : entry.ticket_code}
                   </span>
                   <span
                     className={`rounded-full px-1.5 py-0.5 text-[10px] md:px-2 md:text-xs ${QUEUE_STATUS_COLORS[entry.status] ?? 'bg-gray-100 text-gray-500'}`}
@@ -522,8 +524,8 @@ export function StaffDashboardPage() {
                       {ord.customer_name ?? t('dashboard.guest', { ns: 'staff' })}
                     </p>
                     <p className="mt-1 flex items-center gap-1 truncate font-mono text-[10px] font-semibold text-gray-500 md:text-xs">
-                      <ReceiptText className="h-3 w-3 shrink-0" aria-hidden="true" />
-                      {ord.order_number}
+                      <TicketCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      {t('labels.ticketCode', { ns: 'common' })}: {entry.ticket_code}
                     </p>
                     <p className="mt-0.5 hidden text-sm font-medium text-gray-700 md:block">
                       {formatCurrency(ord.subtotal)}
@@ -552,12 +554,19 @@ export function StaffDashboardPage() {
             <div className="rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)] sm:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">
-                    {t('labels.ticketCode', { ns: 'common' })}
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    {selected.order
+                      ? t('labels.orderNumber', { ns: 'common' })
+                      : t('labels.ticketCode', { ns: 'common' })}
                   </p>
                   <p className="font-mono text-3xl font-bold text-gray-900 sm:text-4xl">
-                    {selected.ticket_code}
+                    {selected.order ? selected.order.order_number : selected.ticket_code}
                   </p>
+                  {selected.order && (
+                    <p className="mt-1 font-mono text-xs font-semibold text-gray-500 sm:text-sm">
+                      {t('labels.ticketCode', { ns: 'common' })}: {selected.ticket_code}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2 sm:ml-auto sm:flex-col sm:items-end sm:gap-1">
                   <span

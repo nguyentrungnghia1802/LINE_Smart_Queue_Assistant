@@ -114,10 +114,10 @@ describe('TicketStatusPage', () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText('A019')).toBeInTheDocument();
+    expect(await screen.findAllByText('A012')).toHaveLength(2);
+    expect(screen.getByText(/A019/)).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('約15分')).toBeInTheDocument();
-    expect(screen.getByText('A012')).toBeInTheDocument();
     expect(screen.getByText('健康相談')).toBeInTheDocument();
   });
 });

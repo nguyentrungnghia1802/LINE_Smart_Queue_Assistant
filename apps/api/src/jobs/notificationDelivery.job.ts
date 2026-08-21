@@ -74,6 +74,10 @@ function buildTemplateFromOutbox(row: NotificationOutboxRow) {
   return buildTicketNotification({
     eventType: asEventType(row.event_type),
     ticketCode: stringOrFallback(payload.ticketCode, '----'),
+    orderNumber:
+      typeof payload.orderNumber === 'string' && payload.orderNumber.length > 0
+        ? payload.orderNumber
+        : null,
     ticketUrl: buildTicketDeepLink(row.queue_entry_id, {
       liffId: config.line.loginLiffId,
       liffEndpointPath: config.line.liffEndpointPath,

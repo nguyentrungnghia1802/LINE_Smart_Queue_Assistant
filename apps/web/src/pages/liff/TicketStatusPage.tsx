@@ -132,7 +132,11 @@ export function TicketStatusPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       {/* Called banner */}
-      {isCalled && <CalledBanner ticketDisplay={entry.ticket_code} />}
+      {isCalled && (
+        <CalledBanner
+          ticketDisplay={ticketData.order ? ticketData.order.order_number : entry.ticket_code}
+        />
+      )}
 
       {/* ── Hero ticket card ──────────────────────────────────────────────── */}
       <div
@@ -141,17 +145,23 @@ export function TicketStatusPage() {
         }`}
       >
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-          {t('labels.ticketCode', { ns: 'common' })}
+          {ticketData.order
+            ? t('labels.orderNumber', { ns: 'common' })
+            : t('labels.ticketCode', { ns: 'common' })}
         </p>
         <p
-          className={`text-6xl font-extrabold leading-none sm:text-7xl ${
+          className={`font-mono text-5xl font-extrabold leading-none sm:text-6xl ${
             isCalled ? 'text-amber-500' : 'text-gray-900'
           }`}
         >
-          {entry.ticket_code}
+          {ticketData.order ? ticketData.order.order_number : entry.ticket_code}
         </p>
+        {ticketData.order && (
+          <p className="font-mono text-sm font-semibold text-gray-500">
+            {t('labels.ticketCode', { ns: 'common' })}: {entry.ticket_code}
+          </p>
+        )}
         <StatusBadge status={statusKey} size="md" />
-        {/* notes field removed from queue_entries in schema v2 */}
       </div>
 
       {/* ── ETA + position stats — only while waiting or called ───────────── */}
@@ -195,7 +205,9 @@ export function TicketStatusPage() {
         </div>
       )}
 
-      {ticketData.order && <CustomerOrderDetails order={ticketData.order} />}
+      {ticketData.order && (
+        <CustomerOrderDetails order={ticketData.order} ticketCode={entry.ticket_code} />
+      )}
 
       {/* ── Back link ────────────────────────────────────────────────────── */}
       <button

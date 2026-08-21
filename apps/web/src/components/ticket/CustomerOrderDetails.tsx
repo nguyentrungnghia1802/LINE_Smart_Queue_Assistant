@@ -7,6 +7,7 @@ import { StatusBadge } from '../ui/StatusBadge';
 
 interface CustomerOrderDetailsProps {
   order: CustomerTicketOrder;
+  ticketCode?: string | null;
 }
 
 function getPaymentSummary(order: CustomerTicketOrder) {
@@ -23,10 +24,11 @@ function getPaymentSummary(order: CustomerTicketOrder) {
   };
 }
 
-export function CustomerOrderDetails({ order }: Readonly<CustomerOrderDetailsProps>) {
+export function CustomerOrderDetails({ order, ticketCode }: Readonly<CustomerOrderDetailsProps>) {
   const { t, i18n } = useTranslation(['customer', 'common']);
   const locale = i18n.resolvedLanguage ?? 'ja';
   const payment = getPaymentSummary(order);
+  const displayTicketCode = ticketCode ?? order.ticket_code;
 
   return (
     <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -42,6 +44,11 @@ export function CustomerOrderDetails({ order }: Readonly<CustomerOrderDetailsPro
             <p className="truncate font-mono text-base font-bold text-gray-950">
               {order.order_number}
             </p>
+            {displayTicketCode && (
+              <p className="truncate font-mono text-xs font-semibold text-gray-500 mt-0.5">
+                {t('labels.ticketCode', { ns: 'common' })}: {displayTicketCode}
+              </p>
+            )}
           </div>
         </div>
         <StatusBadge status={order.status} />

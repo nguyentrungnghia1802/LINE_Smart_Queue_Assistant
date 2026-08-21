@@ -154,4 +154,29 @@ describe('line-notification.templates', () => {
     });
     expect(notification.textMessage).toContain('順番になりました');
   });
+
+  it('displays order number prominently when provided with ticket code secondary', () => {
+    const notification = buildTicketNotification({
+      eventType: 'booking_created',
+      ticketCode: 'A016',
+      orderNumber: 'PA-016',
+      ticketUrl: 'https://queue.example.com/liff/tickets/entry-123',
+      aheadCount: 3,
+      estimatedWaitSeconds: 600,
+    });
+
+    expect(notification.flexMessage.altText).toContain('注文番号 PA-016 (受付番号 A016)');
+    expect(notification.textMessage).toContain('注文番号: PA-016');
+    expect(notification.textMessage).toContain('受付番号: A016');
+    expect(notification.flexMessage.contents).toMatchObject({
+      type: 'bubble',
+      body: {
+        contents: expect.arrayContaining([
+          expect.objectContaining({ text: '注文番号' }),
+          expect.objectContaining({ text: 'PA-016' }),
+          expect.objectContaining({ text: '受付番号: A016' }),
+        ]),
+      },
+    });
+  });
 });

@@ -72,8 +72,38 @@ describe('queueNotificationService durable outbox', () => {
         eventKey: 'queue_entry:entry-001:booking_created',
         payload: {
           ticketCode: 'A005',
+          orderNumber: null,
           aheadCount: 2,
           estimatedWaitSeconds: 600,
+        },
+      }),
+      client
+    );
+  });
+
+  it('enqueues notification with orderNumber when present in snapshot', async () => {
+    const repository = makeRepository();
+    const entry = makeEntry();
+
+    await queueNotificationService.notifyBookingCreated(
+      entry,
+      {
+        organizationId: 'org-001',
+        orderNumber: 'PA-005',
+        aheadCount: 1,
+        estimatedWaitSeconds: 300,
+      },
+      repository,
+      client
+    );
+
+    expect(repository.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: {
+          ticketCode: 'A005',
+          orderNumber: 'PA-005',
+          aheadCount: 1,
+          estimatedWaitSeconds: 300,
         },
       }),
       client

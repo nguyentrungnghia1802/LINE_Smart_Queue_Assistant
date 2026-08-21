@@ -768,7 +768,7 @@ export function CustomerJoinPage({
               <button
                 type="button"
                 onClick={() => navigate('/liff/home')}
-                className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                className="ml-auto shrink-0 rounded-full border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 sm:px-3 sm:py-2 sm:text-sm"
               >
                 {t('nav.home', { ns: 'common' })}
               </button>
@@ -777,7 +777,7 @@ export function CustomerJoinPage({
                 <button
                   type="button"
                   onClick={() => navigate(dashboardPathForRole(user?.role))}
-                  className="ml-auto rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                  className="ml-auto shrink-0 rounded-full border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 sm:px-3 sm:py-2 sm:text-sm"
                 >
                   {t('nav.dashboard', { ns: 'common' })}
                 </button>
@@ -793,41 +793,43 @@ export function CustomerJoinPage({
       )}
 
       <main
-        className={`mx-auto grid max-w-6xl gap-5 py-3 sm:py-5 lg:grid-cols-[minmax(0,1fr)_360px] ${
+        className={`mx-auto grid max-w-6xl gap-4 py-2 sm:gap-5 sm:py-5 lg:grid-cols-[minmax(0,1fr)_360px] ${
           isLiffMode ? 'px-0' : 'px-4'
         }`}
       >
         {isLiffMode && (
-          <section className="flex min-w-0 items-center gap-3 rounded-xl border border-white/80 bg-white px-4 py-3 shadow-sm lg:col-span-2">
+          <section className="flex min-w-0 items-center gap-3 rounded-xl border border-white/80 bg-white px-3.5 py-2.5 shadow-sm sm:px-4 sm:py-3 lg:col-span-2">
             {org.logoUrl ? (
               <img
                 src={org.logoUrl}
                 alt=""
-                className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                className="h-9 w-9 shrink-0 rounded-lg object-cover sm:h-10 sm:w-10"
               />
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-sm font-bold text-brand-700">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-xs font-bold text-brand-700 sm:h-10 sm:w-10 sm:text-sm">
                 {org.name[0]}
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="truncate text-base font-bold text-gray-950">{data.branch.name}</h1>
-              <p className="truncate text-xs text-gray-500">{branchAddress}</p>
+              <h1 className="truncate text-sm font-bold text-gray-950 sm:text-base">
+                {data.branch.name}
+              </h1>
+              <p className="truncate text-[11px] text-gray-500 sm:text-xs">{branchAddress}</p>
             </div>
           </section>
         )}
 
-        <div className="space-y-6">
-          <section className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
+        <div className="space-y-4 sm:space-y-6">
+          <section className="rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)] sm:p-5">
             <label className="block">
-              <span className="text-lg font-bold text-gray-950">
+              <span className="text-base font-bold text-gray-950 sm:text-lg">
                 {t('booking.selectQueue', { ns: 'customer' })}
               </span>
               {data.queues.length > 0 && (
                 <select
                   value={selectedQueueId}
                   onChange={(event) => selectQueue(event.target.value)}
-                  className="mt-3 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-950 shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  className="mt-2.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-semibold text-gray-950 shadow-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 sm:mt-3 sm:px-4 sm:py-3 sm:text-sm"
                 >
                   <option value="" disabled>
                     {t('booking.selectQueuePlaceholder', { ns: 'customer' })}
@@ -841,22 +843,24 @@ export function CustomerJoinPage({
               )}
             </label>
             {data.queues.length === 0 && (
-              <p className="mt-3 text-sm text-amber-700">
+              <p className="mt-2.5 text-xs text-amber-700 text-wrap-natural sm:mt-3 sm:text-sm">
                 {t('booking.noQueuesConfigured', { ns: 'customer' })}
               </p>
             )}
           </section>
 
           {selectedQueue?.isAcceptingBookings ? (
-            <section className="rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)]">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <section className="rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)] sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-950">{selectedQueue.name}</h2>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <h2 className="text-base font-bold text-gray-950 sm:text-lg">
+                    {selectedQueue.name}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-gray-500 sm:mt-1 sm:text-sm">
                     {t('booking.online', { ns: 'customer' })}
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="grid grid-cols-2 gap-2 text-center sm:gap-3">
                   <Metric
                     label={t('labels.peopleAhead', { ns: 'common' })}
                     value={`${selectedQueue.waitingCount}`}
@@ -872,27 +876,27 @@ export function CustomerJoinPage({
               </div>
             </section>
           ) : selectedQueue ? (
-            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 text-wrap-natural sm:p-5 sm:text-sm">
               {availabilityMessage}
             </section>
           ) : null}
 
           <section>
-            <div className="mb-4 flex items-end justify-between">
+            <div className="mb-3 flex items-end justify-between sm:mb-4">
               <div>
-                <h2 className="text-xl font-bold text-gray-950">
+                <h2 className="text-lg font-bold text-gray-950 sm:text-xl">
                   {t('booking.productsTitle', { ns: 'customer' })}
                 </h2>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-0.5 text-xs text-gray-500 text-wrap-natural sm:mt-1 sm:text-sm">
                   {t('booking.productsHint', { ns: 'customer' })}
                 </p>
               </div>
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-500 shadow-sm">
+              <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-500 shadow-sm sm:px-3 sm:text-xs">
                 {t('units.items', { ns: 'common', count: products.length })}
               </span>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
               {products.map((product) => (
                 <ProductCard
                   key={product.id}
@@ -910,22 +914,22 @@ export function CustomerJoinPage({
 
         <form
           onSubmit={handleSubmit}
-          className="h-fit space-y-4 rounded-2xl border border-white/80 bg-white p-5 shadow-[var(--shadow-soft)] lg:sticky lg:top-6"
+          className="h-fit space-y-3.5 rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)] sm:space-y-4 sm:p-5 lg:sticky lg:top-6"
         >
           {isLiffMode && liffAuthStatus !== 'authenticated' && (
             <section
-              className={`rounded-xl border p-4 ${
+              className={`rounded-xl border p-3 sm:p-4 ${
                 liffAuthStatus === 'error'
                   ? 'border-red-100 bg-red-50 text-red-800'
                   : 'border-brand-100 bg-brand-50 text-brand-800'
               }`}
             >
-              <h2 className="text-sm font-bold">
+              <h2 className="text-xs font-bold sm:text-sm">
                 {liffAuthStatus === 'error'
                   ? t('home.authRequired', { ns: 'customer' })
                   : t('home.authenticating', { ns: 'customer' })}
               </h2>
-              <p className="mt-1 text-xs leading-5">
+              <p className="mt-1 text-[11px] leading-4 text-wrap-natural sm:text-xs sm:leading-5">
                 {liffAuthStatus === 'error'
                   ? (liffAuthError?.message ?? t('booking.lineAuthFailed', { ns: 'customer' }))
                   : t('booking.linkingLine', { ns: 'customer' })}
@@ -934,27 +938,27 @@ export function CustomerJoinPage({
           )}
 
           {activeBookingRecords.length > 0 && (
-            <section className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+            <section className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 sm:p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-bold text-emerald-950">
+                  <h2 className="text-xs font-bold text-emerald-950 sm:text-sm">
                     {t('booking.booked', { ns: 'customer' })}
                   </h2>
-                  <p className="mt-1 text-xs text-emerald-800">
+                  <p className="mt-0.5 text-[11px] text-emerald-800 text-wrap-natural sm:mt-1 sm:text-xs">
                     {t('booking.addBookingHint', { ns: 'customer' })}
                   </p>
                 </div>
-                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-emerald-700">
+                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-emerald-700 sm:px-2.5 sm:py-1 sm:text-xs">
                   {t('units.items', { ns: 'common', count: activeBookingRecords.length })}
                 </span>
               </div>
-              <div className="mt-3 space-y-2">
+              <div className="mt-2.5 space-y-1.5 sm:mt-3 sm:space-y-2">
                 {activeBookingRecords.slice(0, 3).map((record) => (
                   <button
                     key={record.queueEntryId}
                     type="button"
                     onClick={() => navigate(record.ticketPath)}
-                    className="flex w-full items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-left text-xs text-gray-600 hover:bg-emerald-100/60"
+                    className="flex w-full items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 text-left text-[11px] text-gray-600 hover:bg-emerald-100/60 sm:gap-3 sm:px-3 sm:py-2 sm:text-xs"
                   >
                     <span>{formatDateTime(record.createdAt, i18n.resolvedLanguage ?? 'ja')}</span>
                     <span className="font-bold text-gray-950">{formatJPY(record.subtotal)}</span>
@@ -965,15 +969,15 @@ export function CustomerJoinPage({
           )}
 
           <div>
-            <h2 className="text-lg font-bold text-gray-950">
+            <h2 className="text-base font-bold text-gray-950 sm:text-lg">
               {t('booking.receptionDetails', { ns: 'customer' })}
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-0.5 text-xs text-gray-500 text-wrap-natural sm:mt-1 sm:text-sm">
               {t('booking.receptionHint', { ns: 'customer' })}
             </p>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5 sm:space-y-3">
             <TextInput
               label={t('booking.nameRequiredLabel', { ns: 'customer' })}
               value={customerName}
@@ -991,60 +995,72 @@ export function CustomerJoinPage({
             />
           </div>
 
-          <div className="rounded-xl bg-gray-50 p-4">
+          <div className="rounded-xl bg-gray-50 p-3.5 sm:p-4">
             {checkoutItems.length === 0 ? (
-              <p className="text-sm text-gray-500">{t('booking.noItems', { ns: 'customer' })}</p>
+              <p className="text-xs text-gray-500 sm:text-sm">
+                {t('booking.noItems', { ns: 'customer' })}
+              </p>
             ) : (
               <div className="space-y-2">
                 {checkoutItems.map((item) => (
                   <div key={item.productId} className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium text-gray-900 sm:text-sm">
                         {item.name} x {item.quantity}
                       </p>
                       {item.requiresPrepayment && (
-                        <p className="mt-0.5 text-xs text-amber-700">
+                        <p className="mt-0.5 text-[11px] text-amber-700 sm:text-xs">
                           {t('booking.prepaymentItem', { ns: 'customer' })}
                         </p>
                       )}
                     </div>
-                    <p className="text-sm font-semibold text-gray-950">
+                    <p className="shrink-0 text-xs font-semibold text-gray-950 sm:text-sm">
                       {formatJPY(item.subtotal)}
                     </p>
                   </div>
                 ))}
               </div>
             )}
-            <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4">
-              <span className="text-sm font-medium text-gray-600">
+            <div className="mt-3 flex items-center justify-between border-t border-gray-200 pt-3 sm:mt-4 sm:pt-4">
+              <span className="text-xs font-medium text-gray-600 sm:text-sm">
                 {t('labels.total', { ns: 'common' })}
               </span>
-              <span className="text-xl font-bold text-gray-950">{formatJPY(subtotal)}</span>
+              <span className="text-lg font-bold text-gray-950 sm:text-xl">
+                {formatJPY(subtotal)}
+              </span>
             </div>
           </div>
 
-          <section className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-bold text-gray-950">
+          <section className="rounded-xl border border-gray-100 bg-gray-50 p-3 sm:p-4">
+            <div className="flex items-start justify-between gap-2.5 sm:gap-3">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-xs font-bold text-gray-950 sm:text-sm">
                   {t('booking.location', { ns: 'customer' })}
                 </h3>
-                <p className="mt-1 text-xs leading-5 text-gray-500">
+                <p className="mt-0.5 text-[11px] leading-4 text-gray-500 text-wrap-natural sm:mt-1 sm:text-xs sm:leading-5">
                   {t('booking.locationHint', { ns: 'customer' })}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={requestCustomerLocation}
-                className="shrink-0 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                className="shrink-0 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-bold text-gray-700 hover:bg-gray-50 sm:px-3 sm:py-1.5 sm:text-xs"
               >
                 {t('booking.share', { ns: 'customer' })}
               </button>
             </div>
-            {locationStatus && <p className="mt-2 text-xs text-gray-500">{locationStatus}</p>}
+            {locationStatus && (
+              <p className="mt-1.5 text-[11px] text-gray-500 sm:mt-2 sm:text-xs">
+                {locationStatus}
+              </p>
+            )}
           </section>
 
-          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+          {error && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 text-wrap-natural sm:text-sm">
+              {error}
+            </p>
+          )}
 
           <button
             type="submit"
@@ -1054,7 +1070,7 @@ export function CustomerJoinPage({
               cartItems.length === 0 ||
               !isLineAuthenticated
             }
-            className="w-full rounded-xl bg-gray-950 px-4 py-3 text-base font-bold text-white transition hover:bg-gray-800 disabled:opacity-50"
+            className="w-full rounded-xl bg-gray-950 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-gray-800 disabled:opacity-50 sm:px-4 sm:py-3 sm:text-base"
           >
             {submitting
               ? t('booking.booking', { ns: 'customer' })
@@ -1065,7 +1081,7 @@ export function CustomerJoinPage({
                   : t('booking.book', { ns: 'customer' })}
           </button>
           {needsPrepayment && !canBook && (
-            <p className="text-center text-xs leading-5 text-amber-700">
+            <p className="text-center text-[11px] leading-4 text-amber-700 text-wrap-natural sm:text-xs sm:leading-5">
               {t('booking.payAndBookHint', { ns: 'customer' })}
             </p>
           )}
@@ -1192,17 +1208,17 @@ function ProductCard({
 
   return (
     <article
-      className={`group relative rounded-2xl border border-white/80 bg-white p-4 shadow-[var(--shadow-soft)] transition ${
+      className={`group relative rounded-2xl border border-white/80 bg-white p-3.5 shadow-[var(--shadow-soft)] transition sm:p-4 ${
         outOfStock ? 'opacity-70' : 'hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]'
       }`}
     >
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full gap-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        className="flex w-full gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-500 sm:gap-4"
         aria-label={t('booking.openProductDetails', { name: product.name })}
       >
-        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100 sm:h-24 sm:w-24">
           {product.image_url ? (
             <img
               src={product.image_url}
@@ -1212,41 +1228,43 @@ function ProductCard({
               className={`h-full w-full object-cover ${outOfStock ? 'grayscale' : ''}`}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-lg font-bold text-gray-500">
+            <div className="flex h-full w-full items-center justify-center text-base font-bold text-gray-500 sm:text-lg">
               {product.name.slice(0, 1)}
             </div>
           )}
           {outOfStock && (
             <div className="absolute inset-0 flex items-center justify-center bg-white/70">
-              <span className="rounded-full bg-gray-950 px-2.5 py-1 text-xs font-bold text-white">
+              <span className="rounded-full bg-gray-950 px-2 py-0.5 text-[11px] font-bold text-white sm:px-2.5 sm:py-1 sm:text-xs">
                 {t('booking.outOfStock', { ns: 'customer' })}
               </span>
             </div>
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="line-clamp-2 font-bold text-gray-950">{product.name}</h3>
-            <span className="shrink-0 rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="line-clamp-2 text-sm font-bold text-gray-950 text-wrap-natural sm:text-base">
+              {product.name}
+            </h3>
+            <span className="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 sm:px-2 sm:py-1 sm:text-xs">
               {product.product_type === 'service'
                 ? t('labels.service', { ns: 'common' })
                 : t('labels.product', { ns: 'common' })}
             </span>
           </div>
           {product.description && (
-            <p className="mt-1 line-clamp-2 text-sm leading-5 text-gray-500">
+            <p className="mt-1 line-clamp-2 text-xs leading-4 text-gray-500 text-wrap-natural sm:text-sm sm:leading-5">
               {product.description}
             </p>
           )}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-lg font-bold text-brand-700">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3 sm:gap-2">
+            <span className="text-base font-bold text-brand-700 sm:text-lg">
               {formatJPY(product.price, i18n.resolvedLanguage)}
             </span>
-            <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-500">
+            <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 sm:px-2 sm:py-1 sm:text-xs">
               {t('units.minutes', { ns: 'common', count: product.service_time_minutes })}
             </span>
             {product.requires_prepayment && (
-              <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
+              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 sm:px-2 sm:py-1 sm:text-xs">
                 {t('manager:products.prepayment')}
               </span>
             )}
@@ -1254,20 +1272,20 @@ function ProductCard({
         </div>
       </button>
 
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <p className="text-xs text-gray-500">
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-gray-100 pt-3 sm:mt-4 sm:gap-3">
+        <p className="text-[11px] text-gray-500 sm:text-xs">
           {outOfStock
             ? t('booking.outOfStock', { ns: 'customer' })
             : product.stock_quantity === null
               ? t('booking.available', { ns: 'customer' })
               : t('booking.stock', { ns: 'customer', count: product.stock_quantity })}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={onDecrease}
             disabled={quantity === 0 || outOfStock}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-30"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-base font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-30 sm:h-9 sm:w-9 sm:text-lg"
             aria-label={t('booking.decreaseItem', { ns: 'customer', name: product.name })}
           >
             -
@@ -1278,14 +1296,14 @@ function ProductCard({
             value={quantity}
             disabled={outOfStock}
             onValueChange={(nextValue) => onQuantityChange(Number(nextValue || 0))}
-            className="h-9 w-14 rounded-full border border-gray-200 bg-white text-center text-sm font-bold text-gray-950 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:bg-gray-100 disabled:text-gray-400"
+            className="h-8 w-12 rounded-full border border-gray-200 bg-white text-center text-xs font-bold text-gray-950 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:bg-gray-100 disabled:text-gray-400 sm:h-9 sm:w-14 sm:text-sm"
             aria-label={t('booking.itemQuantity', { ns: 'customer', name: product.name })}
           />
           <button
             type="button"
             onClick={onIncrease}
             disabled={outOfStock || atMax}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-lg font-bold text-white hover:bg-brand-700 disabled:opacity-40"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-base font-bold text-white hover:bg-brand-700 disabled:opacity-40 sm:h-9 sm:w-9 sm:text-lg"
             aria-label={t('booking.increaseItem', { ns: 'customer', name: product.name })}
           >
             +

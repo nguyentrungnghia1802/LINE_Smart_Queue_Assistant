@@ -25,6 +25,7 @@ export const ETA_WARNING_THRESHOLD = Math.max(...ETA_WARNING_POSITIONS);
 
 interface TicketNotificationSnapshot {
   organizationId?: string;
+  orderNumber?: string | null;
   aheadCount?: number | null;
   estimatedWaitSeconds?: number | null;
 }
@@ -41,6 +42,8 @@ async function resolveOrganizationId(
 function buildPayload(entry: QueueEntryRow, snapshot: TicketNotificationSnapshot) {
   return {
     ticketCode: entry.ticket_code,
+    orderNumber:
+      snapshot.orderNumber ?? (entry as { order_number?: string | null }).order_number ?? null,
     aheadCount: snapshot.aheadCount ?? null,
     estimatedWaitSeconds: snapshot.estimatedWaitSeconds ?? entry.estimated_wait_seconds ?? null,
   };

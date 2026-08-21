@@ -36,7 +36,8 @@ interface OrderActorIdentity {
 }
 
 function formatOrderNumber(prefix: string, count: number): string {
-  return `${prefix}${String(count).padStart(3, '0')}`;
+  const cleanPrefix = prefix.replace(/[^A-Z0-9]/gi, '').toUpperCase() || 'A';
+  return `P${cleanPrefix}-${String(count).padStart(3, '0')}`;
 }
 
 function distanceMeters(
@@ -448,6 +449,7 @@ export const ordersService = {
           linkedEntry,
           {
             organizationId: org.id,
+            orderNumber: order.order_number,
             aheadCount,
             estimatedWaitSeconds: etaService.calculate({
               aheadCount,

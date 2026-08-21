@@ -20,6 +20,7 @@ interface TicketLinkOptions {
 export interface TicketNotificationInput {
   eventType: TicketNotificationEventType;
   ticketCode: string;
+  orderNumber?: string | null;
   ticketUrl: string;
   aheadCount?: number | null;
   estimatedWaitSeconds?: number | null;
@@ -89,9 +90,12 @@ function ticketNotificationText(
   copy: LineNotificationCopy
 ): string {
   const event = copy.events[input.eventType];
+  const codeLines = input.orderNumber
+    ? `${copy.labels.order}: ${input.orderNumber}\n${copy.labels.ticket}: ${input.ticketCode}\n`
+    : `${copy.labels.ticket}: ${input.ticketCode}\n`;
   return (
     `${copy.systemName}\n${event.headline}\n\n` +
-    `${copy.labels.ticket}: ${input.ticketCode}\n` +
+    codeLines +
     `${copy.labels.status}: ${event.status}\n` +
     `${copy.labels.ahead}: ${formatAheadCount(input.aheadCount, copy)}\n` +
     `${copy.labels.eta}: ${formatEstimatedWait(input.estimatedWaitSeconds, copy)}\n\n` +
@@ -107,9 +111,53 @@ export function buildTicketNotification(
   const aheadLabel = formatAheadCount(input.aheadCount, copy);
   const etaLabel = formatEstimatedWait(input.estimatedWaitSeconds, copy);
 
+  const primaryLabel = input.orderNumber ? copy.labels.order : copy.labels.ticket;
+  const primaryCode = input.orderNumber ?? input.ticketCode;
+  const altText = input.orderNumber
+    ? `${copy.systemName}: ${copy.labels.order} ${input.orderNumber} (${copy.labels.ticket} ${input.ticketCode}) - ${event.status}`
+    : `${copy.systemName}: ${copy.labels.ticket} ${input.ticketCode} - ${event.status}`;
+
+  const bodyContents: Array<Record<string, unknown>> = [
+    { type: 'text', text: primaryLabel, color: '#6B7280', size: 'xs', weight: 'bold' },
+    { type: 'text', text: primaryCode, color: '#111827', size: '3xl', weight: 'bold' },
+  ];
+
+  if (input.orderNumber) {
+    bodyContents.push({
+      type: 'text',
+      text: `${copy.labels.ticket}: ${input.ticketCode}`,
+      color: '#4B5563',
+      size: 'sm',
+      weight: 'bold',
+      margin: 'xs',
+    });
+  }
+
+  bodyContents.push(
+    {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'sm',
+      margin: 'md',
+      contents: [
+        buildFieldRow(copy.labels.status, event.status),
+        buildFieldRow(copy.labels.ahead, aheadLabel),
+        buildFieldRow(copy.labels.eta, etaLabel),
+      ],
+    },
+    {
+      type: 'text',
+      text: event.guidance,
+      color: '#374151',
+      size: 'sm',
+      wrap: true,
+      margin: 'md',
+    }
+  );
+
   const flexMessage: LineFlexMessage = {
     type: 'flex',
-    altText: `${copy.systemName}: ${copy.labels.ticket} ${input.ticketCode} - ${event.status}`,
+    altText,
     contents: {
       type: 'bubble',
       size: 'kilo',
@@ -135,29 +183,7 @@ export function buildTicketNotification(
         layout: 'vertical',
         spacing: 'sm',
         paddingAll: '14px',
-        contents: [
-          { type: 'text', text: copy.labels.ticket, color: '#6B7280', size: 'xs', weight: 'bold' },
-          { type: 'text', text: input.ticketCode, color: '#111827', size: '3xl', weight: 'bold' },
-          {
-            type: 'box',
-            layout: 'vertical',
-            spacing: 'sm',
-            margin: 'md',
-            contents: [
-              buildFieldRow(copy.labels.status, event.status),
-              buildFieldRow(copy.labels.ahead, aheadLabel),
-              buildFieldRow(copy.labels.eta, etaLabel),
-            ],
-          },
-          {
-            type: 'text',
-            text: event.guidance,
-            color: '#374151',
-            size: 'sm',
-            wrap: true,
-            margin: 'md',
-          },
-        ],
+        contents: bodyContents,
       },
       footer: {
         type: 'box',

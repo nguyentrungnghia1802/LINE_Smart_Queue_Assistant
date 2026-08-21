@@ -78,6 +78,7 @@ export const common = {
     price: 'Price',
     description: 'Description',
     ticketCode: 'Ticket',
+    orderNumber: 'Order Number',
     peopleAhead: 'People ahead',
     estimatedWait: 'Estimated wait',
     organization: 'Organization',

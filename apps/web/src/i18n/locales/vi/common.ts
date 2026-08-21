@@ -78,6 +78,7 @@ export const common = {
     price: 'Giá',
     description: 'Mô tả',
     ticketCode: 'Mã lượt',
+    orderNumber: 'Mã đơn hàng',
     peopleAhead: 'Số người phía trước',
     estimatedWait: 'Thời gian chờ dự kiến',
     organization: 'Tổ chức',

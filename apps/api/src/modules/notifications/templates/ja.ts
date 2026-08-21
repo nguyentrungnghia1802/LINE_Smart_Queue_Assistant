@@ -4,6 +4,7 @@ export const jaLineNotificationCopy: LineNotificationCopy = {
   locale: 'ja',
   systemName: 'LINE Smart Queue Assistant',
   labels: {
+    order: '注文番号',
     ticket: '受付番号',
     status: '状態',
     ahead: '前の人数',

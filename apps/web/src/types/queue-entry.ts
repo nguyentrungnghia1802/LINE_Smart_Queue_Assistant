@@ -81,6 +81,7 @@ export interface TicketStatusOrderItem {
 export interface CustomerTicketOrder {
   id: string;
   order_number: string;
+  ticket_code?: string | null;
   customer_name: string | null;
   customer_phone: string | null;
   subtotal: string;

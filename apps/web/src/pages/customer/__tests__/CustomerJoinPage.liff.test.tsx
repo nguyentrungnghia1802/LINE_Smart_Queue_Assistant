@@ -178,7 +178,7 @@ describe('LiffCustomerJoinPage', () => {
     renderLiffBooking();
 
     await screen.findByRole('heading', { name: '東京店' });
-    await user.selectOptions(screen.getByRole('combobox', { name: '受付キューを選択' }), 'queue-1');
+    await user.selectOptions(screen.getByRole('combobox', { name: '受付窓口を選択' }), 'queue-1');
     await user.click(screen.getByRole('button', { name: 'カット を追加' }));
     await user.type(screen.getByLabelText('お名前（必須）'), '山田太郎');
     await user.type(screen.getByLabelText('電話番号（必須）'), '0901234567');
@@ -285,7 +285,7 @@ describe('LiffCustomerJoinPage', () => {
     await screen.findByRole('heading', { name: '東京店' });
     expect(screen.queryByRole('button', { name: 'カット を追加' })).not.toBeInTheDocument();
 
-    const queueSelect = screen.getByRole('combobox', { name: '受付キューを選択' });
+    const queueSelect = screen.getByRole('combobox', { name: '受付窓口を選択' });
     expect(screen.queryByRole('button', { name: /カラー受付/ })).not.toBeInTheDocument();
     await user.selectOptions(queueSelect, 'queue-2');
 

@@ -15,6 +15,7 @@ export interface LineNotificationCopy {
   locale: SupportedLocale;
   systemName: string;
   labels: {
+    order: string;
     ticket: string;
     status: string;
     ahead: string;
