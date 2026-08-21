@@ -1,4 +1,14 @@
-import { expect, type Locator, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
+
+async function login(page: Page, email: string) {
+  await page.goto('/login');
+  await page.evaluate(() => localStorage.clear());
+  await page.goto('/login');
+  await page.getByLabel('メール').fill(email);
+  await page.locator('#password').fill('123456');
+  await page.getByRole('button', { name: 'ログイン', exact: true }).click();
+  await expect(page).not.toHaveURL(/\/login$/);
+}
 
 async function expectNavigationDestination(navigation: Locator, label: string) {
   const directLink = navigation.getByRole('link', { name: label, exact: true });
@@ -16,10 +26,7 @@ async function expectNavigationDestination(navigation: Locator, label: string) {
 test('staff board reflows its queue selector and avoids horizontal page overflow', async ({
   page,
 }) => {
-  await page.goto('/login');
-  await page.getByLabel('メール').fill('staff@gmail.com');
-  await page.locator('#password').fill('123456');
-  await page.getByRole('button', { name: 'ログイン', exact: true }).click();
+  await login(page, 'staff@gmail.com');
   await expect(page).toHaveURL(/\/staff$/);
 
   const layout = await page
@@ -44,10 +51,7 @@ test('staff board reflows its queue selector and avoids horizontal page overflow
 test('manager keeps every primary destination available at the active viewport', async ({
   page,
 }) => {
-  await page.goto('/login');
-  await page.getByLabel('メール').fill('manager@gmail.com');
-  await page.locator('#password').fill('123456');
-  await page.getByRole('button', { name: 'ログイン', exact: true }).click();
+  await login(page, 'manager@gmail.com');
   await expect(page).toHaveURL(/\/manager$/);
 
   const activeNavigation = page.locator('nav:visible').filter({
@@ -75,10 +79,7 @@ test('manager keeps every primary destination available at the active viewport',
 });
 
 test('admin destinations remain available without horizontal overflow', async ({ page }) => {
-  await page.goto('/login');
-  await page.getByLabel('メール').fill('admin@gmail.com');
-  await page.locator('#password').fill('123456');
-  await page.getByRole('button', { name: 'ログイン', exact: true }).click();
+  await login(page, 'admin@gmail.com');
   await expect(page).toHaveURL(/\/admin$/);
 
   const activeNavigation = page.locator('nav:visible').filter({

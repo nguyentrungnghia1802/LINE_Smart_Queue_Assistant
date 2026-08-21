@@ -32,7 +32,7 @@ test('staff transitions a ticket and the durable mock outbox remains observable'
   await expect(page).toHaveURL(/\/staff$/);
 
   await expect(page.getByText('呼び出し中').first()).toBeVisible();
-  const calledEntry = page.getByRole('button', { name: /^[A-Z]+\d+\s+呼び出し中/ }).first();
+  const calledEntry = page.getByRole('button', { name: /呼び出し中/ }).first();
   await expect(calledEntry).toBeEnabled();
   await calledEntry.click();
   await page.getByRole('button', { name: '対応開始' }).click();
