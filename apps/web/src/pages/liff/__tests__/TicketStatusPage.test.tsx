@@ -115,7 +115,7 @@ describe('TicketStatusPage', () => {
     );
 
     expect(await screen.findAllByText('A012')).toHaveLength(2);
-    expect(screen.getByText(/A019/)).toBeInTheDocument();
+    expect(screen.getAllByText(/A019/)).toHaveLength(2);
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('約15分')).toBeInTheDocument();
     expect(screen.getByText('健康相談')).toBeInTheDocument();
