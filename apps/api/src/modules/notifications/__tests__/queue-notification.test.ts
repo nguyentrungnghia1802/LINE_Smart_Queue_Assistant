@@ -8,9 +8,16 @@
 
 import type { PoolClient } from 'pg';
 
+import { ordersRepository } from '../../../db/repositories/orders.repository';
 import type { QueueEntryRow } from '../../../db/repositories/queue-entries.repository';
 import type { NotificationOutboxRepository } from '../notification-outbox.repository';
 import { ETA_WARNING_THRESHOLD, queueNotificationService } from '../queue-notification.service';
+
+jest.mock('../../../db/repositories/orders.repository', () => ({
+  ordersRepository: {
+    findOrderNumberByQueueEntry: jest.fn().mockResolvedValue(null),
+  },
+}));
 
 function makeEntry(override: Partial<QueueEntryRow> = {}): QueueEntryRow {
   return {
@@ -217,6 +224,35 @@ describe('queueNotificationService durable outbox', () => {
       expect.objectContaining({
         eventType,
         eventKey: `queue_entry:entry-001:${eventType}`,
+      }),
+      client
+    );
+  });
+
+  it('resolves orderNumber from ordersRepository for called and other lifecycle events', async () => {
+    const repository = makeRepository();
+    const entry = makeEntry({ id: 'entry-007', order_id: 'order-007', ticket_code: 'A007' });
+    jest.mocked(ordersRepository.findOrderNumberByQueueEntry).mockResolvedValueOnce('PA-007');
+
+    await queueNotificationService.notifyTicketCalled(
+      entry,
+      { organizationId: 'org-001' },
+      repository,
+      client
+    );
+
+    expect(ordersRepository.findOrderNumberByQueueEntry).toHaveBeenCalledWith(
+      'entry-007',
+      'order-007',
+      client
+    );
+    expect(repository.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'called',
+        payload: expect.objectContaining({
+          ticketCode: 'A007',
+          orderNumber: 'PA-007',
+        }),
       }),
       client
     );

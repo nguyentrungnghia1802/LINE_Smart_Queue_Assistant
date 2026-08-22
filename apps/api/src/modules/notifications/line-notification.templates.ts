@@ -15,6 +15,18 @@ export type { TicketNotificationEventType } from './templates/types';
 interface TicketLinkOptions {
   ticketUrl?: string;
   locale?: SupportedLocale;
+  orderNumber?: string | null;
+}
+
+function formatNotificationCodes(
+  ticketCode: string,
+  copy: LineNotificationCopy,
+  orderNumber?: string | null
+): string {
+  if (orderNumber) {
+    return `${copy.labels.order} ${orderNumber} (${copy.labels.ticket} ${ticketCode})`;
+  }
+  return `${copy.labels.ticket} ${ticketCode}`;
 }
 
 export interface TicketNotificationInput {
@@ -235,6 +247,7 @@ export function ticketBookingCreatedMessage(
   return buildTicketNotification({
     eventType: 'booking_created',
     ticketCode,
+    orderNumber: options.orderNumber,
     ticketUrl: options.ticketUrl ?? '',
     aheadCount: options.aheadCount,
     estimatedWaitSeconds: options.estimatedWaitSeconds,
@@ -244,8 +257,9 @@ export function ticketBookingCreatedMessage(
 
 export function ticketCalledMessage(ticketCode: string, options: TicketLinkOptions = {}): string {
   const copy = getLineNotificationCopy(options.locale);
+  const codeText = formatNotificationCodes(ticketCode, copy, options.orderNumber);
   return withTicketLink(
-    `${copy.events.called.headline}: ${copy.labels.ticket} ${ticketCode}. ${copy.events.called.guidance}`,
+    `${copy.events.called.headline}: ${codeText}. ${copy.events.called.guidance}`,
     copy,
     options.ticketUrl
   );
@@ -257,8 +271,9 @@ export function etaWarningMessage(
   options: TicketLinkOptions = {}
 ): string {
   const copy = getLineNotificationCopy(options.locale);
+  const codeText = formatNotificationCodes(ticketCode, copy, options.orderNumber);
   return withTicketLink(
-    `${copy.events.eta_warning.headline}: ${copy.labels.ticket} ${ticketCode}. ${copy.labels.ahead}: ${copy.values.people(aheadCount)}. ${copy.events.eta_warning.guidance}`,
+    `${copy.events.eta_warning.headline}: ${codeText}. ${copy.labels.ahead}: ${copy.values.people(aheadCount)}. ${copy.events.eta_warning.guidance}`,
     copy,
     options.ticketUrl
   );
@@ -266,11 +281,8 @@ export function etaWarningMessage(
 
 export function ticketServingMessage(ticketCode: string, options: TicketLinkOptions = {}): string {
   const copy = getLineNotificationCopy(options.locale);
-  return withTicketLink(
-    `${copy.events.serving.headline}: ${copy.labels.ticket} ${ticketCode}.`,
-    copy,
-    options.ticketUrl
-  );
+  const codeText = formatNotificationCodes(ticketCode, copy, options.orderNumber);
+  return withTicketLink(`${copy.events.serving.headline}: ${codeText}.`, copy, options.ticketUrl);
 }
 
 export function ticketCompletedMessage(
@@ -279,14 +291,14 @@ export function ticketCompletedMessage(
 ): string {
   const copy = getLineNotificationCopy(options.locale);
   if (copy.locale === 'ja') {
-    return withTicketLink(
-      `受付番号 ${ticketCode} の対応が完了しました。ご利用ありがとうございました。`,
-      copy,
-      options.ticketUrl
-    );
+    const message = options.orderNumber
+      ? `注文番号 ${options.orderNumber}（受付番号 ${ticketCode}）の対応が完了しました。ご利用ありがとうございました。`
+      : `受付番号 ${ticketCode} の対応が完了しました。ご利用ありがとうございました。`;
+    return withTicketLink(message, copy, options.ticketUrl);
   }
+  const codeText = formatNotificationCodes(ticketCode, copy, options.orderNumber);
   return withTicketLink(
-    `${copy.events.completed.headline}: ${copy.labels.ticket} ${ticketCode}. ${copy.events.completed.guidance}`,
+    `${copy.events.completed.headline}: ${codeText}. ${copy.events.completed.guidance}`,
     copy,
     options.ticketUrl
   );
@@ -297,11 +309,8 @@ export function ticketCancelledMessage(
   options: TicketLinkOptions = {}
 ): string {
   const copy = getLineNotificationCopy(options.locale);
-  return withTicketLink(
-    `${copy.events.cancelled.headline}: ${copy.labels.ticket} ${ticketCode}.`,
-    copy,
-    options.ticketUrl
-  );
+  const codeText = formatNotificationCodes(ticketCode, copy, options.orderNumber);
+  return withTicketLink(`${copy.events.cancelled.headline}: ${codeText}.`, copy, options.ticketUrl);
 }
 
 export function cancelSucceededMessage(locale?: SupportedLocale): string {
@@ -309,11 +318,8 @@ export function cancelSucceededMessage(locale?: SupportedLocale): string {
 }
 export function ticketNoShowMessage(ticketCode: string, options: TicketLinkOptions = {}): string {
   const copy = getLineNotificationCopy(options.locale);
-  return withTicketLink(
-    `${copy.events.no_show.headline}: ${copy.labels.ticket} ${ticketCode}.`,
-    copy,
-    options.ticketUrl
-  );
+  const codeText = formatNotificationCodes(ticketCode, copy, options.orderNumber);
+  return withTicketLink(`${copy.events.no_show.headline}: ${codeText}.`, copy, options.ticketUrl);
 }
 export function followWelcomeMessage(locale?: SupportedLocale): string {
   return getLineNotificationCopy(locale).commands.welcome;

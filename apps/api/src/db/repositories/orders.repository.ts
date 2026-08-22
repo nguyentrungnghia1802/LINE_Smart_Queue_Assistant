@@ -1,4 +1,4 @@
-﻿import { PoolClient } from 'pg';
+import { PoolClient } from 'pg';
 
 import { pool } from '../client';
 
@@ -277,6 +277,24 @@ export const ordersRepository = {
     if (!rows[0]) return null;
     const r = rows[0];
     return { ...r, items: r.items_json as unknown as OrderItemRow[] };
+  },
+
+  async findOrderNumberByQueueEntry(
+    queueEntryId: string,
+    orderId?: string | null,
+    client?: PoolClient
+  ): Promise<string | null> {
+    const executor = client ?? pool;
+    const { rows } = await executor.query<{ order_number: string }>(
+      `SELECT o.order_number
+       FROM orders o
+       LEFT JOIN queue_entries qe ON qe.order_id = o.id
+       WHERE ($1::uuid IS NOT NULL AND o.id = $1::uuid)
+          OR qe.id = $2::uuid
+       LIMIT 1`,
+      [orderId ?? null, queueEntryId]
+    );
+    return rows[0]?.order_number ?? null;
   },
 
   /**

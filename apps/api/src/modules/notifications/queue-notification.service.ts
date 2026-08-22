@@ -9,6 +9,7 @@
 
 import type { PoolClient } from 'pg';
 
+import { ordersRepository } from '../../db/repositories/orders.repository';
 import type { QueueEntryRow } from '../../db/repositories/queue-entries.repository';
 import { queuesRepository } from '../../db/repositories/queues.repository';
 import { logger } from '../../utils/logger';
@@ -39,11 +40,33 @@ async function resolveOrganizationId(
   return queue?.organization_id ?? null;
 }
 
-function buildPayload(entry: QueueEntryRow, snapshot: TicketNotificationSnapshot) {
+async function resolveOrderNumber(
+  entry: QueueEntryRow,
+  snapshot: TicketNotificationSnapshot,
+  client?: PoolClient
+): Promise<string | null> {
+  if (snapshot.orderNumber !== undefined && snapshot.orderNumber !== null) {
+    return snapshot.orderNumber;
+  }
+  if ((entry as { order_number?: string | null }).order_number) {
+    return (entry as { order_number?: string | null }).order_number ?? null;
+  }
+  try {
+    return await ordersRepository.findOrderNumberByQueueEntry(entry.id, entry.order_id, client);
+  } catch (err) {
+    logger.warn({ entryId: entry.id, err }, 'notification.resolveOrderNumber.failed');
+    return null;
+  }
+}
+
+function buildPayload(
+  entry: QueueEntryRow,
+  snapshot: TicketNotificationSnapshot,
+  orderNumber: string | null
+) {
   return {
     ticketCode: entry.ticket_code,
-    orderNumber:
-      snapshot.orderNumber ?? (entry as { order_number?: string | null }).order_number ?? null,
+    orderNumber,
     aheadCount: snapshot.aheadCount ?? null,
     estimatedWaitSeconds: snapshot.estimatedWaitSeconds ?? entry.estimated_wait_seconds ?? null,
   };
@@ -65,6 +88,8 @@ async function enqueueTicketNotification(
     return;
   }
 
+  const orderNumber = await resolveOrderNumber(entry, snapshot, client);
+
   const baseEventKey = buildQueueNotificationEventKey(entry.id, eventType);
   const eventKey = eventKeySuffix ? `${baseEventKey}:${eventKeySuffix}` : baseEventKey;
   await repository.enqueue(
@@ -75,7 +100,7 @@ async function enqueueTicketNotification(
       lineUserId: entry.line_user_id,
       eventType,
       eventKey,
-      payload: buildPayload(entry, snapshot),
+      payload: buildPayload(entry, snapshot, orderNumber),
     },
     client
   );

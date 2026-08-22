@@ -179,4 +179,44 @@ describe('line-notification.templates', () => {
       },
     });
   });
+
+  it('displays order number prominently on called notification (turn has arrived)', () => {
+    const notification = buildTicketNotification({
+      eventType: 'called',
+      ticketCode: 'A001',
+      orderNumber: 'PA-017',
+      ticketUrl: 'https://queue.example.com/liff/tickets/entry-123',
+      aheadCount: 0,
+      estimatedWaitSeconds: 0,
+    });
+
+    expect(notification.flexMessage.altText).toContain('注文番号 PA-017 (受付番号 A001)');
+    expect(notification.textMessage).toContain('順番になりました');
+    expect(notification.textMessage).toContain('注文番号: PA-017');
+    expect(notification.textMessage).toContain('受付番号: A001');
+    expect(notification.flexMessage.contents).toMatchObject({
+      type: 'bubble',
+      body: {
+        contents: expect.arrayContaining([
+          expect.objectContaining({ text: '注文番号' }),
+          expect.objectContaining({ text: 'PA-017' }),
+          expect.objectContaining({ text: '受付番号: A001' }),
+        ]),
+      },
+    });
+  });
+
+  it('formats lifecycle text messages with orderNumber when provided', () => {
+    const calledText = ticketCalledMessage('A001', {
+      orderNumber: 'PA-017',
+      ticketUrl: 'https://queue.example.com/ticket',
+    });
+    expect(calledText).toContain('注文番号 PA-017 (受付番号 A001)');
+
+    const completedText = ticketCompletedMessage('A001', {
+      orderNumber: 'PA-017',
+      ticketUrl: 'https://queue.example.com/ticket',
+    });
+    expect(completedText).toContain('注文番号 PA-017（受付番号 A001）の対応が完了しました');
+  });
 });
