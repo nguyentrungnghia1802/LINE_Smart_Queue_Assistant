@@ -202,16 +202,29 @@ export const queuesService = {
   },
 
   async deleteQueue(id: string, scope: BranchManagerScope) {
-    const existing = await queuesRepository.findById(id);
-    if (!existing) throw AppError.notFound(`Queue ${id} not found`);
-    if (existing.organization_id !== scope.organizationId || existing.branch_id !== scope.branchId)
-      throw AppError.forbidden('Queue is outside your assigned branch');
+    const existing = await withTransaction(async (client) => {
+      const locked = await queuesRepository.lockById(id, client);
+      if (!locked) throw AppError.notFound(`Queue ${id} not found`);
+      if (locked.organization_id !== scope.organizationId || locked.branch_id !== scope.branchId) {
+        throw AppError.forbidden('Queue is outside your assigned branch');
+      }
 
-    if ((await queuesRepository.countStaffAssignments(id)) > 0) {
-      throw AppError.conflict('Reassign staff before removing this queue');
-    }
+      const liveCounts =
+        (await queueEntriesRepository.countLiveByQueueIds([id], client))[id] ?? EMPTY_LIVE_COUNTS;
+      if (liveCounts.waitingCount + liveCounts.calledCount + liveCounts.servingCount > 0) {
+        throw AppError.conflict(
+          'Complete or cancel active queue tickets before removing this queue'
+        );
+      }
 
-    await queuesRepository.softDelete(id);
+      if ((await queuesRepository.countStaffAssignments(id, client)) > 0) {
+        throw AppError.conflict('Reassign staff before removing this queue');
+      }
+
+      await queuesRepository.softDelete(id, client);
+      return locked;
+    });
+    queueConfigCache.invalidate(`queue:${id}`);
     await publicReadModelCache.invalidateQueue({
       organizationId: scope.organizationId,
       branchId: scope.branchId,

@@ -94,6 +94,15 @@ export const manager = {
     productSearch: '商品・サービスを検索',
     productSearchPlaceholder: '名称または商品コードで検索',
     productsSelected: '{{count}}件選択中',
+    delete: 'キューを削除',
+    deleting: '削除中...',
+    deleteTitle: 'キューを削除しますか？',
+    deleteConfirm: '「{{name}}」をキュー一覧から削除します。この操作は元に戻せません。',
+    deleteRequirement:
+      '削除する前に、受付中のお客様を完了またはキャンセルし、担当スタッフを別のキューへ再割り当てしてください。履歴データは保持されます。',
+    deleteBlocked:
+      '受付中のお客様または担当スタッフが残っているため削除できません。先に処理または再割り当てを完了してください。',
+    deleteFailed: 'キューを削除できませんでした。もう一度お試しください。',
     timingHint:
       '平均対応時間は待ち時間予測に使用します。到着待ち時間は、呼び出し後に不在処理を開始するまでの猶予です。',
   },

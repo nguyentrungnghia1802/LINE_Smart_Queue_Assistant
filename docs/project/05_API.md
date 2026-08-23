@@ -195,6 +195,9 @@ Product writes accept no browser-authoritative organization, branch, or queue ID
 the organization from the owner JWT and generates an organization-unique `DVn` or `SPn` code under
 a PostgreSQL advisory lock. Queue create/update owns the selected `productIds` mapping and verifies
 every product belongs to the manager's organization before creating the branch-scoped assignment.
+Queue detail responses exclude stale assignments whose product or queue is inactive, and product
+soft-deactivation also deactivates its current queue assignments. This prevents an unrelated queue
+settings edit from replaying an inactive catalog ID and receiving a business-validation `422`.
 Organization-owner product writes do not accept stock. Branch managers maintain nullable
 `stockQuantity` and `lowStockThreshold` through the dedicated branch-stock endpoint; the server
 derives their single assigned branch and never accepts it from the request body. Payment and order
@@ -213,10 +216,13 @@ does not accept `orgId` or `branchId` in queue write bodies.
 | POST   | `/api/v1/queues`            | Create a named queue and its selected product catalog    |
 | PATCH  | `/api/v1/queues/:id`        | Update queue rules, absence grace, and selected products |
 | PATCH  | `/api/v1/queues/:id/status` | Change queue status                                      |
-| DELETE | `/api/v1/queues/:id`        | Soft-delete an assigned-branch queue                     |
+| DELETE | `/api/v1/queues/:id`        | Soft-delete an empty queue without assigned Staff        |
 
 Queue responses expose `waitingCount`, `calledCount`, and `servingCount`. `currentNumber` remains
 the latest daily ticket sequence value and must not be presented as the current customer count.
+Queue deletion returns `409 CONFLICT` while active Staff remain assigned or any ticket is
+`waiting`, `called`, or `serving`. A successful deletion preserves historical queue references and
+deactivates the queue's current product assignments.
 
 ### Customer ticket operations
 

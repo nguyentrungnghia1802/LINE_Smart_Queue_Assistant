@@ -95,6 +95,15 @@ export const manager = {
     productSearch: 'Search products and services',
     productSearchPlaceholder: 'Search by name or product code',
     productsSelected: '{{count}} selected',
+    delete: 'Delete queue',
+    deleting: 'Deleting...',
+    deleteTitle: 'Delete queue?',
+    deleteConfirm: '“{{name}}” will be removed from the queue list. This cannot be undone.',
+    deleteRequirement:
+      'Before deleting, complete or cancel every active ticket and reassign Staff to another queue. Historical records are retained.',
+    deleteBlocked:
+      'This queue still has active customers or assigned Staff. Complete their handling or reassign them first.',
+    deleteFailed: 'Could not delete the queue. Please try again.',
     timingHint:
       'Average service time is used for ETA calculations. Arrival grace controls how long a called customer may be absent before no-show handling begins.',
   },

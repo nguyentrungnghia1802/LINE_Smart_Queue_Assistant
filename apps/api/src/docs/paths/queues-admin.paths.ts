@@ -117,7 +117,7 @@ export const queuesAdminPaths = {
 
     delete: {
       tags: ['queues'],
-      summary: 'Delete a queue',
+      summary: 'Soft-delete a queue with no active tickets or Staff assignments',
       operationId: 'deleteQueue',
       security: bearerSecurity,
       parameters: [
@@ -127,7 +127,7 @@ export const queuesAdminPaths = {
         204: { description: 'Queue deleted' },
         401: { $ref: '#/components/responses/Unauthorized' },
         404: { $ref: '#/components/responses/NotFound' },
-        422: { $ref: '#/components/responses/ValidationError' },
+        409: { $ref: '#/components/responses/Conflict' },
       },
     },
   },

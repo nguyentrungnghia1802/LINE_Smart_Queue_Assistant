@@ -489,10 +489,15 @@ There is no OpenAI or Gemini call in this flow. Adding a generative-AI API key w
   new global role.
 - Each branch manager has exactly one active branch assignment and may create multiple named queues.
   A branch may temporarily have no queue and has one stable public QR token.
+- Queue removal is a manager-confirmed soft deletion. It is rejected while the queue has assigned
+  active Staff or `waiting`, `called`, or `serving` tickets. Historical orders, tickets, receipts,
+  and transitions retain their queue foreign key, while active `queue_products` assignments are
+  deactivated so the removed queue no longer participates in catalog configuration.
 - Products belong to the organization catalog and receive immutable-scope generated `DVn` or `SPn`
   codes. A branch manager selects catalog products through queue configuration; `queue_products`
-  stores the branch-safe assignment. Customer QR admission selects a queue before loading only that
-  queue's catalog.
+  stores the branch-safe assignment. Soft-deactivating a product also deactivates its queue
+  assignments; queue reads return only assignments backed by active products and queues. Customer
+  QR admission selects a queue before loading only that queue's catalog.
 - Branch managers maintain weekly hours/exception dates and invite staff to their assigned branch.
   Invitees set their own password; staff removal is soft deactivation and records the acting
   manager in `audit_logs`.

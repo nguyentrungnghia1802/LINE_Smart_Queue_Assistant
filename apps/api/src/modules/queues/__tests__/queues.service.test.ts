@@ -142,31 +142,45 @@ describe('queuesService branch scope', () => {
   });
 
   it('allows deleting the last active queue while a branch is being configured', async () => {
-    jest.mocked(queuesRepository.findById).mockResolvedValue(queue);
+    jest.mocked(queuesRepository.lockById).mockResolvedValue(queue);
 
     await queuesService.deleteQueue(QUEUE_ID, scope);
 
-    expect(queuesRepository.softDelete).toHaveBeenCalledWith(QUEUE_ID);
+    expect(queuesRepository.lockById).toHaveBeenCalledWith(QUEUE_ID, expect.anything());
+    expect(queuesRepository.softDelete).toHaveBeenCalledWith(QUEUE_ID, expect.anything());
   });
 
   it('allows deleting one queue when another active queue remains', async () => {
-    jest.mocked(queuesRepository.findById).mockResolvedValue(queue);
+    jest.mocked(queuesRepository.lockById).mockResolvedValue(queue);
     jest
       .mocked(queuesRepository.findActiveByBranches)
       .mockResolvedValue([queue, { ...queue, id: '55555555-5555-4555-8555-555555555555' }]);
 
     await queuesService.deleteQueue(QUEUE_ID, scope);
 
-    expect(queuesRepository.softDelete).toHaveBeenCalledWith(QUEUE_ID);
+    expect(queuesRepository.softDelete).toHaveBeenCalledWith(QUEUE_ID, expect.anything());
   });
 
   it('requires staff reassignment before deleting their queue', async () => {
-    jest.mocked(queuesRepository.findById).mockResolvedValue(queue);
+    jest.mocked(queuesRepository.lockById).mockResolvedValue(queue);
     jest.mocked(queuesRepository.countStaffAssignments).mockResolvedValue(1);
 
     await expect(queuesService.deleteQueue(QUEUE_ID, scope)).rejects.toMatchObject({
       statusCode: 409,
     });
+    expect(queuesRepository.softDelete).not.toHaveBeenCalled();
+  });
+
+  it('requires active tickets to finish before deleting their queue', async () => {
+    jest.mocked(queuesRepository.lockById).mockResolvedValue(queue);
+    jest.mocked(queueEntriesRepository.countLiveByQueueIds).mockResolvedValue({
+      [QUEUE_ID]: { waitingCount: 1, calledCount: 1, servingCount: 0 },
+    });
+
+    await expect(queuesService.deleteQueue(QUEUE_ID, scope)).rejects.toMatchObject({
+      statusCode: 409,
+    });
+    expect(queuesRepository.countStaffAssignments).not.toHaveBeenCalled();
     expect(queuesRepository.softDelete).not.toHaveBeenCalled();
   });
 });

@@ -33,6 +33,7 @@ The executable schema source of truth is the ordered migration set in `db/migrat
 27. `000027_notification_dispatch_retry_nullable.js`
 28. `000028_liff_friendship_consent_source.js`
 29. `000029_organization_suspension_details.js`
+30. `000030_deactivate_stale_queue_products.js`
 
 `db/schema/reset_line_queue_schema.sql` is a synchronized destructive local/dev reset snapshot. If this document or shared TypeScript enums disagree with migrations, migrations and runtime SQL win; fix the discrepancy in the same change.
 
@@ -349,6 +350,15 @@ the administrator; it is blocked in production and requires
 - Migration `000020_organization_product_catalog` introduced organization-unique `DVn`/`SPn`
   product codes and changed `queue_products` to reference the organization catalog while preserving
   queue/branch scope. Migration `000024` removes its temporary branch/stock compatibility columns.
+- Queue and product removal are soft deletions because historical orders, entries, receipts, and
+  audit relationships use restrictive queue/product foreign keys. Runtime deletion atomically marks
+  the parent and its active `queue_products` rows inactive. Migration `000030` repairs legacy active
+  assignments whose product or queue was already inactive; its data cleanup is intentionally not
+  reversed because reactivation cannot distinguish stale rows from assignments explicitly removed
+  by a manager.
+- Queue removal locks the active queue row and checks live entries plus Staff assignments in the
+  same transaction. Customer admission uses the same queue lock, so a concurrent booking either
+  commits before the deletion check and blocks removal, or observes the queue as inactive.
 - `organization_branches.payment_settings` stores non-secret accepted methods, merchant display
   information, and settlement instructions. Provider credentials remain outside this JSON field.
 - `orders.branch_id` and `orders.queue_id` preserve direct operational scope, while organization,
