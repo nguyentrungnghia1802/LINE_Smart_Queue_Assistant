@@ -326,10 +326,17 @@ export const productsRepository = {
   async findProductIdsByQueue(queueId: string, client?: PoolClient): Promise<string[]> {
     const executor = client ?? pool;
     const { rows } = await executor.query<{ product_id: string }>(
-      `SELECT product_id
-       FROM queue_products
-       WHERE queue_id = $1 AND is_active = TRUE
-       ORDER BY display_order, product_id`,
+      `SELECT assignment.product_id
+       FROM queue_products assignment
+       JOIN products product
+         ON product.id = assignment.product_id
+        AND product.is_active = TRUE
+       JOIN queues queue
+         ON queue.id = assignment.queue_id
+        AND queue.is_active = TRUE
+       WHERE assignment.queue_id = $1
+         AND assignment.is_active = TRUE
+       ORDER BY assignment.display_order, assignment.product_id`,
       [queueId]
     );
     return rows.map((row) => row.product_id);
@@ -405,9 +412,20 @@ export const productsRepository = {
     return products.find((product) => product.id === productId) ?? null;
   },
 
-  async softDelete(id: string): Promise<void> {
-    const existing = await this.findById(id);
-    await pool.query(`UPDATE products SET is_active = FALSE WHERE id = $1`, [id]);
-    if (existing) invalidateProductCatalog(existing.organization_id);
+  async softDelete(id: string, client?: PoolClient): Promise<void> {
+    const executor = client ?? pool;
+    await executor.query(
+      `WITH deactivated_product AS (
+         UPDATE products
+         SET is_active = FALSE, updated_at = NOW()
+         WHERE id = $1
+         RETURNING id
+       )
+       UPDATE queue_products
+       SET is_active = FALSE, updated_at = NOW()
+       WHERE product_id = $1
+         AND is_active = TRUE`,
+      [id]
+    );
   },
 };

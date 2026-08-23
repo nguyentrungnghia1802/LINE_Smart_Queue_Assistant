@@ -118,25 +118,33 @@ export class QueueEntriesRepository extends BaseRepository {
     return Number(rows[0]?.count ?? 0);
   }
 
-  async countLiveByQueueIds(queueIds: string[]): Promise<Record<string, QueueLiveCounts>> {
+  async countLiveByQueueIds(
+    queueIds: string[],
+    client?: PoolClient
+  ): Promise<Record<string, QueueLiveCounts>> {
     if (queueIds.length === 0) return {};
 
-    const rows = await this.query<{
-      queue_id: string;
-      waiting_count: string;
-      called_count: string;
-      serving_count: string;
-    }>(
-      `SELECT queue_id,
+    const sql = `SELECT queue_id,
               COUNT(*) FILTER (WHERE status = 'waiting') AS waiting_count,
               COUNT(*) FILTER (WHERE status = 'called') AS called_count,
               COUNT(*) FILTER (WHERE status = 'serving') AS serving_count
        FROM queue_entries
        WHERE queue_id = ANY($1::uuid[])
          AND status IN ('waiting', 'called', 'serving')
-       GROUP BY queue_id`,
-      [queueIds]
-    );
+       GROUP BY queue_id`;
+    const rows = client
+      ? await this.queryTx<{
+          queue_id: string;
+          waiting_count: string;
+          called_count: string;
+          serving_count: string;
+        }>(client, sql, [queueIds])
+      : await this.query<{
+          queue_id: string;
+          waiting_count: string;
+          called_count: string;
+          serving_count: string;
+        }>(sql, [queueIds]);
 
     return Object.fromEntries(
       rows.map((row) => [

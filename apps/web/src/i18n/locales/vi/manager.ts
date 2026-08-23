@@ -95,6 +95,16 @@ export const manager = {
     productSearch: 'Tìm sản phẩm và dịch vụ',
     productSearchPlaceholder: 'Tìm theo tên hoặc mã sản phẩm',
     productsSelected: 'Đã chọn {{count}} mục',
+    delete: 'Xóa hàng đợi',
+    deleting: 'Đang xóa...',
+    deleteTitle: 'Xóa hàng đợi?',
+    deleteConfirm:
+      'Hàng đợi “{{name}}” sẽ bị xóa khỏi danh sách. Bạn không thể hoàn tác thao tác này.',
+    deleteRequirement:
+      'Trước khi xóa, hãy hoàn tất hoặc hủy toàn bộ lượt đang hoạt động và chuyển nhân viên sang hàng đợi khác. Dữ liệu lịch sử vẫn được giữ lại.',
+    deleteBlocked:
+      'Không thể xóa vì vẫn còn khách đang hoạt động hoặc nhân viên được phân công. Hãy xử lý hoặc phân công lại trước.',
+    deleteFailed: 'Không thể xóa hàng đợi. Vui lòng thử lại.',
     timingHint:
       'Thời gian phục vụ trung bình dùng để tính ETA. Thời gian chờ khách đến là khoảng chờ sau khi gọi trước khi bắt đầu xử lý vắng mặt.',
   },

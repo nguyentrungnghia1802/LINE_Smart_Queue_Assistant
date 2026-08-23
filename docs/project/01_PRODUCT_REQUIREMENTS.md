@@ -119,22 +119,23 @@ role and does not use branch-operation endpoints.
 
 ### Queue and staff operation
 
-| ID           | Requirement                                                                                                                      | Status      |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| FR-QUEUE-001 | Successful booking creates a ticket in the selected active queue of the resolved branch                                          | Implemented |
-| FR-QUEUE-002 | Customer sees ticket code, stable order number, status, people ahead, ETA, order items, and total/paid/balance payment breakdown | Implemented |
-| FR-QUEUE-003 | Staff sees the next eight active customers, stable order number, total active count, contact data, and a responsive workspace    | Implemented |
-| FR-QUEUE-004 | Completion automatically calls the next eligible customer when no ticket is already called                                       | Implemented |
-| FR-QUEUE-005 | Queue ticket counter resets daily                                                                                                | Implemented |
-| FR-QUEUE-006 | Queue capacity remains strict under concurrent joins                                                                             | Partial     |
-| FR-QUEUE-007 | Branch manager creates and configures multiple named queues, status, prefix, capacity, timing, and rules                         | Implemented |
-| FR-QUEUE-008 | Staff can move a called absent customer back three slots; the third absence cancels and refunds the booking                      | Implemented |
-| FR-QUEUE-009 | Staff related-booking context includes only active queue tickets and excludes completed history                                  | Implemented |
-| FR-QUEUE-010 | A branch may temporarily have no queue during setup or reconfiguration                                                           | Implemented |
-| FR-QUEUE-011 | Booking is accepted only while both the branch calendar and selected queue status are open                                       | Implemented |
-| FR-QUEUE-012 | An idle queue automatically calls its earliest waiting ticket after booking or a transition frees the active slot                | Implemented |
-| FR-QUEUE-013 | Branch-manager queue cards and detail show live active customer depth separately from the daily ticket sequence counter          | Implemented |
-| FR-QUEUE-014 | Each active Staff member is assigned to exactly one active queue; a queue may be assigned to multiple Staff members              | Implemented |
+| ID           | Requirement                                                                                                                                          | Status      |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| FR-QUEUE-001 | Successful booking creates a ticket in the selected active queue of the resolved branch                                                              | Implemented |
+| FR-QUEUE-002 | Customer sees ticket code, stable order number, status, people ahead, ETA, order items, and total/paid/balance payment breakdown                     | Implemented |
+| FR-QUEUE-003 | Staff sees the next eight active customers, stable order number, total active count, contact data, and a responsive workspace                        | Implemented |
+| FR-QUEUE-004 | Completion automatically calls the next eligible customer when no ticket is already called                                                           | Implemented |
+| FR-QUEUE-005 | Queue ticket counter resets daily                                                                                                                    | Implemented |
+| FR-QUEUE-006 | Queue capacity remains strict under concurrent joins                                                                                                 | Partial     |
+| FR-QUEUE-007 | Branch manager creates and configures multiple named queues, status, prefix, capacity, timing, and rules                                             | Implemented |
+| FR-QUEUE-008 | Staff can move a called absent customer back three slots; the third absence cancels and refunds the booking                                          | Implemented |
+| FR-QUEUE-009 | Staff related-booking context includes only active queue tickets and excludes completed history                                                      | Implemented |
+| FR-QUEUE-010 | A branch may temporarily have no queue during setup or reconfiguration                                                                               | Implemented |
+| FR-QUEUE-011 | Booking is accepted only while both the branch calendar and selected queue status are open                                                           | Implemented |
+| FR-QUEUE-012 | An idle queue automatically calls its earliest waiting ticket after booking or a transition frees the active slot                                    | Implemented |
+| FR-QUEUE-013 | Branch-manager queue cards and detail show live active customer depth separately from the daily ticket sequence counter                              | Implemented |
+| FR-QUEUE-014 | Each active Staff member is assigned to exactly one active queue; a queue may be assigned to multiple Staff members                                  | Implemented |
+| FR-QUEUE-015 | Branch managers may remove an empty queue without assigned Staff while preserving historical tickets/orders and deactivating its catalog assignments | Implemented |
 
 ### LINE and notifications
 

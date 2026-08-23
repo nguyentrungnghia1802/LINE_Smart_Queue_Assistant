@@ -280,20 +280,32 @@ export class QueuesRepository extends BaseRepository {
     return updated;
   }
 
-  async softDelete(id: string): Promise<void> {
-    await this.query(`UPDATE queues SET is_active = FALSE, updated_at = NOW() WHERE id = $1`, [id]);
-    queueConfigCache.invalidate(`queue:${id}`);
+  async softDelete(id: string, client?: PoolClient): Promise<void> {
+    const sql = `WITH deactivated_queue AS (
+        UPDATE queues
+        SET is_active = FALSE, updated_at = NOW()
+        WHERE id = $1
+        RETURNING id
+      )
+      UPDATE queue_products
+      SET is_active = FALSE, updated_at = NOW()
+      WHERE queue_id = $1
+        AND is_active = TRUE`;
+    if (client) await this.queryTx(client, sql, [id]);
+    else await this.query(sql, [id]);
+    if (!client) queueConfigCache.invalidate(`queue:${id}`);
   }
 
-  async countStaffAssignments(id: string): Promise<number> {
-    const row = await this.queryOne<{ count: string }>(
-      `SELECT COUNT(*)::TEXT AS count
+  async countStaffAssignments(id: string, client?: PoolClient): Promise<number> {
+    const sql = `SELECT COUNT(*)::TEXT AS count
        FROM branch_memberships
        WHERE queue_id = $1
          AND role = 'staff'
-         AND deactivated_at IS NULL`,
-      [id]
-    );
+         AND is_active = TRUE
+         AND deactivated_at IS NULL`;
+    const row = client
+      ? await this.queryOneTx<{ count: string }>(client, sql, [id])
+      : await this.queryOne<{ count: string }>(sql, [id]);
     return Number(row?.count ?? 0);
   }
 

@@ -1,15 +1,36 @@
-import { ClipboardList, Settings } from 'lucide-react';
+import { ClipboardList, Settings, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { QueueStatusBadge } from '../components/queue/QueueStatusBadge';
 import { Spinner } from '../components/ui/Spinner';
-import { useQueue } from '../hooks/useQueues';
+import { useDeleteQueue, useQueue } from '../hooks/useQueues';
+import { ApiClientError } from '../services/apiClient';
 
 export function QueueDetailPage() {
   const { t } = useTranslation(['manager', 'common']);
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { data: queue, isLoading, isError } = useQueue(id ?? '');
+  const deleteQueue = useDeleteQueue();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  async function handleDelete() {
+    if (!id) return;
+    setDeleteError('');
+    try {
+      await deleteQueue.mutateAsync(id);
+      navigate('/manager/queues', { replace: true });
+    } catch (error) {
+      setDeleteError(
+        error instanceof ApiClientError && error.status === 409
+          ? t('queue.deleteBlocked')
+          : t('queue.deleteFailed')
+      );
+    }
+  }
 
   if (isLoading) {
     return (
@@ -63,6 +84,17 @@ export function QueueDetailPage() {
           <Settings className="h-4 w-4" />
           {t('nav.settings', { ns: 'common' })}
         </Link>
+        <button
+          type="button"
+          onClick={() => {
+            setDeleteError('');
+            setConfirmDelete(true);
+          }}
+          className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50"
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          {t('queue.delete')}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
@@ -78,6 +110,54 @@ export function QueueDetailPage() {
           />
         )}
       </div>
+
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/50 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-queue-title"
+        >
+          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl sm:p-6">
+            <h2 id="delete-queue-title" className="text-lg font-bold text-gray-950">
+              {t('queue.deleteTitle')}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              {t('queue.deleteConfirm', { name: queue.name })}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-gray-500">{t('queue.deleteRequirement')}</p>
+            {deleteError && (
+              <p
+                className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+                role="alert"
+              >
+                {deleteError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteError('');
+                  setConfirmDelete(false);
+                }}
+                disabled={deleteQueue.isPending}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+              >
+                {t('actions.cancel', { ns: 'common' })}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={deleteQueue.isPending}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteQueue.isPending ? t('queue.deleting') : t('queue.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

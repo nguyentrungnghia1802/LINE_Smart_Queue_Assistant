@@ -34,7 +34,7 @@ export function QueueSettingsPage() {
     absenceGraceMinutes: '5',
     productIds: [] as string[],
   });
-  const { data: products = [] } = useQuery({
+  const { data: products = [], isSuccess: productsLoaded } = useQuery({
     queryKey: ['manager-products-for-queue'],
     queryFn: () => get<QueueProductOption[]>('/api/v1/products'),
   });
@@ -58,6 +58,17 @@ export function QueueSettingsPage() {
       });
     }
   }, [queue]);
+
+  useEffect(() => {
+    if (!productsLoaded) return;
+    const activeProductIds = new Set(
+      products.filter((product) => product.is_active).map((product) => product.id)
+    );
+    setForm((current) => {
+      const productIds = current.productIds.filter((productId) => activeProductIds.has(productId));
+      return productIds.length === current.productIds.length ? current : { ...current, productIds };
+    });
+  }, [products, productsLoaded]);
 
   function set(field: string, value: string | string[]) {
     setForm((prev) => ({ ...prev, [field]: value }));
