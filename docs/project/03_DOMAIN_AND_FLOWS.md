@@ -174,12 +174,15 @@ through guarded reservation transitions.
 
 ## 3. Customer entry and identity flow
 
-1. The manager's primary copy/print QR action uses a permanent LIFF link such as `https://liff.line.me/{LIFF_ID}/qr/:token`. With a `/liff` endpoint, the appended path is `/qr/:token`, not `/liff/qr/:token`, which prevents `/liff/liff/...` after LIFF restores navigation. LIFF automatically starts LINE Login when the customer is not signed in.
-2. LIFF initializes, automatically starts LINE Login in real mode when needed, obtains an ID token, calls `/auth/line`, and stores the system JWT. If the LINE channel has the optional `email` scope and the customer consents, the backend stores the server-verified email without overwriting or duplicating an existing platform email.
+1. The manager's primary copy/print QR action uses a permanent LIFF link such as `https://liff.line.me/{LIFF_ID}/qr/:token`. With a `/liff` endpoint, the appended path is `/qr/:token`, not `/liff/qr/:token`, which prevents `/liff/liff/...` after LIFF restores navigation. When the customer is signed out, LIFF starts LINE Login with the current same-origin LIFF URL as its explicit redirect URI so the scanned `/liff/qr/:token` route survives the authentication round trip.
+2. LIFF initializes, explicitly starts LINE Login in real mode when needed, obtains an ID token, calls `/auth/line`, and stores the system JWT. If the LINE channel has the optional `email` scope and the customer consents, the backend stores the server-verified email without overwriting or duplicating an existing platform email.
    If an expired system session sends the customer through the shared login page, the client carries
    only the original internal `/liff/...` route as `returnTo`; the LINE entry link restores that
    route after authentication. External targets are rejected, and email-authenticated business
    roles still return to their role dashboard rather than entering customer booking.
+   LIFF Home first offers LINE's native `scanCodeV2` reader. If that capability is unavailable, the
+   browser fallback uses its QR-only detector with a rear-camera preference and still accepts only
+   recognized Smart Queue booking routes.
 3. The client synchronizes the Official Account friendship state, then fetches public organization,
    queue, and active product data after the route context is known. A customer who skipped the
    consent-screen Add Friend option receives a localized, non-blocking Add/Unblock prompt inside
