@@ -27,7 +27,7 @@ export const marketing = {
   },
   product: {
     eyebrow: 'Một không gian vận hành',
-    title: 'Biến thời gian chờ thành thời gian hữu ích.',
+    title: 'Biến thời gian chờ thành thời gian của bạn.',
     description:
       'Khách lấy lượt từ QR hoặc LINE, nhân viên vận hành hàng đợi theo thời gian thực và hệ thống gửi tin LINE đúng thời điểm.',
     features: {

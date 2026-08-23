@@ -24,7 +24,7 @@ export const marketing = {
   },
   product: {
     eyebrow: 'ひとつの運用画面',
-    title: '待つ時間を、価値ある時間へ。',
+    title: '待ち時間を、あなたの時間へ。',
     description:
       'QRまたはLINEから受付し、スタッフはリアルタイムのキューを操作。お客様には適切なタイミングでLINEメッセージが届きます。',
     features: {

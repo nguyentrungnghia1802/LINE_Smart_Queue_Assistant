@@ -24,7 +24,7 @@ export const marketing = {
   },
   product: {
     eyebrow: 'One operations workspace',
-    title: 'Turn waiting time into useful time.',
+    title: 'Make waiting time your time.',
     description:
       'Customers check in from QR or LINE, staff operate the queue in real time, and LINE messages arrive at the right moment.',
     features: {
