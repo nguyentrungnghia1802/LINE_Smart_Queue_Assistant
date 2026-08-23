@@ -8,22 +8,17 @@ import { bookingPathFromQr } from '../qrBookingPath';
 import { QrScannerButton } from '../QrScannerButton';
 
 const scannerMock = vi.hoisted(() => ({
-  callback: null as null | ((result: { getText(): string } | undefined) => void),
-  constraints: null as MediaStreamConstraints | null,
-  stop: vi.fn(),
+  onScan: null as null | ((codes: Array<{ format: string; rawValue: string }>) => void),
+  onError: null as null | ((error: { kind: string; message: string }) => void),
+  props: null as null | Record<string, unknown>,
 }));
 
-vi.mock('@zxing/browser', () => ({
-  BrowserQRCodeReader: class {
-    decodeFromConstraints(
-      constraints: MediaStreamConstraints,
-      _video: HTMLVideoElement,
-      callback: (result: { getText(): string } | undefined) => void
-    ) {
-      scannerMock.constraints = constraints;
-      scannerMock.callback = callback;
-      return Promise.resolve({ stop: scannerMock.stop });
-    }
+vi.mock('@yudiel/react-qr-scanner', () => ({
+  Scanner: (props: Record<string, unknown>) => {
+    scannerMock.props = props;
+    scannerMock.onScan = props.onScan as typeof scannerMock.onScan;
+    scannerMock.onError = props.onError as typeof scannerMock.onError;
+    return <div data-testid="modern-qr-scanner" />;
   },
 }));
 
@@ -54,9 +49,9 @@ describe('bookingPathFromQr', () => {
 
 describe('QrScannerButton', () => {
   beforeEach(() => {
-    scannerMock.callback = null;
-    scannerMock.constraints = null;
-    scannerMock.stop.mockClear();
+    scannerMock.onScan = null;
+    scannerMock.onError = null;
+    scannerMock.props = null;
   });
 
   it('uses the LIFF native scanner before the browser camera fallback', async () => {
@@ -75,7 +70,7 @@ describe('QrScannerButton', () => {
 
     expect(scanQrCode).toHaveBeenCalledTimes(1);
     expect(await screen.findByTestId('location')).toHaveTextContent('/liff/qr/store-token-2026');
-    expect(scannerMock.callback).toBeNull();
+    expect(scannerMock.onScan).toBeNull();
   });
 
   it('renders the camera dialog in a body portal so fixed positioning is not clipped', async () => {
@@ -106,18 +101,42 @@ describe('QrScannerButton', () => {
     );
 
     await user.click(screen.getByRole('button', { name: i18n.t('customer:scanner.open') }));
-    await waitFor(() => expect(scannerMock.callback).not.toBeNull());
+    await waitFor(() => expect(scannerMock.onScan).not.toBeNull());
 
-    expect(scannerMock.constraints).toMatchObject({
-      video: { facingMode: { ideal: 'environment' } },
+    expect(scannerMock.props).toMatchObject({
+      formats: ['qr_code'],
+      constraints: { facingMode: { ideal: 'environment' } },
+      allowMultiple: false,
     });
     act(() => {
-      scannerMock.callback?.({
-        getText: () => 'https://queue.example.com/qr/store-token-2026',
-      });
+      scannerMock.onScan?.([
+        {
+          format: 'qr_code',
+          rawValue: 'https://queue.example.com/qr/store-token-2026',
+        },
+      ]);
     });
 
     expect(await screen.findByTestId('location')).toHaveTextContent('/liff/qr/store-token-2026');
-    expect(scannerMock.stop).toHaveBeenCalled();
+    expect(screen.queryByTestId('modern-qr-scanner')).not.toBeInTheDocument();
+  });
+
+  it('keeps scanning after rejecting a non-booking QR value', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <QrScannerButton />
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByRole('button', { name: i18n.t('customer:scanner.open') }));
+    await waitFor(() => expect(scannerMock.onScan).not.toBeNull());
+
+    act(() => {
+      scannerMock.onScan?.([{ format: 'qr_code', rawValue: 'https://example.com/admin' }]);
+    });
+
+    expect(screen.getByText(i18n.t('customer:scanner.invalidCode'))).toBeInTheDocument();
+    expect(screen.getByTestId('modern-qr-scanner')).toBeInTheDocument();
   });
 });

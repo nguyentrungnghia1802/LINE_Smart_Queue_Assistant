@@ -95,27 +95,27 @@ role and does not use branch-operation endpoints.
 
 ### Booking, ordering, and payment
 
-| ID          | Requirement                                                                                                                                      | Status                                                  |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| FR-BOOK-001 | Customer enters through a branch QR token or organization fallback route                                                                         | Implemented                                             |
-| FR-BOOK-002 | Customer selects quantities and supplies name/phone where required                                                                               | Implemented                                             |
-| FR-BOOK-003 | An order can be placed without payment when no selected item requires prepayment                                                                 | Implemented                                             |
-| FR-BOOK-004 | When required items exist, checkout is mandatory before order creation                                                                           | Implemented                                             |
-| FR-BOOK-005 | Inside checkout, customer chooses required-items-only or full-order payment                                                                      | Implemented                                             |
-| FR-BOOK-006 | Returning from checkout preserves form/cart/payment state                                                                                        | Implemented with browser draft plus server transaction  |
-| FR-BOOK-007 | Successful order stores item-level payment and full-order payment accurately                                                                     | Implemented for server-verified transactions            |
-| FR-BOOK-008 | A repeat booking from the same verified LINE user in the same active queue extends the existing order/ticket atomically                          | Implemented                                             |
-| FR-BOOK-009 | LIFF booking uses the current authenticated LINE identity and redirects to LIFF ticket view                                                      | Implemented                                             |
-| FR-BOOK-010 | A branch QR resolves all active branch queues; customer selects one through a compact dropdown before its catalog                                | Implemented                                             |
-| FR-BOOK-011 | Customer product cards expose a full localized detail view before quantity selection                                                             | Implemented                                             |
-| FR-BOOK-012 | LIFF Home uses LINE `scanCodeV2` first, validates the decoded branch route, and retains a browser-camera fallback                                | Implemented                                             |
-| FR-PAY-001  | Demo mode completes through a server-verified provider without real money, real PSP credentials, or real PSP calls                               | Implemented; current deployment                         |
-| FR-PAY-002  | An explicitly enabled production provider creates a server-side payment intent and redirects securely; missing required credentials fail startup | payOS VND adapter retained; external acceptance pending |
-| FR-PAY-003  | Webhook verification is authoritative for paid/refunded/failed status                                                                            | Implemented for demo and signed payOS callbacks         |
-| FR-PAY-004  | Staff records final payment and prints a scoped receipt with subtotal, prepaid amount, balance, operator, branch, queue, and time                | Implemented                                             |
-| FR-PAY-005  | Cancelling a paid order/ticket automatically refunds every collected transaction                                                                 | Implemented for demo/manual providers; real PSP pending |
-| FR-PAY-006  | Staff payment summaries and receipts show every net amount already collected, including full-cart checkout on items without mandatory prepayment | Implemented                                             |
-| FR-PAY-007  | Provider selection is server-configured; browser callback or local state can never declare a payment paid/refunded                               | Implemented                                             |
+| ID          | Requirement                                                                                                                                          | Status                                                  |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| FR-BOOK-001 | Customer enters through a branch QR token or organization fallback route                                                                             | Implemented                                             |
+| FR-BOOK-002 | Customer selects quantities and supplies name/phone where required                                                                                   | Implemented                                             |
+| FR-BOOK-003 | An order can be placed without payment when no selected item requires prepayment                                                                     | Implemented                                             |
+| FR-BOOK-004 | When required items exist, checkout is mandatory before order creation                                                                               | Implemented                                             |
+| FR-BOOK-005 | Inside checkout, customer chooses required-items-only or full-order payment                                                                          | Implemented                                             |
+| FR-BOOK-006 | Returning from checkout preserves form/cart/payment state                                                                                            | Implemented with browser draft plus server transaction  |
+| FR-BOOK-007 | Successful order stores item-level payment and full-order payment accurately                                                                         | Implemented for server-verified transactions            |
+| FR-BOOK-008 | A repeat booking from the same verified LINE user in the same active queue extends the existing order/ticket atomically                              | Implemented                                             |
+| FR-BOOK-009 | LIFF booking uses the current authenticated LINE identity and redirects to LIFF ticket view                                                          | Implemented                                             |
+| FR-BOOK-010 | A branch QR resolves all active branch queues; customer selects one through a compact dropdown before its catalog                                    | Implemented                                             |
+| FR-BOOK-011 | Customer product cards expose a full localized detail view before quantity selection                                                                 | Implemented                                             |
+| FR-BOOK-012 | LIFF Home uses LINE `scanCodeV2` first, validates the decoded branch route, and retains a modern browser-camera fallback with rear-camera preference | Implemented                                             |
+| FR-PAY-001  | Demo mode completes through a server-verified provider without real money, real PSP credentials, or real PSP calls                                   | Implemented; current deployment                         |
+| FR-PAY-002  | An explicitly enabled production provider creates a server-side payment intent and redirects securely; missing required credentials fail startup     | payOS VND adapter retained; external acceptance pending |
+| FR-PAY-003  | Webhook verification is authoritative for paid/refunded/failed status                                                                                | Implemented for demo and signed payOS callbacks         |
+| FR-PAY-004  | Staff records final payment and prints a scoped receipt with subtotal, prepaid amount, balance, operator, branch, queue, and time                    | Implemented                                             |
+| FR-PAY-005  | Cancelling a paid order/ticket automatically refunds every collected transaction                                                                     | Implemented for demo/manual providers; real PSP pending |
+| FR-PAY-006  | Staff payment summaries and receipts show every net amount already collected, including full-cart checkout on items without mandatory prepayment     | Implemented                                             |
+| FR-PAY-007  | Provider selection is server-configured; browser callback or local state can never declare a payment paid/refunded                                   | Implemented                                             |
 
 ### Queue and staff operation
 

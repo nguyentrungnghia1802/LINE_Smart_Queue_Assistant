@@ -472,8 +472,8 @@ Critical regression scenarios:
   mount contract, and a non-root API image reading a file written by an earlier container through
   the same named volume.
 - Organization registration transaction and duplicate email/slug.
-- Mobile staff rail/detail layout, Staff/Manager QR parity, LIFF booking availability states, and
-  the body-portal QR camera dialog.
+- Mobile staff rail/detail layout, Staff/Manager QR parity, LIFF booking availability states,
+  scanned-route LINE Login continuity, and the body-portal modern QR camera fallback.
 - Production web bundles contain no `eval(` or `new Function`; `npm run build -w apps/web` performs
   this CSP check after Vite emits the bundle.
 - Critical public, LIFF, Staff, Manager, and Admin page modules remain lazy route elements under the

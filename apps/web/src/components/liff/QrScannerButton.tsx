@@ -1,11 +1,16 @@
-import { BrowserQRCodeReader, type IScannerControls } from '@zxing/browser';
+import type { IDetectedBarcode, IScannerError } from '@yudiel/react-qr-scanner';
 import { Camera, ScanLine, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { bookingPathFromQr } from './qrBookingPath';
+
+const BrowserQrScanner = lazy(async () => {
+  const { Scanner } = await import('@yudiel/react-qr-scanner');
+  return { default: Scanner };
+});
 
 interface QrScannerButtonProps {
   scanQrCode?: () => Promise<string | null>;
@@ -14,55 +19,9 @@ interface QrScannerButtonProps {
 export function QrScannerButton({ scanQrCode }: Readonly<QrScannerButtonProps>) {
   const { t } = useTranslation(['customer', 'common']);
   const navigate = useNavigate();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const controlsRef = useRef<IScannerControls | null>(null);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
   const [isLaunchingNative, setIsLaunchingNative] = useState(false);
-
-  useEffect(() => {
-    if (!open || !videoRef.current) return;
-    let active = true;
-    const reader = new BrowserQRCodeReader();
-    void reader
-      .decodeFromConstraints(
-        {
-          audio: false,
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-        },
-        videoRef.current,
-        (result) => {
-          if (!active || !result) return;
-          const target = bookingPathFromQr(result.getText());
-          if (!target) {
-            setError(t('scanner.invalidCode', { ns: 'customer' }));
-            return;
-          }
-          controlsRef.current?.stop();
-          setOpen(false);
-          navigate(target);
-        }
-      )
-      .then((controls) => {
-        if (!active) {
-          controls.stop();
-          return;
-        }
-        controlsRef.current = controls;
-      })
-      .catch(() => {
-        if (active) setError(t('scanner.cameraUnavailable', { ns: 'customer' }));
-      });
-    return () => {
-      active = false;
-      controlsRef.current?.stop();
-      controlsRef.current = null;
-    };
-  }, [navigate, open, t]);
 
   useEffect(() => {
     if (!open) return;
@@ -74,9 +33,25 @@ export function QrScannerButton({ scanQrCode }: Readonly<QrScannerButtonProps>) 
   }, [open]);
 
   function close() {
-    controlsRef.current?.stop();
     setOpen(false);
     setError('');
+  }
+
+  function handleBrowserScan(codes: IDetectedBarcode[]) {
+    const value = codes.find((code) => code.format === 'qr_code')?.rawValue;
+    if (!value) return;
+
+    const target = bookingPathFromQr(value);
+    if (!target) {
+      setError(t('scanner.invalidCode', { ns: 'customer' }));
+      return;
+    }
+    setOpen(false);
+    navigate(target);
+  }
+
+  function handleBrowserError(_scannerError: IScannerError) {
+    setError(t('scanner.cameraUnavailable', { ns: 'customer' }));
   }
 
   function openBrowserScanner(message = '') {
@@ -151,15 +126,30 @@ export function QrScannerButton({ scanQrCode }: Readonly<QrScannerButtonProps>) 
                 <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </header>
-            <div className="relative flex flex-1 items-center justify-center overflow-hidden">
-              <video
-                ref={videoRef}
-                className="h-full w-full object-cover"
-                autoPlay
-                muted
-                playsInline
-              />
-              <div className="pointer-events-none absolute h-64 w-64 rounded-lg border-2 border-line-green shadow-[0_0_0_9999px_rgba(3,7,18,0.45)]" />
+            <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-black">
+              <Suspense
+                fallback={
+                  <p className="text-sm text-white">{t('states.loading', { ns: 'common' })}</p>
+                }
+              >
+                <BrowserQrScanner
+                  onScan={handleBrowserScan}
+                  onError={handleBrowserError}
+                  formats={['qr_code']}
+                  constraints={{
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                  }}
+                  allowMultiple={false}
+                  retryDelay={150}
+                  components={{ finder: true, onOff: false, torch: false, zoom: false }}
+                  styles={{
+                    container: { width: '100%', height: '100%' },
+                    video: { width: '100%', height: '100%', objectFit: 'cover' },
+                  }}
+                />
+              </Suspense>
             </div>
             <footer className="safe-bottom bg-gray-950 px-5 py-5 text-center text-sm text-gray-300">
               {error ? (

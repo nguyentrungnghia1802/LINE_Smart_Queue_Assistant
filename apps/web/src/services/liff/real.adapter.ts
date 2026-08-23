@@ -33,7 +33,10 @@ liff.use(new ScanCodeV2Module());
 
 export class RealLiffAdapter implements LiffAdapter {
   async init(liffId: string): Promise<void> {
-    await liff.init({ liffId, withLoginOnExternalBrowser: true });
+    // Keep login explicit so the redirect URI can preserve the scanned booking
+    // route. LIFF's automatic external-browser login otherwise returns to the
+    // configured endpoint URL and can lose `/liff/qr/:token`.
+    await liff.init({ liffId });
   }
 
   isLoggedIn(): boolean {
@@ -77,7 +80,7 @@ export class RealLiffAdapter implements LiffAdapter {
   }
 
   login(): void {
-    liff.login();
+    liff.login({ redirectUri: window.location.href });
   }
 
   logout(): void {
