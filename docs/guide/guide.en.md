@@ -791,13 +791,14 @@ For each language:
   formatting, spelling, lint, type-check, OpenAPI, all three Compose configuration checks, API/Web
   tests, migration/seed smoke, build, and browser E2E.
 - A successful CI run for merged `main` waits for GitHub `production` environment approval, then
-  automatically publishes API/Web runner images as exact `git-<full SHA>` plus discovery-only
-  `latest`. The VPS accepts only the immutable tag, verifies a backup, persists the selected
+  automatically publishes API/Web runner images to the public GHCR repositories as exact
+  `git-<full SHA>` plus discovery-only `latest`. The VPS accepts only the immutable tag, verifies a backup, persists the selected
   references in `deploy/.env`, pulls, migrates, recreates, and probes health. Failure automatically
   attempts previous-image rollback from verified metadata without restoring database/media.
 - For an approved emergency/manual release, a Windows operator runs
   `deploy/scripts/build-push.ps1` from a clean commit, then passes its printed `DEPLOY_TAG` to
-  `deploy/scripts/deploy.sh <tag>` on the VPS; this manual path never publishes `latest`.
+  `deploy/scripts/deploy.sh <tag>` on the VPS; the local Docker CLI must be authenticated to
+  `ghcr.io`, and this manual path never publishes `latest`.
 - Database, JWT, LINE, SMTP, payment, and storage secrets remain in the server's `deploy/.env`; CD
   never copies or regenerates them. Before a server update, run
   `docker compose --env-file deploy/.env -f deploy/docker-compose.yml config -q`.

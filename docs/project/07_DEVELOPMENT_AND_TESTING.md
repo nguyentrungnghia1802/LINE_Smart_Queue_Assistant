@@ -296,12 +296,15 @@ harness never reads production `deploy/.env` and must not be pointed at a produc
 derives one `git-<12-character-sha>` tag from the full Git SHA, plans two runner builds and two
 immutable pushes, retains the full revision/release metadata, prints the exact VPS handoff, and
 rejects mutable or malformed repositories. The real publisher requires a clean worktree and
-Docker login; see `deploy/scripts/README.md`.
+Docker CLI authentication to `ghcr.io`; see `deploy/scripts/README.md`. It targets the canonical
+GHCR API/Web repositories, pushes only the Git-derived 12-character immutable tag, and never
+publishes `latest` on the manual path.
 
 `npm run release:workflows:verify` proves PR CI targets `main`, CD is triggered only by a successful
 same-repository `main` CI run, the release checkout uses that run's exact SHA, production approval
 precedes image publication and VPS access, releases are serialized, and `deploy-safe.sh` receives
-only the immutable tag. It also verifies that the remote sync normalizes
+only the immutable tag. The release job publishes to GHCR with scoped `packages: write` permission
+and the built-in `GITHUB_TOKEN`; Docker Hub credentials are not part of the active path. It also verifies that the remote sync normalizes
 `PRODUCTION_DEPLOY_PATH` safely whether it identifies the project root or its `deploy` directory.
 
 `npm run ops:manual-release:rehearse` validates the paired Windows-publisher/VPS-shell path. It

@@ -24,12 +24,15 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
     environment:
       name: production
       url: https://smartqueue.io.vn/
     env:
       RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
-      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+      GHCR_OWNER: ${{ github.repository_owner }}
       LINE_LOGIN_LIFF_ID: ${{ vars.LINE_LOGIN_LIFF_ID }}
       DEPLOY_PATH: ${{ vars.PRODUCTION_DEPLOY_PATH }}
       SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
@@ -45,8 +48,6 @@ jobs:
 
       - name: 🏷️ Resolve immutable image tag
         id: metadata
-        env:
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           require_value() {
             if [[ -z "$2" ]]; then
@@ -54,17 +55,17 @@ jobs:
               exit 1
             fi
           }
-          require_value DOCKERHUB_USERNAME "$DOCKERHUB_USERNAME"
+          require_value GHCR_OWNER "$GHCR_OWNER"
           require_value LINE_LOGIN_LIFF_ID "$LINE_LOGIN_LIFF_ID"
-          require_value DOCKERHUB_TOKEN "$DOCKERHUB_TOKEN"
           require_value PRODUCTION_DEPLOY_PATH "$DEPLOY_PATH"
           require_value PRODUCTION_SSH_HOST "$SSH_HOST"
           require_value PRODUCTION_SSH_PORT "$SSH_PORT"
           require_value PRODUCTION_SSH_USER "$SSH_USER"
           require_value PRODUCTION_SSH_PRIVATE_KEY "$SSH_PRIVATE_KEY"
           require_value PRODUCTION_SSH_KNOWN_HOSTS "$SSH_KNOWN_HOSTS"
-          if [[ ! "$DOCKERHUB_USERNAME" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$ ]]; then
-            echo "DOCKERHUB_USERNAME contains unsupported characters." >&2
+          owner="${GHCR_OWNER,,}"
+          if [[ ! "$owner" =~ ^[a-z0-9][a-z0-9-]{0,38}$ ]]; then
+            echo "The GitHub repository owner contains unsupported characters." >&2
             exit 1
           fi
           if [[ ! "$LINE_LOGIN_LIFF_ID" =~ ^[A-Za-z0-9._-]+$ ]]; then
@@ -76,24 +77,25 @@ jobs:
             echo "The selected ref did not resolve to a full lowercase Git SHA." >&2
             exit 1
           fi
-          api_image="docker.io/${DOCKERHUB_USERNAME}/line-smart-queue-api:${tag}"
-          web_image="docker.io/${DOCKERHUB_USERNAME}/line-smart-queue-web:${tag}"
+          api_image="ghcr.io/${owner}/line-smart-queue-api:${tag}"
+          web_image="ghcr.io/${owner}/line-smart-queue-web:${tag}"
           {
             echo "image_tag=$tag"
             echo "api_image=$api_image"
             echo "web_image=$web_image"
-            echo "api_latest=docker.io/${DOCKERHUB_USERNAME}/line-smart-queue-api:latest"
-            echo "web_latest=docker.io/${DOCKERHUB_USERNAME}/line-smart-queue-web:latest"
+            echo "api_latest=ghcr.io/${owner}/line-smart-queue-api:latest"
+            echo "web_latest=ghcr.io/${owner}/line-smart-queue-web:latest"
           } >> "$GITHUB_OUTPUT"
 
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: 🔑 Log in to Docker Hub
+      - name: 🔑 Log in to GHCR
         uses: docker/login-action@v4
         with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 📦 Build and push API image
         uses: docker/build-push-action@v7
@@ -105,7 +107,10 @@ jobs:
           tags: |
             ${{ steps.metadata.outputs.api_image }}
             ${{ steps.metadata.outputs.api_latest }}
-          labels: org.opencontainers.image.revision=${{ env.RELEASE_SHA }}
+          labels: |
+            org.opencontainers.image.revision=${{ env.RELEASE_SHA }}
+            org.opencontainers.image.version=${{ steps.metadata.outputs.image_tag }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
       - name: 🌐 Build and push Web image
         uses: docker/build-push-action@v7
@@ -123,7 +128,10 @@ jobs:
           tags: |
             ${{ steps.metadata.outputs.web_image }}
             ${{ steps.metadata.outputs.web_latest }}
-          labels: org.opencontainers.image.revision=${{ env.RELEASE_SHA }}
+          labels: |
+            org.opencontainers.image.revision=${{ env.RELEASE_SHA }}
+            org.opencontainers.image.version=${{ steps.metadata.outputs.image_tag }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
       - name: 🔐 Configure pinned SSH
         run: |

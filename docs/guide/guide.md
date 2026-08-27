@@ -790,13 +790,13 @@ Organizationの商品定義は図13、Queueへの割当は図24、Branch在庫�
 - `main` 向けPull Requestとmerge後の `main` revisionで、secret scan、audit、format、spell、lint、
   type-check、OpenAPI、3種類のCompose設定、API／Webテスト、migration／seed、build、browser E2EをCIで実行します。
 - merge済み `main` のCI成功後、本番CDはGitHub `production` Environmentのapprovalを待ち、
-  承認後に同じfull SHAからAPI／Web runner imageを自動build/pushし、正確な
+  承認後に同じfull SHAから公開GHCR repositoryへAPI／Web runner imageを自動build/pushし、正確な
   `git-<full SHA>` と参照用のみの `latest` を公開します。VPSは不変タグだけを受け付け、backupを検証し、選択した2つのimage参照を
   `deploy/.env` に保存してpull、migration、recreate、health checkを行います。失敗時は検証済みmetadataから
   application imageの自動rollbackを試行し、database／mediaは自動restoreしません。
 - 承認済みの緊急／手動releaseでは、Windows operatorがclean commitから
   `deploy/scripts/build-push.ps1` を実行し、出力された `DEPLOY_TAG` をVPS上の
-  `deploy/scripts/deploy.sh <tag>` に渡します。この手動経路では `latest` をpublishしません。
+  `deploy/scripts/deploy.sh <tag>` に渡します。localのDocker CLIは`ghcr.io`へ認証済みで、手動経路では `latest` をpublishしません。
 - 本番のDB、JWT、LINE、SMTP、payment、storage secretはサーバーの `deploy/.env` に残し、CDはコピーも
   再生成もしません。サーバー更新前は `docker compose --env-file deploy/.env -f deploy/docker-compose.yml config -q`
   を実行します。

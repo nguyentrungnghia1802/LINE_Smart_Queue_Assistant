@@ -25,7 +25,8 @@ export OPS_SKIP_MIGRATIONS=true
 export OPS_SKIP_HEALTH=true
 export OPS_SKIP_PULL=true
 release_tag="git-$(printf '2%.0s' {1..12})"
-release_image="alpine:$release_tag"
+release_api_image="ghcr.io/example/line-smart-queue-api:$release_tag"
+release_web_image="ghcr.io/example/line-smart-queue-web:$release_tag"
 test_secret='rehearsal-password-must-not-appear'
 log_file="$test_root/rehearsal.log"
 
@@ -37,7 +38,7 @@ cleanup() {
       docker volume rm "$volume" >/dev/null 2>&1 || true
     fi
   done
-  docker image rm "$release_image" >/dev/null 2>&1 || true
+  docker image rm "$release_api_image" "$release_web_image" >/dev/null 2>&1 || true
   if ((status == 0)); then
     rm -rf -- "$test_root"
   else
@@ -93,10 +94,10 @@ cat > "$ENV_FILE" <<EOF
 DB_NAME=line_queue_rehearsal
 DB_USER=rehearsal
 DB_PASSWORD=$test_secret
-LINE_QUEUE_API_REPOSITORY=alpine
-LINE_QUEUE_WEB_REPOSITORY=alpine
-LINE_QUEUE_API_IMAGE=alpine:latest
-LINE_QUEUE_WEB_IMAGE=alpine:latest
+LINE_QUEUE_API_REPOSITORY=docker.io/library/alpine
+LINE_QUEUE_WEB_REPOSITORY=docker.io/library/alpine
+LINE_QUEUE_API_IMAGE=docker.io/library/alpine:latest
+LINE_QUEUE_WEB_IMAGE=docker.io/library/alpine:latest
 EOF
 chmod 600 "$ENV_FILE"
 
@@ -112,8 +113,8 @@ backup_id=$("$BACKUP_DIR/backup.sh" 2>>"$log_file")
 "$BACKUP_DIR/verify-backup.sh" "$backup_id" >>"$log_file" 2>&1
 legacy_api_image=$(awk -F '\t' '$1 == "api_image" { print $2 }' "$BACKUP_ROOT/$backup_id/metadata/manifest.tsv")
 legacy_web_image=$(awk -F '\t' '$1 == "web_image" { print $2 }' "$BACKUP_ROOT/$backup_id/metadata/manifest.tsv")
-[[ "$legacy_api_image" == alpine@sha256:* ]]
-[[ "$legacy_web_image" == alpine@sha256:* ]]
+[[ "$legacy_api_image" == docker.io/library/alpine@sha256:* ]]
+[[ "$legacy_web_image" == docker.io/library/alpine@sha256:* ]]
 ENV_FILE="$test_root/missing.env" "$BACKUP_DIR/verify-backup.sh" "$backup_id" >>"$log_file" 2>&1
 "$BACKUP_DIR/list-backups.sh" >>"$log_file" 2>&1
 
@@ -175,8 +176,8 @@ if "$BACKUP_DIR/deploy-safe.sh" latest >>"$log_file" 2>&1; then
   echo 'Safe deploy unexpectedly accepted a mutable tag' >&2
   exit 1
 fi
-grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:latest' "$ENV_FILE"
-grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:latest' "$ENV_FILE"
+grep -Fxq 'LINE_QUEUE_API_IMAGE=docker.io/library/alpine:latest' "$ENV_FILE"
+grep -Fxq 'LINE_QUEUE_WEB_IMAGE=docker.io/library/alpine:latest' "$ENV_FILE"
 
 printf blocked > "$test_root/not-a-directory"
 if BACKUP_ROOT="$test_root/not-a-directory" \
@@ -185,12 +186,22 @@ if BACKUP_ROOT="$test_root/not-a-directory" \
   exit 1
 fi
 api_id=$("${compose[@]}" ps -q api)
-[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == alpine:latest ]]
-grep -Fxq 'LINE_QUEUE_API_IMAGE=alpine:latest' "$ENV_FILE"
-grep -Fxq 'LINE_QUEUE_WEB_IMAGE=alpine:latest' "$ENV_FILE"
+[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == docker.io/library/alpine:latest ]]
+grep -Fxq 'LINE_QUEUE_API_IMAGE=docker.io/library/alpine:latest' "$ENV_FILE"
+grep -Fxq 'LINE_QUEUE_WEB_IMAGE=docker.io/library/alpine:latest' "$ENV_FILE"
 
 sleep 1
-docker tag alpine:latest "$release_image"
+docker tag docker.io/library/alpine:latest "$release_api_image"
+docker tag docker.io/library/alpine:latest "$release_web_image"
+
+# Switch the release repositories to GHCR while explicitly retaining the running Docker Hub
+# repositories for the one-time cross-registry rollback window.
+sed -i \
+  -e 's|^LINE_QUEUE_API_REPOSITORY=.*|LINE_QUEUE_API_REPOSITORY=ghcr.io/example/line-smart-queue-api|' \
+  -e 's|^LINE_QUEUE_WEB_REPOSITORY=.*|LINE_QUEUE_WEB_REPOSITORY=ghcr.io/example/line-smart-queue-web|' \
+  -e '/^LINE_QUEUE_API_IMAGE=/i LINE_QUEUE_API_LEGACY_REPOSITORY=docker.io/library/alpine' \
+  -e '/^LINE_QUEUE_WEB_IMAGE=/i LINE_QUEUE_WEB_LEGACY_REPOSITORY=docker.io/library/alpine' \
+  "$ENV_FILE"
 export DEPLOY_APPROVED=GITHUB_ENVIRONMENT_APPROVED
 
 # Force a post-mutation migration failure. deploy-safe must return the original failure while its
@@ -212,9 +223,11 @@ restored_value=$("${compose[@]}" exec -T postgres sh -eu -c \
 sleep 1
 predeploy_id=$("$BACKUP_DIR/deploy-safe.sh" "$release_tag" 2>>"$log_file")
 api_id=$("${compose[@]}" ps -q api)
-[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == "$release_image" ]]
-grep -Fxq "LINE_QUEUE_API_IMAGE=$release_image" "$ENV_FILE"
-grep -Fxq "LINE_QUEUE_WEB_IMAGE=$release_image" "$ENV_FILE"
+[[ $(docker inspect --format '{{.Config.Image}}' "$api_id") == "$release_api_image" ]]
+web_id=$("${compose[@]}" ps -q web)
+[[ $(docker inspect --format '{{.Config.Image}}' "$web_id") == "$release_web_image" ]]
+grep -Fxq "LINE_QUEUE_API_IMAGE=$release_api_image" "$ENV_FILE"
+grep -Fxq "LINE_QUEUE_WEB_IMAGE=$release_web_image" "$ENV_FILE"
 [[ -n "$predeploy_id" && "$predeploy_id" != "$backup_id" ]]
 
 ROLLBACK_CONFIRMATION="ROLLBACK $predeploy_id" "$BACKUP_DIR/rollback.sh" "$predeploy_id" >>"$log_file" 2>&1

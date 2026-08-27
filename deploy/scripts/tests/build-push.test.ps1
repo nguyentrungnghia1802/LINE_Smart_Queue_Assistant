@@ -14,14 +14,14 @@ try {
 
   $releaseTag = "git-$($gitSha.Substring(0, 12))"
   $output = & $Publisher `
-    -ImageNamespace 'example.invalid/line-queue' `
+    -ImageNamespace 'ghcr.io/example' `
     -LiffId 'test-liff-id' `
     -DryRun `
     -AllowDirty | Out-String
 
   $expectedFragments = @(
-    "example.invalid/line-queue/line-smart-queue-api:$releaseTag",
-    "example.invalid/line-queue/line-smart-queue-web:$releaseTag",
+    "ghcr.io/example/line-smart-queue-api:$releaseTag",
+    "ghcr.io/example/line-smart-queue-web:$releaseTag",
     "org.opencontainers.image.revision=$gitSha",
     'LINE_LOGIN_LIFF_ID=test-liff-id',
     "VITE_SENTRY_RELEASE=$gitSha",
@@ -49,10 +49,19 @@ try {
     throw "Manual publisher still uses the retired $RetiredLiffVariable build argument"
   }
 
-  $configuredOutput = & $Publisher -LiffId 'test-liff-id' -DryRun -AllowDirty | Out-String
+  $previousApiRepository = $env:API_IMAGE_REPOSITORY
+  $previousWebRepository = $env:WEB_IMAGE_REPOSITORY
+  $env:API_IMAGE_REPOSITORY = 'ghcr.io/nguyentrungnghia1802/line-smart-queue-api'
+  $env:WEB_IMAGE_REPOSITORY = 'ghcr.io/nguyentrungnghia1802/line-smart-queue-web'
+  try {
+    $configuredOutput = & $Publisher -LiffId 'test-liff-id' -DryRun -AllowDirty | Out-String
+  } finally {
+    $env:API_IMAGE_REPOSITORY = $previousApiRepository
+    $env:WEB_IMAGE_REPOSITORY = $previousWebRepository
+  }
   foreach ($repository in @(
-    'docker.io/trungnghia2703/line-smart-queue-api',
-    'docker.io/trungnghia2703/line-smart-queue-web'
+    'ghcr.io/nguyentrungnghia1802/line-smart-queue-api',
+    'ghcr.io/nguyentrungnghia1802/line-smart-queue-web'
   )) {
     if (-not $configuredOutput.Contains("${repository}:$releaseTag")) {
       throw "Publisher did not resolve the configured deployment repository: $repository"
@@ -60,7 +69,7 @@ try {
   }
 
   try {
-    & $Publisher $releaseTag -ImageNamespace example/team -LiffId test -DryRun -AllowDirty *> $null
+    & $Publisher $releaseTag -ImageNamespace ghcr.io/example -LiffId test -DryRun -AllowDirty *> $null
     throw 'Operator-supplied release tag was unexpectedly accepted'
   } catch {
     if ($_.Exception.Message -eq 'Operator-supplied release tag was unexpectedly accepted') {
@@ -69,7 +78,7 @@ try {
   }
 
   try {
-    & $Publisher -ImageNamespace 'invalid//namespace' -LiffId test -DryRun -AllowDirty *> $null
+    & $Publisher -ImageNamespace 'ghcr.io/invalid//namespace' -LiffId test -DryRun -AllowDirty *> $null
     throw 'Invalid image namespace was unexpectedly accepted'
   } catch {
     if ($_.Exception.Message -eq 'Invalid image namespace was unexpectedly accepted') {
@@ -79,8 +88,8 @@ try {
 
   try {
     & $Publisher `
-      -ApiImageRepository 'registry.example/team/api:mutable' `
-      -WebImageRepository 'registry.example/team/web' `
+      -ApiImageRepository 'ghcr.io/example/team/api:mutable' `
+      -WebImageRepository 'ghcr.io/example/team/web' `
       -LiffId test -DryRun -AllowDirty *> $null
     throw 'Tagged image repository was unexpectedly accepted'
   } catch {
@@ -90,7 +99,7 @@ try {
   }
 
   try {
-    & $Publisher -ImageNamespace example/team -LiffId "invalid`nvalue" -DryRun -AllowDirty *> $null
+    & $Publisher -ImageNamespace ghcr.io/example -LiffId "invalid`nvalue" -DryRun -AllowDirty *> $null
     throw 'Unsafe LIFF ID was unexpectedly accepted'
   } catch {
     if ($_.Exception.Message -eq 'Unsafe LIFF ID was unexpectedly accepted') {

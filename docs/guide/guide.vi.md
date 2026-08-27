@@ -794,12 +794,12 @@ Khi sử dụng từng ngôn ngữ:
   E2E.
 - Khi CI của revision đã merge trên `main` pass, CD chờ duyệt ở GitHub Environment
   `production`, sau đó tự động build/push runner image API/Web bằng `git-<full SHA>` chính xác
-  và tag `latest` chỉ để tra cứu. VPS chỉ nhận tag bất biến, verify backup, lưu hai image ref đã chọn vào
+  lên các repository GHCR public và tag `latest` chỉ để tra cứu. VPS chỉ nhận tag bất biến, verify backup, lưu hai image ref đã chọn vào
   `deploy/.env`, pull, migrate, recreate và probe health. Nếu rollout ứng dụng lỗi, hệ thống tự thử
   rollback image theo metadata đã verify, không tự restore database/media.
 - Với release emergency/manual đã được duyệt, Operator Windows chạy
   `deploy/scripts/build-push.ps1` từ commit sạch, rồi truyền `DEPLOY_TAG` được in ra cho
-  `deploy/scripts/deploy.sh <tag>` trên VPS; luồng thủ công này không publish `latest`.
+  `deploy/scripts/deploy.sh <tag>` trên VPS; Docker CLI local phải đăng nhập `ghcr.io`, và luồng thủ công này không publish `latest`.
 - Database, JWT, LINE, SMTP, payment và storage secret vẫn ở `deploy/.env` trên server; CD không sao chép
   hoặc tạo lại file này. Trước khi cập nhật server, chạy
   `docker compose --env-file deploy/.env -f deploy/docker-compose.yml config -q`.

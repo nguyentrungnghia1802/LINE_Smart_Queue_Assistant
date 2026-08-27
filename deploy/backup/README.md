@@ -76,11 +76,24 @@ immutable tag to the backup gate. The manual Windows PowerShell publisher emits
 
 ```bash
 # deploy/.env:
-# LINE_QUEUE_API_REPOSITORY=docker.io/example/line-smart-queue-api
-# LINE_QUEUE_WEB_REPOSITORY=docker.io/example/line-smart-queue-web
+# LINE_QUEUE_API_REPOSITORY=ghcr.io/nguyentrungnghia1802/line-smart-queue-api
+# LINE_QUEUE_WEB_REPOSITORY=ghcr.io/nguyentrungnghia1802/line-smart-queue-web
 deploy/backup/deploy-safe.sh git-0123456789ab
 # Type: DEPLOY <the-printed-predeployment-backup-id>
 ```
+
+For the one-time Docker Hub to GHCR cutover, keep the running Docker Hub repositories explicit
+until the rollback window closes:
+
+```dotenv
+LINE_QUEUE_API_LEGACY_REPOSITORY=docker.io/trungnghia2703/line-smart-queue-api
+LINE_QUEUE_WEB_LEGACY_REPOSITORY=docker.io/trungnghia2703/line-smart-queue-web
+```
+
+These optional keys are parsed without sourcing `.env`. They are used only when the current image
+does not belong to the new GHCR repository, allowing the mandatory backup to resolve a legacy
+`latest` container to its exact registry digest. Remove them only after a successful GHCR release
+and verified rollback window; they never change the new release target.
 
 The script will not pull, migrate, or recreate application containers unless pre-deployment backup
 and independent verification succeed. After verification and confirmation it atomically updates

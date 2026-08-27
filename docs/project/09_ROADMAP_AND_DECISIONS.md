@@ -798,7 +798,7 @@ not atomic across both repositories. Neither can affect deployment selection.
 
 ## ADR-043: Automatic validated-main production release
 
-**Status:** accepted (2026-08-12), amended (2026-08-13)
+**Status:** accepted (2026-08-12), amended (2026-08-13), publication registry superseded by ADR-044
 
 **Context:** Manual dispatch still required a developer to select and confirm a production source
 revision, even though PR CI and immutable full-SHA artifacts already supplied the required release
@@ -833,6 +833,48 @@ while repository secrets were intentionally empty. The earlier split job therefo
 `DOCKERHUB_TOKEN`. Moving publication into the same protected job as deployment supersedes the
 repository-scope credential choice without weakening validated-main, immutable-tag, backup, health,
 rollback, or manual approval controls.
+
+## ADR-044: GitHub Container Registry as the current image publication boundary
+
+**Status:** accepted for implementation (2026-08-27); production GHCR evidence remains an external gate
+
+**Context:** ADR-043 established automatic validated-main CD and placed publication and deployment
+behind one protected job, but it used Docker Hub credentials and repository-specific image names.
+The current release tooling needs one deterministic registry for automatic and emergency/manual
+publication while preserving the Git-derived identity, backup gate, and metadata-driven rollback.
+The VPS must also survive the first registry change without losing the immediately previous release.
+
+**Decision:** Use the lowercase GHCR repositories
+`ghcr.io/nguyentrungnghia1802/line-smart-queue-api` and
+`ghcr.io/nguyentrungnghia1802/line-smart-queue-web` as the current publication targets. The
+protected automatic job grants only `contents: read` and `packages: write`, logs in to `ghcr.io`
+with the repository-scoped `GITHUB_TOKEN`, and publishes the validated full-SHA `git-<40-character-sha>`
+tag plus the discovery-only `latest` alias. The Windows emergency publisher derives the existing
+`git-<12-character-sha>` tag from clean `HEAD`, publishes only that immutable tag, and requires a
+local Docker CLI session already authenticated to GHCR. OCI source, revision, and version metadata
+remain attached to both images.
+
+The production-oriented demo uses public GHCR packages so the VPS can pull anonymously; a future
+private-package deployment must use a dedicated package-read credential in the deployment user's
+Docker credential context and never in `deploy/.env`. The server's untagged repository keys point to
+GHCR. During the one-time transition, optional
+`LINE_QUEUE_API_LEGACY_REPOSITORY`/`LINE_QUEUE_WEB_LEGACY_REPOSITORY` keys may name the exact old
+Docker Hub repositories so a running `latest` image can be resolved to a digest before mutation.
+Those aliases and old images remain until the documented rollback window closes. Backup metadata,
+application rollback, and `deploy-safe.sh` remain registry-independent and never select `latest`.
+
+This ADR supersedes the Docker Hub publication and credential portions of ADR-043 and the registry
+selection portions of ADR-042; their validated-main, immutable-tag, backup, and rollback invariants
+remain in force. Docker Hub references retained in migration notes or historical ADRs are not current
+runtime configuration.
+
+**Consequences:** Automatic and manual release paths share deterministic GHCR names without a
+long-lived registry write PAT. Public package visibility removes a VPS registry secret for the demo,
+while package ownership/linkage, anonymous pulls, the first GHCR deployment, and cross-registry
+rollback still require controlled external verification. Docker Hub credentials and repositories
+must not be deleted until that verification and the agreed rollback window are complete. The
+existing Compose media volume, database backup, migration, health, and application-only rollback
+semantics are unchanged.
 
 ## OPT-001 cleanup audit (2026-08-11)
 

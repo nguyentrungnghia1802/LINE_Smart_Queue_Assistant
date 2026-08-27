@@ -242,8 +242,12 @@ $env:LINE_LOGIN_LIFF_ID = '<production-liff-id>'
 pwsh -NoProfile -File deploy/scripts/build-push.ps1
 ```
 
-The current Docker Hub repositories are `trungnghia2703/line-smart-queue-api` and
-`trungnghia2703/line-smart-queue-web`. In an emergency/manual deployment, pass only the printed
+The current GHCR repositories are `ghcr.io/nguyentrungnghia1802/line-smart-queue-api` and
+`ghcr.io/nguyentrungnghia1802/line-smart-queue-web`. The packages are intentionally public for
+the production-oriented demo, so the VPS pulls them anonymously. If visibility is changed to
+private, authenticate only the deployment user with a package-read credential in Docker's
+credential context; never put that credential in `deploy/.env`. In an emergency/manual deployment,
+pass only the printed
 `git-<12-character-sha>` printed as `DEPLOY_TAG` to the VPS:
 
 ```bash
@@ -766,8 +770,8 @@ Production delivery is automatic after validated `main`, backup-gated, and envir
 `.github/workflows/deploy.yml` listens only for a successful same-repository `CI Quality Gates`
 completion on `main` and requires approval on the GitHub `production` environment before accessing
 any release credential. After approval, the protected job checks out that run's exact SHA, builds
-the API and Web `runner` images, pushes `git-<full SHA>` plus discovery-only `latest` to Docker Hub,
-and connects to the server. A pull request never triggers production CD. The SSH host key is pinned with
+the API and Web `runner` images, pushes `git-<full SHA>` plus discovery-only `latest` to GHCR, and
+connects to the server. A pull request never triggers production CD. The SSH host key is pinned with
 `PRODUCTION_SSH_KNOWN_HOSTS`. CD copies the selected commit's Compose file and versioned recovery
 tooling, but never the server `.env`. It accepts `PRODUCTION_DEPLOY_PATH` as either the project root
 or that root's `deploy` directory, verifies the matching `.env`, and normalizes to the project root
@@ -788,35 +792,35 @@ verifies that `/app/var/media` is both the configured path and writable by the n
 
 | Variable                 | Example                        | Purpose                                                  |
 | ------------------------ | ------------------------------ | -------------------------------------------------------- |
-| `DOCKERHUB_USERNAME`     | `trungnghia2703`               | Docker Hub image namespace                               |
 | `LINE_LOGIN_LIFF_ID`     | LINE Login LIFF ID             | Shared public API/Web configuration                      |
 | `PRODUCTION_DEPLOY_PATH` | `/opt/line-smart-queue/deploy` | Project root or its `deploy` directory containing `.env` |
 
 `production` environment secrets:
 
-| Secret                       | Purpose                                                  |
-| ---------------------------- | -------------------------------------------------------- |
-| `DOCKERHUB_TOKEN`            | Docker Hub personal access token; Read & Write is enough |
-| `PRODUCTION_SSH_HOST`        | Production hostname or IP                                |
-| `PRODUCTION_SSH_PORT`        | SSH port; may be omitted to use `22`                     |
-| `PRODUCTION_SSH_USER`        | Restricted deployment user                               |
-| `PRODUCTION_SSH_PRIVATE_KEY` | Private half of a dedicated deployment key               |
-| `PRODUCTION_SSH_KNOWN_HOSTS` | Pinned server host-key line from trusted `ssh-keyscan`   |
+| Secret                       | Purpose                                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------- |
+| Built-in `GITHUB_TOKEN`      | Automatic workflow token; job-scoped `packages: write` for GHCR (do not add it manually) |
+| `PRODUCTION_SSH_HOST`        | Production hostname or IP                                                                |
+| `PRODUCTION_SSH_PORT`        | SSH port; may be omitted to use `22`                                                     |
+| `PRODUCTION_SSH_USER`        | Restricted deployment user                                                               |
+| `PRODUCTION_SSH_PRIVATE_KEY` | Private half of a dedicated deployment key                                               |
+| `PRODUCTION_SSH_KNOWN_HOSTS` | Pinned server host-key line from trusted `ssh-keyscan`                                   |
 
-The single protected release job intentionally keeps Docker Hub and SSH credentials in the
-`production` environment. GitHub does not expose those values until a required reviewer approves
-the job. After approval, the job builds and publishes both immutable images, then performs the
-backup-gated VPS rollout. This provides one approval boundary and prevents a split workflow from
-requesting multiple approvals or seeing an empty environment token. The workflow validates every
-required variable and secret by name without printing any value.
+The single protected release job uses the built-in `GITHUB_TOKEN` for GHCR publication and keeps
+only SSH credentials in the `production` environment. GitHub does not expose those values until a
+required reviewer approves the job. After approval, the job builds and publishes both immutable
+images, then performs the backup-gated VPS rollout. This provides one approval boundary and
+prevents a split workflow from requesting multiple approvals or seeing an empty environment
+token. The workflow validates every required variable and secret by name without printing any
+value.
 
 ### Required GitHub repository setup
 
 1. Open **Settings → Environments → production**. Add at least one authorized required reviewer
    and restrict deployment branches/tags to `main`.
-2. In that environment, add `DOCKERHUB_USERNAME`, `LINE_LOGIN_LIFF_ID`, and
-   `PRODUCTION_DEPLOY_PATH` as variables. Add `DOCKERHUB_TOKEN` from a Docker Hub personal access
-   token with at least Read & Write permission and the five `PRODUCTION_SSH_*` values as secrets.
+2. In that environment, add `LINE_LOGIN_LIFF_ID` and `PRODUCTION_DEPLOY_PATH` as variables, and
+   add the five `PRODUCTION_SSH_*` values as secrets. The release job uses its built-in
+   `GITHUB_TOKEN` with job-scoped `packages: write`; no Docker Hub credential is required.
    `PRODUCTION_DEPLOY_PATH` may be `/opt/line-smart-queue` or
    `/opt/line-smart-queue/deploy`; no other directory shape is accepted. Never put secret values in
    a variable, workflow, log, or committed env file.
@@ -843,10 +847,15 @@ it is not the normal production workflow.
 The matching public key belongs in the deployment user's `~/.ssh/authorized_keys`. Give that user
 only the Docker/Compose permissions needed under the deploy directory. Keep runtime values such as
 database, JWT, LINE Messaging, SMTP, and payment secrets in the server-side `.env`; the workflow
-does not copy or regenerate that file. If Docker Hub repositories are private, log the server into
-Docker Hub once with a read-only token. Keep the two untagged repository keys in that file; CD
-updates only the two full image-reference keys. Application rollback reads the exact old refs from
-verified snapshot metadata, writes them back atomically, and never consults `latest`.
+does not copy or regenerate that file. With the current public GHCR packages, no server registry
+login is needed. If packages become private, run `docker login ghcr.io` once as the deployment user
+with a dedicated package-read credential and keep it outside the repository. Keep the two untagged
+repository keys in that file; CD updates only the two full image-reference keys. During the
+one-time registry migration, set `LINE_QUEUE_API_LEGACY_REPOSITORY` and
+`LINE_QUEUE_WEB_LEGACY_REPOSITORY` to the exact old Docker Hub repositories so the verified backup
+can resolve a running `latest` image to its digest. Remove those aliases only after the rollback
+window. Application rollback reads the exact old refs from verified snapshot metadata, writes them
+back atomically, and never consults `latest`.
 
 Remaining delivery hardening includes container/image scanning, signed image provenance, staging
 deployment against sandbox integrations, encrypted off-host snapshot automation, production-VPS

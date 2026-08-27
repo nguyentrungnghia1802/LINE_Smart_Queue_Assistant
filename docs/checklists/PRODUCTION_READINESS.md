@@ -1,6 +1,6 @@
 # Production Readiness Checklist
 
-Last reviewed: 2026-08-12. This checklist distinguishes repository verification from external production acceptance. A checked code item does not prove that LINE, a payment provider, or production infrastructure is configured.
+Last reviewed: 2026-08-27. This checklist distinguishes repository verification from external production acceptance. A checked code item does not prove that LINE, a payment provider, or production infrastructure is configured.
 
 ## Workstream status
 
@@ -17,7 +17,7 @@ Last reviewed: 2026-08-12. This checklist distinguishes repository verification 
 | 9   | Forecasting and staffing     | Measured heuristic, history, recommendations, manager UI, and tests implemented                                            | Pending production calibration; this is not an ML model                          |
 | 10  | OpenAPI contracts            | Runtime route coverage and drift checks implemented                                                                        | Detailed provider schemas may expand with a real PSP                             |
 | 11  | Browser E2E                  | Mock desktop/mobile critical flows pass                                                                                    | Real LINE device checklist remains pending                                       |
-| 12  | CI/CD gates                  | PostgreSQL, security, contract, test, build, idempotent seed, and mock E2E gates implemented                               | Pending image publication, staging deployment, and approval policy               |
+| 12  | CI/CD gates                  | PostgreSQL, security, contract, test, build, idempotent seed, mock E2E, and GHCR immutable-release gates implemented       | Pending GHCR package publication, VPS migration, and approval-policy evidence    |
 | 13  | Horizontal runtime           | Two-API shared PostgreSQL/Redis, worker recovery, SSE fan-out, dependency interruption, and pool metrics validated locally | Pending production-like staging soak and aggregate pool sizing                   |
 | 14  | Media storage                | Persistent VPS `media_data`, matched DB/media snapshot tooling, recreate test, and isolated restore rehearsal implemented  | Pending encrypted off-host copy, VPS restore evidence, scanning, capacity alerts |
 | 15  | Documentation                | Canonical docs and acceptance checklists updated                                                                           | Must be reviewed for each release                                                |
@@ -29,6 +29,8 @@ Last reviewed: 2026-08-12. This checklist distinguishes repository verification 
 
 - [ ] Release commit is reviewed and the worktree is clean.
 - [ ] CI passes format, lint, typecheck, OpenAPI drift, coverage, web/shared tests, clean migration, repeated seed, build, secret scan, dependency audit, and mock E2E.
+- [ ] GHCR packages are linked to this repository, have the intended public/private visibility, and the validated release SHA can be pulled from the VPS before migration.
+- [ ] The first GHCR release and a cross-registry rollback to the retained Docker Hub release have controlled evidence; remove legacy registry access only after the rollback window.
 - [ ] Seed smoke creates only the platform administrator, is idempotent, and the isolated E2E fixture can load after repeated seed runs.
 - [ ] Production secrets are rotated, stored outside Git, and belong to the intended environment.
 - [ ] Database backup and restore drill evidence is current.

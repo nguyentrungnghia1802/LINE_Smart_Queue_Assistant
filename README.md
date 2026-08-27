@@ -117,7 +117,7 @@ _Staffは顧客、注文、Ticket状態、残金、対応操作を1画面で扱�
 | **Backend API**        | Node.js, Express, TypeScript, Zod, BullMQ, Redis | 厳格なサーバー検証、非同期ジョブ、レート制限、リアルタイム通知連携         |
 | **Database & Storage** | PostgreSQL, Docker Volume                        | 整合性を担保するリレーショナル設計、メディア永続化とバックアップ管理       |
 | **LINE Integration**   | LINE Messaging API, Flex Message                 | 呼出し・5人待ち・完了・不在通知の自動配信とWebhook処理                     |
-| **Testing & CI/CD**    | Playwright, Vitest, Docker, GitHub Actions       | E2E/単体テスト、不変タグCDデプロイ、自動ロールバック安全設計               |
+| **Testing & CI/CD**    | Playwright, Vitest, Docker, GitHub Actions       | E2E/単体テスト、GHCR不変タグCD、自動ロールバック安全設計                   |
 
 ### ガイドと連絡先
 
@@ -246,7 +246,7 @@ _Staff sees customer, order, Ticket state, balance, and service actions together
 | **Backend API**        | Node.js, Express, TypeScript, Zod, BullMQ, Redis | Strict server-side validation, async jobs, rate limiting, and real-time event pipeline |
 | **Database & Storage** | PostgreSQL, Docker Persistent Volume             | Relational schema with transactional integrity, synchronized database/media backup     |
 | **LINE Integration**   | LINE Messaging API, Flex Message                 | Automated lifecycle notifications (created, 5-ahead, called, completed) via Webhooks   |
-| **Testing & CI/CD**    | Playwright, Vitest, Docker, GitHub Actions       | Desktop/Mobile E2E, Vitest unit tests, immutable tag CD release with safety rollback   |
+| **Testing & CI/CD**    | Playwright, Vitest, Docker, GitHub Actions       | Desktop/Mobile E2E, GHCR immutable-tag CD release with safety rollback                 |
 
 ### Guide and contact
 
@@ -368,14 +368,14 @@ _Staff xem khách, đơn, trạng thái Ticket, số dư và thao tác phục v�
 
 ### Technical
 
-| Tầng / Hạng mục             | Công nghệ chính                                  | Mô tả & Điểm nổi bật                                                                     |
-| --------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| **Frontend**                | React 18, Vite, TypeScript, Tailwind CSS         | Workspace phân quyền (Admin / Owner / Manager / Staff), đa ngôn ngữ (JA / EN / VI)       |
-| **Giao diện Khách hàng**    | LINE Front-end Framework (LIFF), LINE Login      | Trải nghiệm đặt chỗ và theo dõi Ticket trực tiếp trên mobile, không cần cài app          |
-| **Backend API**             | Node.js, Express, TypeScript, Zod, BullMQ, Redis | Xác thực chặt chẽ tại server, xử lý hàng đợi bất đồng bộ, rate limit và scheduler        |
-| **Cơ sở dữ liệu & Lưu trữ** | PostgreSQL, Docker Volume                        | Đảm bảo tính toàn vẹn giao dịch (ACID), sao lưu đồng bộ dữ liệu và media                 |
-| **Tích hợp LINE**           | LINE Messaging API, Flex Message                 | Tự động gửi thông báo theo vòng đời Ticket (5 người chờ, gọi lượt, hoàn tất, vắng)       |
-| **Kiểm thử & CI/CD**        | Playwright, Vitest, Docker, GitHub Actions       | Kiểm thử E2E desktop & mobile, CI/CD tự động phát hành immutable tag và rollback an toàn |
+| Tầng / Hạng mục             | Công nghệ chính                                  | Mô tả & Điểm nổi bật                                                               |
+| --------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| **Frontend**                | React 18, Vite, TypeScript, Tailwind CSS         | Workspace phân quyền (Admin / Owner / Manager / Staff), đa ngôn ngữ (JA / EN / VI) |
+| **Giao diện Khách hàng**    | LINE Front-end Framework (LIFF), LINE Login      | Trải nghiệm đặt chỗ và theo dõi Ticket trực tiếp trên mobile, không cần cài app    |
+| **Backend API**             | Node.js, Express, TypeScript, Zod, BullMQ, Redis | Xác thực chặt chẽ tại server, xử lý hàng đợi bất đồng bộ, rate limit và scheduler  |
+| **Cơ sở dữ liệu & Lưu trữ** | PostgreSQL, Docker Volume                        | Đảm bảo tính toàn vẹn giao dịch (ACID), sao lưu đồng bộ dữ liệu và media           |
+| **Tích hợp LINE**           | LINE Messaging API, Flex Message                 | Tự động gửi thông báo theo vòng đời Ticket (5 người chờ, gọi lượt, hoàn tất, vắng) |
+| **Kiểm thử & CI/CD**        | Playwright, Vitest, Docker, GitHub Actions       | E2E desktop & mobile, CD GHCR với immutable tag và rollback an toàn                |
 
 ### Hướng dẫn và liên hệ
 
