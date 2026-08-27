@@ -19,112 +19,6 @@ function positiveInteger(
   return value;
 }
 
-export interface LogMonitoringConfiguration {
-  enabled: boolean;
-  endpoint: string;
-  apiKey: string;
-  service: string;
-  environment: string;
-  release: string;
-  queueCapacity: number;
-  batchSize: number;
-  maxWaitMs: number;
-  maxRetries: number;
-  backoffMs: number;
-  maxBackoffMs: number;
-  jitterMs: number;
-  maxRetryAfterMs: number;
-  requestTimeoutMs: number;
-  flushTimeoutMs: number;
-  maxMessageLength: number;
-  maxExceptionMessageLength: number;
-  maxStackTraceLength: number;
-  maxContextEntries: number;
-  maxTagEntries: number;
-  maxContextKeyLength: number;
-  maxContextValueLength: number;
-  slowQueryThresholdMs: number;
-}
-
-export function resolveLogMonitoringConfiguration(
-  environment: NodeJS.ProcessEnv = process.env
-): LogMonitoringConfiguration {
-  const enabled = environment.LOG_MONITORING_ENABLED?.trim().toLowerCase() === 'true';
-  const endpoint = environment.LOG_MONITORING_ENDPOINT?.trim() ?? '';
-  const apiKey = environment.LOG_MONITORING_API_KEY?.trim() ?? '';
-
-  if (enabled) {
-    if (!endpoint)
-      throw new Error('LOG_MONITORING_ENDPOINT must be set when monitoring is enabled');
-    if (!apiKey) throw new Error('LOG_MONITORING_API_KEY must be set when monitoring is enabled');
-    let parsed: URL;
-    try {
-      parsed = new URL(endpoint);
-    } catch {
-      throw new Error('LOG_MONITORING_ENDPOINT must be a valid http(s) URL');
-    }
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new Error('LOG_MONITORING_ENDPOINT must use http:// or https://');
-    }
-  }
-
-  const backoffMs = positiveInteger('LOG_MONITORING_BACKOFF_MS', 250, environment);
-  const maxBackoffMs = positiveInteger('LOG_MONITORING_MAX_BACKOFF_MS', 5_000, environment);
-  if (maxBackoffMs < backoffMs) {
-    throw new Error('LOG_MONITORING_MAX_BACKOFF_MS must be >= LOG_MONITORING_BACKOFF_MS');
-  }
-
-  return {
-    enabled,
-    endpoint,
-    apiKey,
-    service: environment.LOG_MONITORING_SERVICE?.trim() || 'line-smart-queue-api',
-    environment:
-      environment.LOG_MONITORING_ENVIRONMENT?.trim() ||
-      environment.NODE_ENV?.trim() ||
-      'development',
-    release:
-      environment.LOG_MONITORING_RELEASE?.trim() ||
-      environment.SENTRY_RELEASE?.trim() ||
-      environment.APP_RELEASE?.trim() ||
-      'development',
-    queueCapacity: positiveInteger('LOG_MONITORING_QUEUE_CAPACITY', 1_000, environment),
-    batchSize: positiveInteger('LOG_MONITORING_BATCH_SIZE', 50, environment),
-    maxWaitMs: positiveInteger('LOG_MONITORING_MAX_WAIT_MS', 250, environment),
-    maxRetries: positiveInteger('LOG_MONITORING_MAX_RETRIES', 3, environment),
-    backoffMs,
-    maxBackoffMs,
-    jitterMs: positiveInteger('LOG_MONITORING_JITTER_MS', 50, environment),
-    maxRetryAfterMs: positiveInteger('LOG_MONITORING_MAX_RETRY_AFTER_MS', 5_000, environment),
-    requestTimeoutMs: positiveInteger('LOG_MONITORING_REQUEST_TIMEOUT_MS', 2_000, environment),
-    flushTimeoutMs: positiveInteger('LOG_MONITORING_FLUSH_TIMEOUT_MS', 5_000, environment),
-    maxMessageLength: positiveInteger('LOG_MONITORING_MAX_MESSAGE_LENGTH', 4_000, environment),
-    maxExceptionMessageLength: positiveInteger(
-      'LOG_MONITORING_MAX_EXCEPTION_MESSAGE_LENGTH',
-      1_000,
-      environment
-    ),
-    maxStackTraceLength: positiveInteger(
-      'LOG_MONITORING_MAX_STACK_TRACE_LENGTH',
-      4_000,
-      environment
-    ),
-    maxContextEntries: positiveInteger('LOG_MONITORING_MAX_CONTEXT_ENTRIES', 32, environment),
-    maxTagEntries: positiveInteger('LOG_MONITORING_MAX_TAG_ENTRIES', 32, environment),
-    maxContextKeyLength: positiveInteger('LOG_MONITORING_MAX_CONTEXT_KEY_LENGTH', 64, environment),
-    maxContextValueLength: positiveInteger(
-      'LOG_MONITORING_MAX_CONTEXT_VALUE_LENGTH',
-      512,
-      environment
-    ),
-    slowQueryThresholdMs: positiveInteger(
-      'LOG_MONITORING_SLOW_QUERY_THRESHOLD_MS',
-      1_000,
-      environment
-    ),
-  };
-}
-
 export type PaymentRuntimeMode = 'demo' | 'external';
 
 export interface PaymentRuntimeConfiguration {
@@ -339,8 +233,6 @@ export const config = {
       dsn: process.env.SENTRY_DSN?.trim() || '',
     },
   },
-
-  logMonitoring: resolveLogMonitoringConfiguration(),
 
   jwt: {
     secret: process.env.JWT_SECRET ?? 'change-me-in-production',

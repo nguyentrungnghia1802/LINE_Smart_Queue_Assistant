@@ -3,7 +3,6 @@ import { logger } from '../../utils/logger';
 import { metricsService } from '../../utils/metrics';
 import type { ILineMessagingAdapter, LineMessage } from '../line/line.adapter';
 import { lineMessagingAdapter } from '../line/line.messaging';
-import { logMonitoringClient } from '../log-monitoring';
 
 import type { TicketNotificationTemplate } from './line-notification.templates';
 
@@ -52,11 +51,6 @@ async function tryPushMessages(
       },
       options.failureMessage
     );
-    logMonitoringClient.error('LINE_PUSH_FAILED', 'LINE notification delivery failed', err, {
-      entryId: context.entryId,
-      eventType: context.eventType,
-      messageType: messages.map((message) => message.type).join(','),
-    });
     return { sent: false, error: err };
   }
 }

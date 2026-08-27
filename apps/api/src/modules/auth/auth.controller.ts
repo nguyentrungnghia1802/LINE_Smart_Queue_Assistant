@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 
+import { sanitizeTelemetryValue } from '../../observability/sanitization';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
+import { logger } from '../../utils/logger';
 import { sendSuccess } from '../../utils/response';
-import { logMonitoringClient } from '../log-monitoring';
 
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from './auth.cookies';
 import { authService } from './auth.service';
@@ -30,12 +31,9 @@ export const loginWithLine = asyncHandler(async (req: Request, res: Response) =>
   try {
     result = await authService.loginWithLineToken(idToken);
   } catch (error) {
-    logMonitoringClient.error(
-      'AUTH_LOGIN_FAILED',
-      'LINE login failed',
-      error,
-      { method: 'line' },
-      { requestId: typeof req.id === 'string' ? req.id : undefined }
+    logger.warn(
+      { err: sanitizeTelemetryValue(error), method: 'line', requestId: req.id },
+      'auth.login.failed'
     );
     throw error;
   }
@@ -54,12 +52,9 @@ export const loginWithEmailPassword = asyncHandler(async (req: Request, res: Res
   try {
     result = await authService.loginWithEmailPassword(email, password);
   } catch (error) {
-    logMonitoringClient.error(
-      'AUTH_LOGIN_FAILED',
-      'Password login failed',
-      error,
-      { method: 'password' },
-      { requestId: typeof req.id === 'string' ? req.id : undefined }
+    logger.warn(
+      { err: sanitizeTelemetryValue(error), method: 'password', requestId: req.id },
+      'auth.login.failed'
     );
     throw error;
   }

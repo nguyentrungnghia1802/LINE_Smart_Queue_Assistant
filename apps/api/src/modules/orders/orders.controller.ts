@@ -2,10 +2,11 @@ import { Request, Response } from 'express';
 
 import { UserRole } from '@line-queue/shared';
 
+import { sanitizeTelemetryValue } from '../../observability/sanitization';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
+import { logger } from '../../utils/logger';
 import { sendSuccess } from '../../utils/response';
-import { logMonitoringClient } from '../log-monitoring';
 import { paymentsService } from '../payments/payments.service';
 
 import { ordersService } from './orders.service';
@@ -75,12 +76,13 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
   try {
     result = await ordersService.create(req.body as CreateOrderDto, actor);
   } catch (error) {
-    logMonitoringClient.error(
-      'ORDER_CREATE_FAILED',
-      'Order creation failed',
-      error,
-      { organizationId: req.user.organizationId },
-      { requestId: typeof req.id === 'string' ? req.id : undefined }
+    logger.error(
+      {
+        err: sanitizeTelemetryValue(error),
+        organizationId: req.user.organizationId,
+        requestId: req.id,
+      },
+      'order.create.failed'
     );
     throw error;
   }
