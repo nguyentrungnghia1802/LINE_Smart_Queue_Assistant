@@ -2,12 +2,12 @@
 
 import { UserRole } from '@line-queue/shared';
 
+import { sanitizeTelemetryValue } from '../../observability/sanitization';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { logger } from '../../utils/logger';
 import { sendCreated, sendSuccess } from '../../utils/response';
 import { requireBranchOperator } from '../branches/branch-scope';
-import { logMonitoringClient } from '../log-monitoring';
 import { skipPenaltyService } from '../skip-penalty/skip-penalty.service';
 
 import { queueService } from './queue.service';
@@ -29,12 +29,9 @@ function reportQueueTransitionFailure(
   error: unknown,
   context: Record<string, unknown>
 ): void {
-  logMonitoringClient.error(
-    'QUEUE_TRANSITION_CONFLICT',
-    'Queue transition failed',
-    error,
-    context,
-    { requestId: typeof req.id === 'string' ? req.id : undefined }
+  reqLog(req).error(
+    { err: sanitizeTelemetryValue(error), ...context, requestId: req.id },
+    'queue.transition.failed'
   );
 }
 
@@ -64,12 +61,9 @@ export const joinQueue = asyncHandler(async (req: Request, res: Response) => {
   try {
     result = await queueService.joinQueue(joinRequest);
   } catch (error) {
-    logMonitoringClient.error(
-      'QUEUE_CREATE_FAILED',
-      'Queue join failed',
-      error,
-      { queueId: dto.queueId },
-      { requestId: typeof req.id === 'string' ? req.id : undefined }
+    reqLog(req).error(
+      { err: sanitizeTelemetryValue(error), queueId: dto.queueId, requestId: req.id },
+      'queue.join.failed'
     );
     throw error;
   }

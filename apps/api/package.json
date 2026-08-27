@@ -19,7 +19,6 @@
     "clean": "rimraf dist *.tsbuildinfo",
     "line:verify": "ts-node src/scripts/verify-line-messaging.ts",
     "line:rich-menu:sync": "ts-node src/scripts/sync-line-rich-menu.ts",
-    "log-monitoring:verify": "ts-node src/scripts/verify-log-monitoring.ts",
     "db:migrate": "node-pg-migrate up --no-single-transaction --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env",
     "db:migrate:down": "node-pg-migrate down --migrations-dir ../../db/migrations/node-pg-migrate --envPath ../../.env",
     "db:migrate:redo": "npm run db:migrate:down && npm run db:migrate",

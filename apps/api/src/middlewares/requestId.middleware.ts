@@ -3,8 +3,6 @@ import { randomUUID } from 'node:crypto';
 import { trace } from '@opentelemetry/api';
 import { NextFunction, Request, Response } from 'express';
 
-import { runWithRequestId } from '../observability/correlation';
-
 /**
  * Attach a unique trace ID to every request.
  *
@@ -19,5 +17,5 @@ export function requestIdMiddleware(req: Request, res: Response, next: NextFunct
   req.id = typeof fromHeader === 'string' && fromHeader.length > 0 ? fromHeader : randomUUID();
   res.setHeader('X-Request-ID', req.id);
   trace.getActiveSpan()?.setAttribute('app.request_id', req.id);
-  runWithRequestId(req.id, next);
+  next();
 }

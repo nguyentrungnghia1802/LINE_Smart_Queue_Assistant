@@ -2,11 +2,12 @@ import { Request, Response } from 'express';
 
 import { UserRole } from '@line-queue/shared';
 
+import { sanitizeTelemetryValue } from '../../observability/sanitization';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
+import { logger } from '../../utils/logger';
 import { sendCreated, sendSuccess } from '../../utils/response';
 import { requireBranchManager } from '../branches/branch-scope';
-import { logMonitoringClient } from '../log-monitoring';
 
 import { paymentsService } from './payments.service';
 import { CompleteDemoPaymentDto, CreatePaymentIntentDto } from './payments.validator';
@@ -45,12 +46,9 @@ export const handlePaymentWebhook = asyncHandler(async (req: Request, res: Respo
       req.headers
     );
   } catch (error) {
-    logMonitoringClient.error(
-      'PAYMENT_WEBHOOK_FAILED',
-      'Payment webhook processing failed',
-      error,
-      { provider: req.params.provider },
-      { requestId: typeof req.id === 'string' ? req.id : undefined }
+    logger.error(
+      { err: sanitizeTelemetryValue(error), provider: req.params.provider, requestId: req.id },
+      'payment.webhook.failed'
     );
     throw error;
   }

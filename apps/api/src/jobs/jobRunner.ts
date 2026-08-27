@@ -16,7 +16,6 @@
  * and a warning is emitted. This prevents runaway DB connections on slow cycles.
  */
 
-import { logMonitoringClient } from '../modules/log-monitoring';
 import { logger } from '../utils/logger';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -66,12 +65,6 @@ export class JobRunner {
         logger.debug({ job: name, durationMs: Date.now() - start }, 'job.done');
       } catch (err) {
         logger.error({ job: name, err, durationMs: Date.now() - start }, 'job.failed');
-        logMonitoringClient.error(
-          'SCHEDULER_JOB_FAILED',
-          'Scheduled job failed after bounded retries',
-          err,
-          { jobName: name, durationMs: Date.now() - start }
-        );
       } finally {
         this.running.delete(name);
       }

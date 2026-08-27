@@ -1,11 +1,11 @@
 ﻿import { Request, Response } from 'express';
 
+import { sanitizeTelemetryValue } from '../../observability/sanitization';
 import { AppError } from '../../utils/AppError';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { logger } from '../../utils/logger';
 import { sendSuccess } from '../../utils/response';
 import { requireBranchOperator } from '../branches/branch-scope';
-import { logMonitoringClient } from '../log-monitoring';
 
 import { staffService } from './staff.service';
 import { EntryIdParam, MyQueueQuery, QueueIdParam } from './staff.validator';
@@ -29,12 +29,9 @@ function reportQueueTransitionFailure(
   error: unknown,
   context: Record<string, unknown>
 ): void {
-  logMonitoringClient.error(
-    'QUEUE_TRANSITION_CONFLICT',
-    'Staff queue transition failed',
-    error,
-    context,
-    { requestId: typeof req.id === 'string' ? req.id : undefined }
+  reqLog(req).error(
+    { err: sanitizeTelemetryValue(error), ...context, requestId: req.id },
+    'staff.queue.transition.failed'
   );
 }
 

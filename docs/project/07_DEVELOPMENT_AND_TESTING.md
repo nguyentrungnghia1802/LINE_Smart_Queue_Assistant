@@ -518,48 +518,6 @@ one API request and one notification delivery have trace/log correlation, then c
 business operations succeed while collector and Sentry endpoints are unavailable. Never use real
 customer contact or credentials as test fixtures.
 
-### Log Monitoring source integration
-
-The API contains a small Node 20 adapter at
-`apps/api/src/modules/log-monitoring/`. It is disabled by default and uses
-the platform's `POST /api/v1/ingest/logs/batch` contract when enabled. The
-adapter keeps a fixed-capacity queue, bounded batches/retries/flush, accepts
-`Retry-After`, and treats `202` as server queue admission rather than durable
-persistence. Every event receives an event ID, server request ID correlation,
-an OpenTelemetry trace ID when available, and a trusted request ID from
-`AsyncLocalStorage`; monitoring errors are swallowed so business operations
-continue.
-
-Use separate project-scoped ingestion keys for local, staging, and production.
-Keep `LOG_MONITORING_API_KEY` server-only and set the other `LOG_MONITORING_*`
-values from `.env.example` or `deploy/.env.example`. The source adapter emits
-bounded events for `AUTH_LOGIN_FAILED`, `QUEUE_CREATE_FAILED`,
-`PAYMENT_WEBHOOK_FAILED`, `LINE_PUSH_FAILED`, `EMAIL_DELIVERY_FAILED`,
-`DATABASE_QUERY_SLOW`, `SCHEDULER_JOB_FAILED`, and unexpected API errors. It
-never sends raw LINE/payment credentials, request bodies, headers, email
-addresses, or LINE user IDs.
-
-Targeted contract checks:
-
-```bash
-npm run test -w apps/api -- --runInBand src/modules/log-monitoring/__tests__/log-monitoring.client.test.ts src/config/__tests__/log-monitoring.config.test.ts
-npm run typecheck -w apps/api
-```
-
-For a staging project/key smoke check (the command never prints the raw key),
-run `npm run log-monitoring:verify` after setting
-`LOG_MONITORING_ENABLED=true`, `LOG_MONITORING_ENDPOINT`, and the staging
-`LOG_MONITORING_API_KEY` in a server-only environment. The command requires a
-real `202` admission and reports the event/server request IDs for the next
-Log Explorer, trace, Live Tail, dashboard, and alert checks.
-
-With a real monitoring project and key available in staging, trigger a queue
-failure and a LINE delivery failure, then verify Log Explorer, trace/request
-correlation, dashboard counts, Live Tail, one low test threshold alert,
-notification delivery/cooldown, and old-key rejection after rotation. This
-manual provider acceptance is deliberately not performed with production
-credentials in source control.
-
 ## 10. Manual LINE verification
 
 1. Configure LINE Login/LIFF and Messaging API under the intended provider.
