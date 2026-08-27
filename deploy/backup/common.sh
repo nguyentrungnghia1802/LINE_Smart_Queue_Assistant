@@ -366,6 +366,7 @@ image_uses_repository() {
 }
 
 load_release_configuration() {
+  local legacy_api_repository legacy_web_repository status
   [[ -f "$ENV_FILE" ]] || die "Environment file not found: $ENV_FILE"
 
   RELEASE_API_REPOSITORY=$(require_env_value LINE_QUEUE_API_REPOSITORY "$ENV_FILE")
@@ -373,12 +374,42 @@ load_release_configuration() {
   CURRENT_API_IMAGE=$(require_env_value LINE_QUEUE_API_IMAGE "$ENV_FILE")
   CURRENT_WEB_IMAGE=$(require_env_value LINE_QUEUE_WEB_IMAGE "$ENV_FILE")
 
+  # During the one-time registry migration the untagged repositories may already point to GHCR
+  # while the running stack still references Docker Hub. These optional, server-owned aliases
+  # make that transition explicit and allow backup to resolve the old running images exactly.
+  RELEASE_API_LEGACY_REPOSITORY=''
+  if legacy_api_repository=$(read_env_value LINE_QUEUE_API_LEGACY_REPOSITORY "$ENV_FILE"); then
+    safe_metadata_value "$legacy_api_repository" LINE_QUEUE_API_LEGACY_REPOSITORY
+    RELEASE_API_LEGACY_REPOSITORY=$legacy_api_repository
+  else
+    status=$?
+    ((status == 1)) || exit "$status"
+  fi
+  RELEASE_WEB_LEGACY_REPOSITORY=''
+  if legacy_web_repository=$(read_env_value LINE_QUEUE_WEB_LEGACY_REPOSITORY "$ENV_FILE"); then
+    safe_metadata_value "$legacy_web_repository" LINE_QUEUE_WEB_LEGACY_REPOSITORY
+    RELEASE_WEB_LEGACY_REPOSITORY=$legacy_web_repository
+  else
+    status=$?
+    ((status == 1)) || exit "$status"
+  fi
+
   require_image_repository "$RELEASE_API_REPOSITORY" LINE_QUEUE_API_REPOSITORY
   require_image_repository "$RELEASE_WEB_REPOSITORY" LINE_QUEUE_WEB_REPOSITORY
-  image_uses_repository "$CURRENT_API_IMAGE" "$RELEASE_API_REPOSITORY" ||
-    die 'LINE_QUEUE_API_IMAGE must belong to LINE_QUEUE_API_REPOSITORY'
-  image_uses_repository "$CURRENT_WEB_IMAGE" "$RELEASE_WEB_REPOSITORY" ||
-    die 'LINE_QUEUE_WEB_IMAGE must belong to LINE_QUEUE_WEB_REPOSITORY'
+  if ! image_uses_repository "$CURRENT_API_IMAGE" "$RELEASE_API_REPOSITORY"; then
+    [[ -n "$RELEASE_API_LEGACY_REPOSITORY" ]] ||
+      die 'LINE_QUEUE_API_IMAGE must belong to LINE_QUEUE_API_REPOSITORY'
+    require_image_repository "$RELEASE_API_LEGACY_REPOSITORY" LINE_QUEUE_API_LEGACY_REPOSITORY
+    image_uses_repository "$CURRENT_API_IMAGE" "$RELEASE_API_LEGACY_REPOSITORY" ||
+      die 'LINE_QUEUE_API_IMAGE must belong to the configured API repository or explicit migration alias'
+  fi
+  if ! image_uses_repository "$CURRENT_WEB_IMAGE" "$RELEASE_WEB_REPOSITORY"; then
+    [[ -n "$RELEASE_WEB_LEGACY_REPOSITORY" ]] ||
+      die 'LINE_QUEUE_WEB_IMAGE must belong to LINE_QUEUE_WEB_REPOSITORY'
+    require_image_repository "$RELEASE_WEB_LEGACY_REPOSITORY" LINE_QUEUE_WEB_LEGACY_REPOSITORY
+    image_uses_repository "$CURRENT_WEB_IMAGE" "$RELEASE_WEB_LEGACY_REPOSITORY" ||
+      die 'LINE_QUEUE_WEB_IMAGE must belong to the configured Web repository or explicit migration alias'
+  fi
 }
 
 normalized_repository() {
@@ -393,6 +424,11 @@ normalized_repository() {
 
 rollback_image_reference() {
   local service=$1 repository=$2 configured image_id digest digest_repository expected_repository
+  local legacy_repository=''
+  case "$service" in
+    api) legacy_repository=${RELEASE_API_LEGACY_REPOSITORY:-} ;;
+    web) legacy_repository=${RELEASE_WEB_LEGACY_REPOSITORY:-} ;;
+  esac
   configured=$(image_reference "$service")
   if is_immutable_image "$configured"; then
     printf '%s' "$configured"
@@ -403,6 +439,12 @@ rollback_image_reference() {
     die "$service image is not an immutable tag or digest: $configured"
 
   image_id=$(image_id "$service")
+  if ! image_uses_repository "$configured" "$repository" && [[ -n "$legacy_repository" ]]; then
+    require_image_repository "$legacy_repository" "${service^^} legacy repository"
+    image_uses_repository "$configured" "$legacy_repository" ||
+      die "$service image does not belong to the configured or migration repository"
+    repository=$legacy_repository
+  fi
   expected_repository=$(normalized_repository "$repository")
   while IFS= read -r digest; do
     [[ "$digest" =~ @sha256:[0-9a-f]{64}$ ]] || continue

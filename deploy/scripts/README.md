@@ -16,15 +16,27 @@ pwsh -NoProfile -File deploy/scripts/build-push.ps1
 ```
 
 The script derives the checked-out full `HEAD`, generates `git-<12-character-sha>`, builds the API
-and Web `runner` images with that same tag, and keeps the full SHA in the OCI revision label. It
-pushes no `latest` alias. After both pushes succeed, copy the printed `DEPLOY_TAG`, full API/Web
-references, and VPS command. By default, the script reads only
+and Web `runner` images with that same tag, and keeps the full SHA in the OCI revision and version
+labels. It pushes no `latest` alias. After both pushes succeed, copy the printed `DEPLOY_TAG`, full
+API/Web references, and VPS command. By default, the script reads only
 `LINE_QUEUE_API_REPOSITORY`/`LINE_QUEUE_WEB_REPOSITORY` from `deploy/.env` (falling back to
-`deploy/.env.example`) and never reads or prints other runtime values. `-ImageNamespace`,
-`-ApiImageRepository`, and `-WebImageRepository` provide explicit overrides; the legacy
-`IMAGE_NAMESPACE`, `DOCKERHUB_NAMESPACE`, `DOCKERHUB_USERNAME`, `API_IMAGE_REPOSITORY`, and
-`WEB_IMAGE_REPOSITORY` environment variables remain supported. Docker Desktop must be running and
-Docker Hub credentials must already be available to the local Docker CLI.
+`deploy/.env.example`) and never reads or prints other runtime values. The repositories must be
+lowercase GHCR paths (`ghcr.io/<owner>/<name>`); `-ImageNamespace`, `-ApiImageRepository`, and
+`-WebImageRepository` are available for explicit GHCR test/recovery overrides. Docker Desktop must
+be running and the local Docker CLI must already be authenticated to GHCR. The publisher checks
+the Docker credential context before building and never accepts a token as a command-line
+argument.
+
+Prepare authentication separately and keep the token out of shell history and repository files:
+
+```powershell
+# Supply the value from a password manager or other protected secret store.
+$env:GHCR_TOKEN | docker login ghcr.io --username <github-owner> --password-stdin
+```
+
+The canonical packages are `ghcr.io/nguyentrungnghia1802/line-smart-queue-api` and
+`ghcr.io/nguyentrungnghia1802/line-smart-queue-web`. They are public for the current demo, but a
+private-package deployment still needs a separate package-read credential on the VPS.
 
 ## VPS deploy
 

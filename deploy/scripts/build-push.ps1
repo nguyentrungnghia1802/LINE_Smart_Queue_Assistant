@@ -16,6 +16,7 @@ $PSNativeCommandUseErrorActionPreference = $true
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $DeployEnvFile = Join-Path $RepositoryRoot 'deploy/.env'
 $DeployEnvExampleFile = Join-Path $RepositoryRoot 'deploy/.env.example'
+$CanonicalGhcrNamespace = 'ghcr.io/nguyentrungnghia1802'
 
 function Invoke-GitCapture {
   param([Parameter(Mandatory)][string[]]$Arguments)
@@ -61,7 +62,8 @@ function Resolve-ConfiguredRepository {
     [Parameter(Mandatory)][string]$EnvironmentKey,
     [Parameter(Mandatory)][string]$DeployKey,
     [Parameter(Mandatory)][string]$DefaultName,
-    [Parameter(Mandatory)][AllowEmptyString()][string]$ResolvedNamespace
+    [Parameter(Mandatory)][AllowEmptyString()][string]$ResolvedNamespace,
+    [Parameter(Mandatory)][bool]$PreferNamespace
   )
 
   if ($ExplicitValue) {
@@ -73,7 +75,7 @@ function Resolve-ConfiguredRepository {
     return $environmentValue
   }
 
-  if ($ResolvedNamespace) {
+  if ($PreferNamespace -and $ResolvedNamespace) {
     return "$ResolvedNamespace/$DefaultName"
   }
 
@@ -82,6 +84,10 @@ function Resolve-ConfiguredRepository {
     if ($configuredValue) {
       return $configuredValue
     }
+  }
+
+  if ($ResolvedNamespace) {
+    return "$ResolvedNamespace/$DefaultName"
   }
 
   throw "Unable to resolve $DeployKey. Configure it in deploy/.env or pass an image namespace/repository."
@@ -93,11 +99,60 @@ function Assert-ImageRepository {
     [Parameter(Mandatory)][string]$Label
   )
 
-  if ($Repository -notmatch '^[A-Za-z0-9][A-Za-z0-9._:/-]*$' -or
-      $Repository.Contains('//') -or $Repository.Contains('..') -or
-      $Repository.Contains('@') -or $Repository.EndsWith('/') -or
-      $Repository.Split('/')[-1].Contains(':')) {
-    throw "$Label must be an untagged Docker image repository"
+  if ($Repository -notmatch '^ghcr\.io/[a-z0-9][a-z0-9-]{0,38}/[a-z0-9][a-z0-9._-]{0,127}$') {
+    throw "$Label must be an untagged lowercase GHCR repository (ghcr.io/<owner>/<name>)"
+  }
+}
+
+function Resolve-DefaultGhcrNamespace {
+  $remote = Invoke-GitCapture -Arguments @('remote', 'get-url', 'origin')
+  $match = [regex]::Match($remote, '(?i)github\.com(?::|/)(?<owner>[A-Za-z0-9-]+)/')
+  if ($match.Success) {
+    return "ghcr.io/$($match.Groups['owner'].Value.ToLowerInvariant())"
+  }
+  return $CanonicalGhcrNamespace
+}
+
+function Assert-GhcrDockerAuthentication {
+  if ($DryRun) {
+    return
+  }
+
+  $dockerConfigDirectory = if ($env:DOCKER_CONFIG) {
+    $env:DOCKER_CONFIG
+  } else {
+    Join-Path ([Environment]::GetFolderPath('UserProfile')) '.docker'
+  }
+  $dockerConfigFile = Join-Path $dockerConfigDirectory 'config.json'
+  if (-not (Test-Path -LiteralPath $dockerConfigFile -PathType Leaf)) {
+    throw 'Authenticate the Docker CLI to ghcr.io before publishing (docker login ghcr.io).'
+  }
+
+  try {
+    $dockerConfig = Get-Content -LiteralPath $dockerConfigFile -Raw | ConvertFrom-Json
+  } catch {
+    throw 'The Docker CLI credential configuration is unreadable; run docker login ghcr.io again.'
+  }
+  if ($null -eq $dockerConfig) {
+    throw 'The Docker CLI credential configuration is unreadable; run docker login ghcr.io again.'
+  }
+
+  $hasGhcrCredential = $false
+  if ($dockerConfig.PSObject.Properties.Name -contains 'auths' -and $null -ne $dockerConfig.auths) {
+    $hasGhcrCredential = @($dockerConfig.auths.PSObject.Properties.Name) -contains 'ghcr.io'
+  }
+  if (-not $hasGhcrCredential -and
+      $dockerConfig.PSObject.Properties.Name -contains 'credHelpers' -and
+      $null -ne $dockerConfig.credHelpers) {
+    $hasGhcrCredential = @($dockerConfig.credHelpers.PSObject.Properties.Name) -contains 'ghcr.io'
+  }
+  if (-not $hasGhcrCredential -and
+      $dockerConfig.PSObject.Properties.Name -contains 'credsStore' -and
+      $dockerConfig.credsStore) {
+    $hasGhcrCredential = $true
+  }
+  if (-not $hasGhcrCredential) {
+    throw 'Authenticate the Docker CLI to ghcr.io before publishing (docker login ghcr.io).'
   }
 }
 
@@ -157,14 +212,13 @@ try {
     }
   }
 
+  $namespaceExplicit = [bool]$ImageNamespace
+  if (-not $ImageNamespace -and $env:GHCR_NAMESPACE) {
+    $ImageNamespace = $env:GHCR_NAMESPACE
+    $namespaceExplicit = $true
+  }
   if (-not $ImageNamespace) {
-    if ($env:IMAGE_NAMESPACE) {
-      $ImageNamespace = $env:IMAGE_NAMESPACE
-    } elseif ($env:DOCKERHUB_NAMESPACE) {
-      $ImageNamespace = $env:DOCKERHUB_NAMESPACE
-    } elseif ($env:DOCKERHUB_USERNAME) {
-      $ImageNamespace = "docker.io/$($env:DOCKERHUB_USERNAME)"
-    }
+    $ImageNamespace = Resolve-DefaultGhcrNamespace
   }
   $ImageNamespace = $ImageNamespace.TrimEnd('/')
 
@@ -173,13 +227,15 @@ try {
     -EnvironmentKey 'API_IMAGE_REPOSITORY' `
     -DeployKey 'LINE_QUEUE_API_REPOSITORY' `
     -DefaultName 'line-smart-queue-api' `
-    -ResolvedNamespace $ImageNamespace
+    -ResolvedNamespace $ImageNamespace `
+    -PreferNamespace $namespaceExplicit
   $webRepository = Resolve-ConfiguredRepository `
     -ExplicitValue $WebImageRepository `
     -EnvironmentKey 'WEB_IMAGE_REPOSITORY' `
     -DeployKey 'LINE_QUEUE_WEB_REPOSITORY' `
     -DefaultName 'line-smart-queue-web' `
-    -ResolvedNamespace $ImageNamespace
+    -ResolvedNamespace $ImageNamespace `
+    -PreferNamespace $namespaceExplicit
   Assert-ImageRepository -Repository $apiRepository -Label 'API image repository'
   Assert-ImageRepository -Repository $webRepository -Label 'Web image repository'
 
@@ -208,6 +264,7 @@ try {
   if (-not $DryRun -and -not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw 'docker is required unless -DryRun is used'
   }
+  Assert-GhcrDockerAuthentication
 
   $releaseTag = "git-$($gitSha.Substring(0, 12))"
   $apiImage = "${apiRepository}:$releaseTag"
@@ -223,12 +280,16 @@ try {
   Invoke-ReleaseCommand docker @(
     'build', '--platform', $Platform, '--target', 'runner',
     '--label', "org.opencontainers.image.revision=$gitSha",
+    '--label', "org.opencontainers.image.version=$releaseTag",
+    '--label', 'org.opencontainers.image.source=https://github.com/nguyentrungnghia1802/LINE_Smart_Queue_Assistant',
     '--tag', $apiImage,
     '--file', 'docker/api/Dockerfile', '.'
   )
   Invoke-ReleaseCommand docker @(
     'build', '--platform', $Platform, '--target', 'runner',
     '--label', "org.opencontainers.image.revision=$gitSha",
+    '--label', "org.opencontainers.image.version=$releaseTag",
+    '--label', 'org.opencontainers.image.source=https://github.com/nguyentrungnghia1802/LINE_Smart_Queue_Assistant',
     '--build-arg', 'VITE_API_URL=',
     '--build-arg', "LINE_LOGIN_LIFF_ID=$LiffId",
     '--build-arg', 'VITE_LIFF_ENDPOINT_PATH=/liff',

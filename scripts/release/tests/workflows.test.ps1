@@ -108,10 +108,22 @@ Assert-Matches $ReleaseJob '(?ms)environment:\s+name: production\s+url:\s+https:
   'The protected production environment must advertise the canonical production URL'
 Assert-Matches $ReleaseJob '(?ms)if:\s+\$\{\{\s*success\(\)\s*\}\}.*?\[Open production\]\(https://smartqueue\.io\.vn/\).*?\$GITHUB_STEP_SUMMARY' `
   'A successful CD run must publish a clickable production URL in the job summary'
-Assert-Matches $ReleaseJob 'DOCKERHUB_TOKEN: \$\{\{ secrets\.DOCKERHUB_TOKEN \}\}' `
-  'The protected release job must read the production environment Docker Hub token'
-Assert-Matches $ReleaseJob 'require_value DOCKERHUB_TOKEN "\$DOCKERHUB_TOKEN"' `
-  'CD must validate all protected production configuration before publishing images'
+Assert-Matches $ReleaseJob '(?ms)permissions:\s+contents: read\s+packages: write' `
+  'The protected release job must grant only contents read and GHCR package write access'
+Assert-Matches $ReleaseJob 'GHCR_OWNER: \$\{\{ github\.repository_owner \}\}' `
+  'CD must derive the GHCR namespace from the repository owner'
+Assert-Matches $ReleaseJob 'api_image="ghcr\.io/\$\{owner\}/line-smart-queue-api:\$\{tag\}"' `
+  'CD must publish the API image to the lowercase GHCR namespace'
+Assert-Matches $ReleaseJob 'web_image="ghcr\.io/\$\{owner\}/line-smart-queue-web:\$\{tag\}"' `
+  'CD must publish the Web image to the lowercase GHCR namespace'
+Assert-Matches $ReleaseJob 'registry: ghcr\.io' `
+  'The protected release job must authenticate Docker to GHCR'
+Assert-Matches $ReleaseJob 'username: \$\{\{ github\.actor \}\}' `
+  'GHCR login must use the GitHub Actions actor identity'
+Assert-Matches $ReleaseJob 'password: \$\{\{ secrets\.GITHUB_TOKEN \}\}' `
+  'GHCR login must use the scoped workflow token'
+Assert-DoesNotMatch $DeployWorkflow 'DOCKERHUB_|docker\.io|Docker Hub' `
+  'The active automatic release workflow must not depend on Docker Hub'
 Assert-DoesNotMatch $DeployWorkflow '(?m)^  (build-publish|deploy):|needs: build-publish' `
   'CD must not split production credentials across separately approved jobs'
 Assert-Matches $ReleaseJob 'tar -tzf "\$RUNNER_TEMP/deploy-tooling\.tar\.gz" >/dev/null' `

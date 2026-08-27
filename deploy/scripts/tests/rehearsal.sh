@@ -45,8 +45,14 @@ if (require_release_tag "git-${short_sha}0") >/dev/null 2>&1; then
   printf 'Shared backup gate unexpectedly accepted a 13-character SHA tag\n' >&2
   exit 1
 fi
-is_immutable_image 'registry.example:5000/team/api:git-111111111111'
-is_immutable_image 'registry.example/team/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+is_immutable_image 'ghcr.io/example/line-smart-queue-api:git-111111111111'
+is_immutable_image 'ghcr.io/example/line-smart-queue-api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+require_image_repository 'ghcr.io/example/line-smart-queue-api' GHCR_API_REPOSITORY
+require_image_repository 'ghcr.io/example/line-smart-queue-web' GHCR_WEB_REPOSITORY
+if (require_image_repository 'ghcr.io/example/line-smart-queue-api:mutable' MUTABLE_REPOSITORY) >/dev/null 2>&1; then
+  printf 'Tagged GHCR repository was unexpectedly accepted\n' >&2
+  exit 1
+fi
 if is_immutable_image 'registry.example:5000/team/api'; then
   printf 'Registry port without an image tag was unexpectedly accepted as immutable\n' >&2
   exit 1
@@ -57,10 +63,10 @@ if is_immutable_image 'registry.example/team/api@sha256:short'; then
 fi
 
 cat > "$test_root/.env" <<'EOF'
-LINE_QUEUE_API_REPOSITORY=example.invalid/line-queue-api
-LINE_QUEUE_WEB_REPOSITORY=example.invalid/line-queue-web
-LINE_QUEUE_API_IMAGE=example.invalid/line-queue-api:latest
-LINE_QUEUE_WEB_IMAGE=example.invalid/line-queue-web:git-111111111111
+LINE_QUEUE_API_REPOSITORY=ghcr.io/example/line-queue-api
+LINE_QUEUE_WEB_REPOSITORY=ghcr.io/example/line-queue-web
+LINE_QUEUE_API_IMAGE=ghcr.io/example/line-queue-api:latest
+LINE_QUEUE_WEB_IMAGE=ghcr.io/example/line-queue-web:git-111111111111
 BACKUP_ROOT=/var/backups/line-smart-queue
 BACKUP_RETENTION_COUNT=14
 EOF
@@ -72,7 +78,7 @@ config_output=$(
     release_image_references "$2"
   ' _ "$BACKUP_COMMON" "$release_tag"
 )
-[[ "$config_output" == $'example.invalid/line-queue-api:'"$release_tag"$'\texample.invalid/line-queue-web:'"$release_tag" ]]
+[[ "$config_output" == $'ghcr.io/example/line-queue-api:'"$release_tag"$'\tghcr.io/example/line-queue-web:'"$release_tag" ]]
 
 printf '%s\n' 'LINE_QUEUE_API_REPOSITORY=example.invalid/duplicate' >> "$test_root/.env"
 if ENV_FILE="$test_root/.env" bash -c 'source "$1"; load_release_configuration' \
@@ -131,7 +137,7 @@ fi
 
 build_output=$(
   pwsh -NoProfile -File "$BUILD_SCRIPT" \
-    -ImageNamespace example.invalid/line-queue \
+    -ImageNamespace ghcr.io/example \
     -LiffId rehearsal-liff-id \
     -DryRun \
     -AllowDirty 2>&1
@@ -148,8 +154,8 @@ if grep -Fq "$retired_liff_variable" <<<"$build_output"; then
   exit 1
 fi
 grep -Fq "DEPLOY_TAG=$release_tag" <<<"$build_output"
-grep -Fq "API_IMAGE=example.invalid/line-queue/line-smart-queue-api:$release_tag" <<<"$build_output"
-grep -Fq "WEB_IMAGE=example.invalid/line-queue/line-smart-queue-web:$release_tag" <<<"$build_output"
+grep -Fq "API_IMAGE=ghcr.io/example/line-smart-queue-api:$release_tag" <<<"$build_output"
+grep -Fq "WEB_IMAGE=ghcr.io/example/line-smart-queue-web:$release_tag" <<<"$build_output"
 grep -Fq "VPS_COMMAND=bash deploy/scripts/deploy.sh $release_tag" <<<"$build_output"
 if grep -Eq '(:latest|latest)' <<<"$build_output"; then
   printf 'Manual build/push plan unexpectedly references latest\n' >&2
@@ -157,7 +163,7 @@ if grep -Eq '(:latest|latest)' <<<"$build_output"; then
 fi
 
 if pwsh -NoProfile -File "$BUILD_SCRIPT" "$release_tag" \
-  -ImageNamespace example.invalid/line-queue -LiffId rehearsal-liff-id \
+  -ImageNamespace ghcr.io/example -LiffId rehearsal-liff-id \
   -DryRun -AllowDirty >/dev/null 2>&1; then
   printf 'Manual build/push unexpectedly accepted an operator-supplied tag\n' >&2
   exit 1
